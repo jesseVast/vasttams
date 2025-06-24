@@ -1,0 +1,2388 @@
+#
+# Copyright 2023 British Broadcasting Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+openapi: 3.1.0
+info:
+  title: Time-addressable Media Store
+  description: |
+    The Time-addressable Media Store (TAMS) is used for storing segmented media flows.
+    The TAMS consists of a media store for the media flow segment objects and a service providing
+    a database index of the flow segments. This document is a specification of the service API.
+
+    See the [bbc/tams](https://github.com/bbc/tams) repository for more background on TAMS.
+
+    **Note**: the examples provided in this specification are for a system which uses a media
+    store that provides HTTP URLs for uploading and downloading media objects in buckets. This
+    could for example be implemented using an AWS S3 compatible store using presigned URLs or by
+    a simple file system storage with an HTTP frontend. Clients should parse the /service endpoint
+    and handle the media store type in use appropriately.
+  version: "6.0"
+  contact:
+    name: 'BBC R&D - Cloud-Fit Production Team'
+    email: 'cloudfit-opensource@rd.bbc.co.uk'
+    url: https://github.com/bbc/tams
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+servers:
+  - url: 'http://localhost:4010'
+    description: Local mock of API
+  - url: 'https://example.com/tams/{version}'
+    description: Example TAMS service
+    variables:
+      version:
+        description: API version
+        default: v6.0
+security:
+  - bearer_token_auth: []
+  - url_token_auth: []
+  - basic_auth: []
+paths:
+  /:
+    head:
+      summary: List Root Endpoints
+      description: Return root path headers
+      operationId: HEAD_root
+      tags:
+        - Service
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_listing_head_200'
+    get:
+      summary: List Root Endpoints
+      description: List of paths available from this API.
+      operationId: GET_root
+      tags:
+        - Service
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                example:
+                  - service
+                  - flows
+                  - sources
+                  - flow-delete-requests
+  /service:
+    head:
+      summary: Service Information
+      description: Return service path headers
+      operationId: HEAD_service
+      tags:
+        - Service
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_listing_head_200'
+    get:
+      summary: Service Information
+      description: Provide information about the service, including the media store in use.
+      operationId: GET_service
+      tags:
+        - Service
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: schemas/service.json
+              example:
+                $ref: examples/service-get-200.json
+    post:
+      summary: Update Service Information
+      description: Update the service info.
+      operationId: POST_service
+      tags:
+        - Service
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: examples/service-post.json
+            schema:
+              $ref: schemas/service-post.json
+        required: true
+      responses:
+        "200":
+          description: Success. The service info has been updated.
+        "400":
+          description: Bad request. Invalid service JSON.
+  /service/webhooks:
+    head:
+      summary: List Webhook URLs
+      description: Return webhooks path headers
+      operationId: HEAD_webhooks
+      tags:
+        - Webhooks
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_listing_head_200'
+        "404":
+          description: "Webhooks are not supported by this API implementation"
+    get:
+      summary: List Webhook URLs
+      description: |
+        Get the list of registered webhook URLs. Implementations SHOULD take steps to avoid displaying URLs to users
+        other than those who have suitable permissions (e.g. the owning user).
+        Availability of this endpoint is indicated by the name "webhooks" appearing in the `event_stream_mechanisms`
+        list on the service endpoint.
+      operationId: GET_webhooks
+      tags:
+        - Webhooks
+      responses:
+        "200":
+          description: Return the list of known webhook URLs. Note that the `api_key_value` will be omitted.
+          content:
+            application/json:
+              example:
+                - url: https://hook.example.com
+                  api_key_name: Authorization
+                  events:
+                    - flows/created
+                    - flows/updated
+                    - flows/deleted
+              schema:
+                type: array
+                items:
+                  $ref: "schemas/webhook.json"
+        "404":
+          description: "Webhooks are not supported by this API implementation"
+    post:
+      summary: Register Webhook URL
+      description: |
+        Register to receive event notifications as webhooks on a specified URL. Webhook messages will conform to the
+        format in the `webhooks` section of the API docs, depending on the event type (as defined in the same section).
+        Availability of this endpoint is indicated by the name "webhooks" appearing in the `event_stream_mechanisms`
+        list on the service endpoint.
+
+        Making a POST request to this endpoint with the same URL, API key name and value but a different list
+        of `events` SHOULD update the existing registration. POSTing an empty list of events SHOULD remove the
+        registration.
+
+        HTTP requests from the service SHOULD include a `api_key_name` header with the 'api_key_value' value. Clients SHOULD verify this against the value they provided when registering the webhook.
+
+        API implementations MAY partially support event filtering and transformations.
+        API implementations SHALL return a 400 response code if the filtering or transformation specified in the request is not supported.
+
+        API implementations SHOULD consider the security implementations of providing webhooks, and include appropriate
+        mitigations against Server Side Request Forgery (SSRF) attacks and similar.
+      operationId: POST_webhooks
+      tags:
+        - Webhooks
+      requestBody:
+        content:
+          application/json:
+            example:
+              url: https://hook.example.com
+              api_key_name: Authorization
+              api_key_value: Bearer 21238dksdjqwpqscj9
+              events:
+                - flows/created
+                - flows/updated
+            schema:
+              $ref: schemas/webhook-post.json
+        required: true
+      responses:
+        "201":
+          description: Success. The webhook has been registered or updated
+        "204":
+          description: Success. The webhook has been removed
+        "400":
+          description: Bad request. Invalid parameters or unsupported event filtering or transformation.
+        "404":
+          description: "Webhooks are not supported by this API implementation"
+  /sources:
+    head:
+      summary: List Sources
+      description: Return Sources path headers
+      operationId: HEAD_sources
+      tags:
+        - Sources
+      parameters:
+        - name: label
+          in: query
+          description: Filter on Sources that have the given label.
+          schema:
+            type: string
+        - name: tag.{name}
+          in: query
+          description: |
+            Filter on Sources that have a tag named {name} and with the given value.
+            The {name} could contain escaped characters to allow it to be used in a
+            URL.
+          schema:
+            type: string
+        - name: tag_exists.{name}
+          in: query
+          description: |
+            Filter on Sources that have a tag named {name} regardless of value. The
+            {name} could contain escaped characters to allow it to be used in a
+            URL. If set to true then the presence of the tag is filtered for. If set
+            to false then its absence is. If left out then no filtering on tag presence
+            is performed.
+          schema:
+            type: boolean
+        - name: format
+          in: query
+          description: Filter on source format.
+          schema:
+            $ref: '#/components/schemas/contentformat'
+        - $ref: '#/components/parameters/trait_resource_paged_key'
+        - $ref: '#/components/parameters/trait_paged_limit'
+      responses:
+        "200":
+          description: ""
+          headers:
+            Link:
+              description: Provides references to cursors for paging. Only the 'rel' attribute with value 'next' and a link to the next page is currently supported. If 'next' is not present then it is the last page.
+              schema:
+                type: string
+            X-Paging-Limit:
+              description: Identifies the current limit being used for paging. This may not match the requested value if the requested value was too high for the implementation
+              schema:
+                type: integer
+            X-Paging-NextKey:
+              description: Opaque string that can be supplied to the `page` query parameter to get the next page of results.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: string
+        "400":
+          $ref: '#/components/responses/trait_resource_info_head_400'
+    get:
+      summary: List Sources
+      description: List the Sources registered in the store and their details.
+      operationId: GET_sources
+      tags:
+        - Sources
+      parameters:
+        - name: label
+          in: query
+          description: Filter on Sources that have the given label.
+          schema:
+            type: string
+        - name: tag.{name}
+          in: query
+          description: |
+            Filter on Sources that have a tag named {name} and with the given value.
+            The {name} could contain escaped characters to allow it to be used in a
+            URL.
+          schema:
+            type: string
+        - name: tag_exists.{name}
+          in: query
+          description: |
+            Filter on Sources that have a tag named {name} regardless of value. The
+            {name} could contain escaped characters to allow it to be used in a
+            URL. If set to true then the presence of the tag is filtered for. If set
+            to false then its absence is. If left out then no filtering on tag presence
+            is performed.
+          schema:
+            type: boolean
+        - name: format
+          in: query
+          description: Filter on source format.
+          schema:
+            $ref: '#/components/schemas/contentformat'
+        - $ref: '#/components/parameters/trait_resource_paged_key'
+        - $ref: '#/components/parameters/trait_paged_limit'
+      responses:
+        "200":
+          description: ""
+          headers:
+            Link:
+              description: Provides references to cursors for paging. Only the 'rel' attribute with value 'next' and a link to the next page is currently supported. If 'next' is not present then it is the last page.
+              schema:
+                type: string
+            X-Paging-Limit:
+              description: Identifies the current limit being used for paging. This may not match the requested value if the requested value was too high for the implementation
+              schema:
+                type: integer
+            X-Paging-NextKey:
+              description: Opaque string that can be supplied to the `page` query parameter to get the next page of results.
+              schema:
+                type: string
+          content:
+            application/json:
+              example:
+                $ref: examples/sources-get-200.json
+              schema:
+                type: array
+                items:
+                  $ref: "schemas/source.json"
+        "400":
+          description: Bad request. Invalid query options.
+  /sources/{sourceId}:
+    parameters:
+      - name: sourceId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The Source identifier.
+    head:
+      summary: Source Details
+      description: Return Source headers
+      operationId: HEAD_sources-sourceId
+      tags:
+        - Sources
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "404":
+          $ref: '#/components/responses/trait_resource_info_head_404'
+    get:
+      summary: Source Details
+      description: Returns Source metadata.
+      operationId: GET_sources-sourceId
+      tags:
+        - Sources
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: schemas/source.json
+              examples:
+                basic:
+                  summary: Source containing elemental video
+                  value:
+                    $ref: examples/source-get-200-basic.json
+                multi:
+                  summary: Multi-essence Source
+                  description: Multi-essence Sources collect multiple Sources of different formats under one Source ID.
+                  value:
+                    $ref: examples/source-get-200-multi.json
+        "404":
+          description: The requested Source does not exist.
+  /sources/{sourceId}/tags:
+    parameters:
+      - name: sourceId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The Source identifier.
+    head:
+      summary: List Source Tags
+      description: Return Source tags path headers
+      operationId: HEAD_sources-sourceId-tags
+      tags:
+        - Sources
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_listing_head_200'
+        "404":
+          description: The requested Source does not exist.
+    get:
+      summary: List Source Tags
+      description: Returns the Source tags.
+      operationId: GET_sources-sourceId-tags
+      tags:
+        - Sources
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              example:
+                ingested_by: ingest_service_api
+              schema:
+                $ref: "schemas/tags.json"
+        "404":
+          description: The requested Source does not exist.
+  /sources/{sourceId}/tags/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The tag name.
+      - name: sourceId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The Source identifier.
+    head:
+      summary: Source Tag Value
+      description: Return Source tag path headers
+      operationId: HEAD_sources-sourceId-tags-name
+      tags:
+        - Sources
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "404":
+          description: The requested Source or tag does not exist.
+    get:
+      summary: Source Tag Value
+      description: Return the tag value associated with the tag name.
+      operationId: GET_sources-sourceId-tags-name
+      tags:
+        - Sources
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              example: |
+                "ingest_service_api"
+              schema:
+                type: string
+        "404":
+          description: The requested Source or tag does not exist.
+    put:
+      summary: Create or Update Source Tag
+      description: Create or update the Source tag
+      operationId: PUT_sources-sourceId-tags-name
+      tags:
+        - Sources
+      requestBody:
+        content:
+          application/json:
+            example: |
+              "new_value"
+            schema:
+              type: string
+        required: true
+      responses:
+        "204":
+          description: No content. The tag has been created or updated.
+        "400":
+          description: Bad request. Invalid Source tag value.
+        "404":
+          description: The requested Source does not exist, or the tag name in the path is invalid.
+    delete:
+      summary: Delete Source Tag
+      description: Delete a specific tag on a Source
+      operationId: DELETE_sources-sourceId-tags-name
+      tags:
+        - Sources
+      responses:
+        "204":
+          description: No content. The Source tag has been deleted.
+        "404":
+          description: The requested Source ID or tag in the path is invalid.
+  /sources/{sourceId}/description:
+    parameters:
+      - name: sourceId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The Source identifier.
+    head:
+      summary: Source Description
+      description: Return Source description path headers
+      operationId: HEAD_sources-sourceId-description
+      tags:
+        - Sources
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "404":
+          $ref: '#/components/responses/trait_resource_info_head_404'
+    get:
+      summary: Source Description
+      description: Returns the Source description property.
+      operationId: GET_sources-sourceId-description
+      tags:
+        - Sources
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              example: |
+                "Big Buck Bunny"
+              schema:
+                type: string
+        "404":
+          description: The requested Source does not exist.
+    put:
+      summary: Create or Update Source Description
+      description: Create or update the description property.
+      operationId: PUT_sources-sourceId-description
+      tags:
+        - Sources
+      requestBody:
+        content:
+          application/json:
+            example: |
+              "Big Buck Bunny Movie"
+            schema:
+              type: string
+        required: true
+      responses:
+        "204":
+          description: No content. The description has been created or updated.
+        "400":
+          description: Bad request. Invalid Source description.
+        "404":
+          description: The requested Source does not exist.
+    delete:
+      summary: Delete Source Description
+      description: Delete the description property.
+      operationId: DELETE_sources-sourceId-description
+      tags:
+        - Sources
+      responses:
+        "204":
+          description: No content. The Source description property has been deleted.
+        "404":
+          description: The Source ID in the path is invalid.
+  /sources/{sourceId}/label:
+    parameters:
+      - name: sourceId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The Source identifier.
+    head:
+      summary: Source Label
+      description: Return Source label path headers
+      operationId: HEAD_sources-sourceId-label
+      tags:
+        - Sources
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "404":
+          description: The requested Source does not exist, or does not have a label set.
+    get:
+      summary: Source Label
+      description: Returns the Source label property.
+      operationId: GET_sources-sourceId-label
+      tags:
+        - Sources
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              example: |
+                "Big Buck Bunny"
+              schema:
+                type: string
+        "404":
+          description: The requested Source does not exist, or does not have a label set.
+    put:
+      summary: Create or Update Source Label
+      description: Create or update the label property.
+      operationId: PUT_sources-sourceId-label
+      tags:
+        - Sources
+      requestBody:
+        content:
+          application/json:
+            example: |
+              "Big Buck Bunny Movie"
+            schema:
+              type: string
+        required: true
+      responses:
+        "204":
+          description: No content. The label has been created or updated.
+        "400":
+          description: Bad request. Invalid Source label.
+        "404":
+          description: The requested Source does not exist.
+    delete:
+      summary: Delete Source Label
+      description: Delete the label property.
+      operationId: DELETE_sources-sourceId-label
+      tags:
+        - Sources
+      responses:
+        "204":
+          description: No content. The Source label property has been deleted.
+        "404":
+          description: The requested Source ID in the path is invalid.
+  /flows:
+    head:
+      summary: List Flows
+      description: Return flows path headers
+      operationId: HEAD_flows
+      tags:
+        - Flows
+      parameters:
+        - name: source_id
+          in: query
+          description: Filter on source identifier.
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: timerange
+          in: query
+          description: Filter on flows that overlap the given timerange.
+          schema:
+            default: _
+            $ref: 'schemas/timerange.json'
+        - name: format
+          in: query
+          description: Filter on flow format.
+          schema:
+            $ref: '#/components/schemas/contentformat'
+        - name: codec
+          in: query
+          description: Filter on flow codec.
+          schema:
+            $ref: '#/components/schemas/mimetype'
+        - name: label
+          in: query
+          description: Filter on flows that have the given label.
+          schema:
+            type: string
+        - name: tag.{name}
+          in: query
+          description: |
+            Filter on flows that have a tag named {name} and with the given value.
+            The {name} could contain escaped characters to allow it to be used in a
+            URL.
+          schema:
+            type: string
+        - name: tag_exists.{name}
+          in: query
+          description: |
+            Filter on flows that have a tag named {name} regardless of value. The
+            {name} could contain escaped characters to allow it to be used in a
+            URL. If set to true then the presence of the tag is filtered for. If set
+            to false then its absence is. If left out then no filtering on tag presence
+            is performed.
+          schema:
+            type: boolean
+        - name: frame_width
+          in: query
+          description: Filter on video flows that have the given frame width.
+          schema:
+            type: integer
+        - name: frame_height
+          in: query
+          description: Filter on video flows that have the given frame height.
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/trait_resource_paged_key'
+        - $ref: '#/components/parameters/trait_paged_limit'
+      responses:
+        "200":
+          description: ""
+          headers:
+            Link:
+              description: Provides references to cursors for paging. Only the 'rel' attribute with value 'next' and a link to the next page is currently supported. If 'next' is not present then it is the last page.
+              schema:
+                type: string
+            X-Paging-Limit:
+              description: Identifies the current limit being used for paging. This may not match the requested value if the requested value was too high for the implementation
+              schema:
+                type: integer
+            X-Paging-NextKey:
+              description: Opaque string that can be supplied to the `page` query parameter to get the next page of results.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: string
+        "400":
+          description: Bad request. Invalid query options.
+    get:
+      summary: List Flows
+      description: List the flows registered in the store.
+      operationId: GET_flows
+      tags:
+        - Flows
+      parameters:
+        - name: source_id
+          in: query
+          description: Filter on source identifier.
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: timerange
+          in: query
+          description: Filter on flows that overlap the given timerange. An empty timerange returns flows with no content.
+          schema:
+            default: _
+            $ref: 'schemas/timerange.json'
+        - name: format
+          in: query
+          description: Filter on flow format.
+          schema:
+            $ref: '#/components/schemas/contentformat'
+        - name: codec
+          in: query
+          description: Filter on flow codec.
+          schema:
+            $ref: '#/components/schemas/mimetype'
+        - name: label
+          in: query
+          description: Filter on flows that have the given label.
+          schema:
+            type: string
+        - name: tag.{name}
+          in: query
+          description: |
+            Filter on flows that have a tag named {name} and with the given value.
+            The {name} could contain escaped characters to allow it to be used in a
+            URL.
+          schema:
+            type: string
+        - name: tag_exists.{name}
+          in: query
+          description: |
+            Filter on flows that have a tag named {name} regardless of value. The
+            {name} could contain escaped characters to allow it to be used in a
+            URL. If set to true then the presence of the tag is filtered for. If set
+            to false then its absence is. If left out then no filtering on tag presence
+            is performed.
+          schema:
+            type: boolean
+        - name: frame_width
+          in: query
+          description: Filter on video flows that have the given frame width.
+          schema:
+            type: integer
+        - name: frame_height
+          in: query
+          description: Filter on video flows that have the given frame height.
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/trait_resource_paged_key'
+        - $ref: '#/components/parameters/trait_paged_limit'
+      responses:
+        "200":
+          description: ""
+          headers:
+            Link:
+              description: Provides references to cursors for paging. Only the 'rel' attribute with value 'next' and a link to the next page is currently supported. If 'next' is not present then it is the last page.
+              schema:
+                type: string
+            X-Paging-Limit:
+              description: Identifies the current limit being used for paging. This may not match the requested value if the requested value was too high for the implementation
+              schema:
+                type: integer
+            X-Paging-NextKey:
+              description: Opaque string that can be supplied to the `page` query parameter to get the next page of results.
+              schema:
+                type: string
+          content:
+            application/json:
+              example:
+                $ref: examples/flows-get-200.json
+              schema:
+                type: array
+                items:
+                  $ref: "schemas/flow.json"
+        "400":
+          description: Bad request. Invalid query options.
+  /flows/{flowId}:
+    parameters:
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The flow identifier.
+    head:
+      summary: Flow Details
+      description: Return flow path headers
+      operationId: HEAD_flows-flowId
+      tags:
+        - Flows
+      parameters:
+        - name: include_timerange
+          in: query
+          description: Include the available segment timerange in the response.
+          schema:
+            default: false
+            type: boolean
+        - name: timerange
+          in: query
+          description: Limit the returned available segment timerange to this timerange.
+          schema:
+            default: _
+            $ref: 'schemas/timerange.json'
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "400":
+          description: Bad request. Invalid query options.
+        "404":
+          $ref: '#/components/responses/trait_resource_info_head_404'
+    get:
+      summary: Flow Details
+      description: Returns flow metadata.
+      operationId: GET_flows-flowId
+      tags:
+        - Flows
+      parameters:
+        - name: include_timerange
+          in: query
+          description: Include the available segment timerange in the response.
+          schema:
+            default: false
+            type: boolean
+        - name: timerange
+          in: query
+          description: Limit the returned available segment timerange to this timerange.
+          schema:
+            default: _
+            $ref: 'schemas/timerange.json'
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: schemas/flow.json
+              examples:
+                video:
+                  summary: Video Flow - H.264 Codec
+                  value:
+                    $ref: examples/flow-get-200-video-h264.json
+                audio:
+                  summary: Audio Flow - AAC Codec
+                  value:
+                    $ref: examples/flow-get-200-audio-aac.json
+                rawvideo:
+                  summary: Video Flow - Uncompressed (Quicktime)
+                  value:
+                    $ref: examples/flow-get-200-video-raw.json
+                jpegimage:
+                  summary: Image Flow - JPEG Codec
+                  value:
+                    $ref: examples/flow-get-200-image-jpeg.json
+                ttml:
+                  summary: Data Flow - TTML
+                  description: TAMS can also be used for storing non-AV content such as subtitles or event data
+                  value:
+                    $ref: examples/flow-get-200-data-ttml.json
+                multi:
+                  summary: Multi-essence Flow
+                  description: Multi-essence Flows are used to collect multiple Flows of different formats under one Flow ID
+                  value:
+                    $ref: examples/flow-get-200-multi.json
+                multi-container-map:
+                  summary: Multi-essence Flow with a container map
+                  description: |
+                    Multi-essence Flows are used to collect multiple Flows of different formats under one Flow ID.
+                    The collection has container maps for the audio Flows as there are 2 audio tracks in the container.
+                  value:
+                    $ref: examples/flow-get-200-multi-container-map.json
+                audio-multi:
+                  summary: Audio Flow in a multi-essence Flow
+                  description: |
+                    The audio Flow does not have a container property as the media is accessed via the multi-essence Flow
+                  value:
+                    $ref: examples/flow-get-200-audio-aac-multi.json
+        "404":
+          description: The requested flow does not exist.
+        "400":
+          description: Bad request. Invalid query options.
+    put:
+      summary: Create or Replace Flow
+      description: Create or replace the flow metadata.
+      operationId: PUT_flows-flowId
+      tags:
+        - Flows
+      requestBody:
+        content:
+          application/json:
+            examples:
+              audio:
+                summary: Stereo audio Flow
+                value:
+                  $ref: examples/flow-put.json
+              multi:
+                summary: Multi-essence Flow
+                value:
+                  $ref: examples/flow-put-multi.json
+            schema:
+              $ref: schemas/flow.json
+        required: true
+      responses:
+        "201":
+          description: The flow has been created.
+          content:
+            application/json:
+              example:
+                $ref: examples/flow-put-201.json
+              schema:
+                $ref: schemas/flow.json
+        "204":
+          description: No content. The flow has been updated.
+        "400":
+          description: Bad request. Invalid flow JSON.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested Flow ID in the path is invalid.
+    delete:
+      summary: Delete Flow
+      description: |
+        Deletes the flow and associated segments. If flow segment deletion
+        takes too long then this request will return 202 Accepted and the `Location` header will point to a
+        Flow Delete Request to monitor deletion progress
+      operationId: DELETE_flows-flowId
+      tags:
+        - Flows
+      responses:
+        "202":
+          description: This request has taken longer than the configured timeout, and will continue asynchronously
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /flow-delete-request/{request-id}
+          content:
+            application/json:
+              schema:
+                $ref: schemas/deletion-request.json
+              example:
+                $ref: examples/deletion-request-get-200.json
+        "204":
+          description: No content. The flow has been deleted and the flow segments have been or will be deleted.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested Flow ID in the path is invalid.
+  /flows/{flowId}/tags:
+    parameters:
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The flow identifier.
+    head:
+      summary: List Flow Tags
+      description: Return flow tags path headers
+      operationId: HEAD_flows-flowId-tags
+      tags:
+        - Flows
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_listing_head_200'
+        "404":
+          description: The requested flow does not exist.
+    get:
+      summary: List Flow Tags
+      description: Returns the flow tags.
+      operationId: GET_flows-flowId-tags
+      tags:
+        - Flows
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              example:
+                $ref: examples/flow-tags-get-200.json
+              schema:
+                $ref: schemas/tags.json
+        "404":
+          description: The requested flow does not exist.
+  /flows/{flowId}/tags/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The tag name.
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The flow identifier.
+    head:
+      summary: Flow Tag Value
+      description: Return flow tag path headers
+      operationId: HEAD_flows-flowId-tags-name
+      tags:
+        - Flows
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "404":
+          description: The requested flow or tag does not exist.
+    get:
+      summary: Flow Tag Value
+      description: Return the tag value associated with the tag name.
+      operationId: GET_flows-flowId-tags-name
+      tags:
+        - Flows
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              example: |
+                "full"
+              schema:
+                type: string
+        "404":
+          description: The requested flow or tag does not exist.
+    put:
+      summary: Create or Update Flow Tag
+      description: Create or update the tag.
+      operationId: PUT_flows-flowId-tags-name
+      tags:
+        - Flows
+      requestBody:
+        content:
+          application/json:
+            example: |
+              "proxy"
+            schema:
+              type: string
+        required: true
+      responses:
+        "204":
+          description: No content. The tag has been created or updated.
+        "400":
+          description: Bad request. Invalid flow tag value.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested flow does not exist.
+    delete:
+      summary: Delete Flow Tag
+      description: Delete the tag.
+      operationId: DELETE_flows-flowId-tags-name
+      tags:
+        - Flows
+      responses:
+        "204":
+          description: No content. The flow tag has been deleted.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested flow ID in the path is invalid.
+  /flows/{flowId}/description:
+    parameters:
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The flow identifier.
+    head:
+      summary: Flow Description
+      description: Return flow description path headers
+      operationId: HEAD_flows-flowId-description
+      tags:
+        - Flows
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "404":
+          $ref: '#/components/responses/trait_resource_info_head_404'
+    get:
+      summary: Flow Description
+      description: Returns the flow description property.
+      operationId: GET_flows-flowId-description
+      tags:
+        - Flows
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              example: |
+                "video capture"
+              schema:
+                type: string
+        "404":
+          description: The requested flow does not exist.
+    put:
+      summary: Create or Update Flow Description
+      description: Create or update the description property.
+      operationId: PUT_flows-flowId-description
+      tags:
+        - Flows
+      requestBody:
+        content:
+          application/json:
+            example: |
+              "Big Buck Bunny video-only capture"
+            schema:
+              type: string
+        required: true
+      responses:
+        "204":
+          description: No content. The description has been created or updated.
+        "400":
+          description: Bad request. Invalid flow description.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested flow does not exist.
+    delete:
+      summary: Delete Flow Description
+      description: Delete the description property.
+      operationId: DELETE_flows-flowId-description
+      tags:
+        - Flows
+      responses:
+        "204":
+          description: No content. The flow description property has been deleted.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested flow ID in the path is invalid.
+  /flows/{flowId}/label:
+    parameters:
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The flow identifier.
+    head:
+      summary: Flow Label
+      description: Return Flow label path headers
+      operationId: HEAD_flows-flowId-label
+      tags:
+        - Flows
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "404":
+          description: The requested Flow does not exist, or does not have a label set.
+    get:
+      summary: Flow Label
+      description: Returns the Flow label property.
+      operationId: GET_flows-flowId-label
+      tags:
+        - Flows
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              example: |
+                "Big Buck Bunny"
+              schema:
+                type: string
+        "404":
+          description: The requested Flow does not exist, or does not have a label set.
+    put:
+      summary: Create or Update Flow Label
+      description: Create or update the label property.
+      operationId: PUT_flows-flowId-label
+      tags:
+        - Flows
+      requestBody:
+        content:
+          application/json:
+            example: |
+              "Big Buck Bunny Movie"
+            schema:
+              type: string
+        required: true
+      responses:
+        "204":
+          description: No content. The label has been created or updated.
+        "400":
+          description: Bad request. Invalid Flow label.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested Flow does not exist.
+    delete:
+      summary: Delete Flow Label
+      description: Delete the label property.
+      operationId: DELETE_flows-flowId-label
+      tags:
+        - Flows
+      responses:
+        "204":
+          description: No content. The Flow label property has been deleted.
+        "404":
+          description: The requested Flow ID in the path is invalid.
+  /flows/{flowId}/read_only:
+    parameters:
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The flow identifier.
+    head:
+      summary: Flow Read-Only
+      description: Return flow read_only path headers
+      operationId: HEAD_flows-flowId-read-only
+      tags:
+        - Flows
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "404":
+          $ref: '#/components/responses/trait_resource_info_head_404'
+    get:
+      summary: Flow Read-Only
+      description: Returns the flow read_only property.
+      operationId: GET_flows-flowId-read-only
+      tags:
+        - Flows
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              example: true
+              schema:
+                type: boolean
+        "404":
+          description: The requested flow does not exist.
+    put:
+      summary: Set Flow Read-Only
+      description: Set the read-only property.
+      operationId: PUT_flows-flowId-read-only
+      tags:
+        - Flows
+      requestBody:
+        content:
+          application/json:
+            example: true
+            schema:
+              type: boolean
+        required: true
+      responses:
+        "204":
+          description: No content. The read_only property has been set to the given value.
+        "400":
+          description: Bad request. Invalid flow read_only value. Value must be boolean.
+        "404":
+          description: The requested flow does not exist.
+  /flows/{flowId}/flow_collection:
+    parameters:
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The flow identifier.
+    head:
+      summary: Flow Collection
+      description: Returns the flow collection path headers
+      operationId: HEAD_flows-flowId-flow-collection
+      tags:
+        - Flows
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "404":
+          $ref: '#/components/responses/trait_resource_info_head_404'
+    get:
+      summary: Flow Collection
+      description: Returns the flow collection property.
+      operationId: GET_flows-flowId-flow-collection
+      tags:
+        - Flows
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              example:
+                $ref: examples/flow-collection-get-200.json
+              schema:
+                $ref: schemas/flow-collection.json
+        "404":
+          description: The requested flow does not exist.
+    put:
+      summary: Create or Update Flow Collection
+      description: Create or update the flow collection property.
+      operationId: PUT_flows-flowId-flow-collection
+      tags:
+        - Flows
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: examples/flow-collection-put.json
+            schema:
+              $ref: schemas/flow-collection.json
+        required: true
+      responses:
+        "204":
+          description: No content. The flow collection has been created or updated.
+        "400":
+          description: Bad request. Invalid flow collection.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested flow does not exist.
+    delete:
+      summary: Delete Flow Collection
+      description: Delete the flow collection property.
+      operationId: DELETE_flows-flowId-flow-collection
+      tags:
+        - Flows
+      responses:
+        "204":
+          description: No content. The flow collection property has been deleted.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested flow ID in the path is invalid.
+  /flows/{flowId}/max_bit_rate:
+    parameters:
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The flow identifier.
+    head:
+      summary: Flow Maximum Bit Rate
+      description: Returns the flow max bit rate path headers
+      operationId: HEAD_flows-flowId-max-bit-rate
+      tags:
+        - Flows
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "404":
+          $ref: '#/components/responses/trait_resource_info_head_404'
+    get:
+      summary: Flow Maximum Bit Rate
+      description: Returns the flow max bit rate property.
+      operationId: GET_flows-flowId-max-bit-rate
+      tags:
+        - Flows
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              example: 5000
+              schema:
+                type: integer
+                minimum: 0
+        "404":
+          description: The requested flow does not exist.
+    put:
+      summary: Create or Update Flow Maximum Bit Rate
+      description: Create or update the max bit rate property.
+      operationId: PUT_flows-flowId-max-bit-rate
+      tags:
+        - Flows
+      requestBody:
+        content:
+          application/json:
+            example: 5000
+            schema:
+              type: integer
+              minimum: 0
+        required: true
+      responses:
+        "204":
+          description: No content. The max bit rate has been created or updated.
+        "400":
+          description: Bad request. Invalid flow max bit rate.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested flow does not exist.
+    delete:
+      summary: Delete Flow Maximum Bit Rate
+      description: Delete the flow max bit rate property.
+      operationId: DELETE_flows-flowId-max-bit-rate
+      tags:
+        - Flows
+      responses:
+        "204":
+          description: No content. The flow max bit rate property has been deleted.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested flow ID in the path is invalid.
+  /flows/{flowId}/avg_bit_rate:
+    parameters:
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The flow identifier.
+    head:
+      summary: Flow Average Bit Rate
+      description: Returns the flow average bit rate path headers
+      operationId: HEAD_flows-flowId-avg-bit-rate
+      tags:
+        - Flows
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "404":
+          $ref: '#/components/responses/trait_resource_info_head_404'
+    get:
+      summary: Flow Average Bit Rate
+      description: Returns the flow average bit rate property.
+      operationId: GET_flows-flowId-avg-bit-rate
+      tags:
+        - Flows
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              example: 3246
+              schema:
+                type: integer
+                minimum: 0
+        "404":
+          description: The requested flow does not exist.
+    put:
+      summary: Create or Update Flow Average Bit Rate
+      description: Create or update the average bit rate property.
+      operationId: PUT_flows-flowId-avg-bit-rate
+      tags:
+        - Flows
+      requestBody:
+        content:
+          application/json:
+            example: 3246
+            schema:
+              type: integer
+              minimum: 0
+        required: true
+      responses:
+        "204":
+          description: No content. The average bit rate has been created or updated.
+        "400":
+          description: Bad request. Invalid flow avg bit rate.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested flow does not exist.
+    delete:
+      summary: Delete Flow Average Bit Rate
+      description: Delete the flow average bit rate property.
+      operationId: DELETE_flows-flowId-avg-bit-rate
+      tags:
+        - Flows
+      responses:
+        "204":
+          description: No content. The flow average bit rate property has been deleted.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested flow ID in the path is invalid.
+  /flows/{flowId}/segments:
+    parameters:
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The flow identifier.
+    head:
+      summary: List Flow Segments
+      description: Return flow segments path headers
+      operationId: HEAD_flows-flowId-segments
+      tags:
+        - FlowSegments
+      parameters:
+        - name: object_id
+          in: query
+          description: Filter on object identifier.
+          schema:
+            type: string
+        - name: timerange
+          in: query
+          description: Return only the results in the timerange specified.
+          schema:
+            $ref: 'schemas/timerange.json'
+        - name: reverse_order
+          in: query
+          description: Return segments in reverse time order.
+          schema:
+            default: false
+            type: boolean
+        - name: accept_get_urls
+          in: query
+          description: |
+            A comma separated list of labels of flow segment `get_urls` to include in the response.
+            Omitting `accept_get_urls` will result in all `get_urls` returned.
+            An empty `accept_get_urls` results in an empty or no `get_urls` in the response.
+            Flow segment `get_urls` with no label cannot be filtered for; they will only be returned if `accept_get_urls` is omitted.
+            Without `get_urls`, the response from the service could be substantially faster if it is not required to
+            generate a large number of pre-signed URLs for example.
+          schema:
+            type: string
+            pattern: ^([^,]+(,[^,]+)*)?$
+        - $ref: '#/components/parameters/trait_resource_paged_key'
+        - $ref: '#/components/parameters/trait_paged_limit'
+      responses:
+        "200":
+          description: ""
+          headers:
+            Link:
+              description: Provides references to cursors for paging. Only the 'rel' attribute with value 'next' is currently supported. If 'next' is not present then it is the last page.
+              schema:
+                type: string
+            X-Paging-Limit:
+              description: Identifies the current limit being used for paging. This may not match the requested value if the requested value was too high for the implementation
+              schema:
+                type: integer
+            X-Paging-Timerange:
+              description: Identifies the timerange for the returned data set.
+              schema:
+                $ref: 'schemas/timerange.json'
+            X-Paging-Count:
+              description: The number of items in the returned data set.
+              schema:
+                type: integer
+            X-Paging-Reverse-Order:
+              description: The items are returned in reverse order.
+              schema:
+                type: boolean
+            X-Paging-NextKey:
+              description: Opaque string that can be supplied to the `page` query parameter to get the next page of results.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: string
+        "400":
+          description: Bad request. Invalid query options.
+        "404":
+          description: The flow ID in the path is invalid.
+    get:
+      summary: List Flow Segments
+      description: |
+        Returns the flow segments.
+
+        The flow segment provides information about the media object. The media store type, which is
+        indicated in the /service resource, determines the information that is included to allow the
+        flow segment's media object to be downloaded. The examples provided here are for the
+        "http_object_store" media store type which MUST include a `get_urls` property that contains the
+        HTTP URLs for downloading the media object - server implementations should generate this internally.
+
+        The flow segment may include timing and timerange adjustment information that the client needs to
+        apply when extracting the samples from the media object.
+        - If `sample_count` is set, the timerange of samples must be `sample_offset` to
+         `sample_offset + sample_count` (exclusive). Otherwise, the timerange of samples must be
+          `sample_offset` until the end.
+        - The sample timestamp in the flow segment (`segment_ts`) is the timestamp in the media object
+          (`media_object_ts`) adjusted by `ts_offset`: `segment_ts = media_object_ts + ts_offset`. The
+          `segment_ts` should equal the start of the `timerange` for the sample at `sample_offset`.
+
+        Use the pagination options to limit the results to a timerange and/or count. The list of flow
+        segments can be empty. A request for segments from a non-existent flow will return an empty
+        list, not a 404.
+
+        Note that for codecs with temporal re-ordering, the timerange representes the _presentation_
+        timeline, and clients may need to check the `key_frame_count` property and/or read backwards
+        from the start of the requested timerange to retrieve enough reference material to start
+        decoding.
+
+        When making requests to the provided `get_urls`, clients should include credentials if the provided
+        URL is on the same origin as the API itself, akin to the `same-origin` mode in the
+        [WhatWG Fetch Standard](https://fetch.spec.whatwg.org/#concept-request-credentials-mode).
+      operationId: GET_flows-flowId-segments
+      tags:
+        - FlowSegments
+      parameters:
+        - name: object_id
+          in: query
+          description: Filter on object identifier.
+          schema:
+            type: string
+        - name: timerange
+          in: query
+          description: Return only the results in the timerange specified.
+          schema:
+            $ref: 'schemas/timerange.json'
+        - name: reverse_order
+          in: query
+          description: Return segments in reverse time order.
+          schema:
+            default: false
+            type: boolean
+        - name: accept_get_urls
+          in: query
+          description: |
+            A comma separated list of labels of flow segment `get_urls` to include in the response.
+            Omitting `accept_get_urls` will result in all `get_urls` returned.
+            An empty `accept_get_urls` results in an empty or no `get_urls` in the response.
+            Flow segment `get_urls` with no label cannot be filtered for; they will only be returned if `accept_get_urls` is omitted.
+            Without `get_urls`, the response from the service could be substantially faster if it is not required to
+            generate a large number of pre-signed URLs for example.
+          schema:
+            type: string
+            pattern: ^([^,]+(,[^,]+)*)?$
+        - $ref: '#/components/parameters/trait_resource_paged_key'
+        - $ref: '#/components/parameters/trait_paged_limit'
+      responses:
+        "200":
+          description: ""
+          headers:
+            Link:
+              description: Provides references to cursors for paging. Only the 'rel' attribute with value 'next' is currently supported. If 'next' is not present then it is the last page.
+              schema:
+                type: string
+            X-Paging-Limit:
+              description: Identifies the current limit being used for paging. This may not match the requested value if the requested value was too high for the implementation
+              schema:
+                type: integer
+            X-Paging-Timerange:
+              description: Identifies the timerange for the returned data set.
+              schema:
+                $ref: 'schemas/timerange.json'
+            X-Paging-Count:
+              description: The number of items in the returned data set.
+              schema:
+                type: integer
+            X-Paging-Reverse-Order:
+              description: The items are returned in reverse order.
+              schema:
+                type: boolean
+            X-Paging-NextKey:
+              description: Opaque string that can be supplied to the `page` query parameter to get the next page of results.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: schemas/flow-segment.json
+              examples:
+                basic:
+                  summary: Basic Example
+                  value:
+                    $ref: examples/flow-segments-get-200.json
+                sample_count:
+                  summary: Partial Segment
+                  description: |
+                    This example takes part of an existing segment, offsets it with `ts_offset` and then selects a
+                    subset of the samples within using `ts_offset` for the second segment in the sequence.
+                  value:
+                    $ref: examples/flow-segments-get-200-sample-offset.json
+                multiple_urls:
+                  summary: Multiple URLs
+                  description: |
+                    This example shows how the media object for a Flow Segment could be accessed using multiple URLs.
+                    Clients are free to choose any of the URLs given (which return identical media objects), however the server has
+                    expressed a preference for the "pipeline-a" URLs by putting them first in the list.
+                  value:
+                    $ref: examples/flow-segments-get-200-multiple-urls.json
+        "400":
+          description: Bad request. Invalid query options.
+        "404":
+          description: The flow ID in the path is invalid.
+    post:
+      summary: Create Flow Segments
+      description: |
+        Register either a single new flow segment or an array of segments, attaching the object id given to a point in the flow timeline.
+
+        The segment may use a newly-written object, or re-use an existing object from another flow.
+
+        For newly-written objects, the client is responsible for ensuring that the segment written to the store obeys the following restrictions:
+        - All samples in the object SHOULD be used by the segment.
+        - The timestamps of each sample in the media object MUST equal its position on the Flow timeline, OR `ts_offset` MUST
+          be set such that `media_object_ts + ts_offset = segment_ts`
+        - The timerange of the segment MUST NOT overlap any other segment in the same Flow. The behaviour is
+          undefined if there is an overlap with existing segments and a store may return a 400 error response.
+        - The `sample_offset` SHOULD be zero.
+
+        A TAMS SHOULD reject registrations of Flow Segments with a 400 error response if it references a newly created media object
+        in the local TAMS storage that was not intended to be used for the Flow. A TAMS SHOULD accept Flow Segments that reference an
+        existing media object in the local TAMS storage that was originally created for another Flow.
+
+        A TAMS MAY support media objects that are held in external storage in another TAMS or other media storage system. The Flow Segment
+        may in that case require the `get_urls` property to provide the information needed by clients to access the media object.
+
+        If a client needs to modify a Flow segment, e.g. to correct metadata such as the `key_frame_count` or add additional
+        URLs to `get_urls`, then the client SHOULD first delete the existing segment and then write a new one. The behaviour is
+        undefined if the segment exists and a store may return a 400 error response.
+
+        For successful creation of all segments in the request a 201 response should be provided.  If an error is detected when processing
+        a list of segments then processing should continue to try and process the remaining segments.  A 200 response should be returned 
+        listing the failed segments.
+
+        Clients are expected to decide how to break content into media objects, however those objects SHOULD be large
+        enough to avoid excessive round trip overheads in the underlying store (_e.g._ of the order of several megabytes)
+        and where codecs with temporal re-ordering are used, object SHOULD contain complete GOPs or decodable units.
+
+        For objects that have been re-used from other flows, the `sample_offset` and `sample_count` MAY be used to
+        specify part of the object to use:
+        - The `timerange` field indicates the new segment's position in the flow
+        - The sample associated with the start of the `timerange` MUST be the one selected by `sample_offset`
+        - Likewise, the sample associated with the end of the `timerange` MUST be the one selected by
+          `sample_offset + sample_count - 1`, unless `timerange` has an exclusive end, in which case it will be
+          `sample_offset + sample_count`.
+        - The timerange of the segment MUST NOT overlap any other segment in the same Flow.
+      operationId: POST_flows-flowId-segments
+      tags:
+        - FlowSegments
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: examples/flow-segment-post.json
+            schema:
+              oneOf:
+              - $ref: schemas/flow-segment.json
+              - type: array
+                items:
+                  $ref: schemas/flow-segment.json
+        required: true
+      responses:
+        "200":
+          description: Partial success creating segments returning list of failed segments.  
+          content:
+            application/json:
+              schema:
+                $ref: schemas/flow-segment-bulk-failure.json
+              example:
+                $ref: examples/flow-segment-partial-failure.json
+        "201":
+          description: created. The flow segment or list of segments has been created.
+        "400":
+          description: Bad request. Invalid flow segment JSON or the flow 'container' is not set.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The flow does not exist.
+    delete:
+      summary: Delete Flow Segment
+      description: |
+        Deletes the flow segments. If the deletion takes too long then this request will return 202 Accepted and the `Location` header will point to a
+        Flow Delete Request to monitor deletion progress
+      operationId: DELETE_flows-flowId-segments
+      tags:
+        - FlowSegments
+      parameters:
+        - name: timerange
+          in: query
+          description: Only delete flow segments that are completely covered by the given timerange.
+          schema:
+            default: _
+            $ref: 'schemas/timerange.json'
+        - name: object_id
+          in: query
+          description: Filter on object identifier.
+          schema:
+            type: string
+      responses:
+        "202":
+          description: This request has taken longer than the configured timeout, and will continue asynchronously
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /flow-delete-request/{request-id}
+          content:
+            application/json:
+              schema:
+                $ref: schemas/deletion-request.json
+              example:
+                $ref: examples/deletion-request-get-200.json
+        "204":
+          description: No content. The flow segments have been or will be deleted.
+        "400":
+          description: Bad request. Invalid query options.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested flow ID in the path is invalid.
+  /flows/{flowId}/storage:
+    parameters:
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/uuid'
+        description: The flow identifier.
+    post:
+      summary: Allocate Flow Storage
+      description: |
+        Allocate storage locations for writing media objects.
+
+        The media store type, which is indicated in the /service resource, determines the information provided
+        in the response. The examples and description below are for the "http_object_store" media store type.
+        This media store type provides HTTP URLs for uploading and downloading media objects in buckets.
+
+        The response will include a PUT URL that a client uses to upload the media object. The client is expected
+        to register the flow segment using the /flows/{flowId}/segments endpoint once the upload is complete.
+        Implementations need to handle situations where objects were uploaded but no flow segment was registered
+        successfully.
+
+        The response may include PUT URLs for creating buckets for the media objects. These PUT URLs should
+        be used before uploading media objects. The object_id associated with each storage location has the
+        bucket name as its prefix.
+
+        The response may include PUT URLs for setting the CORS properties for the buckets and media objects.
+
+        When making requests to the provided `put_url`, clients should include credentials if the provided
+        URL is on the same origin as the API itself, akin to the `same-origin` mode in the
+        [WhatWG Fetch Standard](https://fetch.spec.whatwg.org/#concept-request-credentials-mode).
+      operationId: POST_flows-flowId-storage
+      tags:
+        - MediaStorage
+      requestBody:
+        content:
+          application/json:
+            examples:
+              limit:
+                summary: limit
+                value:
+                  $ref: examples/flow-storage-post.json
+              object_ids:
+                summary: object_ids
+                value:
+                  $ref: examples/flow-storage-post-object_ids.json
+            schema:
+              $ref: schemas/flow-storage-post.json
+      responses:
+        "201":
+          description: Storage locations for writing media objects.
+          content:
+            application/json:
+              schema:
+                $ref: schemas/flow-storage.json
+              example:
+                $ref: examples/flow-storage-post-201.json
+        "400":
+          description: Bad request. Invalid flow storage request JSON or the flow 'container' is not set. If object_ids supplied, some or all already exist.
+        "403":
+          description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
+        "404":
+          description: The requested flow does not exist.
+  /objects/{objectId}:
+    head:
+      summary: Media Object Information
+      description: Return flow references and other information about media objects.
+      operationId: HEAD_objects
+      tags:
+        - Objects
+      parameters:
+        - name: objectId
+          in: path
+          description: The media object identifier.
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/trait_resource_paged_key'
+        - $ref: '#/components/parameters/trait_paged_limit'
+      responses:
+        "200":
+          description: ""
+          headers:
+            Link:
+              description: Provides references to cursors for paging. Only the 'rel' attribute with value 'next' and a link to the next page is currently supported. If 'next' is not present then it is the last page.
+              schema:
+                type: string
+            X-Paging-Limit:
+              description: Identifies the current limit being used for paging. This may not match the requested value if the requested value was too high for the implementation
+              schema:
+                type: integer
+            X-Paging-NextKey:
+              description: Opaque string that can be supplied to the `page` query parameter to get the next page of results.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: string
+        "400":
+          $ref: '#/components/responses/trait_resource_info_head_400'
+        "404":
+          description: The requested media object does not exist.
+    get:
+      summary: Media Object Information
+      description: |
+        Contains flows that references the media object and other information.
+
+        The paging query parameters and headers are required for the list of flow references in the media object.
+        API implementations should return a complete list of flow references within reason and API clients should expect
+        paging to happen in some rare cases where a media object is used in many flows.
+      operationId: GET_objects
+      tags:
+        - Objects
+      parameters:
+        - name: objectId
+          in: path
+          description: The media object identifier.
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/trait_resource_paged_key'
+        - $ref: '#/components/parameters/trait_paged_limit'
+      responses:
+        "200":
+          description: ""
+          headers:
+            Link:
+              description: Provides references to cursors for paging. Only the 'rel' attribute with value 'next' and a link to the next page is currently supported. If 'next' is not present then it is the last page.
+              schema:
+                type: string
+            X-Paging-Limit:
+              description: Identifies the current limit being used for paging. This may not match the requested value if the requested value was too high for the implementation
+              schema:
+                type: integer
+            X-Paging-NextKey:
+              description: Opaque string that can be supplied to the `page` query parameter to get the next page of results.
+              schema:
+                type: string
+          content:
+            application/json:
+              example:
+                $ref: examples/objects-get-200.json
+              schema:
+                $ref: "schemas/object.json"
+        "400":
+          description: Bad request. Invalid query options.
+        "404":
+          description: The requested media object does not exist.
+  /flow-delete-requests:
+    head:
+      summary: List Flow Delete Requests
+      description: Return flow-delete-requests path headers
+      operationId: HEAD_flow-delete-requests
+      tags:
+        - FlowDeleteRequests
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_listing_head_200'
+    get:
+      summary: List Flow Delete Requests
+      description: |
+        List deletion requests currently being worked on, for monitoring in development.
+
+        This will not necessarily list all requests, nor return a consistent set in any particular order,
+        and should not be relied upon by clients. However if there are any requests in the system, it will
+        always return at least one.
+      operationId: GET_flow-delete-requests
+      tags:
+        - FlowDeleteRequests
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: schemas/deletion-requests-list.json
+              example:
+                $ref: examples/deletion-requests-get-200.json
+  /flow-delete-requests/{request-id}:
+    parameters:
+      - name: request-id
+        in: path
+        required: true
+        schema:
+          type: string
+    head:
+      summary: Flow Delete Request Details
+      description: Return flow delete request path headers
+      operationId: HEAD_flow-delete-requests-request-id
+      tags:
+        - FlowDeleteRequests
+      responses:
+        "200":
+          $ref: '#/components/responses/trait_resource_info_head_200'
+        "404":
+          $ref: '#/components/responses/trait_resource_info_head_404'
+    get:
+      summary: Flow Delete Request Details
+      description: |
+        Get information about a timerange of FlowSegments that are being deleted.
+
+        A deletion request is created when a client DELETEs a long timeranges of segments, which takes longer than
+        a single HTTP request. Clients will be redirected here to monitor the request's progress.
+      operationId: GET_flow-delete-requests-request-id
+      tags:
+        - FlowDeleteRequests
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: schemas/deletion-request.json
+              example:
+                $ref: examples/deletion-request-get-200.json
+        "404":
+          description: The requested flow delete request does not exist.
+webhooks:
+  flows/created:
+    post:
+      security:
+        - {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Flow Created Notification
+              description: Information about a Flow which has been newly created in this store instance
+              required:
+                - event_timestamp
+                - event_type
+                - event
+              properties:
+                event_timestamp:
+                  description: Timestamp at which the new Flow was created
+                  type: string
+                  format: date-time
+                event_type:
+                  type: string
+                  const: flows/created
+                event:
+                  type: object
+                  required:
+                    - flow
+                  properties:
+                    flow:
+                      $ref: "schemas/flow.json"
+  flows/updated:
+    post:
+      security:
+        - {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Flow Updated Notification
+              description: Information about a Flow for which the metadata has been modified.
+              required:
+                - event_timestamp
+                - event_type
+                - event
+              properties:
+                event_timestamp:
+                  description: Timestamp at which the Flow was modified
+                  type: string
+                  format: date-time
+                event_type:
+                  type: string
+                  const: flows/updated
+                event:
+                  type: object
+                  required:
+                    - flow
+                  properties:
+                    flow:
+                      $ref: "schemas/flow.json"
+  flows/deleted:
+    post:
+      security:
+        - {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Flow Deleted Notification
+              description: Notification that a Flow has been deleted (or scheduled for deletion).
+              required:
+                - event_timestamp
+                - event_type
+                - event
+              properties:
+                event_timestamp:
+                  description: Timestamp at which the Flow was modified
+                  type: string
+                  format: date-time
+                event_type:
+                  type: string
+                  const: flows/deleted
+                event:
+                  type: object
+                  required:
+                    - flow_id
+                  properties:
+                    flow_id:
+                      $ref: "#/components/schemas/uuid"
+  flows/segments_added:
+    post:
+      security:
+        - {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Flow Segments Added
+              description: |
+                Notification that new segments have been added to a Flow.
+              required:
+                - event_timestamp
+                - event_type
+                - event
+              properties:
+                event_timestamp:
+                  description: Timestamp at which the most recent segment in the timerange was added (and the message generated)
+                  type: string
+                  format: date-time
+                event_type:
+                  type: string
+                  const: flows/segments_added
+                event:
+                  type: object
+                  required:
+                    - flow_id
+                    - segments
+                  properties:
+                    flow_id:
+                      $ref: "#/components/schemas/uuid"
+                    segments:
+                      type: array
+                      items:
+                        $ref: 'schemas/flow-segment.json'
+  flows/segments_deleted:
+    post:
+      security:
+        - {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Flow Segments Deleted
+              description: |
+                Notification that segments have been deleted from a Flow.
+              required:
+                - event_timestamp
+                - event_type
+                - event
+              properties:
+                event_timestamp:
+                  description: Timestamp at which the most recent segment in the timerange was added (and the message generated)
+                  type: string
+                  format: date-time
+                event_type:
+                  type: string
+                  const: flows/segments_added
+                event:
+                  type: object
+                  required:
+                    - flow_id
+                    - timerange
+                  properties:
+                    flow_id:
+                      $ref: "#/components/schemas/uuid"
+                    timerange:
+                      description: The timerange of segments that have been deleted. The timerange MUST intersect with a segment which has been deleted at both start and end (e.g. it cannot start or end in empty space).
+                      $ref: 'schemas/timerange.json'
+  sources/created:
+    post:
+      security:
+        - {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Source Created Notification
+              description: Information about a Source which has been newly created in this store instance
+              required:
+                - event_timestamp
+                - event_type
+                - event
+              properties:
+                event_timestamp:
+                  description: Timestamp at which the new Source was created
+                  type: string
+                  format: date-time
+                event_type:
+                  type: string
+                  const: sources/created
+                event:
+                  type: object
+                  required:
+                    - source
+                  properties:
+                    source:
+                      $ref: "schemas/source.json"
+  sources/updated:
+    post:
+      security:
+        - {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Source Updated Notification
+              description: Information about a Source for which the metadata has been modified.
+              required:
+                - event_timestamp
+                - event_type
+                - event
+              properties:
+                event_timestamp:
+                  description: Timestamp at which the Source was modified
+                  type: string
+                  format: date-time
+                event_type:
+                  type: string
+                  const: sources/updated
+                event:
+                  type: object
+                  required:
+                    - source
+                  properties:
+                    source:
+                      $ref: "schemas/source.json"
+  sources/deleted:
+    post:
+      security:
+        - {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Source Deleted Notification
+              description: Notification that a Source has been deleted.
+              required:
+                - event_timestamp
+                - event_type
+                - event
+              properties:
+                event_timestamp:
+                  description: Timestamp at which the Source was modified
+                  type: string
+                  format: date-time
+                event_type:
+                  type: string
+                  const: sources/deleted
+                event:
+                  type: object
+                  required:
+                    - source_id
+                  properties:
+                    source_id:
+                      $ref: "#/components/schemas/uuid"
+components:
+  schemas:
+    uuid:
+      title: UUID
+      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+      type: string
+    contentformat:
+      title: Content Format
+      description: Identifies the content format for a flow or source using a URN string.
+      enum:
+        - urn:x-nmos:format:video
+        - urn:x-tam:format:image
+        - urn:x-nmos:format:audio
+        - urn:x-nmos:format:data
+        - urn:x-nmos:format:multi
+      type: string
+    mimetype:
+      title: MIME Type
+      pattern: .*/.*
+      description: MIME Type string.
+      type: string
+  responses:
+    trait_resource_listing_head_200:
+      description: ""
+      content:
+        application/json:
+          schema:
+            type: string
+    trait_resource_info_head_200:
+      description: ""
+      content:
+        application/json:
+          schema:
+            type: string
+    trait_resource_info_head_400:
+      description: Bad request. Query parameters are invalid.
+    trait_resource_info_head_404:
+      description: Resource was not found.
+  parameters:
+    trait_paged_limit:
+      name: limit
+      in: query
+      description: Restrict the response to the specified number of results. Implementations may specify their own default and maximum for the limit
+      schema:
+        type: integer
+    trait_resource_paged_key:
+      name: page
+      in: query
+      description: Opaque string used by backend to access a specific page of results. Clients should read the next URL from the `Link` header returned with responses, or use value of the returned X-Paging-NextKey header. If not supplied, the first page is accessed. Implementations should ensure a consistent sort order is applied to pages of results.
+      schema:
+        type: string
+  securitySchemes:
+    basic_auth:
+      type: http
+      scheme: basic
+      description: |
+        HTTP basic authentication using a username and password.
+
+        This option should only be used in constrained cases where Bearer tokens are impractical, since the password is
+        intrinsically long-lived, and managing user credentials across systems is difficult compared to using
+        centralised auth (e.g. via OAuth2) with Bearer tokens
+    bearer_token_auth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        HTTP bearer token authentication.
+
+        The method through which a client should acquire a bearer token is assumed to be an OAuth2 grant (either the
+        Authorization Code or Client Credentials grant), however the OpenAPI `OAuth Flow` object cannot be used because
+        it requires that the relevant URLs are known in advance.
+
+        Clients should provide options to allow one (or both) grant types to be configured, as appropriate.
+
+        Where tokens are not JWTs, or are acquired through some other mechanism, the API key method should be used
+        instead.
+    url_token_auth:
+      type: apiKey
+      name: access_token
+      in: query
+      description: |
+        URL token authentication.
+
+        The method through which a client should acquire the token is not specified: it is assumed this takes place in
+        another way, and a TAMS client may well be passed a URL to a store including the token.
+
+        Clients should retain the token in the `access_token` query string parameter, and use it for subsequent store
+        requests in the same session.
+tags:
+  - name: Service
+    description: The service root and documentation about the service itself
+  - name: Sources
+    description: |
+      The ephemeral concept of an individual piece of media without being rendered to a specific encoding/packaging.
+    externalDocs:
+      url: 'https://specs.amwa.tv/ms-04/releases/v1.0.0/docs/2.2._Explanation_-_Source.html'
+  - name: Flows
+    description: |
+      Sources which have been 'rendered' to a specific encoding/packaging format.
+    externalDocs:
+      url: 'https://specs.amwa.tv/ms-04/releases/v1.0.0/docs/2.3._Explanation_-_Flow.html'
+  - name: FlowSegments
+    description: |
+      A timerange segment of a Flow that references a media object in the object store.
+  - name: Objects
+    description: The object in the object store that contains the media essence.
+  - name: MediaStorage
+    description: The system that stores the media objects referenced by flow segments.
+  - name: FlowDeleteRequests
+    description: Resource for monitoring long running deletion of flows and flow segments.
+  - name: Webhooks
+    description: Configures webhooks to deliver notifications externally. Optional, and may not be implemented

@@ -117,7 +117,7 @@ The application uses the following VAST database settings:
 
 ```env
 # VAST Database settings
-VAST_ENDPOINT=http://localhost:8080
+VAST_ENDPOINT=http://main.vast.acme.com/
 VAST_ACCESS_KEY=test-access-key
 VAST_SECRET_KEY=test-secret-key
 VAST_BUCKET=tams-bucket
@@ -219,11 +219,6 @@ SECRET_KEY=your-secret-key-here-change-in-production
 ```
 
 ## VAST Database Features
-
-### Time-Series Optimization
-- Automatic time range parsing for flow segments
-- Efficient time-based queries with predicate filtering
-- Duration analysis and statistics
 
 ### Columnar Storage
 - Apache Arrow schemas for type safety

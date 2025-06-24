@@ -14,7 +14,7 @@ import uuid
 import asyncio
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, HTTPException, Query, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, Depends, BackgroundTasks, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
@@ -59,15 +59,20 @@ async def startup_event():
     global vast_store
     settings = get_settings()
     
-    # Initialize VAST store with vastdbmanager
+    # Initialize VAST store with vastdbmanager and S3 config
     vast_store = VASTStore(
         endpoint=settings.vast_endpoint,
         access_key=settings.vast_access_key,
         secret_key=settings.vast_secret_key,
         bucket=settings.vast_bucket,
-        schema=settings.vast_schema
+        schema=settings.vast_schema,
+        s3_endpoint_url=settings.s3_endpoint_url,
+        s3_access_key_id=settings.s3_access_key_id,
+        s3_secret_access_key=settings.s3_secret_access_key,
+        s3_bucket_name=settings.s3_bucket_name,
+        s3_use_ssl=settings.s3_use_ssl
     )
-    logger.info("TAMS API started with VAST store using vastdbmanager")
+    logger.info("TAMS API started with VAST store using vastdbmanager and S3 for segments")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -261,45 +266,32 @@ async def get_flow_segments(
     timerange: Optional[str] = Query(None, description="Filter by time range"),
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Get flow segments for a specific flow"""
+    """Get flow segment metadata and S3 URLs (not the data itself)"""
     try:
-        # Verify flow exists
-        flow = await store.get_flow(flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
         segments = await store.get_flow_segments(flow_id, timerange=timerange)
         return segments
-        
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Failed to get flow segments for {flow_id}: {e}")
+        logger.error(f"Failed to get flow segments for flow {flow_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/flows/{flow_id}/segments", response_model=FlowSegment, status_code=201)
 async def create_flow_segment(
     flow_id: str,
     segment: FlowSegment,
+    file: UploadFile = File(...),
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Create a new flow segment"""
+    """Create a new flow segment (media data goes to S3, metadata to DB)"""
     try:
-        # Verify flow exists
-        flow = await store.get_flow(flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        success = await store.create_flow_segment(segment, flow_id)
+        data = await file.read()
+        success = await store.create_flow_segment(segment, flow_id, data, file.content_type)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to create flow segment")
-        
         return segment
-        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to create flow segment: {e}")
+        logger.error(f"Failed to create flow segment for flow {flow_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Object endpoints

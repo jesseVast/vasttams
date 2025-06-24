@@ -20,6 +20,7 @@ from .models import (
     TimeRange, UUID, Tags, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow,
     CollectionItem, GetUrl
 )
+from .s3_store import S3Store
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,12 @@ class VASTStore:
                  access_key: str = "test-access-key",
                  secret_key: str = "test-secret-key", 
                  bucket: str = "tams-bucket",
-                 schema: str = "tams-schema"):
+                 schema: str = "tams-schema",
+                 s3_endpoint_url: str = "http://localhost:9000",
+                 s3_access_key_id: str = "minioadmin",
+                 s3_secret_access_key: str = "minioadmin",
+                 s3_bucket_name: str = "tams-segments",
+                 s3_use_ssl: bool = False):
         """
         Initialize VAST Store with connection parameters
         
@@ -47,6 +53,11 @@ class VASTStore:
             secret_key: S3 secret key for authentication
             bucket: Bucket name for TAMS data
             schema: Schema name for TAMS tables
+            s3_endpoint_url: S3 endpoint URL
+            s3_access_key_id: S3 access key ID
+            s3_secret_access_key: S3 secret access key
+            s3_bucket_name: S3 bucket name for segments
+            s3_use_ssl: Whether to use SSL for S3 communication
         """
         self.endpoint = endpoint
         self.access_key = access_key
@@ -67,6 +78,14 @@ class VASTStore:
             
             # Setup TAMS tables with schemas
             self._setup_tams_tables()
+            
+            self.s3_store = S3Store(
+                endpoint_url=s3_endpoint_url,
+                access_key_id=s3_access_key_id,
+                secret_access_key=s3_secret_access_key,
+                bucket_name=s3_bucket_name,
+                use_ssl=s3_use_ssl
+            )
             
         except Exception as e:
             logger.error(f"Failed to initialize VAST Store: {e}")
@@ -483,13 +502,16 @@ class VASTStore:
             logger.error(f"Failed to get flow {flow_id}: {e}")
             return None
     
-    async def create_flow_segment(self, segment: FlowSegment, flow_id: str) -> bool:
-        """Create a new flow segment in VAST store"""
+    async def create_flow_segment(self, segment: FlowSegment, flow_id: str, data: bytes, content_type: str = "application/octet-stream") -> bool:
+        """Create a new flow segment: store data in S3 and metadata in VAST DB"""
         try:
-            # Parse timerange for time-series optimization
+            # Store segment data in S3
+            s3_success = await self.s3_store.store_flow_segment(flow_id, segment, data, content_type)
+            if not s3_success:
+                logger.error(f"Failed to store flow segment data in S3 for flow {flow_id}")
+                return False
+            # Store only segment metadata in VAST DB
             start_time, end_time, duration = self._parse_timerange(segment.timerange)
-            
-            # Convert segment to dictionary
             segment_data = {
                 'id': str(uuid.uuid4()),
                 'flow_id': flow_id,
@@ -499,39 +521,32 @@ class VASTStore:
                 'last_duration': segment.last_duration or "",
                 'sample_offset': segment.sample_offset or 0,
                 'sample_count': segment.sample_count or 0,
-                'get_urls': self._dict_to_json([url.dict() for url in segment.get_urls] if segment.get_urls else []),
+                'get_urls': self._dict_to_json(await self.s3_store.create_get_urls(flow_id, segment.object_id, segment.timerange)),
                 'key_frame_count': segment.key_frame_count or 0,
                 'created': datetime.utcnow(),
                 'start_time': start_time,
                 'end_time': end_time,
                 'duration_seconds': duration
             }
-            
-            # Insert into VAST database
             self.db_manager.insert('segments', segment_data)
-            
-            logger.info(f"Created flow segment for flow {flow_id} in VAST store")
+            logger.info(f"Created flow segment metadata for flow {flow_id} in VAST DB")
             return True
-            
         except Exception as e:
             logger.error(f"Failed to create flow segment for flow {flow_id}: {e}")
             return False
-    
+
     async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
-        """Get flow segments with optional time range filtering"""
+        """Get flow segment metadata from VAST DB and data from S3"""
         try:
-            # Build predicate
             predicate = f"flow_id = '{flow_id}'"
             if timerange:
                 target_start, target_end, _ = self._parse_timerange(timerange)
                 predicate += f" AND start_time <= '{target_end.isoformat()}' AND end_time >= '{target_start.isoformat()}'"
-            
-            # Query segments
             results = self.db_manager.select('segments', predicate=predicate)
-            
-            # Convert to FlowSegment models
             segments = []
             for row in results:
+                # get_urls is generated from S3
+                get_urls = await self.s3_store.create_get_urls(flow_id, row['object_id'], row['timerange'])
                 segment = FlowSegment(
                     object_id=row['object_id'],
                     timerange=row['timerange'],
@@ -539,13 +554,11 @@ class VASTStore:
                     last_duration=row['last_duration'] if row['last_duration'] else None,
                     sample_offset=row['sample_offset'],
                     sample_count=row['sample_count'],
-                    get_urls=[GetUrl(**url) for url in self._json_to_dict(row['get_urls'])],
+                    get_urls=get_urls,
                     key_frame_count=row['key_frame_count']
                 )
                 segments.append(segment)
-            
             return segments
-            
         except Exception as e:
             logger.error(f"Failed to get flow segments for flow {flow_id}: {e}")
             return []

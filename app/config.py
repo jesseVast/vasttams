@@ -56,6 +56,13 @@ class Settings(BaseSettings):
     webhook_timeout: int = 30
     webhook_retry_attempts: int = 3
     
+    # S3 settings for flow segment storage
+    s3_endpoint_url: str = "http://localhost:9000"
+    s3_access_key_id: str = "minioadmin"
+    s3_secret_access_key: str = "minioadmin"
+    s3_bucket_name: str = "tams-segments"
+    s3_use_ssl: bool = False
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

@@ -9,9 +9,8 @@ while metadata is stored in the VAST database.
 import logging
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any, Union, BinaryIO
-from pathlib import Path
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 import urllib.parse
@@ -119,13 +118,13 @@ class S3Store:
                 if len(parts) == 2:
                     seconds = int(parts[0])
                     subseconds = int(parts[1]) if parts[1] else 0
-                    start_time = datetime.fromtimestamp(seconds + (subseconds / 1000000000))
+                    start_time = datetime.fromtimestamp(seconds + (subseconds / 1000000000), timezone.utc)
                 else:
-                    start_time = datetime.utcnow()
+                    start_time = datetime.now(timezone.utc)
             else:
-                start_time = datetime.utcnow()
+                start_time = datetime.now(timezone.utc)
         except (ValueError, TypeError):
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
         
         # Create hierarchical path structure
         year = start_time.year
@@ -156,7 +155,8 @@ class S3Store:
         """
         try:
             # Generate unique segment ID if not provided
-            segment_id = segment.object_id if segment.object_id else str(uuid.uuid4())
+            import uuid as _uuid
+            segment_id = segment.object_id if segment.object_id else str(_uuid.uuid4())
             
             # Generate S3 object key
             object_key = self._generate_segment_key(flow_id, segment_id, segment.timerange)
@@ -171,7 +171,7 @@ class S3Store:
                 'sample_offset': str(segment.sample_offset or 0),
                 'sample_count': str(segment.sample_count or 0),
                 'key_frame_count': str(segment.key_frame_count or 0),
-                'created': datetime.utcnow().isoformat(),
+                'created': datetime.now(timezone.utc).isoformat(),
                 'content_type': content_type
             }
             
@@ -503,7 +503,7 @@ class S3Store:
                         url=presigned_url,
                         method="GET",
                         headers={},
-                        expires=datetime.utcnow() + timedelta(hours=1)
+                        expires=datetime.now(timezone.utc) + timedelta(hours=1)
                     )
                 ]
             

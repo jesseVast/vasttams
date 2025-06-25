@@ -4,7 +4,7 @@ Utility functions for the TAMS FastAPI service
 
 import uuid
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 import httpx
 from .models import Webhook, DeletionRequest
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 
 def generate_uuid() -> str:
-    """Generate a valid UUID for TAMS"""
+    """Generate a valid RFC4122 UUIDv4 for TAMS"""
     return str(uuid.uuid4())
 
 
@@ -24,9 +24,12 @@ def validate_timerange(timerange: str) -> bool:
 
 
 def validate_uuid(uuid_str: str) -> bool:
-    """Validate UUID format"""
-    pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-    return bool(re.match(pattern, uuid_str))
+    """Validate UUIDv4 format only"""
+    try:
+        u = uuid.UUID(uuid_str)
+        return u.version == 4
+    except Exception:
+        return False
 
 
 def validate_mime_type(mime_type: str) -> bool:
@@ -66,7 +69,7 @@ async def send_webhook_notification(
         bool: True if successful, False otherwise
     """
     payload = {
-        "event_timestamp": datetime.utcnow().isoformat(),
+        "event_timestamp": datetime.now(timezone.utc).isoformat(),
         "event_type": event_type,
         "event": event_data
     }
@@ -175,7 +178,7 @@ def update_deletion_request_status(
         return None
     
     deletion_request.status = status
-    deletion_request.updated = datetime.utcnow()
+    deletion_request.updated = datetime.now(timezone.utc)
     db.commit()
     db.refresh(deletion_request)
     

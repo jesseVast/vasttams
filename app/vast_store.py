@@ -1,20 +1,54 @@
 """
-VAST Database Store for TAMS using vastdbmanager.py
+VAST Database Store for TAMS (Time-addressable Media Store)
 
-This implementation uses the vastdbmanager module to provide a clean interface
-to VAST Database for TAMS (Time-addressable Media Store) operations.
+This module provides a high-level interface to VAST Database for TAMS operations,
+combining VAST database management with S3 storage for efficient media handling.
+
+The VASTStore class integrates:
+- VAST Database for metadata storage and analytics
+- S3-compatible storage for media segment data
+- Comprehensive TAMS API compliance
+- Time-series optimized data structures
+- Efficient querying and analytics capabilities
+
+Key Features:
+- Source, Flow, and FlowSegment management
+- Time-range based queries and analytics
+- Hybrid storage (metadata in VAST, media in S3)
+- Presigned URL generation for secure access
+- Comprehensive error handling and logging
+
+Example Usage:
+    store = VASTStore(
+        endpoint="http://vast.example.com",
+        access_key="your_key",
+        secret_key="your_secret",
+        bucket="tams-bucket"
+    )
+    
+    # Create a source
+    source = Source(id=UUID("..."), format="urn:x-nmos:format:video")
+    await store.create_source(source)
+    
+    # Create a flow
+    flow = VideoFlow(id=UUID("..."), source_id=source.id, ...)
+    await store.create_flow(flow)
+    
+    # Store media segment
+    segment = FlowSegment(object_id="...", timerange="[0:0_10:0)")
+    await store.create_flow_segment(segment, flow.id, media_data)
 """
 
 import logging
 import json
 import uuid
-from datetime import datetime, timedelta
+from ibis import _
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any, Union, Tuple
 import pandas as pd
 import pyarrow as pa
-from pathlib import Path
 
-from .vastdbmanager import Vastdbmanager
+from .vastdbmanager import VastDBManager
 from .models import (
     Source, Flow, FlowSegment, Object, DeletionRequest, 
     TimeRange, UUID, Tags, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow,
@@ -27,37 +61,120 @@ logger = logging.getLogger(__name__)
 
 class VASTStore:
     """
-    VAST Database Store for TAMS using vastdbmanager
+    VAST Database Store for TAMS (Time-addressable Media Store) operations.
     
     This class provides a high-level interface to VAST Database for TAMS operations,
-    using the vastdbmanager module for connection and table management.
+    combining VAST database management with S3 storage for efficient media handling.
+    It implements the TAMS API specification with optimized time-series storage
+    and analytics capabilities.
+    
+    The store uses a hybrid approach:
+    - Metadata (sources, flows, segments) stored in VAST Database
+    - Media segment data stored in S3-compatible storage
+    - Time-range optimized queries for efficient retrieval
+    
+    Attributes:
+        endpoint (str): VAST Database endpoint URL
+        access_key (str): VAST access key for authentication
+        secret_key (str): VAST secret key for authentication
+        bucket (str): VAST bucket name for TAMS data
+        schema (str): VAST schema name for TAMS tables
+        db_manager (VastDBManager): VAST database manager instance
+        s3_store (S3Store): S3 storage manager for media segments
+        
+    Example:
+        >>> store = VASTStore(
+        ...     endpoint="http://vast.example.com",
+        ...     access_key="your_key",
+        ...     secret_key="your_secret",
+        ...     bucket="tams-bucket",
+        ...     schema="tams-schema"
+        ... )
+        >>> 
+        >>> # Create a video source
+        >>> source = Source(
+        ...     id=UUID("550e8400-e29b-41d4-a716-446655440000"),
+        ...     format="urn:x-nmos:format:video",
+        ...     label="Camera 1"
+        ... )
+        >>> await store.create_source(source)
+        >>> 
+        >>> # Create a video flow
+        >>> flow = VideoFlow(
+        ...     id=UUID("550e8400-e29b-41d4-a716-446655440001"),
+        ...     source_id=source.id,
+        ...     format="urn:x-nmos:format:video",
+        ...     codec="urn:x-nmos:codec:prores",
+        ...     frame_width=1920,
+        ...     frame_height=1080,
+        ...     frame_rate="25/1"
+        ... )
+        >>> await store.create_flow(flow)
+        >>> 
+        >>> # Store a media segment
+        >>> segment = FlowSegment(
+        ...     object_id="seg_001",
+        ...     timerange="[0:0_10:0)",
+        ...     sample_offset=0,
+        ...     sample_count=250
+        ... )
+        >>> await store.create_flow_segment(segment, flow.id, media_bytes)
     """
     
     def __init__(self, 
-                 endpoint: str = "http://localhost:8080",
+                 endpoint: str = "http://main.vast.acme.com",
                  access_key: str = "test-access-key",
                  secret_key: str = "test-secret-key", 
                  bucket: str = "tams-bucket",
                  schema: str = "tams-schema",
-                 s3_endpoint_url: str = "http://localhost:9000",
+                 s3_endpoint_url: str = "http://s3.vast.acme.com",
                  s3_access_key_id: str = "minioadmin",
                  s3_secret_access_key: str = "minioadmin",
-                 s3_bucket_name: str = "tams-segments",
+                 s3_bucket_name: str = "tams-bucket",
                  s3_use_ssl: bool = False):
         """
-        Initialize VAST Store with connection parameters
+        Initialize VAST Store with connection parameters.
+        
+        Sets up both VAST Database and S3 storage connections, creates necessary
+        schemas and tables, and prepares the store for TAMS operations.
         
         Args:
-            endpoint: VAST Database endpoint URL
-            access_key: S3 access key for authentication
-            secret_key: S3 secret key for authentication
-            bucket: Bucket name for TAMS data
-            schema: Schema name for TAMS tables
-            s3_endpoint_url: S3 endpoint URL
-            s3_access_key_id: S3 access key ID
-            s3_secret_access_key: S3 secret access key
-            s3_bucket_name: S3 bucket name for segments
-            s3_use_ssl: Whether to use SSL for S3 communication
+            endpoint: VAST Database endpoint URL (default: "http://main.vast.acme.com")
+            access_key: VAST access key for authentication (default: "test-access-key")
+            secret_key: VAST secret key for authentication (default: "test-secret-key")
+            bucket: VAST bucket name for TAMS data (default: "tams-bucket")
+            schema: VAST schema name for TAMS tables (default: "tams-schema")
+            s3_endpoint_url: S3-compatible endpoint URL for media storage
+                           (default: "http://s3.vast.acme.com")
+            s3_access_key_id: S3 access key ID for media storage (default: "minioadmin")
+            s3_secret_access_key: S3 secret access key for media storage (default: "minioadmin")
+            s3_bucket_name: S3 bucket name for media segments (default: "tams-bucket")
+            s3_use_ssl: Whether to use SSL for S3 communication (default: False)
+            
+        Raises:
+            Exception: If connection setup fails or required tables cannot be created
+            
+        Note:
+            The initialization process:
+            1. Establishes VAST Database connection
+            2. Creates schema if it doesn't exist
+            3. Sets up TAMS tables with optimized schemas
+            4. Initializes S3 storage connection
+            5. Validates all connections are ready
+            
+        Example:
+            >>> store = VASTStore(
+            ...     endpoint="http://vast.example.com",
+            ...     access_key="your_vast_key",
+            ...     secret_key="your_vast_secret",
+            ...     bucket="tams-data",
+            ...     schema="tams-schema",
+            ...     s3_endpoint_url="http://s3.example.com",
+            ...     s3_access_key_id="your_s3_key",
+            ...     s3_secret_access_key="your_s3_secret",
+            ...     s3_bucket_name="tams-media",
+            ...     s3_use_ssl=True
+            ... )
         """
         self.endpoint = endpoint
         self.access_key = access_key
@@ -67,7 +184,7 @@ class VASTStore:
         
         # Initialize VAST database manager
         try:
-            self.db_manager = Vastdbmanager(
+            self.db_manager = VastDBManager(
                 endpoint=endpoint,
                 access_key=access_key,
                 secret_key=secret_key,
@@ -241,13 +358,13 @@ class VASTStore:
                 duration = end_seconds - start_seconds if end_seconds != float('inf') else 0
                 
                 # Convert to datetime (using epoch as base)
-                start_time = datetime.fromtimestamp(start_seconds)
-                end_time = datetime.fromtimestamp(end_seconds) if end_seconds != float('inf') else start_time + timedelta(seconds=duration)
+                start_time = datetime.fromtimestamp(start_seconds, timezone.utc)
+                end_time = datetime.fromtimestamp(end_seconds, timezone.utc) if end_seconds != float('inf') else start_time + timedelta(seconds=duration)
                 
             else:
                 # Single timestamp
                 start_seconds = self._parse_timestamp(clean_range)
-                start_time = datetime.fromtimestamp(start_seconds)
+                start_time = datetime.fromtimestamp(start_seconds, timezone.utc)
                 end_time = start_time
                 duration = 0
             
@@ -256,7 +373,7 @@ class VASTStore:
         except Exception as e:
             logger.warning(f"Failed to parse timerange '{timerange}': {e}")
             # Return default values
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             return now, now, 0
     
     def _parse_timestamp(self, timestamp_str: str) -> float:
@@ -277,15 +394,22 @@ class VASTStore:
                 return seconds + (subseconds / 1000000000)  # Assuming nanoseconds
         return 0.0
     
-    def _dict_to_json(self, data: Dict[str, Any]) -> str:
-        """Convert dictionary to JSON string"""
+    def _dict_to_json(self, data: Union[Dict[str, Any], List[Any]]) -> str:
+        """Convert dictionary or list to JSON string"""
         return json.dumps(data) if data else ""
     
-    def _json_to_dict(self, json_str: str) -> Dict[str, Any]:
-        """Convert JSON string to dictionary"""
-        try:
-            return json.loads(json_str) if json_str else {}
-        except json.JSONDecodeError:
+    def _json_to_dict(self, json_str: Union[str, List[Any], Any]) -> Dict[str, Any]:
+        """Convert JSON string, list, or any data to dictionary"""
+        if isinstance(json_str, str):
+            try:
+                return json.loads(json_str) if json_str else {}
+            except json.JSONDecodeError:
+                return {}
+        elif isinstance(json_str, list):
+            return {"items": json_str}
+        elif isinstance(json_str, dict):
+            return json_str
+        else:
             return {}
     
     async def create_source(self, source: Source) -> bool:
@@ -299,10 +423,10 @@ class VASTStore:
                 'description': source.description or "",
                 'created_by': source.created_by or "",
                 'updated_by': source.updated_by or "",
-                'created': source.created or datetime.utcnow(),
-                'updated': source.updated or datetime.utcnow(),
+                'created': source.created or datetime.now(timezone.utc),
+                'updated': source.updated or datetime.now(timezone.utc),
                 'tags': self._dict_to_json(source.tags.__root__ if source.tags else {}),
-                'source_collection': self._dict_to_json([item.dict() for item in source.source_collection] if source.source_collection else []),
+                'source_collection': self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else []),
                 'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else [])
             }
             
@@ -320,14 +444,20 @@ class VASTStore:
         """Get source by ID"""
         try:
             # Query for specific source
-            predicate = f"id = '{source_id}'"
-            results = self.db_manager.select('sources', predicate=predicate)
+            predicate = (_.id == source_id)
+            results = self.db_manager.select('sources', predicate=predicate, output_by_row=True)
             
             if not results:
                 return None
             
             # Convert first result back to Source model
-            row = results[0]
+            if isinstance(results, list) and results:
+                row = results[0]
+            elif isinstance(results, dict):
+                row = results
+            else:
+                return None
+            
             source_data = {
                 'id': row['id'],
                 'format': row['format'],
@@ -356,36 +486,43 @@ class VASTStore:
             if filters:
                 conditions = []
                 if 'label' in filters:
-                    conditions.append(f"label = '{filters['label']}'")
+                    conditions.append((_.label == filters['label']))
                 if 'format' in filters:
-                    conditions.append(f"format = '{filters['format']}'")
+                    conditions.append((_.format == filters['format']))
                 if conditions:
-                    predicate = " AND ".join(conditions)
+                    predicate = conditions[0] if len(conditions) == 1 else conditions[0] & conditions[1]
             
             # Query sources
-            results = self.db_manager.select('sources', predicate=predicate)
+            results = self.db_manager.select('sources', predicate=predicate, output_by_row=True)
             
             # Apply limit
-            if limit:
+            if limit and isinstance(results, list):
                 results = results[:limit]
+            elif limit and isinstance(results, dict):
+                # For column-oriented results, limit each column
+                limited_results = {}
+                for key, values in results.items():
+                    limited_results[key] = values[:limit]
+                results = limited_results
             
             # Convert to Source models
             sources = []
-            for row in results:
-                source_data = {
-                    'id': row['id'],
-                    'format': row['format'],
-                    'label': row['label'] if row['label'] else None,
-                    'description': row['description'] if row['description'] else None,
-                    'created_by': row['created_by'] if row['created_by'] else None,
-                    'updated_by': row['updated_by'] if row['updated_by'] else None,
-                    'created': row['created'],
-                    'updated': row['updated'],
-                    'tags': Tags(__root__=self._json_to_dict(row['tags'])),
-                    'source_collection': [CollectionItem(**item) for item in self._json_to_dict(row['source_collection'])],
-                    'collected_by': [UUID(uuid) for uuid in self._json_to_dict(row['collected_by'])]
-                }
-                sources.append(Source(**source_data))
+            if isinstance(results, list):
+                for row in results:
+                    source_data = {
+                        'id': row['id'],
+                        'format': row['format'],
+                        'label': row['label'] if row['label'] else None,
+                        'description': row['description'] if row['description'] else None,
+                        'created_by': row['created_by'] if row['created_by'] else None,
+                        'updated_by': row['updated_by'] if row['updated_by'] else None,
+                        'created': row['created'],
+                        'updated': row['updated'],
+                        'tags': Tags(__root__=self._json_to_dict(row['tags'])),
+                        'source_collection': [CollectionItem(**item) for item in self._json_to_dict(row['source_collection'])],
+                        'collected_by': [UUID(uuid) for uuid in self._json_to_dict(row['collected_by'])]
+                    }
+                    sources.append(Source(**source_data))
             
             return sources
             
@@ -406,8 +543,8 @@ class VASTStore:
                 'description': flow.description or "",
                 'created_by': flow.created_by or "",
                 'updated_by': flow.updated_by or "",
-                'created': flow.created or datetime.utcnow(),
-                'updated': flow.updated or datetime.utcnow(),
+                'created': flow.created or datetime.now(timezone.utc),
+                'updated': flow.updated or datetime.now(timezone.utc),
                 'tags': self._dict_to_json(flow.tags.__root__ if flow.tags else {}),
                 'container': flow.container or "",
                 'read_only': flow.read_only or False,
@@ -439,14 +576,20 @@ class VASTStore:
         """Get flow by ID"""
         try:
             # Query for specific flow
-            predicate = f"id = '{flow_id}'"
-            results = self.db_manager.select('flows', predicate=predicate)
+            predicate = (_.id == flow_id)
+            results = self.db_manager.select('flows', predicate=predicate, output_by_row=True)
             
             if not results:
                 return None
             
             # Convert first result back to Flow model
-            row = results[0]
+            if isinstance(results, list) and results:
+                row = results[0]
+            elif isinstance(results, dict):
+                row = results
+            else:
+                return None
+            
             flow_data = {
                 'id': row['id'],
                 'source_id': row['source_id'],
@@ -523,7 +666,7 @@ class VASTStore:
                 'sample_count': segment.sample_count or 0,
                 'get_urls': self._dict_to_json(await self.s3_store.create_get_urls(flow_id, segment.object_id, segment.timerange)),
                 'key_frame_count': segment.key_frame_count or 0,
-                'created': datetime.utcnow(),
+                'created': datetime.now(timezone.utc),
                 'start_time': start_time,
                 'end_time': end_time,
                 'duration_seconds': duration
@@ -538,26 +681,27 @@ class VASTStore:
     async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
         """Get flow segment metadata from VAST DB and data from S3"""
         try:
-            predicate = f"flow_id = '{flow_id}'"
+            predicate = (_.flow_id == flow_id)
             if timerange:
                 target_start, target_end, _ = self._parse_timerange(timerange)
-                predicate += f" AND start_time <= '{target_end.isoformat()}' AND end_time >= '{target_start.isoformat()}'"
-            results = self.db_manager.select('segments', predicate=predicate)
+                predicate = predicate & (_.start_time <= target_end) & (_.end_time >= target_start)
+            results = self.db_manager.select('segments', predicate=predicate, output_by_row=True)
             segments = []
-            for row in results:
-                # get_urls is generated from S3
-                get_urls = await self.s3_store.create_get_urls(flow_id, row['object_id'], row['timerange'])
-                segment = FlowSegment(
-                    object_id=row['object_id'],
-                    timerange=row['timerange'],
-                    ts_offset=row['ts_offset'] if row['ts_offset'] else None,
-                    last_duration=row['last_duration'] if row['last_duration'] else None,
-                    sample_offset=row['sample_offset'],
-                    sample_count=row['sample_count'],
-                    get_urls=get_urls,
-                    key_frame_count=row['key_frame_count']
-                )
-                segments.append(segment)
+            if isinstance(results, list):
+                for row in results:
+                    # get_urls is generated from S3
+                    get_urls = await self.s3_store.create_get_urls(flow_id, row['object_id'], row['timerange'])
+                    segment = FlowSegment(
+                        object_id=row['object_id'],
+                        timerange=row['timerange'],
+                        ts_offset=row['ts_offset'] if row['ts_offset'] else None,
+                        last_duration=row['last_duration'] if row['last_duration'] else None,
+                        sample_offset=row['sample_offset'],
+                        sample_count=row['sample_count'],
+                        get_urls=get_urls,
+                        key_frame_count=row['key_frame_count']
+                    )
+                    segments.append(segment)
             return segments
         except Exception as e:
             logger.error(f"Failed to get flow segments for flow {flow_id}: {e}")
@@ -571,8 +715,8 @@ class VASTStore:
                 'object_id': obj.object_id,
                 'flow_references': self._dict_to_json(obj.flow_references),
                 'size': obj.size or 0,
-                'created': obj.created or datetime.utcnow(),
-                'last_accessed': datetime.utcnow(),
+                'created': obj.created or datetime.now(timezone.utc),
+                'last_accessed': datetime.now(timezone.utc),
                 'access_count': 0
             }
             
@@ -590,8 +734,8 @@ class VASTStore:
         """Get media object by ID"""
         try:
             # Query for specific object
-            predicate = f"object_id = '{object_id}'"
-            results = self.db_manager.select('objects', predicate=predicate)
+            predicate = (_.object_id == object_id)
+            results = self.db_manager.select('objects', predicate=predicate, output_by_row=True)
             
             if not results:
                 return None
@@ -601,7 +745,7 @@ class VASTStore:
             # Update access count and last accessed time
             update_data = {
                 'access_count': row['access_count'] + 1,
-                'last_accessed': datetime.utcnow()
+                'last_accessed': datetime.now(timezone.utc)
             }
             self.db_manager.update('objects', update_data, predicate)
             
@@ -762,62 +906,69 @@ class VASTStore:
             if filters:
                 conditions = []
                 if 'source_id' in filters:
-                    conditions.append(f"source_id = '{filters['source_id']}'")
+                    conditions.append((_.source_id == filters['source_id']))
                 if 'format' in filters:
-                    conditions.append(f"format = '{filters['format']}'")
+                    conditions.append((_.format == filters['format']))
                 if 'codec' in filters:
-                    conditions.append(f"codec = '{filters['codec']}'")
+                    conditions.append((_.codec == filters['codec']))
                 if 'label' in filters:
-                    conditions.append(f"label = '{filters['label']}'")
+                    conditions.append((_.label == filters['label']))
                 if conditions:
-                    predicate = " AND ".join(conditions)
+                    predicate = conditions[0] if len(conditions) == 1 else conditions[0] & conditions[1]
             
             # Query flows
-            results = self.db_manager.select('flows', predicate=predicate)
+            results = self.db_manager.select('flows', predicate=predicate, output_by_row=True)
             
             # Apply limit
-            if limit:
+            if limit and isinstance(results, list):
                 results = results[:limit]
+            elif limit and isinstance(results, dict):
+                # For column-oriented results, limit each column
+                limited_results = {}
+                for key, values in results.items():
+                    limited_results[key] = values[:limit]
+                results = limited_results
             
             # Convert to Flow models
             flows = []
-            for row in results:
-                flow_data = {
-                    'id': row['id'],
-                    'source_id': row['source_id'],
-                    'format': row['format'],
-                    'codec': row['codec'],
-                    'label': row['label'] if row['label'] else None,
-                    'description': row['description'] if row['description'] else None,
-                    'created_by': row['created_by'] if row['created_by'] else None,
-                    'updated_by': row['updated_by'] if row['updated_by'] else None,
-                    'created': row['created'],
-                    'updated': row['updated'],
-                    'tags': Tags(__root__=self._json_to_dict(row['tags'])),
-                    'container': row['container'] if row['container'] else None,
-                    'read_only': row['read_only']
-                }
-                
-                # Add format-specific fields
-                format_type = row['format']
-                if format_type == "urn:x-nmos:format:video":
-                    flow_data.update({
-                        'frame_width': row['frame_width'],
-                        'frame_height': row['frame_height'],
-                        'frame_rate': row['frame_rate'],
-                    })
-                    flow = VideoFlow(**flow_data)
-                elif format_type == "urn:x-nmos:format:audio":
-                    flow_data.update({
-                        'sample_rate': row['sample_rate'],
-                        'bits_per_sample': row['bits_per_sample'],
-                        'channels': row['channels'],
-                    })
-                    flow = AudioFlow(**flow_data)
-                else:
-                    flow = DataFlow(**flow_data)
-                
-                flows.append(flow)
+            if isinstance(results, list):
+                for row in results:
+                    flow_data = {
+                        'id': row['id'],
+                        'source_id': row['source_id'],
+                        'format': row['format'],
+                        'codec': row['codec'],
+                        'label': row['label'] if row['label'] else None,
+                        'description': row['description'] if row['description'] else None,
+                        'created_by': row['created_by'] if row['created_by'] else None,
+                        'updated_by': row['updated_by'] if row['updated_by'] else None,
+                        'created': row['created'],
+                        'updated': row['updated'],
+                        'tags': Tags(__root__=self._json_to_dict(row['tags'])),
+                        'container': row['container'] if row['container'] else None,
+                        'read_only': row['read_only']
+                    }
+                    
+                    # Add format-specific fields
+                    format_type = row['format']
+                    if format_type == "urn:x-nmos:format:video":
+                        flow_data.update({
+                            'frame_width': row['frame_width'],
+                            'frame_height': row['frame_height'],
+                            'frame_rate': row['frame_rate'],
+                        })
+                        flow = VideoFlow(**flow_data)
+                    elif format_type == "urn:x-nmos:format:audio":
+                        flow_data.update({
+                            'sample_rate': row['sample_rate'],
+                            'bits_per_sample': row['bits_per_sample'],
+                            'channels': row['channels'],
+                        })
+                        flow = AudioFlow(**flow_data)
+                    else:
+                        flow = DataFlow(**flow_data)
+                    
+                    flows.append(flow)
             
             return flows
             

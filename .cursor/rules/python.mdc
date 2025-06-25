@@ -1,0 +1,12 @@
+---
+description: 
+globs: *py
+alwaysApply: false
+---
+
+- Use python 3.12 or later for all code
+- Use clear docstrings and comments
+- Do not create monolithic module files
+- Use logging 
+- create tests in a the tests directory
+- Use fastapi when creating APIs 

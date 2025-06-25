@@ -6,22 +6,24 @@ import re
 
 
 class UUID(str):
-    """UUID type with validation"""
-    
+    """RFC4122-compliant UUID type with validation and canonical string output"""
     @classmethod
     def __get_validators__(cls):
         yield cls.validate
-    
+
     @classmethod
     def validate(cls, v):
+        import uuid as _uuid
+        if isinstance(v, _uuid.UUID):
+            return str(v)
         if not isinstance(v, str):
             raise ValueError('UUID must be a string')
-        
-        pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-        if not re.match(pattern, v):
-            raise ValueError('Invalid UUID format')
-        
-        return v
+        try:
+            u = _uuid.UUID(v)
+        except Exception:
+            raise ValueError('Invalid UUID format (not RFC4122)')
+        # Ensure canonical string form (lowercase, hyphenated)
+        return str(u)
 
 
 class ContentFormat(str):
@@ -323,7 +325,6 @@ class StorageLocation(BaseModel):
     object_id: str
     put_url: str
     bucket_put_url: Optional[str] = None
-    cors_put_url: Optional[str] = None
 
 
 class FlowStorage(BaseModel):

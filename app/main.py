@@ -12,10 +12,9 @@ This implements the BBC TAMS API specification with support for:
 import logging
 import uuid
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException, Query, Depends, BackgroundTasks, File, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 
@@ -39,15 +38,6 @@ app = FastAPI(
     version="6.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
-)
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 # Initialize VAST store
@@ -162,7 +152,7 @@ async def create_source(
     """Create a new source"""
     try:
         # Set timestamps
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         source.created = now
         source.updated = now
         
@@ -243,7 +233,7 @@ async def create_flow(
     """Create a new flow"""
     try:
         # Set timestamps
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         flow.created = now
         flow.updated = now
         
@@ -321,7 +311,7 @@ async def create_object(
     """Create a new media object"""
     try:
         # Set timestamp
-        obj.created = datetime.utcnow()
+        obj.created = datetime.now(timezone.utc)
         
         success = await store.create_object(obj)
         if not success:
@@ -390,8 +380,7 @@ async def allocate_flow_storage(
             storage_locations.append({
                 "object_id": obj_id,
                 "put_url": f"https://storage.example.com/upload/{obj_id}",
-                "bucket_put_url": f"https://storage.example.com/bucket/{obj_id}",
-                "cors_put_url": f"https://storage.example.com/cors/{obj_id}"
+                "bucket_put_url": f"https://storage.example.com/bucket/{obj_id}"
             })
         
         return FlowStorage(storage_locations=storage_locations)
@@ -430,7 +419,7 @@ async def create_deletion_request(
             raise HTTPException(status_code=404, detail="Flow not found")
         
         # Set timestamps
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         deletion_request.created = now
         deletion_request.updated = now
         
@@ -493,27 +482,27 @@ async def process_deletion_request(deletion_request: DeletionRequest):
         
         # Update status to in_progress
         deletion_request.status = "in_progress"
-        deletion_request.updated = datetime.utcnow()
+        deletion_request.updated = datetime.now(timezone.utc)
         
         # Simulate processing time
         await asyncio.sleep(2)
         
         # Update status to completed
         deletion_request.status = "completed"
-        deletion_request.updated = datetime.utcnow()
+        deletion_request.updated = datetime.now(timezone.utc)
         
         logger.info(f"Completed deletion request {deletion_request.request_id}")
         
     except Exception as e:
         logger.error(f"Failed to process deletion request {deletion_request.request_id}: {e}")
         deletion_request.status = "failed"
-        deletion_request.updated = datetime.utcnow()
+        deletion_request.updated = datetime.now(timezone.utc)
 
 # Health check endpoint
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000) 

@@ -3,6 +3,7 @@ Configuration management for TAMS API
 """
 
 import os
+import json
 from typing import Optional
 from pydantic_settings import BaseSettings
 
@@ -20,46 +21,49 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = False
     
-    # VAST store settings
-    vast_data_dir: str = "./vast_data"
-    
     # VAST Database settings
-    vast_endpoint: str = "http://localhost:8080"
-    vast_access_key: str = "test-access-key"
-    vast_secret_key: str = "test-secret-key"
-    vast_bucket: str = "tams-bucket"
-    vast_schema: str = "tams-schema"
-    
-    # Database settings (for future use)
-    database_url: Optional[str] = None
-    
-    # Security settings
-    secret_key: str = "your-secret-key-here"
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    vast_endpoint: str = "http://172.200.204.1"
+    vast_access_key: str = "SRSPW0DQT9T70Y787U68"
+    vast_secret_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
+    vast_bucket: str = "jthaloor-db"
+    vast_schema: str = "bbctams"
     
     # Logging settings
     log_level: str = "INFO"
     log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     
-    # Storage settings
-    storage_type: str = "http_object_store"
-    storage_base_url: str = "https://storage.example.com"
-    
-    # Webhook settings
-    webhook_timeout: int = 30
-    webhook_retry_attempts: int = 3
-    
     # S3 settings for flow segment storage
-    s3_endpoint_url: str = "http://localhost:9000"
-    s3_access_key_id: str = "minioadmin"
-    s3_secret_access_key: str = "minioadmin"
-    s3_bucket_name: str = "tams-segments"
+    s3_endpoint_url: str = "http://172.200.204.1"
+    s3_access_key_id: str = "SRSPW0DQT9T70Y787U68"
+    s3_secret_access_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
+    s3_bucket_name: str = "jthaloor-s3"
     s3_use_ssl: bool = False
     
     class Config:
         env_file = ".env"
         case_sensitive = False
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Load configuration from mounted file if it exists
+        self._load_mounted_config()
+
+    def _load_mounted_config(self):
+        """Load configuration from mounted config file"""
+        config_file_path = "/etc/tams/config.json"
+        if os.path.exists(config_file_path):
+            try:
+                with open(config_file_path, 'r') as f:
+                    config_data = json.load(f)
+                
+                # Update settings with mounted config (takes precedence over defaults)
+                for key, value in config_data.items():
+                    if hasattr(self, key):
+                        setattr(self, key, value)
+                        
+            except (json.JSONDecodeError, IOError) as e:
+                # Log error but continue with default values
+                print(f"Warning: Could not load mounted config file: {e}")
 
 
 # Global settings instance

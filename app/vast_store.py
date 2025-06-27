@@ -52,7 +52,7 @@ from .vastdbmanager import VastDBManager
 from .models import (
     Source, Flow, FlowSegment, Object, DeletionRequest, 
     TimeRange, UUID, Tags, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow,
-    CollectionItem, GetUrl
+    CollectionItem, GetUrl, Webhook, WebhookPost
 )
 from .s3_store import S3Store
 
@@ -196,13 +196,7 @@ class VASTStore:
             # Setup TAMS tables with schemas
             self._setup_tams_tables()
             
-            self.s3_store = S3Store(
-                endpoint_url=s3_endpoint_url,
-                access_key_id=s3_access_key_id,
-                secret_access_key=s3_secret_access_key,
-                bucket_name=s3_bucket_name,
-                use_ssl=s3_use_ssl
-            )
+            self.s3_store = S3Store()
             
         except Exception as e:
             logger.error(f"Failed to initialize VAST Store: {e}")
@@ -468,7 +462,7 @@ class VASTStore:
                 'created': row['created'],
                 'updated': row['updated'],
                 'tags': Tags(__root__=self._json_to_dict(row['tags'])),
-                'source_collection': [CollectionItem(**item) for item in self._json_to_dict(row['source_collection'])],
+                'source_collection': [CollectionItem(id=UUID(str(uuid.uuid4())), label=item) if isinstance(item, str) else CollectionItem(id=UUID(item.get('id', str(uuid.uuid4()))), **item) for item in self._json_to_dict(row['source_collection'])],
                 'collected_by': [UUID(uuid) for uuid in self._json_to_dict(row['collected_by'])]
             }
             
@@ -519,7 +513,7 @@ class VASTStore:
                         'created': row['created'],
                         'updated': row['updated'],
                         'tags': Tags(__root__=self._json_to_dict(row['tags'])),
-                        'source_collection': [CollectionItem(**item) for item in self._json_to_dict(row['source_collection'])],
+                        'source_collection': [CollectionItem(id=UUID(str(uuid.uuid4())), label=item) if isinstance(item, str) else CollectionItem(id=UUID(item.get('id', str(uuid.uuid4()))), **item) for item in self._json_to_dict(row['source_collection'])],
                         'collected_by': [UUID(uuid) for uuid in self._json_to_dict(row['collected_by'])]
                     }
                     sources.append(Source(**source_data))
@@ -740,11 +734,18 @@ class VASTStore:
             if not results:
                 return None
             
-            row = results[0]
+            # Convert first result back to Object model
+            if isinstance(results, list) and results:
+                row = results[0]
+            elif isinstance(results, dict):
+                row = results
+            else:
+                return None
             
             # Update access count and last accessed time
+            access_count = row['access_count'][0] if isinstance(row['access_count'], list) else row['access_count']
             update_data = {
-                'access_count': row['access_count'] + 1,
+                'access_count': access_count + 1,
                 'last_accessed': datetime.now(timezone.utc)
             }
             self.db_manager.update('objects', update_data, predicate)
@@ -996,3 +997,237 @@ class VASTStore:
         """Close VAST store and cleanup resources"""
         logger.info("Closing VAST store")
         # The vastdbmanager handles its own connection cleanup 
+
+    async def update_source(self, source: Source) -> bool:
+        """Update an existing source in VAST store"""
+        try:
+            # Convert source to dictionary
+            source_data = {
+                'id': str(source.id),
+                'format': str(source.format),
+                'label': source.label or "",
+                'description': source.description or "",
+                'created_by': source.created_by or "",
+                'updated_by': source.updated_by or "",
+                'created': source.created or datetime.now(timezone.utc),
+                'updated': source.updated or datetime.now(timezone.utc),
+                'tags': self._dict_to_json(source.tags.__root__ if source.tags else {}),
+                'source_collection': self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else []),
+                'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else [])
+            }
+            
+            # Update in VAST database
+            predicate = (_.id == str(source.id))
+            self.db_manager.update('sources', source_data, predicate)
+            
+            logger.info(f"Updated source {source.id} in VAST store")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to update source {source.id}: {e}")
+            return False
+
+    async def update_flow(self, flow: Flow) -> bool:
+        """Update an existing flow in VAST store"""
+        try:
+            # Convert flow to dictionary
+            flow_data = {
+                'id': str(flow.id),
+                'source_id': str(flow.source_id),
+                'format': str(flow.format),
+                'codec': str(flow.codec),
+                'label': flow.label or "",
+                'description': flow.description or "",
+                'created_by': flow.created_by or "",
+                'updated_by': flow.updated_by or "",
+                'created': flow.created or datetime.now(timezone.utc),
+                'updated': flow.updated or datetime.now(timezone.utc),
+                'tags': self._dict_to_json(flow.tags.__root__ if flow.tags else {}),
+                'container': flow.container or "",
+                'read_only': flow.read_only or False,
+                'frame_width': getattr(flow, 'frame_width', 0),
+                'frame_height': getattr(flow, 'frame_height', 0),
+                'frame_rate': getattr(flow, 'frame_rate', ""),
+                'interlace_mode': getattr(flow, 'interlace_mode', ""),
+                'color_sampling': getattr(flow, 'color_sampling', ""),
+                'color_space': getattr(flow, 'color_space', ""),
+                'transfer_characteristics': getattr(flow, 'transfer_characteristics', ""),
+                'color_primaries': getattr(flow, 'color_primaries', ""),
+                'sample_rate': getattr(flow, 'sample_rate', 0),
+                'bits_per_sample': getattr(flow, 'bits_per_sample', 0),
+                'channels': getattr(flow, 'channels', 0),
+                'flow_collection': self._dict_to_json([str(uuid) for uuid in getattr(flow, 'flow_collection', [])])
+            }
+            
+            # Update in VAST database
+            predicate = (_.id == str(flow.id))
+            self.db_manager.update('flows', flow_data, predicate)
+            
+            logger.info(f"Updated flow {flow.id} in VAST store")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to update flow {flow.id}: {e}")
+            return False
+
+    async def delete_flow(self, flow_id: str) -> bool:
+        """Delete a flow from VAST store"""
+        try:
+            # Delete from VAST database
+            predicate = (_.id == flow_id)
+            deleted_count = self.db_manager.delete('flows', predicate)
+            
+            if deleted_count > 0:
+                logger.info(f"Deleted flow {flow_id} from VAST store")
+                return True
+            else:
+                logger.warning(f"Flow {flow_id} not found for deletion")
+                return False
+            
+        except Exception as e:
+            logger.error(f"Failed to delete flow {flow_id}: {e}")
+            return False
+
+    async def delete_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> bool:
+        """Delete flow segments from VAST store and S3"""
+        try:
+            # Get segments to delete
+            segments = await self.get_flow_segments(flow_id, timerange=timerange)
+            
+            for segment in segments:
+                # Delete from S3
+                await self.s3_store.delete_flow_segment(flow_id, segment.object_id, segment.timerange)
+            
+            # Delete from VAST database
+            predicate = (_.flow_id == flow_id)
+            if timerange:
+                target_start, target_end, _ = self._parse_timerange(timerange)
+                predicate = predicate & (_.start_time <= target_end) & (_.end_time >= target_start)
+            
+            deleted_count = self.db_manager.delete('segments', predicate)
+            
+            logger.info(f"Deleted {deleted_count} flow segments for flow {flow_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to delete flow segments for flow {flow_id}: {e}")
+            return False
+
+    async def list_webhooks(self) -> List[Webhook]:
+        """List webhooks from VAST store"""
+        try:
+            results = self.db_manager.select('webhooks', output_by_row=True)
+            webhooks = []
+            
+            if isinstance(results, list):
+                for row in results:
+                    webhook = Webhook(
+                        url=row['url'],
+                        api_key_name=row['api_key_name'],
+                        events=self._json_to_dict(row['events'])
+                    )
+                    webhooks.append(webhook)
+            
+            return webhooks
+            
+        except Exception as e:
+            logger.error(f"Failed to list webhooks: {e}")
+            return []
+
+    async def create_webhook(self, webhook: WebhookPost) -> bool:
+        """Create a new webhook in VAST store"""
+        try:
+            webhook_data = {
+                'id': str(uuid.uuid4()),
+                'url': webhook.url,
+                'api_key_name': webhook.api_key_name,
+                'api_key_value': webhook.api_key_value,
+                'events': self._dict_to_json(webhook.events),
+                'created': datetime.now(timezone.utc),
+                'updated': datetime.now(timezone.utc)
+            }
+            
+            self.db_manager.insert('webhooks', webhook_data)
+            
+            logger.info(f"Created webhook for URL {webhook.url}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to create webhook: {e}")
+            return False
+
+    async def list_deletion_requests(self) -> List[DeletionRequest]:
+        """List deletion requests from VAST store"""
+        try:
+            results = self.db_manager.select('deletion_requests', output_by_row=True)
+            requests = []
+            
+            if isinstance(results, list):
+                for row in results:
+                    request = DeletionRequest(
+                        request_id=row['id'],
+                        flow_id=UUID(row['flow_id']),
+                        timerange=row['timerange'],
+                        status=row['status'],
+                        created=row['created'],
+                        updated=row['updated']
+                    )
+                    requests.append(request)
+            
+            return requests
+            
+        except Exception as e:
+            logger.error(f"Failed to list deletion requests: {e}")
+            return []
+
+    async def create_deletion_request(self, deletion_request: DeletionRequest) -> bool:
+        """Create a new deletion request in VAST store"""
+        try:
+            request_data = {
+                'id': deletion_request.request_id,
+                'flow_id': str(deletion_request.flow_id),
+                'timerange': deletion_request.timerange,
+                'status': deletion_request.status,
+                'created': deletion_request.created,
+                'updated': deletion_request.updated
+            }
+            
+            self.db_manager.insert('deletion_requests', request_data)
+            
+            logger.info(f"Created deletion request {deletion_request.request_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to create deletion request: {e}")
+            return False
+
+    async def get_deletion_request(self, request_id: str) -> Optional[DeletionRequest]:
+        """Get deletion request by ID"""
+        try:
+            predicate = (_.id == request_id)
+            results = self.db_manager.select('deletion_requests', predicate=predicate, output_by_row=True)
+            
+            if not results:
+                return None
+            
+            if isinstance(results, list) and results:
+                row = results[0]
+            elif isinstance(results, dict):
+                row = results
+            else:
+                return None
+            
+            request = DeletionRequest(
+                request_id=row['id'],
+                flow_id=UUID(row['flow_id']),
+                timerange=row['timerange'],
+                status=row['status'],
+                created=row['created'],
+                updated=row['updated']
+            )
+            
+            return request
+            
+        except Exception as e:
+            logger.error(f"Failed to get deletion request {request_id}: {e}")
+            return None 

@@ -1,0 +1,54 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tams-api-network-policy
+  namespace: tams
+spec:
+  podSelector:
+    matchLabels:
+      app: tams-api
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow health checks from kubelet
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 8000
+      path: /health
+  # Allow ingress traffic
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow VAST Database access
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: vast
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow S3 storage access
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: s3
+    ports:
+    - protocol: TCP
+      port: 9000
+  # Allow HTTPS for external services
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443 

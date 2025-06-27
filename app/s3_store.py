@@ -12,10 +12,10 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any, Union, BinaryIO
 import boto3
-from botocore.exceptions import ClientError, NoCredentialsError
-import urllib.parse
+from botocore.exceptions import ClientError
 
-from .models import FlowSegment, GetUrl, TimeRange
+from .models import FlowSegment, GetUrl
+from .config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -29,43 +29,31 @@ class S3Store:
     stored as objects in S3 buckets.
     """
     
-    def __init__(self,
-                 endpoint_url: str = "http://localhost:9000",
-                 access_key_id: str = "minioadmin",
-                 secret_access_key: str = "minioadmin",
-                 bucket_name: str = "tams-segments",
-                 use_ssl: bool = False):
-        """
-        Initialize S3 Store with connection parameters
+    def __init__(self):
+        """Initialize S3 Store using configuration from config.py"""
+        settings = get_settings()
         
-        Args:
-            endpoint_url: S3-compatible endpoint URL (e.g., MinIO, AWS S3)
-            access_key_id: S3 access key for authentication
-            secret_access_key: S3 secret key for authentication
-            bucket_name: S3 bucket name for flow segments
-            use_ssl: Whether to use SSL/TLS for connections
-        """
-        self.endpoint_url = endpoint_url
-        self.access_key_id = access_key_id
-        self.secret_access_key = secret_access_key
-        self.bucket_name = bucket_name
-        self.use_ssl = use_ssl
+        self.endpoint_url = settings.s3_endpoint_url
+        self.access_key_id = settings.s3_access_key_id
+        self.secret_access_key = settings.s3_secret_access_key
+        self.bucket_name = settings.s3_bucket_name
+        self.use_ssl = settings.s3_use_ssl
         
         # Initialize S3 client
         try:
             self.s3_client = boto3.client(
                 's3',
-                endpoint_url=endpoint_url,
-                aws_access_key_id=access_key_id,
-                aws_secret_access_key=secret_access_key,
-                use_ssl=use_ssl,
+                endpoint_url=self.endpoint_url,
+                aws_access_key_id=self.access_key_id,
+                aws_secret_access_key=self.secret_access_key,
+                use_ssl=self.use_ssl,
                 verify=False  # For self-signed certificates in development
             )
             
             # Ensure bucket exists
             self._ensure_bucket_exists()
             
-            logger.info(f"S3 Store initialized with endpoint: {endpoint_url}, bucket: {bucket_name}")
+            logger.info(f"S3 Store initialized with endpoint: {self.endpoint_url}, bucket: {self.bucket_name}")
             
         except Exception as e:
             logger.error(f"Failed to initialize S3 Store: {e}")
@@ -155,8 +143,7 @@ class S3Store:
         """
         try:
             # Generate unique segment ID if not provided
-            import uuid as _uuid
-            segment_id = segment.object_id if segment.object_id else str(_uuid.uuid4())
+            segment_id = segment.object_id if segment.object_id else str(uuid.uuid4())
             
             # Generate S3 object key
             object_key = self._generate_segment_key(flow_id, segment_id, segment.timerange)
@@ -336,106 +323,6 @@ class S3Store:
             logger.error(f"Failed to delete flow segment {segment_id} for flow {flow_id}: {e}")
             return False
     
-    async def list_flow_segments(self, 
-                                flow_id: str, 
-                                timerange: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        List flow segments for a given flow
-        
-        Args:
-            flow_id: Flow identifier
-            timerange: Optional time range filter
-            
-        Returns:
-            List of segment metadata dictionaries
-        """
-        try:
-            # List objects with flow_id prefix
-            prefix = f"{flow_id}/"
-            
-            segments = []
-            paginator = self.s3_client.get_paginator('list_objects_v2')
-            
-            for page in paginator.paginate(Bucket=self.bucket_name, Prefix=prefix):
-                if 'Contents' in page:
-                    for obj in page['Contents']:
-                        # Extract segment information from key
-                        key = obj['Key']
-                        segment_info = self._parse_segment_key(key)
-                        
-                        if segment_info:
-                            # Apply time range filter if specified
-                            if timerange and not self._timerange_overlaps(
-                                segment_info['timerange'], timerange):
-                                continue
-                            
-                            # Get full metadata
-                            metadata = await self.get_flow_segment_metadata(
-                                flow_id, 
-                                segment_info['segment_id'], 
-                                segment_info['timerange']
-                            )
-                            
-                            if metadata:
-                                segments.append({
-                                    'segment_id': segment_info['segment_id'],
-                                    'timerange': segment_info['timerange'],
-                                    'key': key,
-                                    'size': obj['Size'],
-                                    'last_modified': obj['LastModified'],
-                                    'metadata': metadata
-                                })
-            
-            return segments
-            
-        except Exception as e:
-            logger.error(f"Failed to list flow segments for flow {flow_id}: {e}")
-            return []
-    
-    def _parse_segment_key(self, key: str) -> Optional[Dict[str, str]]:
-        """
-        Parse S3 object key to extract segment information
-        
-        Args:
-            key: S3 object key
-            
-        Returns:
-            Dictionary with segment_id and timerange, or None if invalid
-        """
-        try:
-            # Key format: flow_id/year/month/day/segment_id
-            parts = key.split('/')
-            if len(parts) >= 5:
-                segment_id = parts[-1]  # Last part is segment_id
-                
-                # Try to reconstruct timerange from metadata or use default
-                # This is a simplified approach - in practice, timerange would be stored in metadata
-                timerange = "[0:0)"  # Default timerange
-                
-                return {
-                    'segment_id': segment_id,
-                    'timerange': timerange
-                }
-        except Exception as e:
-            logger.warning(f"Failed to parse segment key {key}: {e}")
-        
-        return None
-    
-    def _timerange_overlaps(self, range1: str, range2: str) -> bool:
-        """
-        Check if two time ranges overlap
-        
-        Args:
-            range1: First time range
-            range2: Second time range
-            
-        Returns:
-            True if ranges overlap, False otherwise
-        """
-        # Simplified overlap check - in practice, this would parse and compare time ranges
-        # For now, assume they overlap if they're not empty
-        return bool(range1.strip('[]()') and range2.strip('[]()'))
-    
     async def generate_presigned_url(self, 
                                     flow_id: str, 
                                     segment_id: str, 
@@ -501,9 +388,7 @@ class S3Store:
                 return [
                     GetUrl(
                         url=presigned_url,
-                        method="GET",
-                        headers={},
-                        expires=datetime.now(timezone.utc) + timedelta(hours=1)
+                        label=f"Direct access for segment {segment_id}"
                     )
                 ]
             
@@ -512,37 +397,6 @@ class S3Store:
         except Exception as e:
             logger.error(f"Failed to create GetUrls for segment {segment_id}: {e}")
             return []
-    
-    async def get_bucket_stats(self) -> Dict[str, Any]:
-        """
-        Get S3 bucket statistics
-        
-        Returns:
-            Dictionary with bucket statistics
-        """
-        try:
-            # Get bucket size and object count
-            total_size = 0
-            object_count = 0
-            
-            paginator = self.s3_client.get_paginator('list_objects_v2')
-            
-            for page in paginator.paginate(Bucket=self.bucket_name):
-                if 'Contents' in page:
-                    for obj in page['Contents']:
-                        total_size += obj['Size']
-                        object_count += 1
-            
-            return {
-                'bucket_name': self.bucket_name,
-                'total_size_bytes': total_size,
-                'object_count': object_count,
-                'average_object_size': total_size / object_count if object_count > 0 else 0
-            }
-            
-        except Exception as e:
-            logger.error(f"Failed to get bucket stats: {e}")
-            return {'error': str(e)}
     
     async def close(self):
         """Close S3 store and cleanup resources"""

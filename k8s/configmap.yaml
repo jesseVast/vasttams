@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tams-config
+  namespace: tams
+data:
+  config.json: |
+    {
+      "host": "0.0.0.0",
+      "port": 8000,
+      "debug": false,
+      "vast_endpoint": "http://172.200.204.1",
+      "vast_bucket": "jthaloor-db",
+      "vast_schema": "bbctams",
+      "s3_endpoint_url": "http://172.200.204.1",
+      "s3_bucket_name": "jthaloor-s3",
+      "s3_use_ssl": false,
+      "log_level": "INFO",
+      "log_format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+      "health_check_path": "/health",
+      "health_check_interval": "30s",
+      "health_check_timeout": "10s"
+    } 

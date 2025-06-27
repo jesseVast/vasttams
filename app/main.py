@@ -14,6 +14,7 @@ import uuid
 import asyncio
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Depends, BackgroundTasks, File, UploadFile
 from fastapi.responses import JSONResponse
 import uvicorn
@@ -22,7 +23,7 @@ from .models import (
     Service, ServiceResponse, Source, SourcesResponse, Flow, FlowsResponse,
     FlowSegment, Object, Webhook, WebhookPost, WebhooksResponse,
     FlowStoragePost, FlowStorage, DeletionRequest, DeletionRequestsResponse,
-    SourceFilters, FlowFilters, FlowDetailFilters, PagingInfo
+    SourceFilters, FlowFilters, FlowDetailFilters, PagingInfo, Tags, MediaStore, EventStreamMechanism, StorageLocation
 )
 from .vast_store import VASTStore
 from .config import get_settings
@@ -31,25 +32,16 @@ from .config import get_settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
-app = FastAPI(
-    title="TAMS API",
-    description="Time-addressable Media Store API",
-    version="6.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
-)
-
-# Initialize VAST store
+# Global VAST store instance
 vast_store = None
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize VAST store on startup"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan event handler for startup and shutdown"""
     global vast_store
-    settings = get_settings()
     
-    # Initialize VAST store with vastdbmanager and S3 config
+    # Startup
+    settings = get_settings()
     vast_store = VASTStore(
         endpoint=settings.vast_endpoint,
         access_key=settings.vast_access_key,
@@ -63,14 +55,23 @@ async def startup_event():
         s3_use_ssl=settings.s3_use_ssl
     )
     logger.info("TAMS API started with VAST store using vastdbmanager and S3 for segments")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    global vast_store
+    
+    yield
+    
+    # Shutdown
     if vast_store:
         await vast_store.close()
     logger.info("TAMS API shutdown complete")
+
+# Initialize FastAPI app with lifespan
+app = FastAPI(
+    title="TAMS API",
+    description="Time-addressable Media Store API",
+    version="6.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan
+)
 
 # Dependency to get VAST store
 def get_vast_store() -> VASTStore:
@@ -79,24 +80,48 @@ def get_vast_store() -> VASTStore:
     return vast_store
 
 # Service endpoints
-@app.get("/", response_model=ServiceResponse)
-async def get_service_info():
+@app.head("/")
+async def head_root():
+    """Return root path headers"""
+    return {}
+
+@app.get("/", response_model=List[str])
+async def get_root():
+    """List of paths available from this API"""
+    return ["service", "flows", "sources", "flow-delete-requests"]
+
+@app.head("/service")
+async def head_service():
+    """Return service path headers"""
+    return {}
+
+@app.get("/service", response_model=Service)
+async def get_service():
     """Get service information"""
-    return ServiceResponse(
-        data=Service(
-            name="TAMS API",
-            description="Time-addressable Media Store API",
-            type="urn:x-tams:service:api",
-            api_version="6.0",
-            service_version="1.0.0",
-            media_store={"type": "http_object_store"},
-            event_stream_mechanisms=[
-                {"name": "webhooks", "description": "HTTP webhooks for event notifications"}
-            ]
-        )
+    return Service(
+        name="TAMS API",
+        description="Time-addressable Media Store API",
+        type="urn:x-tams:service:api",
+        api_version="6.0",
+        service_version="1.0.0",
+        media_store=MediaStore(type="http_object_store"),
+        event_stream_mechanisms=[
+            EventStreamMechanism(name="webhooks", description="HTTP webhooks for event notifications")
+        ]
     )
 
+@app.post("/service", status_code=200)
+async def update_service(service: Service):
+    """Update service information"""
+    # In a real implementation, this would update the service configuration
+    return {"message": "Service information updated"}
+
 # Source endpoints
+@app.head("/sources")
+async def head_sources():
+    """Return sources path headers"""
+    return {}
+
 @app.get("/sources", response_model=SourcesResponse)
 async def list_sources(
     label: Optional[str] = Query(None, description="Filter by label"),
@@ -125,6 +150,11 @@ async def list_sources(
     except Exception as e:
         logger.error(f"Failed to list sources: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.head("/sources/{source_id}")
+async def head_source(source_id: str):
+    """Return source path headers"""
+    return {}
 
 @app.get("/sources/{source_id}", response_model=Source)
 async def get_source(
@@ -168,7 +198,268 @@ async def create_source(
         logger.error(f"Failed to create source: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# Source tags endpoints
+@app.head("/sources/{source_id}/tags")
+async def head_source_tags(source_id: str):
+    """Return source tags path headers"""
+    return {}
+
+@app.get("/sources/{source_id}/tags")
+async def get_source_tags(
+    source_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get source tags"""
+    try:
+        source = await store.get_source(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        return source.tags.__root__ if source.tags else {}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get source tags {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.head("/sources/{source_id}/tags/{name}")
+async def head_source_tag(source_id: str, name: str):
+    """Return source tag path headers"""
+    return {}
+
+@app.get("/sources/{source_id}/tags/{name}")
+async def get_source_tag(
+    source_id: str,
+    name: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get specific source tag"""
+    try:
+        source = await store.get_source(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        if not source.tags or name not in source.tags.__root__:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        return {name: source.tags.__root__[name]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get source tag {source_id}/{name}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/sources/{source_id}/tags/{name}")
+async def update_source_tag(
+    source_id: str,
+    name: str,
+    value: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update source tag"""
+    try:
+        source = await store.get_source(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        # Update tag
+        if not source.tags:
+            source.tags = Tags(__root__={})
+        source.tags.__root__[name] = value
+        source.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_source(source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update source tag")
+        
+        return {name: value}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update source tag {source_id}/{name}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.delete("/sources/{source_id}/tags/{name}")
+async def delete_source_tag(
+    source_id: str,
+    name: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete source tag"""
+    try:
+        source = await store.get_source(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        if not source.tags or name not in source.tags.__root__:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        # Remove tag
+        del source.tags.__root__[name]
+        source.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_source(source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete source tag")
+        
+        return {"message": "Tag deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete source tag {source_id}/{name}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Source description endpoints
+@app.head("/sources/{source_id}/description")
+async def head_source_description(source_id: str):
+    """Return source description path headers"""
+    return {}
+
+@app.get("/sources/{source_id}/description")
+async def get_source_description(
+    source_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get source description"""
+    try:
+        source = await store.get_source(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        return {"description": source.description}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get source description {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/sources/{source_id}/description")
+async def update_source_description(
+    source_id: str,
+    description: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update source description"""
+    try:
+        source = await store.get_source(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        source.description = description
+        source.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_source(source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update source description")
+        
+        return {"description": description}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update source description {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.delete("/sources/{source_id}/description")
+async def delete_source_description(
+    source_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete source description"""
+    try:
+        source = await store.get_source(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        source.description = None
+        source.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_source(source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete source description")
+        
+        return {"message": "Description deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete source description {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Source label endpoints
+@app.head("/sources/{source_id}/label")
+async def head_source_label(source_id: str):
+    """Return source label path headers"""
+    return {}
+
+@app.get("/sources/{source_id}/label")
+async def get_source_label(
+    source_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get source label"""
+    try:
+        source = await store.get_source(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        return {"label": source.label}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get source label {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/sources/{source_id}/label")
+async def update_source_label(
+    source_id: str,
+    label: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update source label"""
+    try:
+        source = await store.get_source(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        source.label = label
+        source.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_source(source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update source label")
+        
+        return {"label": label}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update source label {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.delete("/sources/{source_id}/label")
+async def delete_source_label(
+    source_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete source label"""
+    try:
+        source = await store.get_source(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        source.label = None
+        source.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_source(source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete source label")
+        
+        return {"message": "Label deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete source label {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # Flow endpoints
+@app.head("/flows")
+async def head_flows():
+    """Return flows path headers"""
+    return {}
+
 @app.get("/flows", response_model=FlowsResponse)
 async def list_flows(
     source_id: Optional[str] = Query(None, description="Filter by source ID"),
@@ -207,6 +498,11 @@ async def list_flows(
         logger.error(f"Failed to list flows: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@app.head("/flows/{flow_id}")
+async def head_flow(flow_id: str):
+    """Return flow path headers"""
+    return {}
+
 @app.get("/flows/{flow_id}", response_model=Flow)
 async def get_flow(
     flow_id: str,
@@ -223,6 +519,53 @@ async def get_flow(
         raise
     except Exception as e:
         logger.error(f"Failed to get flow {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/flows/{flow_id}", response_model=Flow)
+async def update_flow(
+    flow_id: str,
+    flow: Flow,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update flow"""
+    try:
+        existing_flow = await store.get_flow(flow_id)
+        if not existing_flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        # Update fields
+        flow.id = existing_flow.id  # Preserve ID
+        flow.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_flow(flow)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update flow")
+        
+        return flow
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update flow {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.delete("/flows/{flow_id}")
+async def delete_flow(
+    flow_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete flow"""
+    try:
+        success = await store.delete_flow(flow_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        return {"message": "Flow deleted"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete flow {flow_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/flows", response_model=Flow, status_code=201)
@@ -249,7 +592,397 @@ async def create_flow(
         logger.error(f"Failed to create flow: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# Flow tags endpoints
+@app.head("/flows/{flow_id}/tags")
+async def head_flow_tags(flow_id: str):
+    """Return flow tags path headers"""
+    return {}
+
+@app.get("/flows/{flow_id}/tags")
+async def get_flow_tags(
+    flow_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get flow tags"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        return flow.tags.__root__ if flow.tags else {}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get flow tags {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.head("/flows/{flow_id}/tags/{name}")
+async def head_flow_tag(flow_id: str, name: str):
+    """Return flow tag path headers"""
+    return {}
+
+@app.get("/flows/{flow_id}/tags/{name}")
+async def get_flow_tag(
+    flow_id: str,
+    name: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get specific flow tag"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        if not flow.tags or name not in flow.tags.__root__:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        return {name: flow.tags.__root__[name]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get flow tag {flow_id}/{name}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/flows/{flow_id}/tags/{name}")
+async def update_flow_tag(
+    flow_id: str,
+    name: str,
+    value: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update flow tag"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        # Update tag
+        if not flow.tags:
+            flow.tags = Tags(__root__={})
+        flow.tags.__root__[name] = value
+        flow.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_flow(flow)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update flow tag")
+        
+        return {name: value}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update flow tag {flow_id}/{name}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.delete("/flows/{flow_id}/tags/{name}")
+async def delete_flow_tag(
+    flow_id: str,
+    name: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete flow tag"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        if not flow.tags or name not in flow.tags.__root__:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        # Remove tag
+        del flow.tags.__root__[name]
+        flow.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_flow(flow)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete flow tag")
+        
+        return {"message": "Tag deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete flow tag {flow_id}/{name}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Flow description endpoints
+@app.head("/flows/{flow_id}/description")
+async def head_flow_description(flow_id: str):
+    """Return flow description path headers"""
+    return {}
+
+@app.get("/flows/{flow_id}/description")
+async def get_flow_description(
+    flow_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get flow description"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        return {"description": flow.description}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get flow description {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/flows/{flow_id}/description")
+async def update_flow_description(
+    flow_id: str,
+    description: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update flow description"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        flow.description = description
+        flow.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_flow(flow)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update flow description")
+        
+        return {"description": description}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update flow description {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.delete("/flows/{flow_id}/description")
+async def delete_flow_description(
+    flow_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete flow description"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        flow.description = None
+        flow.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_flow(flow)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete flow description")
+        
+        return {"message": "Description deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete flow description {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Flow label endpoints
+@app.head("/flows/{flow_id}/label")
+async def head_flow_label(flow_id: str):
+    """Return flow label path headers"""
+    return {}
+
+@app.get("/flows/{flow_id}/label")
+async def get_flow_label(
+    flow_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get flow label"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        return {"label": flow.label}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get flow label {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/flows/{flow_id}/label")
+async def update_flow_label(
+    flow_id: str,
+    label: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update flow label"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        flow.label = label
+        flow.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_flow(flow)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update flow label")
+        
+        return {"label": label}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update flow label {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.delete("/flows/{flow_id}/label")
+async def delete_flow_label(
+    flow_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete flow label"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        flow.label = None
+        flow.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_flow(flow)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete flow label")
+        
+        return {"message": "Label deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete flow label {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Flow read-only endpoints
+@app.head("/flows/{flow_id}/read_only")
+async def head_flow_read_only(flow_id: str):
+    """Return flow read-only path headers"""
+    return {}
+
+@app.get("/flows/{flow_id}/read_only")
+async def get_flow_read_only(
+    flow_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get flow read-only status"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        return {"read_only": flow.read_only}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get flow read-only {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/flows/{flow_id}/read_only")
+async def update_flow_read_only(
+    flow_id: str,
+    read_only: bool,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update flow read-only status"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        flow.read_only = read_only
+        flow.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_flow(flow)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update flow read-only status")
+        
+        return {"read_only": read_only}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update flow read-only {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Flow collection endpoints (for MultiFlow)
+@app.head("/flows/{flow_id}/flow_collection")
+async def head_flow_collection(flow_id: str):
+    """Return flow collection path headers"""
+    return {}
+
+@app.get("/flows/{flow_id}/flow_collection")
+async def get_flow_collection(
+    flow_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get flow collection"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        if not hasattr(flow, 'flow_collection'):
+            raise HTTPException(status_code=404, detail="Flow collection not found")
+        return {"flow_collection": [str(uuid) for uuid in flow.flow_collection]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get flow collection {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/flows/{flow_id}/flow_collection")
+async def update_flow_collection(
+    flow_id: str,
+    flow_collection: List[str],
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update flow collection"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        if not hasattr(flow, 'flow_collection'):
+            raise HTTPException(status_code=400, detail="Flow does not support collections")
+        
+        flow.flow_collection = [UUID(uuid) for uuid in flow_collection]
+        flow.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_flow(flow)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update flow collection")
+        
+        return {"flow_collection": flow_collection}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update flow collection {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.delete("/flows/{flow_id}/flow_collection")
+async def delete_flow_collection(
+    flow_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete flow collection"""
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        if not hasattr(flow, 'flow_collection'):
+            raise HTTPException(status_code=400, detail="Flow does not support collections")
+        
+        flow.flow_collection = []
+        flow.updated = datetime.now(timezone.utc)
+        
+        success = await store.update_flow(flow)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete flow collection")
+        
+        return {"message": "Flow collection deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete flow collection {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # Flow segments endpoints
+@app.head("/flows/{flow_id}/segments")
+async def head_flow_segments(flow_id: str):
+    """Return flow segments path headers"""
+    return {}
+
 @app.get("/flows/{flow_id}/segments", response_model=List[FlowSegment])
 async def get_flow_segments(
     flow_id: str,
@@ -277,20 +1010,85 @@ async def create_flow_segment(
         success = await store.create_flow_segment(segment, flow_id, data, file.content_type)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to create flow segment")
+        
         return segment
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to create flow segment for flow {flow_id}: {e}")
+        logger.error(f"Failed to create flow segment: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.delete("/flows/{flow_id}/segments")
+async def delete_flow_segments(
+    flow_id: str,
+    timerange: Optional[str] = Query(None, description="Delete segments in time range"),
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete flow segments"""
+    try:
+        success = await store.delete_flow_segments(flow_id, timerange=timerange)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete flow segments")
+        
+        return {"message": "Flow segments deleted"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete flow segments: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Flow storage endpoints
+@app.post("/flows/{flow_id}/storage", response_model=FlowStorage)
+async def allocate_flow_storage(
+    flow_id: str,
+    storage_request: FlowStoragePost,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Allocate storage for flow segments"""
+    try:
+        # Check if flow exists
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        # Generate storage locations
+        storage_locations = []
+        object_ids = storage_request.object_ids or [str(uuid.uuid4()) for _ in range(storage_request.limit or 1)]
+        
+        for object_id in object_ids:
+            # Generate presigned URLs for S3 upload
+            put_url = await store.s3_store.generate_presigned_url(
+                flow_id, object_id, "[0:0)", 'put_object'
+            )
+            
+            storage_locations.append(StorageLocation(
+                object_id=object_id,
+                put_url=put_url or "",
+                bucket_put_url=None
+            ))
+        
+        return FlowStorage(storage_locations=storage_locations)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to allocate storage for flow {flow_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Object endpoints
+@app.head("/objects/{object_id}")
+async def head_object(object_id: str):
+    """Return object path headers"""
+    return {}
+
 @app.get("/objects/{object_id}", response_model=Object)
 async def get_object(
     object_id: str,
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Get media object by ID"""
+    """Get object by ID"""
     try:
         obj = await store.get_object(object_id)
         if not obj:
@@ -308,10 +1106,11 @@ async def create_object(
     obj: Object,
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Create a new media object"""
+    """Create a new object"""
     try:
-        # Set timestamp
-        obj.created = datetime.now(timezone.utc)
+        # Set timestamps
+        now = datetime.now(timezone.utc)
+        obj.created = now
         
         success = await store.create_object(obj)
         if not success:
@@ -326,86 +1125,90 @@ async def create_object(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Webhook endpoints
-@app.get("/webhooks", response_model=WebhooksResponse)
+@app.head("/service/webhooks")
+async def head_webhooks():
+    """Return webhooks path headers"""
+    return {}
+
+@app.get("/service/webhooks", response_model=WebhooksResponse)
 async def list_webhooks(
     store: VASTStore = Depends(get_vast_store)
 ):
     """List webhooks"""
     try:
-        # For now, return empty list - webhook storage not implemented
-        return WebhooksResponse(data=[])
+        webhooks = await store.list_webhooks()
+        return WebhooksResponse(data=webhooks)
         
     except Exception as e:
         logger.error(f"Failed to list webhooks: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.post("/webhooks", response_model=Webhook, status_code=201)
+@app.post("/service/webhooks", response_model=Webhook, status_code=201)
 async def create_webhook(
     webhook: WebhookPost,
     store: VASTStore = Depends(get_vast_store)
 ):
     """Create a new webhook"""
     try:
-        # For now, just return the webhook - storage not implemented
+        success = await store.create_webhook(webhook)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to create webhook")
+        
         return Webhook(
             url=webhook.url,
             api_key_name=webhook.api_key_name,
-            api_key_value=webhook.api_key_value,
             events=webhook.events
         )
-        
-    except Exception as e:
-        logger.error(f"Failed to create webhook: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-# Flow storage endpoints
-@app.post("/flows/{flow_id}/storage", response_model=FlowStorage)
-async def allocate_flow_storage(
-    flow_id: str,
-    storage_request: FlowStoragePost,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Allocate storage for flow objects"""
-    try:
-        # Verify flow exists
-        flow = await store.get_flow(flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Generate storage locations
-        storage_locations = []
-        object_ids = storage_request.object_ids or [f"obj_{i}" for i in range(storage_request.limit or 1)]
-        
-        for obj_id in object_ids:
-            storage_locations.append({
-                "object_id": obj_id,
-                "put_url": f"https://storage.example.com/upload/{obj_id}",
-                "bucket_put_url": f"https://storage.example.com/bucket/{obj_id}"
-            })
-        
-        return FlowStorage(storage_locations=storage_locations)
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to allocate storage for flow {flow_id}: {e}")
+        logger.error(f"Failed to create webhook: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# Deletion request endpoints
-@app.get("/deletion-requests", response_model=DeletionRequestsResponse)
+# Deletion requests endpoints
+@app.head("/flow-delete-requests")
+async def head_deletion_requests():
+    """Return deletion requests path headers"""
+    return {}
+
+@app.get("/flow-delete-requests", response_model=DeletionRequestsResponse)
 async def list_deletion_requests(
     store: VASTStore = Depends(get_vast_store)
 ):
     """List deletion requests"""
     try:
-        # For now, return empty list - deletion request storage not implemented
-        return DeletionRequestsResponse(data={"requests": []})
+        requests = await store.list_deletion_requests()
+        return DeletionRequestsResponse(data=requests)
         
     except Exception as e:
         logger.error(f"Failed to list deletion requests: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.post("/deletion-requests", response_model=DeletionRequest, status_code=201)
+@app.head("/flow-delete-requests/{request_id}")
+async def head_deletion_request(request_id: str):
+    """Return deletion request path headers"""
+    return {}
+
+@app.get("/flow-delete-requests/{request_id}", response_model=DeletionRequest)
+async def get_deletion_request(
+    request_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get deletion request by ID"""
+    try:
+        request = await store.get_deletion_request(request_id)
+        if not request:
+            raise HTTPException(status_code=404, detail="Deletion request not found")
+        return request
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get deletion request {request_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/flow-delete-requests", response_model=DeletionRequest, status_code=201)
 async def create_deletion_request(
     deletion_request: DeletionRequest,
     background_tasks: BackgroundTasks,
@@ -413,17 +1216,16 @@ async def create_deletion_request(
 ):
     """Create a new deletion request"""
     try:
-        # Verify flow exists
-        flow = await store.get_flow(str(deletion_request.flow_id))
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
         # Set timestamps
         now = datetime.now(timezone.utc)
         deletion_request.created = now
         deletion_request.updated = now
         
-        # Add background task to process deletion
+        success = await store.create_deletion_request(deletion_request)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to create deletion request")
+        
+        # Process deletion in background
         background_tasks.add_task(process_deletion_request, deletion_request)
         
         return deletion_request
@@ -441,8 +1243,8 @@ async def get_flow_usage_analytics(
 ):
     """Get flow usage analytics"""
     try:
-        results = await store.analytics_query("flow_usage")
-        return results
+        analytics = await store.analytics_query("flow_usage")
+        return analytics
         
     except Exception as e:
         logger.error(f"Failed to get flow usage analytics: {e}")
@@ -454,8 +1256,8 @@ async def get_storage_usage_analytics(
 ):
     """Get storage usage analytics"""
     try:
-        results = await store.analytics_query("storage_usage")
-        return results
+        analytics = await store.analytics_query("storage_usage")
+        return analytics
         
     except Exception as e:
         logger.error(f"Failed to get storage usage analytics: {e}")
@@ -465,10 +1267,10 @@ async def get_storage_usage_analytics(
 async def get_time_range_analytics(
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Get time range analysis"""
+    """Get time range analytics"""
     try:
-        results = await store.analytics_query("time_range_analysis")
-        return results
+        analytics = await store.analytics_query("time_range_analysis")
+        return analytics
         
     except Exception as e:
         logger.error(f"Failed to get time range analytics: {e}")
@@ -479,24 +1281,12 @@ async def process_deletion_request(deletion_request: DeletionRequest):
     """Process deletion request in background"""
     try:
         logger.info(f"Processing deletion request {deletion_request.request_id}")
-        
-        # Update status to in_progress
-        deletion_request.status = "in_progress"
-        deletion_request.updated = datetime.now(timezone.utc)
-        
-        # Simulate processing time
-        await asyncio.sleep(2)
-        
-        # Update status to completed
-        deletion_request.status = "completed"
-        deletion_request.updated = datetime.now(timezone.utc)
-        
+        # Implementation would delete flow segments and update request status
+        # This is a placeholder for the actual deletion logic
+        await asyncio.sleep(1)  # Simulate processing time
         logger.info(f"Completed deletion request {deletion_request.request_id}")
-        
     except Exception as e:
         logger.error(f"Failed to process deletion request {deletion_request.request_id}: {e}")
-        deletion_request.status = "failed"
-        deletion_request.updated = datetime.now(timezone.utc)
 
 # Health check endpoint
 @app.get("/health")

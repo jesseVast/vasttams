@@ -89,7 +89,7 @@ class VastDBManager:
             raise
     
     @property
-    def session(self) -> vastdb.Session:
+    def session(self) -> vastdb.session.Session:
         """Get the VAST database session."""
         return self._session
     
@@ -360,7 +360,7 @@ class VastDBManager:
                 if width < smallest_width:
                     smallest_width = width
                     smallest_column = field.name
-            except AttributeError:
+            except (AttributeError, ValueError):
                 # Skip non-fixed-width columns
                 continue
         
@@ -543,14 +543,13 @@ class VastDBManager:
                 field for field in self.table_schemas[table_name]
                 if field.name in columns
             ]
-            
             # Create record batch
-            record_batch = RecordBatch.from_pydict(data, schema=Schema(schema_fields))
+            record_batch = pa.RecordBatch.from_pydict(data, schema=pa.schema(schema_fields))
             num_records = len(record_batch)
-            
             # Insert the data
             with self._transaction() as tx:
                 table = self._get_table(tx, table_name)
+                logger.info(f"Inserting {num_records} rows into '{table_name}'")
                 table.insert(record_batch)
             
             logger.info(f"Successfully inserted {num_records} rows into '{table_name}'")
@@ -671,7 +670,7 @@ class VastDBManager:
                 update_data[column] = [data[column]] * len(row_data)
             
             # Create record batch and update
-            record_batch = RecordBatch.from_pydict(update_data, schema=Schema(update_schema_fields))
+            record_batch = RecordBatch.from_pydict(update_data, schema=pa.schema(update_schema_fields))
             
             with self._transaction() as tx:
                 table = self._get_table(tx, table_name)
@@ -688,8 +687,6 @@ class VastDBManager:
         """Close the database connection and clean up resources."""
         logger.info("Closing VAST DB connection")
         try:
-            if hasattr(self, '_session'):
-                self._session.close()
             self._ready = False
             logger.info("VAST DB connection closed")
         except Exception as e:

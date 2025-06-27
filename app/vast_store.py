@@ -914,8 +914,7 @@ class VASTStore:
                 if 'label' in filters:
                     conditions.append((_.label == filters['label']))
                 if conditions:
-                    predicate = conditions[0] if len(conditions) == 1 else conditions[0] & conditions[1]
-            
+                    predicate = conditions[0] if len(conditions) == 1 else (conditions[0] & conditions[1])            
             # Query flows
             results = self.db_manager.select('flows', predicate=predicate, output_by_row=True)
             

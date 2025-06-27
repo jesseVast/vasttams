@@ -7,9 +7,12 @@ for common database operations.
 
 import logging
 from typing import Dict, List, Any
+import pyarrow as pa
+from ibis import _
+from traceback import print_exc
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO,format='%(module)s:%(lineno)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -18,11 +21,11 @@ def example_basic_usage():
     
     # Configuration
     config = {
-        'endpoint': 'http://localhost:8080',
-        'access_key': 'your_access_key',
-        'secret_key': 'your_secret_key',
-        'bucket': 'your_bucket',
-        'schema': 'your_schema',
+        'endpoint': 'http://172.200.204.1',
+        'access_key': 'SRSPW0DQT9T70Y787U68',
+        'secret_key': 'WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr',
+        'bucket': 'jthaloor-db',
+        'schema': 'bbctams',
         'timeout': 30
     }
     
@@ -31,18 +34,36 @@ def example_basic_usage():
         from app.vastdbmanager import VastDBManager
         
         # Create manager instance
-        with VastDBManager(**config) as manager:
-            logger.info("VAST DB Manager initialized successfully")
+        # with VastDBManager(**config) as manager:
+        #     logger.info("VAST DB Manager initialized successfully")
             
-            # List existing tables
-            tables = manager.list_tables()
-            logger.info(f"Existing tables: {tables}")
+        #     # List existing tables
+        #     tables = manager.list_tables()
+        #     logger.info(f"Existing tables: {tables}")
             
-            # Example operations (commented out as they require actual data)
-            # create_example_table(manager)
-            # insert_example_data(manager)
-            # query_example_data(manager)
-            
+        #     # Example operations (commented out as they require actual data)
+        #     create_example_table(manager)
+        #     insert_example_data(manager)
+        #     query_example_data(manager)
+        manager=VastDBManager(**config)
+        logger.info("VAST DB Manager initialized successfully")
+        
+        # List existing tables
+        tables = manager.list_tables()
+        logger.info(f"Existing tables: {tables}")
+        
+        # 
+        #Example operations (commented out as they require actual data)
+        create_example_table(manager)
+        insert_example_data(manager)
+        query_example_data(manager)
+        update_example_data(manager)
+        delete_example_data(manager)
+        query_example_data(manager)
+        get_table_info(manager)
+        manager.drop_table('example_table')
+        manager.drop_schema()
+
     except ImportError:
         logger.warning("vastdb package not available - this is a demonstration only")
     except Exception as e:
@@ -51,24 +72,26 @@ def example_basic_usage():
 
 def create_example_table(manager):
     """Example of creating a table."""
-    try:
-        import pyarrow as pa
-        from pyarrow import Schema
-        
-        # Define table schema
-        schema = Schema([
+    logger.info("Creating example table")
+    schema = pa.schema([
             pa.field('id', pa.int64()),
             pa.field('name', pa.string()),
             pa.field('value', pa.float64()),
             pa.field('timestamp', pa.timestamp('us'))
         ])
+    logger.info(f"Schema: {schema}")
+    try:
         
+        
+        # Define table schema
         # Create table
         manager.create_table('example_table', schema)
         logger.info("Example table created successfully")
         
     except ImportError:
         logger.warning("pyarrow not available - skipping table creation example")
+    except Exception as e:
+        raise e
 
 
 def insert_example_data(manager):
@@ -82,7 +105,7 @@ def insert_example_data(manager):
             'timestamp': [1234567890000, 1234567891000, 1234567892000, 1234567893000, 1234567894000]
         }
         
-        rows_inserted = manager.insert_pydict('example_table', pydict_data)
+        rows_inserted = manager.insert('example_table', pydict_data)
         logger.info(f"Inserted {rows_inserted} rows using pydict format")
         
         # Row-oriented data (pylist format)
@@ -91,8 +114,12 @@ def insert_example_data(manager):
             {'id': 7, 'name': 'Grace', 'value': 70.8, 'timestamp': 1234567896000}
         ]
         
-        rows_inserted = manager.insert_pylist('example_table', pylist_data)
+        rows_inserted = manager.insert('example_table', pylist_data)
         logger.info(f"Inserted {rows_inserted} rows using pylist format")
+
+        # dictionary insert
+        rows_inserted = manager.insert('example_table', {'id': 8, 'name': 'Henry', 'value': 80.4, 'timestamp': 1234567897000})
+        logger.info(f"Inserted {rows_inserted} rows using dictionary format")
         
     except Exception as e:
         logger.error(f"Error inserting data: {e}")
@@ -110,7 +137,7 @@ def query_example_data(manager):
         logger.info(f"Retrieved {len(specific_columns)} rows with specific columns")
         
         # Select with predicate
-        filtered_data = manager.select('example_table', predicate='value > 30.0')
+        filtered_data = manager.select('example_table', predicate=(_.value > 30.0))
         logger.info(f"Retrieved {len(filtered_data)} rows with value > 30.0")
         
         # Get column-oriented output
@@ -126,18 +153,18 @@ def update_example_data(manager):
     try:
         # Update specific rows
         update_data = {'value': 99.9, 'name': 'Updated Name'}
-        rows_updated = manager.update('example_table', update_data, 'id = 1')
+        rows_updated = manager.update('example_table', update_data, (_.id == 1))
         logger.info(f"Updated {rows_updated} rows")
         
     except Exception as e:
         logger.error(f"Error updating data: {e}")
-
+        print_exc()
 
 def delete_example_data(manager):
     """Example of deleting data."""
     try:
         # Delete specific rows
-        rows_deleted = manager.delete('example_table', 'value < 20.0')
+        rows_deleted = manager.delete('example_table', (_.value < 30.0))
         logger.info(f"Deleted {rows_deleted} rows")
         
     except Exception as e:

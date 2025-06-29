@@ -42,20 +42,11 @@ async def test_vast_store():
         source = Source(
             id=UUID("550e8400-e29b-41d4-a716-446655440000"),
             format="urn:x-nmos:format:video",
-            label="Test Video Source",
-            description="A test video source for VAST store testing",
-            created_by="test-user",
-            updated_by="test-user",
-            created=datetime.utcnow(),
-            updated=datetime.utcnow(),
-            tags=Tags(__root__={"test": "true", "environment": "development"}),
-            source_collection=[
-                CollectionItem(
-                    id=UUID("550e8400-e29b-41d4-a716-446655440001"),
-                    label="Test Collection Item"
-                )
-            ],
-            collected_by=[UUID("550e8400-e29b-41d4-a716-446655440002")]
+            label="Test Camera",
+            description="Test camera source",
+            tags=Tags({"test": "true", "environment": "development"}),
+            created_by="test_user",
+            updated_by="test_user"
         )
         
         success = await store.create_source(source)

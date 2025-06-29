@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any, Union
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, RootModel
 import uuid
 import re
 
@@ -90,18 +90,32 @@ class TimeRange(str):
         return v
 
 
-class Tags(BaseModel):
-    """Tags model - flexible key-value pairs"""
-    __root__: Dict[str, str] = Field(default_factory=dict)
+class Tags(RootModel[Dict[str, str]]):
+    """Tags model - flexible key-value pairs using Pydantic v2 RootModel"""
     
     def __getitem__(self, key: str) -> str:
-        return self.__root__[key]
+        return self.root[key]
     
     def __setitem__(self, key: str, value: str):
-        self.__root__[key] = value
+        self.root[key] = value
     
     def __contains__(self, key: str) -> bool:
-        return key in self.__root__
+        return key in self.root
+    
+    def get(self, key: str, default=None):
+        return self.root.get(key, default)
+    
+    def keys(self):
+        return self.root.keys()
+    
+    def values(self):
+        return self.root.values()
+    
+    def items(self):
+        return self.root.items()
+    
+    def update(self, other_dict: Dict[str, str]):
+        self.root.update(other_dict)
 
 
 class CollectionItem(BaseModel):

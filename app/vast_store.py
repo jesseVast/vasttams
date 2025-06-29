@@ -419,7 +419,7 @@ class VASTStore:
                 'updated_by': source.updated_by or "",
                 'created': source.created or datetime.now(timezone.utc),
                 'updated': source.updated or datetime.now(timezone.utc),
-                'tags': self._dict_to_json(source.tags.__root__ if source.tags else {}),
+                'tags': self._dict_to_json(source.tags.root if source.tags else {}),
                 'source_collection': self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else []),
                 'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else [])
             }
@@ -461,7 +461,7 @@ class VASTStore:
                 'updated_by': row['updated_by'] if row['updated_by'] else None,
                 'created': row['created'],
                 'updated': row['updated'],
-                'tags': Tags(__root__=self._json_to_dict(row['tags'])),
+                'tags': Tags(self._json_to_dict(row['tags'])),
                 'source_collection': [CollectionItem(id=UUID(str(uuid.uuid4())), label=item) if isinstance(item, str) else CollectionItem(id=UUID(item.get('id', str(uuid.uuid4()))), **item) for item in self._json_to_dict(row['source_collection'])],
                 'collected_by': [UUID(uuid) for uuid in self._json_to_dict(row['collected_by'])]
             }
@@ -512,7 +512,7 @@ class VASTStore:
                         'updated_by': row['updated_by'] if row['updated_by'] else None,
                         'created': row['created'],
                         'updated': row['updated'],
-                        'tags': Tags(__root__=self._json_to_dict(row['tags'])),
+                        'tags': Tags(self._json_to_dict(row['tags'])),
                         'source_collection': [CollectionItem(id=UUID(str(uuid.uuid4())), label=item) if isinstance(item, str) else CollectionItem(id=UUID(item.get('id', str(uuid.uuid4()))), **item) for item in self._json_to_dict(row['source_collection'])],
                         'collected_by': [UUID(uuid) for uuid in self._json_to_dict(row['collected_by'])]
                     }
@@ -539,7 +539,7 @@ class VASTStore:
                 'updated_by': flow.updated_by or "",
                 'created': flow.created or datetime.now(timezone.utc),
                 'updated': flow.updated or datetime.now(timezone.utc),
-                'tags': self._dict_to_json(flow.tags.__root__ if flow.tags else {}),
+                'tags': self._dict_to_json(flow.tags.root if flow.tags else {}),
                 'container': flow.container or "",
                 'read_only': flow.read_only or False,
                 'frame_width': getattr(flow, 'frame_width', 0),
@@ -595,7 +595,7 @@ class VASTStore:
                 'updated_by': row['updated_by'] if row['updated_by'] else None,
                 'created': row['created'],
                 'updated': row['updated'],
-                'tags': Tags(__root__=self._json_to_dict(row['tags'])),
+                'tags': Tags(self._json_to_dict(row['tags'])),
                 'container': row['container'] if row['container'] else None,
                 'read_only': row['read_only']
             }
@@ -944,7 +944,7 @@ class VASTStore:
                         'updated_by': row['updated_by'] if row['updated_by'] else None,
                         'created': row['created'],
                         'updated': row['updated'],
-                        'tags': Tags(__root__=self._json_to_dict(row['tags'])),
+                        'tags': Tags(self._json_to_dict(row['tags'])),
                         'container': row['container'] if row['container'] else None,
                         'read_only': row['read_only']
                     }
@@ -1011,7 +1011,7 @@ class VASTStore:
                 'updated_by': source.updated_by or "",
                 'created': source.created or datetime.now(timezone.utc),
                 'updated': source.updated or datetime.now(timezone.utc),
-                'tags': self._dict_to_json(source.tags.__root__ if source.tags else {}),
+                'tags': self._dict_to_json(source.tags.root if source.tags else {}),
                 'source_collection': self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else []),
                 'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else [])
             }
@@ -1042,7 +1042,7 @@ class VASTStore:
                 'updated_by': flow.updated_by or "",
                 'created': flow.created or datetime.now(timezone.utc),
                 'updated': flow.updated or datetime.now(timezone.utc),
-                'tags': self._dict_to_json(flow.tags.__root__ if flow.tags else {}),
+                'tags': self._dict_to_json(flow.tags.root if flow.tags else {}),
                 'container': flow.container or "",
                 'read_only': flow.read_only or False,
                 'frame_width': getattr(flow, 'frame_width', 0),

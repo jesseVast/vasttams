@@ -214,7 +214,7 @@ async def get_source_tags(
         source = await store.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
-        return source.tags.__root__ if source.tags else {}
+        return source.tags.root if source.tags else {}
     except HTTPException:
         raise
     except Exception as e:
@@ -237,9 +237,9 @@ async def get_source_tag(
         source = await store.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
-        if not source.tags or name not in source.tags.__root__:
+        if not source.tags or name not in source.tags.root:
             raise HTTPException(status_code=404, detail="Tag not found")
-        return {name: source.tags.__root__[name]}
+        return {name: source.tags.root[name]}
     except HTTPException:
         raise
     except Exception as e:
@@ -261,8 +261,8 @@ async def update_source_tag(
         
         # Update tag
         if not source.tags:
-            source.tags = Tags(__root__={})
-        source.tags.__root__[name] = value
+            source.tags = Tags({})
+        source.tags.root[name] = value
         source.updated = datetime.now(timezone.utc)
         
         success = await store.update_source(source)
@@ -288,11 +288,11 @@ async def delete_source_tag(
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
-        if not source.tags or name not in source.tags.__root__:
+        if not source.tags or name not in source.tags.root:
             raise HTTPException(status_code=404, detail="Tag not found")
         
         # Remove tag
-        del source.tags.__root__[name]
+        del source.tags.root[name]
         source.updated = datetime.now(timezone.utc)
         
         success = await store.update_source(source)
@@ -608,7 +608,7 @@ async def get_flow_tags(
         flow = await store.get_flow(flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
-        return flow.tags.__root__ if flow.tags else {}
+        return flow.tags.root if flow.tags else {}
     except HTTPException:
         raise
     except Exception as e:
@@ -631,9 +631,9 @@ async def get_flow_tag(
         flow = await store.get_flow(flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
-        if not flow.tags or name not in flow.tags.__root__:
+        if not flow.tags or name not in flow.tags.root:
             raise HTTPException(status_code=404, detail="Tag not found")
-        return {name: flow.tags.__root__[name]}
+        return {name: flow.tags.root[name]}
     except HTTPException:
         raise
     except Exception as e:
@@ -655,8 +655,8 @@ async def update_flow_tag(
         
         # Update tag
         if not flow.tags:
-            flow.tags = Tags(__root__={})
-        flow.tags.__root__[name] = value
+            flow.tags = Tags({})
+        flow.tags.root[name] = value
         flow.updated = datetime.now(timezone.utc)
         
         success = await store.update_flow(flow)
@@ -682,11 +682,11 @@ async def delete_flow_tag(
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
         
-        if not flow.tags or name not in flow.tags.__root__:
+        if not flow.tags or name not in flow.tags.root:
             raise HTTPException(status_code=404, detail="Tag not found")
         
         # Remove tag
-        del flow.tags.__root__[name]
+        del flow.tags.root[name]
         flow.updated = datetime.now(timezone.utc)
         
         success = await store.update_flow(flow)

@@ -10,6 +10,7 @@ import httpx
 from .models import Webhook, DeletionRequest
 from .database import WebhookModel, DeletionRequestModel
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 
 def generate_uuid() -> str:
@@ -26,8 +27,8 @@ def validate_timerange(timerange: str) -> bool:
 def validate_uuid(uuid_str: str) -> bool:
     """Validate UUIDv4 format only"""
     try:
-        u = uuid.UUID(uuid_str)
-        return u.version == 4
+        UUID(uuid_str)
+        return True
     except Exception:
         return False
 

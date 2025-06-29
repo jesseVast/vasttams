@@ -12,11 +12,14 @@ This implements the BBC TAMS API specification with support for:
 import logging
 import uuid
 import asyncio
+import json
+import os
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Depends, BackgroundTasks, File, UploadFile
 from fastapi.responses import JSONResponse
+from fastapi.openapi.utils import get_openapi
 import uvicorn
 
 from .models import (
@@ -63,6 +66,30 @@ async def lifespan(app: FastAPI):
         await vast_store.close()
     logger.info("TAMS API shutdown complete")
 
+def custom_openapi():
+    """Generate custom OpenAPI schema"""
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    # Try to load from file first
+    openapi_file = os.path.join(os.path.dirname(__file__), "..", "api", "openapi.json")
+    if os.path.exists(openapi_file):
+        try:
+            with open(openapi_file, 'r') as f:
+                app.openapi_schema = json.load(f)
+                return app.openapi_schema
+        except Exception as e:
+            logger.warning(f"Failed to load OpenAPI file: {e}")
+    
+    # Fallback to auto-generated schema
+    app.openapi_schema = get_openapi(
+        title="TAMS API",
+        version="6.0.0",
+        description="Time-addressable Media Store API",
+        routes=app.routes,
+    )
+    return app.openapi_schema
+
 # Initialize FastAPI app with lifespan
 app = FastAPI(
     title="TAMS API",
@@ -73,11 +100,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Set custom OpenAPI schema
+app.openapi = custom_openapi
+
 # Dependency to get VAST store
 def get_vast_store() -> VASTStore:
     if vast_store is None:
         raise HTTPException(status_code=500, detail="VAST store not initialized")
     return vast_store
+
+# OpenAPI JSON endpoint
+@app.get("/openapi.json")
+async def get_openapi_json():
+    """Get OpenAPI specification as JSON"""
+    return JSONResponse(content=app.openapi())
 
 # Service endpoints
 @app.head("/")
@@ -88,7 +124,7 @@ async def head_root():
 @app.get("/", response_model=List[str])
 async def get_root():
     """List of paths available from this API"""
-    return ["service", "flows", "sources", "flow-delete-requests"]
+    return ["service", "flows", "sources", "flow-delete-requests", "openapi.json"]
 
 @app.head("/service")
 async def head_service():

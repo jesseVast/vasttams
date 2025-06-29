@@ -7,7 +7,11 @@ import asyncio
 import logging
 from datetime import datetime
 from app.vast_store import VASTStore
-from app.models import Source, Tags, CollectionItem, UUID
+from app.models import Source, Tags, CollectionItem
+from app.models import ContentFormat
+from pydantic import UUID4
+import uuid
+from app.config import get_settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -19,13 +23,14 @@ async def test_vast_store():
     print("Testing VAST Store with vastdbmanager...")
     
     try:
+        settings = get_settings()
         # Initialize VAST store
         store = VASTStore(
-            endpoint="http://localhost:8080",
-            access_key="test-access-key",
-            secret_key="test-secret-key",
-            bucket="tams-bucket",
-            schema="tams-schema"
+            endpoint=settings.vast_endpoint,
+            access_key=settings.vast_access_key,
+            secret_key=settings.vast_secret_key,
+            bucket=settings.vast_bucket,
+            schema=settings.vast_schema
         )
         
         print("✓ VAST Store initialized successfully")
@@ -40,7 +45,7 @@ async def test_vast_store():
         
         # Test creating a source
         source = Source(
-            id=UUID("550e8400-e29b-41d4-a716-446655440000"),
+            id=uuid.uuid4(),
             format="urn:x-nmos:format:video",
             label="Test Camera",
             description="Test camera source",

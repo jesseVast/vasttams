@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # Server settings
     host: str = "0.0.0.0"
     port: int = 8000
-    debug: bool = False
+    debug: bool = True
     
     # VAST Database settings
     vast_endpoint: str = "http://172.200.204.1"
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     
     # Logging settings
     log_level: str = "INFO"
-    log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    log_format: str = "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
     
     # S3 settings for flow segment storage
     s3_endpoint_url: str = "http://172.200.204.1"

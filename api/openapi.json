@@ -1,0 +1,1420 @@
+{
+  "openapi": "3.0.2",
+  "info": {
+    "title": "TAMS API",
+    "description": "Time-addressable Media Store API - A comprehensive FastAPI implementation of the BBC TAMS API specification with VAST database integration for high-performance time-series analytics and S3-compatible storage for media segments.",
+    "version": "6.0.0",
+    "contact": {
+      "name": "TAMS API Support",
+      "url": "https://github.com/jesseVast/bbctams"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.tams.example.com",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/": {
+      "head": {
+        "summary": "Return root path headers",
+        "operationId": "head_root",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "get": {
+        "summary": "List of paths available from this API",
+        "operationId": "get_root",
+        "responses": {
+          "200": {
+            "description": "List of available API paths",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": [
+                    "service",
+                    "flows",
+                    "sources",
+                    "flow-delete-requests"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check endpoint",
+        "operationId": "health_check",
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "healthy"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2024-01-01T12:00:00Z"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/service": {
+      "head": {
+        "summary": "Return service path headers",
+        "operationId": "head_service",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get service information",
+        "operationId": "get_service",
+        "tags": [
+          "Service"
+        ],
+        "responses": {
+          "200": {
+            "description": "Service information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Service"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Update service information",
+        "operationId": "update_service",
+        "tags": [
+          "Service"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Service"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Service information updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Service information updated"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sources": {
+      "head": {
+        "summary": "Return sources path headers",
+        "operationId": "head_sources",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "get": {
+        "summary": "List sources with optional filtering",
+        "operationId": "list_sources",
+        "tags": [
+          "Sources"
+        ],
+        "parameters": [
+          {
+            "name": "label",
+            "in": "query",
+            "description": "Filter by label",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "description": "Filter by format",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "urn:x-nmos:format:video",
+                "urn:x-nmos:format:audio",
+                "urn:x-nmos:format:data",
+                "urn:x-tam:format:image",
+                "urn:x-nmos:format:multi"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Pagination key",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of results",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of sources",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourcesResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new source",
+        "operationId": "create_source",
+        "tags": [
+          "Sources"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Source"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Source created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Source"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/sources/{source_id}": {
+      "head": {
+        "summary": "Return source path headers",
+        "operationId": "head_source",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get source by ID",
+        "operationId": "get_source",
+        "tags": [
+          "Sources"
+        ],
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Source details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Source"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Source not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/sources/{source_id}/tags": {
+      "head": {
+        "summary": "Return source tags path headers",
+        "operationId": "head_source_tags",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get source tags",
+        "operationId": "get_source_tags",
+        "tags": [
+          "Sources"
+        ],
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Source tags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Source not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/sources/{source_id}/tags/{name}": {
+      "head": {
+        "summary": "Return source tag path headers",
+        "operationId": "head_source_tag",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get specific source tag",
+        "operationId": "get_source_tag",
+        "tags": [
+          "Sources"
+        ],
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Source tag value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Source or tag not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update source tag",
+        "operationId": "update_source_tag",
+        "tags": [
+          "Sources"
+        ],
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tag updated successfully"
+          },
+          "404": {
+            "description": "Source not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete source tag",
+        "operationId": "delete_source_tag",
+        "tags": [
+          "Sources"
+        ],
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tag deleted successfully"
+          },
+          "404": {
+            "description": "Source or tag not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/flows": {
+      "head": {
+        "summary": "Return flows path headers",
+        "operationId": "head_flows",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "get": {
+        "summary": "List flows with optional filtering",
+        "operationId": "list_flows",
+        "tags": [
+          "Flows"
+        ],
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "query",
+            "description": "Filter by source ID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "timerange",
+            "in": "query",
+            "description": "Filter by time range",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "description": "Filter by format",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "urn:x-nmos:format:video",
+                "urn:x-nmos:format:audio",
+                "urn:x-nmos:format:data",
+                "urn:x-tam:format:image",
+                "urn:x-nmos:format:multi"
+              ]
+            }
+          },
+          {
+            "name": "codec",
+            "in": "query",
+            "description": "Filter by codec",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "description": "Filter by label",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "frame_width",
+            "in": "query",
+            "description": "Filter by frame width",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "frame_height",
+            "in": "query",
+            "description": "Filter by frame height",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Pagination key",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of results",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of flows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new flow",
+        "operationId": "create_flow",
+        "tags": [
+          "Flows"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Flow"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Flow created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flow"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/flows/{flow_id}": {
+      "head": {
+        "summary": "Return flow path headers",
+        "operationId": "head_flow",
+        "parameters": [
+          {
+            "name": "flow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get flow by ID",
+        "operationId": "get_flow",
+        "tags": [
+          "Flows"
+        ],
+        "parameters": [
+          {
+            "name": "flow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flow details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flow"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Flow not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update flow",
+        "operationId": "update_flow",
+        "tags": [
+          "Flows"
+        ],
+        "parameters": [
+          {
+            "name": "flow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Flow"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Flow updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flow"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Flow not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete flow",
+        "operationId": "delete_flow",
+        "tags": [
+          "Flows"
+        ],
+        "parameters": [
+          {
+            "name": "flow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flow deleted successfully"
+          },
+          "404": {
+            "description": "Flow not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/flows/{flow_id}/segments": {
+      "head": {
+        "summary": "Return flow segments path headers",
+        "operationId": "head_flow_segments",
+        "parameters": [
+          {
+            "name": "flow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get flow segments with time range filtering",
+        "operationId": "get_flow_segments",
+        "tags": [
+          "Flow Segments"
+        ],
+        "parameters": [
+          {
+            "name": "flow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "timerange",
+            "in": "query",
+            "description": "Filter by time range",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of flow segments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FlowSegment"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create flow segment (upload media data)",
+        "operationId": "create_flow_segment",
+        "tags": [
+          "Flow Segments"
+        ],
+        "parameters": [
+          {
+            "name": "flow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "segment": {
+                    "type": "string",
+                    "description": "JSON string of FlowSegment object"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Media file to upload"
+                  }
+                },
+                "required": [
+                  "segment",
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Flow segment created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowSegment"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete flow segments",
+        "operationId": "delete_flow_segments",
+        "tags": [
+          "Flow Segments"
+        ],
+        "parameters": [
+          {
+            "name": "flow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "timerange",
+            "in": "query",
+            "description": "Delete segments in time range",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flow segments deleted successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/analytics/flow-usage": {
+      "get": {
+        "summary": "Get flow usage analytics",
+        "operationId": "get_flow_usage_analytics",
+        "tags": [
+          "Analytics"
+        ],
+        "responses": {
+          "200": {
+            "description": "Flow usage analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_flows": {
+                      "type": "integer"
+                    },
+                    "format_distribution": {
+                      "type": "object"
+                    },
+                    "estimated_storage_bytes": {
+                      "type": "integer"
+                    },
+                    "average_flow_size": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/analytics/storage-usage": {
+      "get": {
+        "summary": "Get storage usage analytics",
+        "operationId": "get_storage_usage_analytics",
+        "tags": [
+          "Analytics"
+        ],
+        "responses": {
+          "200": {
+            "description": "Storage usage analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_objects": {
+                      "type": "integer"
+                    },
+                    "total_size_bytes": {
+                      "type": "integer"
+                    },
+                    "average_size_bytes": {
+                      "type": "number"
+                    },
+                    "most_accessed": {
+                      "type": "integer"
+                    },
+                    "least_accessed": {
+                      "type": "integer"
+                    },
+                    "average_access_count": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/analytics/time-range-analysis": {
+      "get": {
+        "summary": "Get time range analytics",
+        "operationId": "get_time_range_analytics",
+        "tags": [
+          "Analytics"
+        ],
+        "responses": {
+          "200": {
+            "description": "Time range analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_segments": {
+                      "type": "integer"
+                    },
+                    "average_duration_seconds": {
+                      "type": "number"
+                    },
+                    "min_duration_seconds": {
+                      "type": "number"
+                    },
+                    "max_duration_seconds": {
+                      "type": "number"
+                    },
+                    "total_duration_seconds": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Service": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "TAMS API"
+          },
+          "description": {
+            "type": "string",
+            "example": "Time-addressable Media Store API"
+          },
+          "type": {
+            "type": "string",
+            "example": "urn:x-tams:service:api"
+          },
+          "api_version": {
+            "type": "string",
+            "example": "6.0"
+          },
+          "service_version": {
+            "type": "string",
+            "example": "1.0.0"
+          },
+          "media_store": {
+            "$ref": "#/components/schemas/MediaStore"
+          },
+          "event_stream_mechanisms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventStreamMechanism"
+            }
+          }
+        }
+      },
+      "MediaStore": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "http_object_store"
+          }
+        }
+      },
+      "EventStreamMechanism": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "webhooks"
+          },
+          "description": {
+            "type": "string",
+            "example": "HTTP webhooks for event notifications"
+          }
+        }
+      },
+      "Source": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "urn:x-nmos:format:video",
+              "urn:x-nmos:format:audio",
+              "urn:x-nmos:format:data",
+              "urn:x-tam:format:image",
+              "urn:x-nmos:format:multi"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "format"
+        ]
+      },
+      "SourcesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Source"
+            }
+          },
+          "paging": {
+            "$ref": "#/components/schemas/PagingInfo"
+          }
+        }
+      },
+      "Flow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "urn:x-nmos:format:video",
+              "urn:x-nmos:format:audio",
+              "urn:x-nmos:format:data",
+              "urn:x-tam:format:image",
+              "urn:x-nmos:format:multi"
+            ]
+          },
+          "codec": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "container": {
+            "type": "string"
+          },
+          "read_only": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "id",
+          "source_id",
+          "format",
+          "codec"
+        ]
+      },
+      "FlowsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Flow"
+            }
+          },
+          "paging": {
+            "$ref": "#/components/schemas/PagingInfo"
+          }
+        }
+      },
+      "FlowSegment": {
+        "type": "object",
+        "properties": {
+          "object_id": {
+            "type": "string"
+          },
+          "timerange": {
+            "type": "string"
+          },
+          "ts_offset": {
+            "type": "string"
+          },
+          "last_duration": {
+            "type": "string"
+          },
+          "sample_offset": {
+            "type": "integer"
+          },
+          "sample_count": {
+            "type": "integer"
+          },
+          "get_urls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetUrl"
+            }
+          },
+          "key_frame_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "object_id",
+          "timerange"
+        ]
+      },
+      "GetUrl": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "PagingInfo": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "next_key": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Health check endpoints"
+    },
+    {
+      "name": "Service",
+      "description": "Service information and configuration"
+    },
+    {
+      "name": "Sources",
+      "description": "Media source management"
+    },
+    {
+      "name": "Flows",
+      "description": "Media flow management"
+    },
+    {
+      "name": "Flow Segments",
+      "description": "Flow segment management and media upload"
+    },
+    {
+      "name": "Analytics",
+      "description": "Analytics and usage statistics"
+    }
+  ]
+}

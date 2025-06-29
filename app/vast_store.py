@@ -27,11 +27,11 @@ Example Usage:
     )
     
     # Create a source
-    source = Source(id=UUID("..."), format="urn:x-nmos:format:video")
+    source = Source(id=UUID4("..."), format="urn:x-nmos:format:video")
     await store.create_source(source)
     
     # Create a flow
-    flow = VideoFlow(id=UUID("..."), source_id=source.id, ...)
+    flow = VideoFlow(id=UUID4("..."), source_id=source.id, ...)
     await store.create_flow(flow)
     
     # Store media segment
@@ -42,16 +42,17 @@ Example Usage:
 import logging
 import json
 import uuid
-from ibis import _
+from ibis import _ as ibis_
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any, Union, Tuple
 import pandas as pd
 import pyarrow as pa
+from pydantic import UUID4
 
 from .vastdbmanager import VastDBManager
 from .models import (
     Source, Flow, FlowSegment, Object, DeletionRequest, 
-    TimeRange, UUID, Tags, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow,
+    TimeRange, Tags, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow,
     CollectionItem, GetUrl, Webhook, WebhookPost
 )
 from .s3_store import S3Store
@@ -93,7 +94,7 @@ class VASTStore:
         >>> 
         >>> # Create a video source
         >>> source = Source(
-        ...     id=UUID("550e8400-e29b-41d4-a716-446655440000"),
+        ...     id=UUID4("550e8400-e29b-41d4-a716-446655440000"),
         ...     format="urn:x-nmos:format:video",
         ...     label="Camera 1"
         ... )
@@ -101,7 +102,7 @@ class VASTStore:
         >>> 
         >>> # Create a video flow
         >>> flow = VideoFlow(
-        ...     id=UUID("550e8400-e29b-41d4-a716-446655440001"),
+        ...     id=UUID4("550e8400-e29b-41d4-a716-446655440001"),
         ...     source_id=source.id,
         ...     format="urn:x-nmos:format:video",
         ...     codec="urn:x-nmos:codec:prores",
@@ -438,7 +439,7 @@ class VASTStore:
         """Get source by ID"""
         try:
             # Query for specific source
-            predicate = (_.id == source_id)
+            predicate = (ibis_.id == source_id)
             results = self.db_manager.select('sources', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -462,8 +463,8 @@ class VASTStore:
                 'created': row['created'],
                 'updated': row['updated'],
                 'tags': Tags(self._json_to_dict(row['tags'])),
-                'source_collection': [CollectionItem(id=UUID(str(uuid.uuid4())), label=item) if isinstance(item, str) else CollectionItem(id=UUID(item.get('id', str(uuid.uuid4()))), **item) for item in self._json_to_dict(row['source_collection'])],
-                'collected_by': [UUID(uuid) for uuid in self._json_to_dict(row['collected_by'])]
+                'source_collection': [CollectionItem(id=uuid.uuid4(), label=item) if isinstance(item, str) else CollectionItem(id=uuid.uuid4() if not item.get('id') else item.get('id'), **item) for item in self._json_to_dict(row['source_collection'])],
+                'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])]
             }
             
             return Source(**source_data)
@@ -480,9 +481,9 @@ class VASTStore:
             if filters:
                 conditions = []
                 if 'label' in filters:
-                    conditions.append((_.label == filters['label']))
+                    conditions.append((ibis_.label == filters['label']))
                 if 'format' in filters:
-                    conditions.append((_.format == filters['format']))
+                    conditions.append((ibis_.format == filters['format']))
                 if conditions:
                     predicate = conditions[0] if len(conditions) == 1 else conditions[0] & conditions[1]
             
@@ -513,8 +514,8 @@ class VASTStore:
                         'created': row['created'],
                         'updated': row['updated'],
                         'tags': Tags(self._json_to_dict(row['tags'])),
-                        'source_collection': [CollectionItem(id=UUID(str(uuid.uuid4())), label=item) if isinstance(item, str) else CollectionItem(id=UUID(item.get('id', str(uuid.uuid4()))), **item) for item in self._json_to_dict(row['source_collection'])],
-                        'collected_by': [UUID(uuid) for uuid in self._json_to_dict(row['collected_by'])]
+                        'source_collection': [CollectionItem(id=uuid.uuid4(), label=item) if isinstance(item, str) else CollectionItem(id=uuid.uuid4() if not item.get('id') else item.get('id'), **item) for item in self._json_to_dict(row['source_collection'])],
+                        'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])]
                     }
                     sources.append(Source(**source_data))
             
@@ -570,7 +571,7 @@ class VASTStore:
         """Get flow by ID"""
         try:
             # Query for specific flow
-            predicate = (_.id == flow_id)
+            predicate = (ibis_.id == flow_id)
             results = self.db_manager.select('flows', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -629,7 +630,7 @@ class VASTStore:
                 return ImageFlow(**flow_data)
             elif format_type == "urn:x-nmos:format:multi":
                 flow_data.update({
-                    'flow_collection': [UUID(uuid) for uuid in self._json_to_dict(row['flow_collection'])],
+                    'flow_collection': [uuid for uuid in self._json_to_dict(row['flow_collection'])],
                 })
                 return MultiFlow(**flow_data)
             else:
@@ -675,10 +676,10 @@ class VASTStore:
     async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
         """Get flow segment metadata from VAST DB and data from S3"""
         try:
-            predicate = (_.flow_id == flow_id)
+            predicate = (ibis_.flow_id == flow_id)
             if timerange:
                 target_start, target_end, _ = self._parse_timerange(timerange)
-                predicate = predicate & (_.start_time <= target_end) & (_.end_time >= target_start)
+                predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)
             results = self.db_manager.select('segments', predicate=predicate, output_by_row=True)
             segments = []
             if isinstance(results, list):
@@ -728,7 +729,7 @@ class VASTStore:
         """Get media object by ID"""
         try:
             # Query for specific object
-            predicate = (_.object_id == object_id)
+            predicate = (ibis_.object_id == object_id)
             results = self.db_manager.select('objects', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -752,10 +753,10 @@ class VASTStore:
             
             # Convert back to Object model
             obj = Object(
-                object_id=row['object_id'],
-                flow_references=self._json_to_dict(row['flow_references']),
-                size=row['size'],
-                created=row['created']
+                object_id=row['object_id'] if isinstance(row['object_id'], str) else str(row['object_id']),
+                flow_references=self._json_to_dict(row['flow_references']) if isinstance(self._json_to_dict(row['flow_references']), list) else [self._json_to_dict(row['flow_references'])],
+                size=row['size'] if isinstance(row['size'], (int, type(None))) else int(row['size']) if row['size'] else None,
+                created=row['created'] if isinstance(row['created'], (datetime, type(None))) else datetime.fromisoformat(str(row['created'])) if row['created'] else None
             )
             
             return obj
@@ -907,13 +908,17 @@ class VASTStore:
             if filters:
                 conditions = []
                 if 'source_id' in filters:
-                    conditions.append((_.source_id == filters['source_id']))
+                    conditions.append((ibis_.source_id == filters['source_id']))
                 if 'format' in filters:
-                    conditions.append((_.format == filters['format']))
+                    conditions.append((ibis_.format == filters['format']))
                 if 'codec' in filters:
-                    conditions.append((_.codec == filters['codec']))
+                    conditions.append((ibis_.codec == filters['codec']))
                 if 'label' in filters:
-                    conditions.append((_.label == filters['label']))
+                    conditions.append((ibis_.label == filters['label']))
+                if 'frame_width' in filters:
+                    conditions.append((ibis_.frame_width == filters['frame_width']))
+                if 'frame_height' in filters:
+                    conditions.append((ibis_.frame_height == filters['frame_height']))
                 if conditions:
                     predicate = conditions[0] if len(conditions) == 1 else (conditions[0] & conditions[1])            
             # Query flows
@@ -1017,7 +1022,7 @@ class VASTStore:
             }
             
             # Update in VAST database
-            predicate = (_.id == str(source.id))
+            predicate = (ibis_.id == str(source.id))
             self.db_manager.update('sources', source_data, predicate)
             
             logger.info(f"Updated source {source.id} in VAST store")
@@ -1060,7 +1065,7 @@ class VASTStore:
             }
             
             # Update in VAST database
-            predicate = (_.id == str(flow.id))
+            predicate = (ibis_.id == str(flow.id))
             self.db_manager.update('flows', flow_data, predicate)
             
             logger.info(f"Updated flow {flow.id} in VAST store")
@@ -1074,7 +1079,7 @@ class VASTStore:
         """Delete a flow from VAST store"""
         try:
             # Delete from VAST database
-            predicate = (_.id == flow_id)
+            predicate = (ibis_.id == flow_id)
             deleted_count = self.db_manager.delete('flows', predicate)
             
             if deleted_count > 0:
@@ -1099,10 +1104,10 @@ class VASTStore:
                 await self.s3_store.delete_flow_segment(flow_id, segment.object_id, segment.timerange)
             
             # Delete from VAST database
-            predicate = (_.flow_id == flow_id)
+            predicate = (ibis_.flow_id == flow_id)
             if timerange:
                 target_start, target_end, _ = self._parse_timerange(timerange)
-                predicate = predicate & (_.start_time <= target_end) & (_.end_time >= target_start)
+                predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)
             
             deleted_count = self.db_manager.delete('segments', predicate)
             
@@ -1166,11 +1171,11 @@ class VASTStore:
                 for row in results:
                     request = DeletionRequest(
                         request_id=row['id'],
-                        flow_id=UUID(row['flow_id']),
+                        flow_id=row['flow_id'],
                         timerange=row['timerange'],
                         status=row['status'],
                         created=row['created'],
-                        updated=row['updated']
+                        updated=row['updated'] if row['updated'] else None
                     )
                     requests.append(request)
             
@@ -1204,7 +1209,7 @@ class VASTStore:
     async def get_deletion_request(self, request_id: str) -> Optional[DeletionRequest]:
         """Get deletion request by ID"""
         try:
-            predicate = (_.id == request_id)
+            predicate = (ibis_.id == request_id)
             results = self.db_manager.select('deletion_requests', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -1219,11 +1224,11 @@ class VASTStore:
             
             request = DeletionRequest(
                 request_id=row['id'],
-                flow_id=UUID(row['flow_id']),
+                flow_id=row['flow_id'],
                 timerange=row['timerange'],
                 status=row['status'],
                 created=row['created'],
-                updated=row['updated']
+                updated=row['updated'] if row['updated'] else None
             )
             
             return request

@@ -1,34 +1,12 @@
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Union
-from pydantic import BaseModel, Field, validator, RootModel
+from typing import List, Optional, Dict, Any, Union, Annotated
+from pydantic import BaseModel, Field, RootModel, UUID4, field_validator, field_serializer
 import uuid
 import re
 
 
-class UUID(str):
-    """RFC4122-compliant UUID type with validation and canonical string output"""
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v):
-        import uuid as _uuid
-        if isinstance(v, _uuid.UUID):
-            return str(v)
-        if not isinstance(v, str):
-            raise ValueError('UUID must be a string')
-        try:
-            u = _uuid.UUID(v)
-        except Exception:
-            raise ValueError('Invalid UUID format (not RFC4122)')
-        # Ensure canonical string form (lowercase, hyphenated)
-        return str(u)
-
-
-class ContentFormat(str):
-    """Content format URN with validation"""
-    
+def validate_content_format(v: str) -> str:
+    """Validate content format URN"""
     VALID_FORMATS = [
         "urn:x-nmos:format:video",
         "urn:x-tam:format:image", 
@@ -37,57 +15,43 @@ class ContentFormat(str):
         "urn:x-nmos:format:multi"
     ]
     
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    if not isinstance(v, str):
+        raise ValueError('Content format must be a string')
     
-    @classmethod
-    def validate(cls, v):
-        if not isinstance(v, str):
-            raise ValueError('Content format must be a string')
-        
-        if v not in cls.VALID_FORMATS:
-            raise ValueError(f'Invalid content format. Must be one of: {cls.VALID_FORMATS}')
-        
-        return v
+    if v not in VALID_FORMATS:
+        raise ValueError(f'Invalid content format. Must be one of: {VALID_FORMATS}')
+    
+    return v
 
 
-class MimeType(str):
-    """MIME type with validation"""
+def validate_mime_type(v: str) -> str:
+    """Validate MIME type format"""
+    if not isinstance(v, str):
+        raise ValueError('MIME type must be a string')
     
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    pattern = r'.*/.*'
+    if not re.match(pattern, v):
+        raise ValueError('Invalid MIME type format. Must be in format: type/subtype')
     
-    @classmethod
-    def validate(cls, v):
-        if not isinstance(v, str):
-            raise ValueError('MIME type must be a string')
-        
-        pattern = r'.*/.*'
-        if not re.match(pattern, v):
-            raise ValueError('Invalid MIME type format. Must be in format: type/subtype')
-        
-        return v
+    return v
 
 
-class TimeRange(str):
-    """Time range with validation"""
+def validate_time_range(v: str) -> str:
+    """Validate time range format"""
+    if not isinstance(v, str):
+        raise ValueError('Time range must be a string')
     
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    pattern = r'^(\[|\()?(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?(_(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?)?(\]|\))?$'
+    if not re.match(pattern, v):
+        raise ValueError('Invalid time range format')
     
-    @classmethod
-    def validate(cls, v):
-        if not isinstance(v, str):
-            raise ValueError('Time range must be a string')
-        
-        pattern = r'^(\[|\()?(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?(_(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?)?(\]|\))?$'
-        if not re.match(pattern, v):
-            raise ValueError('Invalid time range format')
-        
-        return v
+    return v
+
+
+# Type aliases with validation
+ContentFormat = Annotated[str, field_validator('*')(validate_content_format)]
+MimeType = Annotated[str, field_validator('*')(validate_mime_type)]
+TimeRange = Annotated[str, field_validator('*')(validate_time_range)]
 
 
 class Tags(RootModel[Dict[str, str]]):
@@ -120,13 +84,13 @@ class Tags(RootModel[Dict[str, str]]):
 
 class CollectionItem(BaseModel):
     """Collection item for source collections"""
-    id: UUID
+    id: UUID4
     label: Optional[str] = None
 
 
 class Source(BaseModel):
     """Source model as defined in TAMS API"""
-    id: UUID
+    id: UUID4
     format: ContentFormat
     label: Optional[str] = None
     description: Optional[str] = None
@@ -136,12 +100,11 @@ class Source(BaseModel):
     updated: Optional[datetime] = None
     tags: Optional[Tags] = None
     source_collection: Optional[List[CollectionItem]] = None
-    collected_by: Optional[List[UUID]] = None
+    collected_by: Optional[List[UUID4]] = None
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat() if v else None
-        }
+    @field_serializer('created', 'updated')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
 
 
 class GetUrl(BaseModel):
@@ -164,9 +127,9 @@ class FlowSegment(BaseModel):
 
 class VideoFlow(BaseModel):
     """Video flow model"""
-    id: UUID
-    source_id: UUID
-    format: ContentFormat = ContentFormat("urn:x-nmos:format:video")
+    id: UUID4
+    source_id: UUID4
+    format: ContentFormat = Field(default="urn:x-nmos:format:video")
     codec: MimeType
     label: Optional[str] = None
     description: Optional[str] = None
@@ -186,17 +149,16 @@ class VideoFlow(BaseModel):
     container: Optional[str] = None
     read_only: Optional[bool] = False
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat() if v else None
-        }
+    @field_serializer('created', 'updated')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
 
 
 class AudioFlow(BaseModel):
     """Audio flow model"""
-    id: UUID
-    source_id: UUID
-    format: ContentFormat = ContentFormat("urn:x-nmos:format:audio")
+    id: UUID4
+    source_id: UUID4
+    format: ContentFormat = Field(default="urn:x-nmos:format:audio")
     codec: MimeType
     label: Optional[str] = None
     description: Optional[str] = None
@@ -211,17 +173,16 @@ class AudioFlow(BaseModel):
     container: Optional[str] = None
     read_only: Optional[bool] = False
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat() if v else None
-        }
+    @field_serializer('created', 'updated')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
 
 
 class DataFlow(BaseModel):
     """Data flow model"""
-    id: UUID
-    source_id: UUID
-    format: ContentFormat = ContentFormat("urn:x-nmos:format:data")
+    id: UUID4
+    source_id: UUID4
+    format: ContentFormat = Field(default="urn:x-nmos:format:data")
     codec: MimeType
     label: Optional[str] = None
     description: Optional[str] = None
@@ -233,17 +194,16 @@ class DataFlow(BaseModel):
     container: Optional[str] = None
     read_only: Optional[bool] = False
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat() if v else None
-        }
+    @field_serializer('created', 'updated')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
 
 
 class ImageFlow(BaseModel):
     """Image flow model"""
-    id: UUID
-    source_id: UUID
-    format: ContentFormat = ContentFormat("urn:x-tam:format:image")
+    id: UUID4
+    source_id: UUID4
+    format: ContentFormat = Field(default="urn:x-tam:format:image")
     codec: MimeType
     label: Optional[str] = None
     description: Optional[str] = None
@@ -257,17 +217,16 @@ class ImageFlow(BaseModel):
     container: Optional[str] = None
     read_only: Optional[bool] = False
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat() if v else None
-        }
+    @field_serializer('created', 'updated')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
 
 
 class MultiFlow(BaseModel):
     """Multi flow model"""
-    id: UUID
-    source_id: UUID
-    format: ContentFormat = ContentFormat("urn:x-nmos:format:multi")
+    id: UUID4
+    source_id: UUID4
+    format: ContentFormat = Field(default="urn:x-nmos:format:multi")
     codec: MimeType
     label: Optional[str] = None
     description: Optional[str] = None
@@ -278,12 +237,11 @@ class MultiFlow(BaseModel):
     tags: Optional[Tags] = None
     container: Optional[str] = None
     read_only: Optional[bool] = False
-    flow_collection: List[UUID]
+    flow_collection: List[UUID4]
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat() if v else None
-        }
+    @field_serializer('created', 'updated')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
 
 
 # Union type for all flow types
@@ -353,25 +311,23 @@ class Object(BaseModel):
     size: Optional[int] = None
     created: Optional[datetime] = None
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat() if v else None
-        }
+    @field_serializer('created')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
 
 
 class DeletionRequest(BaseModel):
     """Flow deletion request"""
     request_id: str
-    flow_id: UUID
+    flow_id: UUID4
     timerange: TimeRange
     status: str  # "pending", "in_progress", "completed", "failed"
     created: datetime
     updated: Optional[datetime] = None
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat() if v else None
-        }
+    @field_serializer('created', 'updated')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
 
 
 class DeletionRequestsList(BaseModel):
@@ -425,7 +381,7 @@ class SourceFilters(BaseModel):
 
 class FlowFilters(BaseModel):
     """Flow query filters"""
-    source_id: Optional[UUID] = None
+    source_id: Optional[UUID4] = None
     timerange: Optional[TimeRange] = None
     format: Optional[ContentFormat] = None
     codec: Optional[MimeType] = None

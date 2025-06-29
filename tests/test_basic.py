@@ -9,10 +9,27 @@ import asyncio
 import httpx
 import json
 import uuid
+from pydantic import UUID4
 from datetime import datetime
 
 # API base URL
 BASE_URL = "http://localhost:8000"
+
+async def check_server_connection():
+    """Check if the server is running and accessible"""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{BASE_URL}/health")
+            if response.status_code == 200:
+                return True
+    except httpx.ConnectError:
+        print("❌ Cannot connect to server. Make sure the TAMS API server is running on http://localhost:8000")
+        print("   Start the server with: python run.py")
+        return False
+    except Exception as e:
+        print(f"❌ Connection error: {e}")
+        return False
+    return False
 
 async def test_health_check():
     """Test health check endpoint"""
@@ -28,11 +45,22 @@ async def test_service_info():
     """Test service information endpoint"""
     print("Testing service info...")
     async with httpx.AsyncClient() as client:
+        # Test root endpoint (list of available paths)
         response = await client.get(f"{BASE_URL}/")
         assert response.status_code == 200
         data = response.json()
-        assert data["data"]["type"] == "urn:x-tams:service:api"
-        assert data["data"]["api_version"] == "6.0"
+        assert isinstance(data, list)
+        assert "service" in data
+        assert "flows" in data
+        assert "sources" in data
+        
+        # Test service endpoint (actual service information)
+        response = await client.get(f"{BASE_URL}/service")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["type"] == "urn:x-tams:service:api"
+        assert data["api_version"] == "6.0"
+        assert data["name"] == "TAMS API"
         print("✓ Service info passed")
 
 async def test_create_and_get_source():
@@ -47,17 +75,24 @@ async def test_create_and_get_source():
         "description": "A test video source for testing",
         "created_by": "test-user"
     }
-    
+    print(source_data)
     async with httpx.AsyncClient() as client:
         # Create source
         response = await client.post(f"{BASE_URL}/sources", json=source_data)
-        assert response.status_code == 201
+        print(response.json())
+        if response.status_code != 201:
+            print(f"❌ Source creation failed with status {response.status_code}")
+            print(f"   Response: {response.text}")
+            assert False
         created_source = response.json()
         assert created_source["id"] == source_data["id"]
         
         # Get source
         response = await client.get(f"{BASE_URL}/sources/{source_data['id']}")
-        assert response.status_code == 200
+        if response.status_code != 200:
+            print(f"❌ Source retrieval failed with status {response.status_code}")
+            print(f"   Response: {response.text}")
+            assert False
         retrieved_source = response.json()
         assert retrieved_source["id"] == source_data["id"]
         assert retrieved_source["label"] == source_data["label"]
@@ -79,7 +114,10 @@ async def test_create_and_get_flow():
     async with httpx.AsyncClient() as client:
         # Create source
         response = await client.post(f"{BASE_URL}/sources", json=source_data)
-        assert response.status_code == 201
+        if response.status_code != 201:
+            print(f"❌ Source creation for flow test failed with status {response.status_code}")
+            print(f"   Response: {response.text}")
+            assert False
         
         # Create a test flow
         flow_data = {
@@ -97,13 +135,19 @@ async def test_create_and_get_flow():
         
         # Create flow
         response = await client.post(f"{BASE_URL}/flows", json=flow_data)
-        assert response.status_code == 201
+        if response.status_code != 201:
+            print(f"❌ Flow creation failed with status {response.status_code}")
+            print(f"   Response: {response.text}")
+            assert False
         created_flow = response.json()
         assert created_flow["id"] == flow_data["id"]
         
         # Get flow
         response = await client.get(f"{BASE_URL}/flows/{flow_data['id']}")
-        assert response.status_code == 200
+        if response.status_code != 200:
+            print(f"❌ Flow retrieval failed with status {response.status_code}")
+            print(f"   Response: {response.text}")
+            assert False
         retrieved_flow = response.json()
         assert retrieved_flow["id"] == flow_data["id"]
         assert retrieved_flow["frame_width"] == flow_data["frame_width"]
@@ -119,6 +163,7 @@ async def test_analytics():
         response = await client.get(f"{BASE_URL}/analytics/flow-usage")
         assert response.status_code == 200
         data = response.json()
+        print(f"Flow usage analytics response: {data}")
         assert "total_flows" in data
         assert "format_distribution" in data
         
@@ -126,13 +171,15 @@ async def test_analytics():
         response = await client.get(f"{BASE_URL}/analytics/storage-usage")
         assert response.status_code == 200
         data = response.json()
+        print(f"Storage usage analytics response: {data}")
         assert "total_objects" in data
-        assert "total_size_bytes" in data
+        assert "total_size" in data
         
         # Test time range analytics
         response = await client.get(f"{BASE_URL}/analytics/time-range-analysis")
         assert response.status_code == 200
         data = response.json()
+        print(f"Time range analytics response: {data}")
         assert "total_segments" in data
         
         print("✓ Analytics endpoints passed")
@@ -155,7 +202,7 @@ async def test_list_endpoints():
         assert "data" in data
         
         # Test webhooks list
-        response = await client.get(f"{BASE_URL}/webhooks")
+        response = await client.get(f"{BASE_URL}/service/webhooks")
         assert response.status_code == 200
         data = response.json()
         assert "data" in data
@@ -166,6 +213,10 @@ async def main():
     """Run all tests"""
     print("Starting TAMS API tests...")
     print("=" * 50)
+    
+    # Check if server is running
+    if not await check_server_connection():
+        return
     
     try:
         await test_health_check()

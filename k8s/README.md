@@ -24,7 +24,7 @@ The TAMS API is deployed as a scalable microservice with the following component
 
 2. **External Dependencies**:
    - VAST Database service
-   - S3-compatible storage service (e.g., MinIO)
+   - VAST S3  storage service
 
 3. **Docker Image**: Build and push the TAMS API image:
    ```bash

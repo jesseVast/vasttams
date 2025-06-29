@@ -23,6 +23,9 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy application code
 COPY . .
 
+# Generate OpenAPI specification
+RUN python generate_openapi.py
+
 # Create data directories and set permissions
 RUN mkdir -p /app/vast_data /app/logs /app/temp \
     && chown -R tamsuser:tamsuser /app \

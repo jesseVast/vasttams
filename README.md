@@ -59,6 +59,7 @@ The VAST store creates the following tables with optimized schemas:
 ### Core TAMS Endpoints
 - `GET /` - Service information and available paths
 - `GET /health` - Health check endpoint
+- `GET /openapi.json` - OpenAPI specification (JSON)
 - `GET /service` - Service configuration and capabilities
 - `POST /service` - Update service configuration
 
@@ -338,6 +339,7 @@ bbctams/
 │   ├── s3_store.py          # S3-compatible storage manager
 │   └── utils.py             # Utility functions
 ├── api/
+│   ├── openapi.json         # OpenAPI specification (auto-generated)
 │   └── schemas/             # JSON schemas for validation
 ├── k8s/                     # Kubernetes manifests
 │   ├── deployment.yaml
@@ -351,10 +353,40 @@ bbctams/
 │   └── test_s3_store.py     # S3 store tests
 ├── docker-compose.yml       # Docker Compose configuration
 ├── Dockerfile              # Docker image definition
+├── generate_openapi.py     # OpenAPI specification generator
 ├── requirements.txt        # Python dependencies
 ├── run.py                 # Application entry point
 └── README.md              # This file
 ```
+
+### OpenAPI Specification
+
+The application includes a comprehensive OpenAPI specification that can be accessed at:
+
+- **OpenAPI JSON**: `GET /openapi.json` - Raw OpenAPI specification
+- **Interactive Docs**: `GET /docs` - Swagger UI documentation
+- **ReDoc Docs**: `GET /redoc` - ReDoc documentation
+
+#### Generating OpenAPI Specification
+
+To regenerate the OpenAPI specification:
+
+```bash
+# Generate from the running application
+python generate_openapi.py
+
+# Or access directly via API
+curl http://localhost:8000/openapi.json > api/openapi.json
+```
+
+The OpenAPI specification includes:
+- All API endpoints with detailed descriptions
+- Request/response schemas
+- Query parameters and path variables
+- Example requests and responses
+- Error codes and descriptions
+- Authentication requirements
+- Tags for endpoint organization
 
 ### VAST Database Features
 

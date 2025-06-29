@@ -203,8 +203,8 @@ VAST_SCHEMA=tams-schema
 
 # S3 Storage settings
 S3_ENDPOINT_URL=http://s3.vast.acme.com
-S3_ACCESS_KEY_ID=minioadmin
-S3_SECRET_ACCESS_KEY=minioadmin
+S3_ACCESS_KEY_ID=vast-s3-access-key
+S3_SECRET_ACCESS_KEY=vast-s3-secret-key
 S3_BUCKET_NAME=tams-bucket
 S3_USE_SSL=false
 

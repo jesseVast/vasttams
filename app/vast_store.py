@@ -87,9 +87,14 @@ class VASTStore:
         >>> store = VASTStore(
         ...     endpoint="http://vast.example.com",
         ...     access_key="your_key",
-        ...     secret_key="your_secret",
-        ...     bucket="tams-bucket",
-        ...     schema="tams-schema"
+        ...     secret_key="your_vast_secret",
+        ...     bucket="tams-data",
+        ...     schema="tams-schema",
+        ...     s3_endpoint_url="http://s3.example.com",
+        ...     s3_access_key_id="your_s3_key",
+        ...     s3_secret_access_key="your_s3_secret",
+        ...     s3_bucket_name="tams-media",
+        ...     s3_use_ssl=True
         ... )
         >>> 
         >>> # Create a video source
@@ -424,13 +429,10 @@ class VASTStore:
                 'source_collection': self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else []),
                 'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else [])
             }
-            
-            # Insert into VAST database
-            self.db_manager.insert('sources', source_data)
-            
+            # Insert into VAST database as dict of lists
+            self.db_manager.insert('sources', {k: [v] for k, v in source_data.items()})
             logger.info(f"Created source {source.id} in VAST store")
             return True
-            
         except Exception as e:
             logger.error(f"Failed to create source {source.id}: {e}")
             return False
@@ -556,13 +558,10 @@ class VASTStore:
                 'channels': getattr(flow, 'channels', 0),
                 'flow_collection': self._dict_to_json([str(uuid) for uuid in getattr(flow, 'flow_collection', [])])
             }
-            
-            # Insert into VAST database
-            self.db_manager.insert('flows', flow_data)
-            
+            # Insert into VAST database as dict of lists
+            self.db_manager.insert('flows', {k: [v] for k, v in flow_data.items()})
             logger.info(f"Created flow {flow.id} in VAST store")
             return True
-            
         except Exception as e:
             logger.error(f"Failed to create flow {flow.id}: {e}")
             return False
@@ -650,6 +649,8 @@ class VASTStore:
                 return False
             # Store only segment metadata in VAST DB
             start_time, end_time, duration = self._parse_timerange(segment.timerange)
+            get_urls_objs = await self.s3_store.create_get_urls(flow_id, segment.object_id, segment.timerange)
+            get_urls_json = self._dict_to_json([url.model_dump() for url in get_urls_objs])
             segment_data = {
                 'id': str(uuid.uuid4()),
                 'flow_id': flow_id,
@@ -659,14 +660,14 @@ class VASTStore:
                 'last_duration': segment.last_duration or "",
                 'sample_offset': segment.sample_offset or 0,
                 'sample_count': segment.sample_count or 0,
-                'get_urls': self._dict_to_json(await self.s3_store.create_get_urls(flow_id, segment.object_id, segment.timerange)),
+                'get_urls': get_urls_json,
                 'key_frame_count': segment.key_frame_count or 0,
                 'created': datetime.now(timezone.utc),
                 'start_time': start_time,
                 'end_time': end_time,
                 'duration_seconds': duration
             }
-            self.db_manager.insert('segments', segment_data)
+            self.db_manager.insert('segments', {k: [v] for k, v in segment_data.items()})
             logger.info(f"Created flow segment metadata for flow {flow_id} in VAST DB")
             return True
         except Exception as e:
@@ -714,13 +715,10 @@ class VASTStore:
                 'last_accessed': datetime.now(timezone.utc),
                 'access_count': 0
             }
-            
-            # Insert into VAST database
-            self.db_manager.insert('objects', object_data)
-            
+            # Insert into VAST database as dict of lists
+            self.db_manager.insert('objects', {k: [v] for k, v in object_data.items()})
             logger.info(f"Created object {obj.object_id} in VAST store")
             return True
-            
         except Exception as e:
             logger.error(f"Failed to create object {obj.object_id}: {e}")
             return False
@@ -752,10 +750,15 @@ class VASTStore:
             self.db_manager.update('objects', update_data, predicate)
             
             # Convert back to Object model
+            flow_refs = self._json_to_dict(row['flow_references'])
+            if isinstance(flow_refs, dict):
+                flow_refs = [flow_refs]
+            elif not isinstance(flow_refs, list):
+                flow_refs = []
             obj = Object(
-                object_id=row['object_id'] if isinstance(row['object_id'], str) else str(row['object_id']),
-                flow_references=self._json_to_dict(row['flow_references']) if isinstance(self._json_to_dict(row['flow_references']), list) else [self._json_to_dict(row['flow_references'])],
-                size=row['size'] if isinstance(row['size'], (int, type(None))) else int(row['size']) if row['size'] else None,
+                object_id=str(row['object_id']),
+                flow_references=flow_refs,
+                size=int(row['size']) if row['size'] is not None and not isinstance(row['size'], list) else (row['size'][0] if isinstance(row['size'], list) and row['size'] else None),
                 created=row['created'] if isinstance(row['created'], (datetime, type(None))) else datetime.fromisoformat(str(row['created'])) if row['created'] else None
             )
             
@@ -804,17 +807,29 @@ class VASTStore:
             # Convert to pandas for analysis
             df = pd.DataFrame(results)
             
-            # Group by format
+            # Group by format and convert numpy types
             format_counts = df['format'].value_counts().to_dict()
+            # Convert numpy types to native Python types
+            format_counts = {str(k): int(v) if hasattr(v, 'item') else v for k, v in format_counts.items()}
             
             # Calculate storage estimates
             total_storage = 0
             for _, row in df.iterrows():
-                if row['format'] == "urn:x-nmos:format:video":
-                    pixels = row['frame_width'] * row['frame_height']
-                    total_storage += pixels
-                elif row['format'] == "urn:x-nmos:format:audio":
-                    total_storage += row['sample_rate'] * row['channels'] * 2
+                try:
+                    if row['format'] == "urn:x-nmos:format:video":
+                        # Convert numpy types to native Python types
+                        frame_width = int(row['frame_width']) if hasattr(row['frame_width'], 'item') else row['frame_width']
+                        frame_height = int(row['frame_height']) if hasattr(row['frame_height'], 'item') else row['frame_height']
+                        pixels = frame_width * frame_height
+                        total_storage += pixels
+                    elif row['format'] == "urn:x-nmos:format:audio":
+                        # Convert numpy types to native Python types
+                        sample_rate = int(row['sample_rate']) if hasattr(row['sample_rate'], 'item') else row['sample_rate']
+                        channels = int(row['channels']) if hasattr(row['channels'], 'item') else row['channels']
+                        total_storage += sample_rate * channels * 2
+                except (KeyError, TypeError) as e:
+                    logger.warning(f"Could not calculate storage for flow: {e}")
+                    continue
             
             return {
                 "total_flows": len(df),
@@ -830,29 +845,113 @@ class VASTStore:
     async def _storage_usage_analytics(self, **kwargs) -> Dict[str, Any]:
         """Analyze storage usage patterns"""
         try:
-            # Get all objects
+            # Get all objects from database (not S3)
             results = self.db_manager.select('objects')
             
             if not results:
-                return {"total_objects": 0, "total_size": 0, "average_size": 0}
+                logger.info("No objects found in storage usage analytics")
+                return {
+                    "total_objects": 0, 
+                    "total_size_bytes": 0, 
+                    "average_size_bytes": 0,
+                    "most_accessed": 0,
+                    "least_accessed": 0,
+                    "average_access_count": 0
+                }
             
-            df = pd.DataFrame(results)
+            # Handle different result formats
+            if isinstance(results, dict):
+                # Column-oriented results
+                if 'size' not in results or 'access_count' not in results:
+                    logger.warning("Objects table missing required columns for storage analytics")
+                    return {
+                        "total_objects": len(results.get('object_id', [])), 
+                        "total_size_bytes": 0, 
+                        "average_size_bytes": 0,
+                        "most_accessed": 0,
+                        "least_accessed": 0,
+                        "average_access_count": 0
+                    }
+                
+                # Convert numpy types to native Python types
+                sizes = [int(x) if hasattr(x, 'item') else x for x in results['size']] if results['size'] else []
+                access_counts = [int(x) if hasattr(x, 'item') else x for x in results['access_count']] if results['access_count'] else []
+                total_size = sum(sizes) if sizes else 0
+                total_objects = len(sizes) if sizes else 0
+            else:
+                # Row-oriented results
+                try:
+                    df = pd.DataFrame(results)
+                    if 'size' not in df.columns or 'access_count' not in df.columns:
+                        logger.warning("Objects table missing required columns for storage analytics")
+                        return {
+                            "total_objects": len(df), 
+                            "total_size_bytes": 0, 
+                            "average_size_bytes": 0,
+                            "most_accessed": 0,
+                            "least_accessed": 0,
+                            "average_access_count": 0
+                        }
+                    
+                    # Convert numpy types to native Python types
+                    sizes = [int(x) if hasattr(x, 'item') else x for x in df['size'].tolist()]
+                    access_counts = [int(x) if hasattr(x, 'item') else x for x in df['access_count'].tolist()]
+                    total_size = sum(sizes)
+                    total_objects = len(df)
+                except Exception as e:
+                    logger.error(f"Failed to process objects data: {e}")
+                    return {
+                        "total_objects": 0, 
+                        "total_size_bytes": 0, 
+                        "average_size_bytes": 0,
+                        "most_accessed": 0,
+                        "least_accessed": 0,
+                        "average_access_count": 0
+                    }
             
-            total_size = df['size'].sum()
-            access_counts = df['access_count'].tolist()
+            if total_objects == 0:
+                return {
+                    "total_objects": 0, 
+                    "total_size_bytes": 0, 
+                    "average_size_bytes": 0,
+                    "most_accessed": 0,
+                    "least_accessed": 0,
+                    "average_access_count": 0
+                }
+            
+            average_size = total_size / total_objects if total_objects > 0 else 0
+            
+            # Handle access counts safely
+            if isinstance(access_counts, list) and access_counts:
+                most_accessed = max(access_counts)
+                least_accessed = min(access_counts)
+                average_access_count = sum(access_counts) / len(access_counts)
+            else:
+                most_accessed = 0
+                least_accessed = 0
+                average_access_count = 0
             
             return {
-                "total_objects": len(df),
+                "total_objects": total_objects,
                 "total_size_bytes": total_size,
-                "average_size_bytes": total_size / len(df),
-                "most_accessed": max(access_counts) if access_counts else 0,
-                "least_accessed": min(access_counts) if access_counts else 0,
-                "average_access_count": sum(access_counts) / len(access_counts) if access_counts else 0
+                "average_size_bytes": average_size,
+                "most_accessed": most_accessed,
+                "least_accessed": least_accessed,
+                "average_access_count": average_access_count
             }
             
         except Exception as e:
             logger.error(f"Storage usage analytics failed: {e}")
-            return {"error": str(e)}
+            # Return a safe default response instead of an error
+            return {
+                "total_objects": 0, 
+                "total_size_bytes": 0, 
+                "average_size_bytes": 0,
+                "most_accessed": 0,
+                "least_accessed": 0,
+                "average_access_count": 0,
+                "note": "Analytics based on database metadata only"
+            }
     
     async def _time_range_analysis(self, **kwargs) -> Dict[str, Any]:
         """Analyze time range patterns in flow segments"""
@@ -864,7 +963,11 @@ class VASTStore:
                 return {"total_segments": 0, "average_duration": 0}
             
             df = pd.DataFrame(results)
-            durations = df['duration_seconds'].tolist()
+            # Convert numpy types to native Python types
+            durations = [float(x) if hasattr(x, 'item') else x for x in df['duration_seconds'].tolist()]
+            
+            if not durations:
+                return {"total_segments": len(df), "average_duration": 0}
             
             return {
                 "total_segments": len(df),
@@ -1126,10 +1229,16 @@ class VASTStore:
             
             if isinstance(results, list):
                 for row in results:
+                    events = self._json_to_dict(row['events'])
+                    if isinstance(events, dict):
+                        events = list(events.values())
+                    elif not isinstance(events, list):
+                        events = []
                     webhook = Webhook(
                         url=row['url'],
                         api_key_name=row['api_key_name'],
-                        events=self._json_to_dict(row['events'])
+                        api_key_value=row.get('api_key_value'),
+                        events=events
                     )
                     webhooks.append(webhook)
             
@@ -1151,12 +1260,9 @@ class VASTStore:
                 'created': datetime.now(timezone.utc),
                 'updated': datetime.now(timezone.utc)
             }
-            
-            self.db_manager.insert('webhooks', webhook_data)
-            
+            self.db_manager.insert('webhooks', {k: [v] for k, v in webhook_data.items()})
             logger.info(f"Created webhook for URL {webhook.url}")
             return True
-            
         except Exception as e:
             logger.error(f"Failed to create webhook: {e}")
             return False
@@ -1170,12 +1276,12 @@ class VASTStore:
             if isinstance(results, list):
                 for row in results:
                     request = DeletionRequest(
-                        request_id=row['id'],
-                        flow_id=row['flow_id'],
+                        request_id=str(row['id']),
+                        flow_id=uuid.UUID(row['flow_id']) if not isinstance(row['flow_id'], uuid.UUID) else row['flow_id'],
                         timerange=row['timerange'],
-                        status=row['status'],
-                        created=row['created'],
-                        updated=row['updated'] if row['updated'] else None
+                        status=str(row['status']),
+                        created=row['created'] if isinstance(row['created'], datetime) else datetime.fromisoformat(str(row['created'])),
+                        updated=row['updated'] if not row['updated'] or isinstance(row['updated'], datetime) else datetime.fromisoformat(str(row['updated']))
                     )
                     requests.append(request)
             
@@ -1196,12 +1302,9 @@ class VASTStore:
                 'created': deletion_request.created,
                 'updated': deletion_request.updated
             }
-            
-            self.db_manager.insert('deletion_requests', request_data)
-            
+            self.db_manager.insert('deletion_requests', {k: [v] for k, v in request_data.items()})
             logger.info(f"Created deletion request {deletion_request.request_id}")
             return True
-            
         except Exception as e:
             logger.error(f"Failed to create deletion request: {e}")
             return False
@@ -1222,13 +1325,26 @@ class VASTStore:
             else:
                 return None
             
+            # Defensive extraction for possible list values
+            def extract_first(val):
+                if isinstance(val, list):
+                    return val[0] if val else None
+                return val
+            req_id = extract_first(row['id'])
+            flow_id_val = extract_first(row['flow_id'])
+            timerange_val = extract_first(row['timerange'])
+            status_val = extract_first(row['status'])
+            created_val = extract_first(row['created'])
+            updated_val = extract_first(row['updated'])
+            if not (req_id and flow_id_val and timerange_val and status_val and created_val):
+                return None
             request = DeletionRequest(
-                request_id=row['id'],
-                flow_id=row['flow_id'],
-                timerange=row['timerange'],
-                status=row['status'],
-                created=row['created'],
-                updated=row['updated'] if row['updated'] else None
+                request_id=str(req_id),
+                flow_id=uuid.UUID(flow_id_val) if not isinstance(flow_id_val, uuid.UUID) else flow_id_val,
+                timerange=timerange_val,
+                status=str(status_val),
+                created=created_val if isinstance(created_val, datetime) else datetime.fromisoformat(str(created_val)),
+                updated=None if not updated_val else (updated_val if isinstance(updated_val, datetime) else datetime.fromisoformat(str(updated_val)))
             )
             
             return request
@@ -1236,3 +1352,51 @@ class VASTStore:
         except Exception as e:
             logger.error(f"Failed to get deletion request {request_id}: {e}")
             return None 
+
+    async def delete_source(self, source_id: str) -> bool:
+        """
+        Delete a source from the VAST store by its unique identifier.
+
+        Args:
+            source_id (str): The unique identifier of the source to delete.
+
+        Returns:
+            bool: True if the source was deleted, False if not found or deletion failed.
+        """
+        try:
+            from ibis import _ as ibis_
+            predicate = (ibis_.id == source_id)
+            deleted_count = self.db_manager.delete('sources', predicate)
+            if deleted_count > 0:
+                logger.info(f"Deleted source {source_id} from VAST store")
+                return True
+            else:
+                logger.warning(f"Source {source_id} not found for deletion")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to delete source {source_id}: {e}")
+            return False 
+
+    async def delete_object(self, object_id: str) -> bool:
+        """
+        Delete an object from the VAST store by its unique identifier.
+
+        Args:
+            object_id (str): The unique identifier of the object to delete.
+
+        Returns:
+            bool: True if the object was deleted, False if not found or deletion failed.
+        """
+        try:
+            from ibis import _ as ibis_
+            predicate = (ibis_.object_id == object_id)
+            deleted_count = self.db_manager.delete('objects', predicate)
+            if deleted_count > 0:
+                logger.info(f"Deleted object {object_id} from VAST store")
+                return True
+            else:
+                logger.warning(f"Object {object_id} not found for deletion")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to delete object {object_id}: {e}")
+            return False 

@@ -4,9 +4,14 @@ globs: *py
 alwaysApply: false
 ---
 
-- Use python 3.12 or later for all code
-- Use clear docstrings and comments
+- Always use python 3.12 or later for all code
+- Allways add docstrings and comments
 - Do not create monolithic module files
-- Use logging 
-- create tests in a the tests directory
-- Use fastapi when creating APIs 
+- Always add logging 
+- Always create tests in a the tests directory
+- Consolidate test settings into a single json file
+- Use fastapi when creating APIs
+- split api routers into seperate files
+- Create openapi documents and specs when using fastapi
+- Follow Python's official documentation and PEPs for best practices in Python development
+

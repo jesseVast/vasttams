@@ -8,13 +8,13 @@ This directory contains all test files for the TAMS (Time-addressable Media Stor
 
 #### `test_basic.py`
 - **Purpose**: Basic functionality tests for the TAMS API
-- **Coverage**: Core API endpoints, request/response validation, error handling
+- **Coverage**: Core API endpoints, request/response validation, error handling, analytics
 - **Dependencies**: FastAPI, pytest, httpx
-- **Usage**: Tests the main API functionality including sources, flows, and segments
+- **Usage**: Tests the main API functionality including sources, flows, segments, and analytics
 
 #### `test_vast_store.py`
 - **Purpose**: Unit tests for the VASTStore class
-- **Coverage**: VAST database operations, S3 storage integration, data model conversions
+- **Coverage**: VAST database operations, S3 storage integration, data model conversions, analytics
 - **Dependencies**: VAST database, S3 storage, PyArrow
 - **Usage**: Tests the high-level store interface that combines VAST DB and S3
 
@@ -23,6 +23,46 @@ This directory contains all test files for the TAMS (Time-addressable Media Stor
 - **Coverage**: Database connection, table operations, CRUD operations, query optimization
 - **Dependencies**: VAST database, PyArrow, ibis
 - **Usage**: Tests the low-level VAST database management functionality
+
+### Router and Manager Tests
+
+#### `test_flow_manager.py`
+- **Purpose**: Unit tests for the FlowManager class
+- **Coverage**: Flow business logic, CRUD operations, validation
+- **Dependencies**: Mock VAST store
+- **Usage**: Tests flow management functionality in isolation
+
+#### `test_source_manager.py`
+- **Purpose**: Unit tests for the SourceManager class
+- **Coverage**: Source business logic, CRUD operations, validation
+- **Dependencies**: Mock VAST store
+- **Usage**: Tests source management functionality in isolation
+
+#### `test_segment_manager.py`
+- **Purpose**: Unit tests for the SegmentManager class
+- **Coverage**: Segment business logic, media operations, time range handling
+- **Dependencies**: Mock VAST store, Mock S3 store
+- **Usage**: Tests segment management functionality in isolation
+
+#### `test_object_manager.py`
+- **Purpose**: Unit tests for the ObjectManager class
+- **Coverage**: Object business logic, CRUD operations
+- **Dependencies**: Mock VAST store
+- **Usage**: Tests object management functionality in isolation
+
+### Storage and Integration Tests
+
+#### `test_s3_store.py`
+- **Purpose**: Unit tests for the S3Store class
+- **Coverage**: S3 operations, presigned URLs, media segment storage
+- **Dependencies**: boto3, Mock S3 client
+- **Usage**: Tests S3 storage functionality in isolation
+
+#### `test_integration_api.py`
+- **Purpose**: Integration tests for the complete API workflow
+- **Coverage**: End-to-end workflows, cross-module interactions
+- **Dependencies**: Full application stack
+- **Usage**: Tests complete user workflows and API integration
 
 ### Example and Documentation
 
@@ -62,6 +102,18 @@ python -m pytest tests/test_vast_store.py
 
 # Run only database manager tests
 python -m pytest tests/test_vastdbmanager.py
+
+# Run only router/manager tests
+python -m pytest tests/test_flow_manager.py
+python -m pytest tests/test_source_manager.py
+python -m pytest tests/test_segment_manager.py
+python -m pytest tests/test_object_manager.py
+
+# Run only storage tests
+python -m pytest tests/test_s3_store.py
+
+# Run only integration tests
+python -m pytest tests/test_integration_api.py
 ```
 
 ### Running Specific Test Functions
@@ -71,6 +123,9 @@ python -m pytest tests/test_vastdbmanager.py::test_create_table
 
 # Run tests matching a pattern
 python -m pytest tests/ -k "create"
+
+# Run analytics tests
+python -m pytest tests/test_basic.py::test_analytics
 ```
 
 ## Test Configuration
@@ -89,20 +144,27 @@ Some tests use mocks to avoid requiring actual database or storage connections:
 - Database operations are mocked in unit tests
 - S3 operations are mocked for isolated testing
 - Network calls are mocked for API tests
+- Router dependencies are mocked for manager tests
 
 ## Test Structure
 
 ### Unit Tests
-- **Location**: Individual test files
+- **Location**: Individual test files (`test_*_manager.py`, `test_*_store.py`)
 - **Scope**: Single module or class functionality
 - **Dependencies**: Minimal, often mocked
 - **Speed**: Fast execution
 
 ### Integration Tests
-- **Location**: `test_basic.py`
+- **Location**: `test_basic.py`, `test_integration_api.py`
 - **Scope**: End-to-end API functionality
 - **Dependencies**: Full application stack
 - **Speed**: Slower, requires setup
+
+### Router Tests
+- **Location**: Manager test files (`test_*_manager.py`)
+- **Scope**: Business logic and router functionality
+- **Dependencies**: Mocked stores and dependencies
+- **Speed**: Fast execution
 
 ### Example Tests
 - **Location**: `example_vastdbmanager_usage.py`
@@ -116,6 +178,7 @@ Some tests use mocks to avoid requiring actual database or storage connections:
 - Use `test_*.py` naming convention
 - Include the module name being tested
 - Example: `test_vast_store.py` for testing `vast_store.py`
+- Example: `test_flow_manager.py` for testing `flows.py`
 
 ### Test Function Naming
 - Use descriptive names that explain what is being tested
@@ -191,6 +254,10 @@ Current test coverage includes:
 - ✅ Data model validation
 - ✅ Error handling scenarios
 - ✅ Integration workflows
+- ✅ Analytics endpoints
+- ✅ Router functionality
+- ✅ Manager business logic
+- ✅ Modular architecture components
 
 Areas for improvement:
 - 🔄 Performance testing

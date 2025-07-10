@@ -11,6 +11,8 @@ import json
 import uuid
 from pydantic import UUID4
 from datetime import datetime
+import pytest
+pytestmark = pytest.mark.asyncio
 
 # API base URL
 BASE_URL = "http://localhost:8000"
@@ -173,7 +175,7 @@ async def test_analytics():
         data = response.json()
         print(f"Storage usage analytics response: {data}")
         assert "total_objects" in data
-        assert "total_size" in data
+        assert "total_size_bytes" in data
         
         # Test time range analytics
         response = await client.get(f"{BASE_URL}/analytics/time-range-analysis")

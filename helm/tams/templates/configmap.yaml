@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tams.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tams.labels" . | nindent 4 }}
+data:
+  config.json: |
+    {
+      "host": "{{ .Values.config.host }}",
+      "port": {{ .Values.config.port }},
+      "debug": {{ .Values.config.debug }},
+      "vast_endpoint": "{{ .Values.vast.endpoint }}",
+      "vast_bucket": "{{ .Values.vast.bucket }}",
+      "vast_schema": "{{ .Values.vast.schema }}",
+      "s3_endpoint_url": "{{ .Values.s3.endpointUrl }}",
+      "s3_bucket_name": "{{ .Values.s3.bucketName }}",
+      "s3_use_ssl": {{ .Values.s3.useSsl }},
+      "log_level": "{{ .Values.config.logLevel }}",
+      "log_format": "{{ .Values.config.logFormat }}",
+      "health_check_path": "/health",
+      "health_check_interval": "30s",
+      "health_check_timeout": "10s"
+    } 

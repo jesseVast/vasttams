@@ -1,6 +1,6 @@
 # VAST TAMS (Time-addressable Media Store) API running on VAST
 
-A comprehensive FastAPI implementation of the BBC TAMS API specification with VAST database integration for high-performance time-series analytics and S3-compatible storage for media segments.
+A comprehensive FastAPI implementation of the BBC TAMS API specification with VAST Database and VAST S3 integration for high-performance time-series analytics and S3-compatible storage for media segments.
 
 ## 🚀 Features
 
@@ -10,6 +10,7 @@ A comprehensive FastAPI implementation of the BBC TAMS API specification with VA
 - **Time-Series Analytics**: Optimized for media flow segments with time ranges
 - **RESTful API**: Complete CRUD operations for sources, flows, segments, and objects
 - **Analytics Endpoints**: Built-in analytics for flow usage, storage patterns, and time analysis
+- **Modular Architecture**: Clean separation of concerns with dedicated routers for each domain
 - **Webhook Support**: Event-driven notifications for media operations
 - **Docker Support**: Containerized deployment with Docker and docker-compose
 - **Kubernetes Ready**: Complete K8s manifests for production deployment
@@ -17,6 +18,17 @@ A comprehensive FastAPI implementation of the BBC TAMS API specification with VA
 - **Pydantic v2 Compatible**: Modern data validation with RootModel support
 
 ## 🏗️ Architecture
+
+### Modular Router Architecture
+The application follows a clean modular architecture with separate routers for each domain:
+
+- **`main.py`**: Core application setup, lifespan management, and service endpoints
+- **`flows_router.py`**: Flow management endpoints (CRUD operations)
+- **`segments_router.py`**: Flow segment management and media upload/download
+- **`sources_router.py`**: Source management endpoints (CRUD operations)
+- **`objects_router.py`**: Media object management
+- **`analytics_router.py`**: Analytics and reporting endpoints
+- **`dependencies.py`**: Dependency injection for VAST store access
 
 ### Hybrid Storage Architecture
 The application uses a hybrid storage approach:
@@ -54,6 +66,40 @@ The VAST store creates the following tables with optimized schemas:
 - **webhooks**: Event notification configuration
 - **deletion_requests**: Media deletion tracking
 
+## 📁 Project Structure
+
+```
+bbctams/
+├── app/
+│   ├── __init__.py
+│   ├── main.py                 # Core FastAPI application
+│   ├── config.py               # Configuration management
+│   ├── dependencies.py         # Dependency injection
+│   ├── models.py               # Pydantic data models
+│   ├── vast_store.py           # VAST database store
+│   ├── vastdbmanager.py        # VAST database manager
+│   ├── s3_store.py             # S3 storage manager
+│   ├── flows.py                # Flow business logic
+│   ├── segments.py             # Segment business logic
+│   ├── sources.py              # Source business logic
+│   ├── objects.py              # Object business logic
+│   ├── flows_router.py         # Flow API router
+│   ├── segments_router.py      # Segment API router
+│   ├── sources_router.py       # Source API router
+│   ├── objects_router.py       # Object API router
+│   └── analytics_router.py     # Analytics API router
+├── api/
+│   ├── openapi.json            # OpenAPI specification
+│   ├── schemas/                # JSON schemas
+│   └── TimeAddressableMediaStore.yaml
+├── tests/                      # Test suite
+├── k8s/                        # Kubernetes manifests
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+└── README.md
+```
+
 ## 📋 API Endpoints
 
 ### Core TAMS Endpoints
@@ -63,7 +109,7 @@ The VAST store creates the following tables with optimized schemas:
 - `GET /service` - Service configuration and capabilities
 - `POST /service` - Update service configuration
 
-### Sources Management
+### Sources Management (`/sources`)
 - `GET /sources` - List sources with filtering and pagination
 - `POST /sources` - Create new source
 - `GET /sources/{id}` - Get source by ID
@@ -77,7 +123,7 @@ The VAST store creates the following tables with optimized schemas:
 - `GET /sources/{id}/label` - Get source label
 - `PUT /sources/{id}/label` - Update source label
 
-### Flows Management
+### Flows Management (`/flows`)
 - `GET /flows` - List flows with filtering and pagination
 - `POST /flows` - Create new flow
 - `GET /flows/{id}` - Get flow by ID
@@ -96,17 +142,17 @@ The VAST store creates the following tables with optimized schemas:
 - `PUT /flows/{id}/flow_collection` - Update flow collection
 - `DELETE /flows/{id}/flow_collection` - Delete flow collection
 
-### Flow Segments
+### Flow Segments (`/flows/{id}/segments`)
 - `GET /flows/{id}/segments` - Get flow segments with time range filtering
 - `POST /flows/{id}/segments` - Create flow segment (upload media data)
 - `DELETE /flows/{id}/segments` - Delete flow segments
 - `POST /flows/{id}/storage` - Allocate storage for flow segments
 
-### Media Objects
+### Media Objects (`/objects`)
 - `GET /objects/{id}` - Get media object
 - `POST /objects` - Create media object
 
-### Analytics Endpoints
+### Analytics Endpoints (`/analytics`)
 - `GET /analytics/flow-usage` - Flow usage statistics and format distribution
 - `GET /analytics/storage-usage` - Storage usage analysis and access patterns
 - `GET /analytics/time-range-analysis` - Time range patterns and duration analysis
@@ -296,33 +342,58 @@ curl -X POST "http://localhost:8000/service/webhooks" \
 
 ## 🧪 Testing
 
-### Run the test suite
+### Unit Tests
+
+Comprehensive unit tests are provided for all major manager classes:
+- `FlowManager` (flows): CRUD, tags, description, label, read-only, collection, and edge cases
+- `SegmentManager` (segments): CRUD, allocation, and edge cases
+- `SourceManager` (sources): CRUD, tags, description, label, and edge cases
+- `ObjectManager` (objects): CRUD and edge cases
+
+Unit tests use `pytest` and mock dependencies for isolated logic testing.
+
+### Integration Test
+
+A full integration test (`tests/test_integration_api.py`) covers the end-to-end API flow:
+- Create source
+- Create flow
+- Create object
+- Create segment (with file upload)
+- Retrieve and validate all entities
+- Delete all entities and confirm deletion
+- Validates data integrity and error handling
+
+### Running Tests
+
+Install dependencies:
 ```bash
-# Basic API tests
-python -m pytest tests/test_basic.py -v
-
-# VAST store tests
-python -m pytest tests/test_vast_store.py -v
-
-# S3 store tests
-python -m pytest tests/test_s3_store.py -v
+pip install -r requirements.txt
 ```
 
-### Test VAST Store directly
+Run all tests:
 ```bash
-python tests/test_vast_store.py
+pytest tests/
 ```
 
-The tests cover:
-- Health check endpoint
-- Service information
-- Source creation and retrieval
-- Flow creation and retrieval
-- Flow segment upload and retrieval
-- Analytics endpoints
-- Webhook management
-- VAST database operations
-- S3 storage operations
+Run a specific test file:
+```bash
+pytest tests/test_flow_manager.py
+pytest tests/test_segment_manager.py
+pytest tests/test_source_manager.py
+pytest tests/test_object_manager.py
+pytest tests/test_integration_api.py
+```
+
+### Test Coverage
+- All CRUD operations and edge cases for flows, segments, sources, and objects
+- End-to-end API integration
+- Error handling and data validation
+
+### Best Practices
+- All tests use descriptive names and docstrings
+- Mock external dependencies for unit tests
+- Integration test assumes API is running at `http://localhost:8000`
+- Update and expand tests as new features are added
 
 ## 🔧 Development
 
@@ -331,32 +402,32 @@ The tests cover:
 bbctams/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py              # FastAPI application with all endpoints
-│   ├── models.py            # Pydantic v2 models with RootModel support
-│   ├── config.py            # Configuration management
-│   ├── vast_store.py        # VAST store implementation
-│   ├── vastdbmanager.py     # VAST database manager
-│   ├── s3_store.py          # S3-compatible storage manager
-│   └── utils.py             # Utility functions
+│   ├── main.py                 # Core FastAPI application
+│   ├── config.py               # Configuration management
+│   ├── dependencies.py         # Dependency injection
+│   ├── models.py               # Pydantic data models
+│   ├── vast_store.py           # VAST database store
+│   ├── vastdbmanager.py        # VAST database manager
+│   ├── s3_store.py             # S3 storage manager
+│   ├── flows.py                # Flow business logic
+│   ├── segments.py             # Segment business logic
+│   ├── sources.py              # Source business logic
+│   ├── objects.py              # Object business logic
+│   ├── flows_router.py         # Flow API router
+│   ├── segments_router.py      # Segment API router
+│   ├── sources_router.py       # Source API router
+│   ├── objects_router.py       # Object API router
+│   └── analytics_router.py     # Analytics API router
 ├── api/
-│   ├── openapi.json         # OpenAPI specification (auto-generated)
-│   └── schemas/             # JSON schemas for validation
-├── k8s/                     # Kubernetes manifests
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   ├── ingress.yaml
-│   ├── configmap.yaml
-│   └── secrets.yaml
-├── tests/
-│   ├── test_basic.py        # Basic API tests
-│   ├── test_vast_store.py   # VAST store tests
-│   └── test_s3_store.py     # S3 store tests
-├── docker-compose.yml       # Docker Compose configuration
-├── Dockerfile              # Docker image definition
-├── generate_openapi.py     # OpenAPI specification generator
-├── requirements.txt        # Python dependencies
-├── run.py                 # Application entry point
-└── README.md              # This file
+│   ├── openapi.json            # OpenAPI specification
+│   ├── schemas/                # JSON schemas
+│   └── TimeAddressableMediaStore.yaml
+├── tests/                      # Test suite
+├── k8s/                        # Kubernetes manifests
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+└── README.md
 ```
 
 ### OpenAPI Specification

@@ -4,7 +4,7 @@ This directory contains Kubernetes manifests for deploying the TAMS (Time-addres
 
 ## Architecture Overview
 
-The TAMS API is deployed as a scalable microservice with the following components:
+The TAMS API is deployed as a scalable microservice with a modular architecture:
 
 - **Namespace**: Isolated `tams` namespace for all TAMS resources
 - **Secrets**: Secure storage for database credentials and API keys
@@ -15,6 +15,14 @@ The TAMS API is deployed as a scalable microservice with the following component
 - **HPA**: Automatic scaling based on resource usage
 - **PDB**: High availability during maintenance
 
+### Application Architecture
+
+The TAMS API follows a modular router architecture:
+- **Core Application**: `main.py` handles lifespan management and service endpoints
+- **Domain Routers**: Separate routers for flows, segments, sources, objects, and analytics
+- **Business Logic**: Dedicated manager classes for each domain
+- **Dependency Injection**: Centralized dependency management for VAST store access
+
 ## Prerequisites
 
 1. **Kubernetes Cluster**: v1.24+ with the following components:
@@ -24,7 +32,7 @@ The TAMS API is deployed as a scalable microservice with the following component
 
 2. **External Dependencies**:
    - VAST Database service
-   - VAST S3  storage service
+   - VAST S3 storage service
 
 3. **Docker Image**: Build and push the TAMS API image:
    ```bash
@@ -102,6 +110,9 @@ kubectl logs -f deployment/tams-api -n tams
 # Test health endpoint
 kubectl port-forward service/tams-api-service 8080:80 -n tams
 curl http://localhost:8080/health
+
+# Test analytics endpoint
+curl http://localhost:8080/analytics/flow-usage
 ```
 
 ## Configuration
@@ -173,6 +184,29 @@ kubectl rollout restart deployment/tams-api -n tams
 - **CPU**: 250m request, 500m limit
 - **Memory**: 256Mi request, 512Mi limit
 - **HPA**: Scales on 70% CPU and 80% memory utilization
+
+## API Endpoints
+
+### Core Endpoints
+- `GET /health` - Health check
+- `GET /` - Service information
+- `GET /service` - Service configuration
+- `GET /openapi.json` - OpenAPI specification
+
+### Domain Endpoints
+- `GET /sources` - Source management
+- `GET /flows` - Flow management
+- `GET /flows/{id}/segments` - Segment management
+- `GET /objects` - Object management
+
+### Analytics Endpoints
+- `GET /analytics/flow-usage` - Flow usage statistics
+- `GET /analytics/storage-usage` - Storage usage analysis
+- `GET /analytics/time-range-analysis` - Time range patterns
+
+### Management Endpoints
+- `GET /service/webhooks` - Webhook management
+- `GET /flow-delete-requests` - Deletion request management
 
 ## Monitoring and Logging
 

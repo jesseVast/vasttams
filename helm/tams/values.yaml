@@ -1,0 +1,188 @@
+# Default values for tams-api
+# This is a YAML-formatted file.
+
+# Global configuration
+global:
+  environment: production
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# Image configuration
+image:
+  repository: tams-api
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# Image pull secrets
+imagePullSecrets: []
+
+# Service account configuration
+serviceAccount:
+  create: true
+  name: "tams-api-sa"
+  annotations: {}
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container security context
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: tams-api.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: tams-api-tls
+      hosts:
+        - tams-api.example.com
+
+# Horizontal Pod Autoscaler
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+
+# Pod Disruption Budget
+pdb:
+  enabled: true
+  minAvailable: 1
+
+# Network Policy
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+
+# Resource limits and requests
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Replica count
+replicaCount: 3
+
+# Liveness and readiness probes
+probes:
+  liveness:
+    enabled: true
+    path: /health
+    port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    path: /health
+    port: 8000
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# VAST Database configuration
+vast:
+  endpoint: "http://172.200.204.1"
+  bucket: "jthaloor-db"
+  schema: "bbctams"
+  accessKey: ""
+  secretKey: ""
+
+# S3 Storage configuration
+s3:
+  endpointUrl: "http://172.200.204.1"
+  bucketName: "jthaloor-s3"
+  useSsl: false
+  accessKeyId: ""
+  secretAccessKey: ""
+
+# Application configuration
+config:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  logLevel: "INFO"
+  logFormat: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Secrets management
+secrets:
+  create: true
+  vastAccessKey: ""
+  vastSecretKey: ""
+  s3AccessKeyId: ""
+  s3SecretAccessKey: ""
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod labels
+podLabels: {}
+
+# Deployment annotations
+deploymentAnnotations: {}
+
+# Deployment labels
+deploymentLabels: {} 

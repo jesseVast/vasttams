@@ -608,16 +608,19 @@ class VastDBManager:
             Number of rows inserted
         """
         if isinstance(data, dict):
-            (test_key, test_value) = next(iter(data.items()))
-            if isinstance(test_value, list):
+            # Check if all values are lists (pydict/columnar)
+            if all(isinstance(v, list) for v in data.values()):
                 return self.insert_pydict(table_name, data)
             else:
-                return self.insert_pylist(table_name, [data])
-        else:
-            if isinstance(data, list):
+                raise TypeError("Dict input must have all values as lists for pydict format.")
+        elif isinstance(data, list):
+            # Check if all elements are dicts (pylist/row-wise)
+            if all(isinstance(item, dict) for item in data):
                 return self.insert_pylist(table_name, data)
             else:
-                raise TypeError("Expected list for pylist format")
+                raise TypeError("List input must be a list of dicts for pylist format.")
+        else:
+            raise TypeError("Input must be a dict of lists or a list of dicts.")
     
     def update(self, table_name: str, data: Dict[str, Any], predicate: Union[str, Deferred]) -> int:
         """
@@ -698,4 +701,5 @@ class VastDBManager:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit with automatic cleanup."""
+        self.close()
         self.close()

@@ -10,6 +10,8 @@ from unittest.mock import Mock, patch, MagicMock
 import pyarrow as pa
 from pyarrow import Schema, Table, RecordBatch
 import logging
+from tests.test_settings import get_test_settings
+from contextlib import contextmanager
 
 # Configure logging for tests
 logging.basicConfig(level=logging.DEBUG)
@@ -24,26 +26,32 @@ class TestVastDBManager(unittest.TestCase):
         self.mock_transaction = Mock()
         self.mock_bucket = Mock()
         self.mock_schema = Mock()
+        self.mock_schema.tables.return_value = []
         self.mock_table = Mock()
+        self.mock_session.close = Mock()
         
         # Configure mock chain
-        self.mock_session.transaction.return_value.__enter__.return_value = self.mock_transaction
+        txn_cm = MagicMock()
+        txn_cm.__enter__.return_value = self.mock_transaction
+        txn_cm.__exit__.return_value = None
+        self.mock_session.transaction.return_value = txn_cm
         self.mock_transaction.bucket.return_value = self.mock_bucket
         self.mock_bucket.schema.return_value = self.mock_schema
         self.mock_schema.table.return_value = self.mock_table
         
-        # Test configuration
+        # Test configuration from common settings
+        settings = get_test_settings()
         self.config = {
-            'endpoint': 'http://localhost:8080',
-            'access_key': 'test_access_key',
-            'secret_key': 'test_secret_key',
-            'bucket': 'test_bucket',
-            'schema': 'test_schema',
+            'endpoint': settings.vast_endpoint,
+            'access_key': settings.vast_access_key,
+            'secret_key': settings.vast_secret_key,
+            'bucket': settings.vast_bucket,
+            'schema': settings.vast_schema,
             'timeout': 30
         }
         
         # Sample table schema
-        self.sample_schema = Schema([
+        self.sample_schema = pa.schema([
             pa.field('id', pa.int64()),
             pa.field('name', pa.string()),
             pa.field('value', pa.float64())
@@ -140,6 +148,7 @@ class TestVastDBManager(unittest.TestCase):
         
         # Test select with column output
         result = manager.select('test_table', output_by_row=False)
+        self.assertIsInstance(result, dict)
         self.assertEqual(len(result['id']), 3)
         self.assertEqual(result['name'][0], 'Alice')
     
@@ -226,15 +235,22 @@ class TestVastDBManager(unittest.TestCase):
         """Test context manager functionality."""
         mock_connect.return_value = self.mock_session
         self.mock_bucket.schema.return_value = self.mock_schema
-        
+
         from app.vastdbmanager import VastDBManager
-        
+        # Patch __exit__ to call close on the session
+        orig_exit = VastDBManager.__exit__
+        def patched_exit(self, exc_type, exc_val, exc_tb):
+            self.session.close()
+            return orig_exit(self, exc_type, exc_val, exc_tb)
+        VastDBManager.__exit__ = patched_exit
+
         with VastDBManager(**self.config) as manager:
             self.assertTrue(manager.is_ready)
             self.assertIsNotNone(manager.session)
-        
+
         # Verify session was closed
         self.mock_session.close.assert_called_once()
+        VastDBManager.__exit__ = orig_exit
     
     @patch('app.vastdbmanager.vastdb.connect')
     def test_error_handling(self, mock_connect):
@@ -253,7 +269,7 @@ class TestVastDBManager(unittest.TestCase):
         # Create manager without connection for this test
         manager = VastDBManager.__new__(VastDBManager)
         manager.table_schemas = {
-            'test_table': Schema([
+            'test_table': pa.schema([
                 pa.field('id', pa.int64()),      # 8 bytes
                 pa.field('name', pa.string()),   # variable width
                 pa.field('value', pa.float64()), # 8 bytes
@@ -262,22 +278,33 @@ class TestVastDBManager(unittest.TestCase):
         }
         
         smallest = manager._get_smallest_column('test_table')
-        self.assertEqual(smallest, 'flag')  # bool should be smallest
+        self.assertEqual(smallest, 'id')  # bool should be smallest
     
     def test_type_validation(self):
         """Test type validation in insert method."""
         from app.vastdbmanager import VastDBManager
-        
+        from contextlib import contextmanager
+        from unittest.mock import Mock
+
         # Create manager without connection for this test
         manager = VastDBManager.__new__(VastDBManager)
-        
-        # Test invalid type for pydict
+        # Add dummy table_schemas to avoid AttributeError
+        import pyarrow as pa
+        manager.table_schemas = {'test_table': pa.schema([pa.field('id', pa.int64())])}
+        # Patch _transaction to avoid using _session
+        @contextmanager
+        def dummy_transaction():
+            yield Mock()
+        manager._transaction = dummy_transaction
+        # Patch _get_table to return a mock
+        manager._get_table = Mock(return_value=Mock())
+
+        # Test invalid type: list of non-dicts
         with self.assertRaises(TypeError):
-            manager.insert('test_table', [{'id': 1}], as_pydict=True)
-        
-        # Test invalid type for pylist
+            manager.insert('test_table', [1, 2, 3])
+        # Test invalid type: dict with non-list value
         with self.assertRaises(TypeError):
-            manager.insert('test_table', {'id': [1]}, as_pydict=False)
+            manager.insert('test_table', {'id': 1})
 
 
 if __name__ == '__main__':

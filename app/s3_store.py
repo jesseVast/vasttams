@@ -29,16 +29,21 @@ class S3Store:
     stored as objects in S3 buckets.
     """
     
-    def __init__(self):
-        """Initialize S3 Store using configuration from config.py"""
-        settings = get_settings()
-        
-        self.endpoint_url = settings.s3_endpoint_url
-        self.access_key_id = settings.s3_access_key_id
-        self.secret_access_key = settings.s3_secret_access_key
-        self.bucket_name = settings.s3_bucket_name
-        self.use_ssl = settings.s3_use_ssl
-        
+    def __init__(self, endpoint_url=None, access_key_id=None, secret_access_key=None, bucket_name=None, use_ssl=None):
+        """Initialize S3 Store using provided config or config.py"""
+        if any(param is not None for param in [endpoint_url, access_key_id, secret_access_key, bucket_name, use_ssl]):
+            self.endpoint_url = endpoint_url
+            self.access_key_id = access_key_id
+            self.secret_access_key = secret_access_key
+            self.bucket_name = bucket_name
+            self.use_ssl = use_ssl
+        else:
+            settings = get_settings()
+            self.endpoint_url = settings.s3_endpoint_url
+            self.access_key_id = settings.s3_access_key_id
+            self.secret_access_key = settings.s3_secret_access_key
+            self.bucket_name = settings.s3_bucket_name
+            self.use_ssl = settings.s3_use_ssl
         # Initialize S3 client
         try:
             self.s3_client = boto3.client(
@@ -47,14 +52,10 @@ class S3Store:
                 aws_access_key_id=self.access_key_id,
                 aws_secret_access_key=self.secret_access_key,
                 use_ssl=self.use_ssl,
-                verify=False  # For self-signed certificates in development
+                verify=False
             )
-            
-            # Ensure bucket exists
             self._ensure_bucket_exists()
-            
             logger.info(f"S3 Store initialized with endpoint: {self.endpoint_url}, bucket: {self.bucket_name}")
-            
         except Exception as e:
             logger.error(f"Failed to initialize S3 Store: {e}")
             raise

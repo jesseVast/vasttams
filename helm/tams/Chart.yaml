@@ -1,0 +1,21 @@
+apiVersion: v2
+name: tams-api
+description: TAMS (Time-addressable Media Store) API - A comprehensive FastAPI implementation with VAST database integration
+type: application
+version: 1.0.0
+appVersion: "6.0.0"
+keywords:
+  - tams
+  - media
+  - vast
+  - fastapi
+  - analytics
+home: https://github.com/jesseVast/bbctams
+sources:
+  - https://github.com/jesseVast/bbctams
+maintainers:
+  - name: TAMS Team
+    email: tams@example.com
+annotations:
+  category: Media
+  licenses: MIT 

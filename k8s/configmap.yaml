@@ -19,5 +19,10 @@ data:
       "log_format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
       "health_check_path": "/health",
       "health_check_interval": "30s",
-      "health_check_timeout": "10s"
+      "health_check_timeout": "10s",
+      "telemetry_enabled": true,
+      "metrics_enabled": true,
+      "tracing_enabled": true,
+      "jaeger_endpoint": "jaeger-collector:14268",
+      "otlp_endpoint": "http://otel-collector:4318/v1/traces"
     } 

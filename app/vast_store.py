@@ -42,6 +42,7 @@ Example Usage:
 import logging
 import json
 import uuid
+import time
 from ibis import _ as ibis_
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any, Union, Tuple
@@ -50,6 +51,7 @@ import pyarrow as pa
 from pydantic import UUID4
 
 from .vastdbmanager import VastDBManager
+from .telemetry import telemetry_manager, trace_operation
 from .models import (
     Source, Flow, FlowSegment, Object, DeletionRequest, 
     TimeRange, Tags, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow,
@@ -768,6 +770,7 @@ class VASTStore:
             logger.error(f"Failed to get object {object_id}: {e}")
             return None
     
+    @trace_operation("analytics_query")
     async def analytics_query(self, query_type: str, **kwargs) -> Dict[str, Any]:
         """
         Perform analytics queries on VAST data
@@ -780,19 +783,30 @@ class VASTStore:
             Analytics results
         """
         try:
+            start_time = time.time()
+            
             if query_type == "flow_usage":
-                return await self._flow_usage_analytics(**kwargs)
+                result = await self._flow_usage_analytics(**kwargs)
             elif query_type == "storage_usage":
-                return await self._storage_usage_analytics(**kwargs)
+                result = await self._storage_usage_analytics(**kwargs)
             elif query_type == "time_range_analysis":
-                return await self._time_range_analysis(**kwargs)
+                result = await self._time_range_analysis(**kwargs)
             elif query_type == "catalog_summary":
-                return await self._catalog_summary(**kwargs)
+                result = await self._catalog_summary(**kwargs)
             else:
                 raise ValueError(f"Unknown analytics query type: {query_type}")
+            
+            # Record performance metrics
+            duration = time.time() - start_time
+            telemetry_manager.record_performance_metrics(
+                f"analytics_{query_type}", duration, "vast"
+            )
+            
+            return result
                 
         except Exception as e:
             logger.error(f"Analytics query failed: {e}")
+            telemetry_manager.record_error("vast_query_error", f"analytics_{query_type}", str(e))
             return {"error": str(e)}
     
     async def _flow_usage_analytics(self, **kwargs) -> Dict[str, Any]:

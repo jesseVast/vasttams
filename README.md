@@ -1,4 +1,4 @@
-:q# VAST TAMS (Time-addressable Media Store) API running on VAST
+# VAST TAMS (Time-addressable Media Store) API running on VAST
 
 A comprehensive FastAPI implementation of the BBC TAMS API specification with VAST Database and VAST S3 integration for high-performance time-series analytics and S3-compatible storage for media segments.
 

@@ -19,6 +19,9 @@ A comprehensive FastAPI implementation of the BBC TAMS API specification with VA
 
 ## 🏗️ Architecture
 
+<img width="822" height="430" alt="TAMS_Architecture-Live_white" src="https://github.com/user-attachments/assets/23ea1987-4b30-468f-89e4-a7a3778a2a02" />
+
+
 ### Modular Router Architecture
 The application follows a clean modular architecture with separate routers for each domain:
 

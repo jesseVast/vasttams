@@ -1,4 +1,4 @@
-# VAST TAMS (Time-addressable Media Store) API running on VAST
+:q# VAST TAMS (Time-addressable Media Store) API running on VAST
 
 A comprehensive FastAPI implementation of the BBC TAMS API specification with VAST Database and VAST S3 integration for high-performance time-series analytics and S3-compatible storage for media segments.
 
@@ -10,7 +10,6 @@ A comprehensive FastAPI implementation of the BBC TAMS API specification with VA
 - **Time-Series Analytics**: Optimized for media flow segments with time ranges
 - **RESTful API**: Complete CRUD operations for sources, flows, segments, and objects
 - **Analytics Endpoints**: Built-in analytics for flow usage, storage patterns, and time analysis
-- **Comprehensive Observability**: Prometheus metrics, OpenTelemetry tracing, and Grafana dashboards
 - **Modular Architecture**: Clean separation of concerns with dedicated routers for each domain
 - **Webhook Support**: Event-driven notifications for media operations
 - **Docker Support**: Containerized deployment with Docker and docker-compose
@@ -83,7 +82,6 @@ bbctams/
 │   ├── vast_store.py           # VAST database store
 │   ├── vastdbmanager.py        # VAST database manager
 │   ├── s3_store.py             # S3 storage manager
-│   ├── telemetry.py            # Telemetry and observability
 │   ├── flows.py                # Flow business logic
 │   ├── segments.py             # Segment business logic
 │   ├── sources.py              # Source business logic
@@ -99,16 +97,9 @@ bbctams/
 │   └── TimeAddressableMediaStore.yaml
 ├── tests/                      # Test suite
 ├── k8s/                        # Kubernetes manifests
-├── observability/              # Observability stack config
-│   ├── prometheus/             # Prometheus configuration
-│   ├── grafana/                # Grafana dashboards and config
-│   └── alertmanager/           # Alertmanager configuration
 ├── docker-compose.yml
-├── docker-compose.observability.yml  # Observability stack
-├── start-observability.sh      # Observability startup script
 ├── Dockerfile
 ├── requirements.txt
-├── OBSERVABILITY.md            # Detailed observability documentation
 └── README.md
 ```
 
@@ -176,10 +167,6 @@ bbctams/
 - `POST /flow-delete-requests` - Create deletion request
 - `GET /flow-delete-requests/{id}` - Get deletion request by ID
 
-### Observability Endpoints
-- `GET /metrics` - Prometheus metrics endpoint
-- `GET /health` - Enhanced health check with system metrics
-
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -217,7 +204,6 @@ bbctams/
    - Interactive Documentation: http://localhost:8000/docs
    - ReDoc Documentation: http://localhost:8000/redoc
    - Health Check: http://localhost:8000/health
-   - Metrics: http://localhost:8000/metrics
 
 ### Docker Deployment
 
@@ -244,34 +230,6 @@ bbctams/
    kubectl get pods -n tams
    kubectl get services -n tams
    ```
-
-### Observability Stack
-
-1. **Start the observability stack**
-   ```bash
-   ./start-observability.sh
-   ```
-
-2. **Access observability tools**
-   - **Grafana Dashboard**: http://localhost:3000 (admin/admin)
-   - **Prometheus**: http://localhost:9090
-   - **Jaeger Tracing**: http://localhost:16686
-   - **Alertmanager**: http://localhost:9093
-
-3. **View TAMS metrics**
-   - **Prometheus Metrics**: http://localhost:8000/metrics
-   - **Enhanced Health**: http://localhost:8000/health
-
-#### **Telemetry Features**
-
-- **Prometheus Metrics**: HTTP, business, performance, and system metrics
-- **OpenTelemetry Tracing**: Distributed tracing with correlation IDs
-- **Enhanced Logging**: Structured logging with telemetry context
-- **Health Checks**: System metrics and dependency health
-- **Pre-configured Dashboards**: Ready-to-use Grafana dashboards
-- **Alerting**: Configurable alerts for critical metrics
-
-For detailed observability documentation, see [OBSERVABILITY.md](OBSERVABILITY.md).
 
 ## ⚙️ Configuration
 
@@ -301,13 +259,6 @@ S3_USE_SSL=false
 
 # Logging
 LOG_LEVEL=INFO
-
-# Telemetry and Observability
-JAEGER_ENDPOINT=localhost:14268
-OTLP_ENDPOINT=http://localhost:4318/v1/traces
-TELEMETRY_ENABLED=true
-METRICS_ENABLED=true
-TRACING_ENABLED=true
 
 # Security
 SECRET_KEY=your-secret-key-here-change-in-production
@@ -603,17 +554,13 @@ url = await s3_store.generate_presigned_url(
 - **Rate Limiting**: Configurable rate limiting for API endpoints
 - **CORS**: Configurable Cross-Origin Resource Sharing
 
-## 📊 Monitoring & Observability
+## 📊 Monitoring
 
-- **Comprehensive Telemetry**: Prometheus metrics, OpenTelemetry tracing, and structured logging
-- **Health Checks**: Enhanced health endpoint with system metrics and dependency status
-- **Real-time Monitoring**: Live metrics collection and visualization with Grafana
-- **Distributed Tracing**: Request tracking across services with Jaeger integration
-- **Alerting**: Configurable alerts for performance, errors, and business metrics
-- **Performance Monitoring**: VAST database and S3 operation performance tracking
-- **Business Metrics**: Sources, flows, segments, and storage usage analytics
-
-For complete observability setup and configuration, see [OBSERVABILITY.md](OBSERVABILITY.md).
+- **Health Checks**: Built-in health check endpoint
+- **Logging**: Comprehensive logging with configurable levels
+- **Metrics**: Built-in analytics and usage statistics
+- **Error Tracking**: Detailed error responses and logging
+- **Performance**: VAST database performance monitoring
 
 ## 🤝 Contributing
 
@@ -684,7 +631,3 @@ If S3 storage operations fail:
 - [ ] Plugin system for custom storage backends
 - [ ] Performance optimization for large-scale deployments
 - [ ] Integration with popular media processing tools
-- [ ] Advanced observability features (custom dashboards, alerting rules)
-- [ ] Service mesh integration for distributed tracing
-- [ ] Metrics aggregation and long-term storage
-- [ ] Automated performance baselining and anomaly detection

@@ -42,7 +42,6 @@ from app.sources_router import router as sources_router
 from app.objects_router import router as objects_router
 from app.analytics_router import router as analytics_router
 from .dependencies import get_vast_store, set_vast_store
-from .telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -117,13 +116,6 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan
 )
-
-# Initialize telemetry
-telemetry_manager.initialize("tams-api", "6.0.0")
-telemetry_manager.instrument_fastapi(app)
-
-# Add telemetry middleware
-app.middleware("http")(telemetry_middleware)
 
 # Set custom OpenAPI schema
 app.openapi = custom_openapi
@@ -305,13 +297,7 @@ async def process_deletion_request(deletion_request: DeletionRequest):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return enhanced_health_check()
-
-# Prometheus metrics endpoint
-@app.get("/metrics")
-async def get_metrics():
-    """Prometheus metrics endpoint"""
-    return metrics_endpoint()
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000) 

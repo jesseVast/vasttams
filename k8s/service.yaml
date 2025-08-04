@@ -5,10 +5,6 @@ metadata:
   namespace: tams
   labels:
     app: tams-api
-  annotations:
-    prometheus.io/scrape: "true"
-    prometheus.io/path: "/metrics"
-    prometheus.io/port: "8000"
 spec:
   type: ClusterIP
   ports:

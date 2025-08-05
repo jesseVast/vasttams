@@ -1120,7 +1120,7 @@ class VASTStore:
         logger.info("Closing VAST store")
         # The vastdbmanager handles its own connection cleanup 
 
-    async def update_source(self, source: Source) -> bool:
+    async def update_source(self, source_id: str, source: Source) -> bool:
         """Update an existing source in VAST store"""
         try:
             # Convert source to dictionary
@@ -1139,17 +1139,17 @@ class VASTStore:
             }
             
             # Update in VAST database
-            predicate = (ibis_.id == str(source.id))
+            predicate = (ibis_.id == source_id)
             self.db_manager.update('sources', source_data, predicate)
             
-            logger.info(f"Updated source {source.id} in VAST store")
+            logger.info(f"Updated source {source_id} in VAST store")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to update source {source.id}: {e}")
+            logger.error(f"Failed to update source {source_id}: {e}")
             return False
 
-    async def update_flow(self, flow: Flow) -> bool:
+    async def update_flow(self, flow_id: str, flow: Flow) -> bool:
         """Update an existing flow in VAST store"""
         try:
             # Convert flow to dictionary
@@ -1178,58 +1178,82 @@ class VASTStore:
                 'sample_rate': getattr(flow, 'sample_rate', 0),
                 'bits_per_sample': getattr(flow, 'bits_per_sample', 0),
                 'channels': getattr(flow, 'channels', 0),
+                'max_bit_rate': getattr(flow, 'max_bit_rate', None),
+                'avg_bit_rate': getattr(flow, 'avg_bit_rate', None),
                 'flow_collection': self._dict_to_json([str(uuid) for uuid in getattr(flow, 'flow_collection', [])])
             }
             
             # Update in VAST database
-            predicate = (ibis_.id == str(flow.id))
+            predicate = (ibis_.id == flow_id)
             self.db_manager.update('flows', flow_data, predicate)
             
-            logger.info(f"Updated flow {flow.id} in VAST store")
+            logger.info(f"Updated flow {flow_id} in VAST store")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to update flow {flow.id}: {e}")
+            logger.error(f"Failed to update flow {flow_id}: {e}")
             return False
 
-    async def delete_flow(self, flow_id: str) -> bool:
+    async def delete_flow(self, flow_id: str, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system") -> bool:
         """Delete a flow from VAST store"""
         try:
-            # Delete from VAST database
-            predicate = (ibis_.id == flow_id)
-            deleted_count = self.db_manager.delete('flows', predicate)
-            
-            if deleted_count > 0:
-                logger.info(f"Deleted flow {flow_id} from VAST store")
-                return True
+            if soft_delete:
+                # Soft delete - mark as deleted
+                success = await self.soft_delete_record('flows', flow_id, deleted_by)
+                if success and cascade:
+                    # Also soft delete associated segments
+                    await self.delete_flow_segments(flow_id, soft_delete=True, deleted_by=deleted_by)
+                return success
             else:
-                logger.warning(f"Flow {flow_id} not found for deletion")
-                return False
+                # Hard delete - physically remove
+                if cascade:
+                    # Also hard delete associated segments
+                    await self.delete_flow_segments(flow_id, soft_delete=False, deleted_by=deleted_by)
+                
+                # Delete from VAST database
+                predicate = (ibis_.id == flow_id)
+                deleted_count = self.db_manager.delete('flows', predicate)
+                
+                if deleted_count > 0:
+                    logger.info(f"Hard deleted flow {flow_id} from VAST store")
+                    return True
+                else:
+                    logger.warning(f"Flow {flow_id} not found for deletion")
+                    return False
             
         except Exception as e:
             logger.error(f"Failed to delete flow {flow_id}: {e}")
             return False
 
-    async def delete_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> bool:
+    async def delete_flow_segments(self, flow_id: str, timerange: Optional[str] = None, soft_delete: bool = True, deleted_by: str = "system") -> bool:
         """Delete flow segments from VAST store and S3"""
         try:
             # Get segments to delete
             segments = await self.get_flow_segments(flow_id, timerange=timerange)
             
-            for segment in segments:
-                # Delete from S3
-                await self.s3_store.delete_flow_segment(flow_id, segment.object_id, segment.timerange)
-            
-            # Delete from VAST database
-            predicate = (ibis_.flow_id == flow_id)
-            if timerange:
-                target_start, target_end, _ = self._parse_timerange(timerange)
-                predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)
-            
-            deleted_count = self.db_manager.delete('segments', predicate)
-            
-            logger.info(f"Deleted {deleted_count} flow segments for flow {flow_id}")
-            return True
+            if soft_delete:
+                # Soft delete - mark segments as deleted
+                for segment in segments:
+                    await self.soft_delete_record('segments', segment.object_id, deleted_by)
+                
+                logger.info(f"Soft deleted {len(segments)} flow segments for flow {flow_id}")
+                return True
+            else:
+                # Hard delete - physically remove segments and S3 data
+                for segment in segments:
+                    # Delete from S3
+                    await self.s3_store.delete_flow_segment(flow_id, segment.object_id, segment.timerange)
+                
+                # Delete from VAST database
+                predicate = (ibis_.flow_id == flow_id)
+                if timerange:
+                    target_start, target_end, _ = self._parse_timerange(timerange)
+                    predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)
+                
+                deleted_count = self.db_manager.delete('segments', predicate)
+                
+                logger.info(f"Hard deleted {deleted_count} flow segments for flow {flow_id}")
+                return True
             
         except Exception as e:
             logger.error(f"Failed to delete flow segments for flow {flow_id}: {e}")

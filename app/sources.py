@@ -5,12 +5,58 @@ Handles source-related operations and business logic.
 from typing import List, Optional, Dict
 from fastapi import HTTPException
 from datetime import datetime, timezone
-from .models import Source, SourcesResponse, PagingInfo, Tags
+from .models import Source, SourcesResponse, PagingInfo, Tags, SourceFilters
 from .vast_store import VASTStore
 import logging
 import uuid
 
 logger = logging.getLogger(__name__)
+
+# Standalone functions for router use
+async def get_sources(store: VASTStore, filters: SourceFilters) -> List[Source]:
+    """Get sources with filtering"""
+    try:
+        filter_dict = {}
+        if filters.label:
+            filter_dict['label'] = filters.label
+        if filters.format:
+            filter_dict['format'] = filters.format
+        
+        sources = await store.list_sources(filters=filter_dict, limit=filters.limit)
+        return sources
+    except Exception as e:
+        logger.error(f"Failed to get sources: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+async def get_source(store: VASTStore, source_id: str) -> Optional[Source]:
+    """Get a specific source by ID"""
+    try:
+        source = await store.get_source(source_id)
+        return source
+    except Exception as e:
+        logger.error(f"Failed to get source {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+async def create_source(store: VASTStore, source: Source) -> bool:
+    """Create a new source"""
+    try:
+        now = datetime.now(timezone.utc)
+        source.created = now
+        source.updated = now
+        success = await store.create_source(source)
+        return success
+    except Exception as e:
+        logger.error(f"Failed to create source: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+async def delete_source(store: VASTStore, source_id: str, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system") -> bool:
+    """Delete a source"""
+    try:
+        success = await store.delete_source(source_id, soft_delete=soft_delete, cascade=cascade, deleted_by=deleted_by)
+        return success
+    except Exception as e:
+        logger.error(f"Failed to delete source {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 class SourceManager:
     """Manager for source operations (create, retrieve, update, delete, etc.)."""
@@ -82,8 +128,6 @@ class SourceManager:
             logger.error(f"Failed to delete source {source_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-
-
     async def update_source(self, source_id: str, source: Source, store: Optional[VASTStore] = None) -> Source:
         """
         Update an existing source with new data.
@@ -102,15 +146,16 @@ class SourceManager:
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
+        
         try:
-            existing_source = await store.get_source(source_id)
-            if not existing_source:
-                raise HTTPException(status_code=404, detail="Source not found")
-            source.id = existing_source.id
+            # Update the timestamp
             source.updated = datetime.now(timezone.utc)
-            success = await store.update_source(source)
+            
+            # Update in store
+            success = await store.update_source(source_id, source)
             if not success:
-                raise HTTPException(status_code=500, detail="Failed to update source")
+                raise HTTPException(status_code=404, detail="Source not found")
+            
             return source
         except HTTPException:
             raise

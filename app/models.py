@@ -148,6 +148,8 @@ class VideoFlow(BaseModel):
     color_primaries: Optional[str] = None
     container: Optional[str] = None
     read_only: Optional[bool] = False
+    max_bit_rate: Optional[int] = None
+    avg_bit_rate: Optional[int] = None
     
     @field_serializer('created', 'updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
@@ -172,6 +174,8 @@ class AudioFlow(BaseModel):
     channels: int
     container: Optional[str] = None
     read_only: Optional[bool] = False
+    max_bit_rate: Optional[int] = None
+    avg_bit_rate: Optional[int] = None
     
     @field_serializer('created', 'updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
@@ -216,6 +220,8 @@ class ImageFlow(BaseModel):
     frame_height: int
     container: Optional[str] = None
     read_only: Optional[bool] = False
+    max_bit_rate: Optional[int] = None
+    avg_bit_rate: Optional[int] = None
     
     @field_serializer('created', 'updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:

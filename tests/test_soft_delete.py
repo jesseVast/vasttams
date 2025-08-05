@@ -316,6 +316,7 @@ class TestSoftDelete:
         # Test soft delete
         result = await manager.delete_segments(
             str(sample_flow.id), 
+            timerange=None,
             store=mock_store, 
             soft_delete=True, 
             deleted_by="test_user"
@@ -339,7 +340,7 @@ class TestSoftDelete:
             deleted_by="test_user"
         )
         
-        assert result is True
+        assert "soft deleted" in result["message"]
 
     @pytest.mark.asyncio
     async def test_soft_delete_record_method(self, mock_store):

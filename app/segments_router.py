@@ -1,61 +1,91 @@
-from fastapi import APIRouter, Depends, Query, Request, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
-from .models import FlowSegment, FlowStorage, FlowStoragePost
-from .vast_store import VASTStore
-from .dependencies import get_vast_store
-from .segments import SegmentManager
+from app.models import FlowSegment, FlowStorage, FlowStoragePost
+from app.segments import get_flow_segments, create_flow_segment, delete_flow_segments, create_flow_storage
+from app.vast_store import VASTStore
+from app.dependencies import get_vast_store
 import logging
 
-router = APIRouter()
 logger = logging.getLogger(__name__)
-segment_manager = SegmentManager()
 
+router = APIRouter()
+
+# HEAD endpoint
 @router.head("/flows/{flow_id}/segments")
 async def head_flow_segments(flow_id: str):
-    """Return headers for the segments endpoint for a given flow."""
-    logger.info(f"HEAD /flows/{flow_id}/segments called")
-    return await segment_manager.head_segments(flow_id)
+    """Return flow segments path headers"""
+    return {}
 
+# GET endpoint
 @router.get("/flows/{flow_id}/segments", response_model=List[FlowSegment])
-async def get_flow_segments(
+async def list_flow_segments(
     flow_id: str,
     timerange: Optional[str] = Query(None, description="Filter by time range"),
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Get flow segments for a flow, optionally filtered by timerange."""
-    logger.info(f"GET /flows/{flow_id}/segments called with timerange={timerange}")
-    return await segment_manager.get_segments(flow_id, timerange, store)
+    """List segments for a specific flow"""
+    try:
+        segments = await get_flow_segments(store, flow_id, timerange)
+        return segments
+    except Exception as e:
+        logger.error(f"Failed to list segments for flow {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
+# POST endpoint
 @router.post("/flows/{flow_id}/segments", response_model=FlowSegment, status_code=201)
-async def create_flow_segment(
+async def create_new_flow_segment(
     flow_id: str,
-    request: Request,
-    file: UploadFile = File(...),
-    segment: str = Form(None),
+    segment: FlowSegment,
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Create a new flow segment for a flow."""
-    logger.info(f"POST /flows/{flow_id}/segments called")
-    return await segment_manager.create_segment(flow_id, request, file, segment, store)
+    """Create a new segment for a flow"""
+    try:
+        success = await create_flow_segment(store, flow_id, segment)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to create segment")
+        return segment
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create segment for flow {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
+# DELETE endpoint
 @router.delete("/flows/{flow_id}/segments")
-async def delete_flow_segments(
+async def delete_flow_segments_by_id(
     flow_id: str,
-    timerange: Optional[str] = Query(None, description="Delete segments in time range"),
-    soft_delete: bool = Query(True, description="Perform soft delete (default) or hard delete"),
-    deleted_by: str = Query("system", description="User/system performing the deletion"),
+    timerange: Optional[str] = Query(None, description="Time range to delete"),
+    soft_delete: bool = Query(True, description="Use soft delete"),
+    deleted_by: str = Query("system", description="User performing the deletion"),
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Delete flow segments for a flow, optionally filtered by timerange."""
-    logger.info(f"DELETE /flows/{flow_id}/segments called with timerange={timerange}, soft_delete={soft_delete}")
-    return await segment_manager.delete_segments(flow_id, timerange, store, soft_delete=soft_delete, deleted_by=deleted_by)
+    """Delete segments for a flow"""
+    try:
+        success = await delete_flow_segments(store, flow_id, timerange, soft_delete, deleted_by)
+        if not success:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        return {"message": "Segments deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete segments for flow {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
+# Storage endpoint
 @router.post("/flows/{flow_id}/storage", response_model=FlowStorage)
-async def allocate_flow_storage(
+async def create_flow_storage_by_id(
     flow_id: str,
     storage_request: FlowStoragePost,
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Allocate storage for flow segments."""
-    logger.info(f"POST /flows/{flow_id}/storage called")
-    return await segment_manager.allocate_storage(flow_id, storage_request, store) 
+    """Create storage allocation for a flow"""
+    try:
+        storage = await create_flow_storage(store, flow_id, storage_request)
+        if not storage:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        return storage
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create storage for flow {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error") 

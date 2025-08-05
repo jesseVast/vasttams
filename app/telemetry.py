@@ -22,9 +22,10 @@ from prometheus_client import (
     generate_latest, CONTENT_TYPE_LATEST,
     CollectorRegistry, multiprocess
 )
-from opentelemetry import trace
+from opentelemetry import trace, metrics
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
@@ -166,9 +167,7 @@ class TelemetryManager:
         self.tracer_provider = TracerProvider(resource=resource)
         
         # Add span processors
-        # Prometheus metrics reader
-        metric_reader = PrometheusMetricReader()
-        self.tracer_provider.add_metric_reader(metric_reader)
+        # Note: Prometheus metrics are handled separately via prometheus_client
         
         # Jaeger exporter (if configured)
         jaeger_endpoint = self._get_jaeger_endpoint()

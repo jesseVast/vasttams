@@ -53,6 +53,6 @@ async def test_update_source(source_manager, mock_store):
 async def test_delete_source(source_manager, mock_store):
     mock_store.delete_source.return_value = True
     result = await source_manager.delete_source(str(uuid.uuid4()))
-    assert result["message"] == "Source deleted"
+    assert result["message"] == "Source soft deleted with cascade"
 
 # Add more tests for tags, description, and label methods, including edge cases 

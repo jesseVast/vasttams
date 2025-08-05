@@ -21,14 +21,14 @@ from fastapi import FastAPI, HTTPException, Query, Depends, BackgroundTasks, Fil
 from fastapi.responses import JSONResponse
 from fastapi.openapi.utils import get_openapi
 import uvicorn
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from .models import (
     Service, ServiceResponse, Source, SourcesResponse, Flow, FlowsResponse,
     FlowSegment, Object, Webhook, WebhookPost, WebhooksResponse,
     FlowStoragePost, FlowStorage, DeletionRequest, DeletionRequestsResponse,
     SourceFilters, FlowFilters, FlowDetailFilters, PagingInfo, Tags, MediaStore, EventStreamMechanism, StorageLocation,
-    DeletionRequestsList
+    DeletionRequestsList, StorageBackendsList, StorageBackendsResponse, StorageBackend
 )
 from .vast_store import VASTStore
 from .config import get_settings
@@ -43,6 +43,7 @@ from app.objects_router import router as objects_router
 from app.analytics_router import router as analytics_router
 from .dependencies import get_vast_store, set_vast_store
 from .telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
+from .auth import login_basic, logout, require_authentication, require_admin
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -99,7 +100,7 @@ def custom_openapi() -> Dict[str, Any]:
     try:
         app.openapi_schema = get_openapi(
             title="TAMS API",
-            version="6.0.0",
+            version="7.0.0",
             description="Time-addressable Media Store API",
             routes=app.routes,
         )
@@ -112,14 +113,25 @@ def custom_openapi() -> Dict[str, Any]:
 app = FastAPI(
     title="TAMS API",
     description="Time-addressable Media Store API",
-    version="6.0.0",
+    version="7.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
+    openapi_tags=[
+        {"name": "Service", "description": "The service root and documentation about the service itself"},
+        {"name": "Sources", "description": "The ephemeral concept of an individual piece of media without being rendered to a specific encoding/packaging."},
+        {"name": "Flows", "description": "Sources which have been 'rendered' to a specific encoding/packaging format."},
+        {"name": "FlowSegments", "description": "A timerange segment of a Flow that references a media object in the object store."},
+        {"name": "Objects", "description": "The object in the object store that contains the media essence."},
+        {"name": "MediaStorage", "description": "The system that stores the media objects referenced by flow segments."},
+        {"name": "FlowDeleteRequests", "description": "Resource for monitoring long running deletion of flows and flow segments."},
+        {"name": "Webhooks", "description": "Configures webhooks to deliver notifications externally. Optional, and may not be implemented"},
+        {"name": "Authentication", "description": "Authentication and authorization endpoints"}
+    ]
 )
 
 # Initialize telemetry
-telemetry_manager.initialize("tams-api", "6.0.0")
+telemetry_manager.initialize("tams-api", "7.0.0")
 telemetry_manager.instrument_fastapi(app)
 
 # Add telemetry middleware
@@ -134,6 +146,17 @@ app.include_router(segments_router)
 app.include_router(sources_router)
 app.include_router(objects_router)
 app.include_router(analytics_router)
+
+# Authentication endpoints
+@app.post("/auth/login", tags=["Authentication"])
+async def login(credentials=Depends(login_basic)):
+    """Login with basic authentication and return a bearer token"""
+    return credentials
+
+@app.post("/auth/logout", tags=["Authentication"])
+async def logout_endpoint(current_user=Depends(require_authentication)):
+    """Logout and invalidate the current token"""
+    return await logout(current_user)
 
 # OpenAPI JSON endpoint
 @app.get("/openapi.json")
@@ -164,7 +187,7 @@ async def get_service():
         name="TAMS API",
         description="Time-addressable Media Store API",
         type="urn:x-tams:service:api",
-        api_version="6.0",
+        api_version="7.0",
         service_version="1.0.0",
         media_store=MediaStore(type="http_object_store"),
         event_stream_mechanisms=[
@@ -177,6 +200,34 @@ async def update_service(service: Service):
     """Update service information"""
     # In a real implementation, this would update the service configuration
     return {"message": "Service information updated"}
+
+# Storage backends endpoint
+@app.head("/service/storage-backends")
+async def head_storage_backends():
+    """Return storage backends path headers"""
+    return {}
+
+@app.get("/service/storage-backends", response_model=StorageBackendsResponse)
+async def get_storage_backends(
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get storage backends information"""
+    try:
+        # In a real implementation, this would return actual storage backend info
+        # For now, return a default storage backend
+        storage_backends = [
+            StorageBackend(
+                storage_id=uuid4(),
+                label="default",
+                description="Default HTTP object store",
+                type="http_object_store"
+            )
+        ]
+        return StorageBackendsResponse(data=StorageBackendsList(storage_backends=storage_backends))
+        
+    except Exception as e:
+        logger.error(f"Failed to get storage backends: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # Webhook endpoints
 @app.head("/service/webhooks")

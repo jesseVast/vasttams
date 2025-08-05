@@ -76,17 +76,16 @@ class TestVASTIntegration:
         )
     
     @pytest.fixture
-    def sample_flow(self, sample_source):
-        """Create a sample flow for testing."""
+    def sample_flow(self):
+        """Sample flow for testing"""
         return VideoFlow(
             id=uuid.uuid4(),
-            source_id=sample_source.id,
+            source_id=uuid.uuid4(),
             format="urn:x-nmos:format:video",
-            codec="urn:x-nmos:codec:prores",
+            codec="video/mp4",
             frame_width=1920,
             frame_height=1080,
-            frame_rate="25/1",
-            tags=Tags({"quality": "test", "test": "integration"})
+            frame_rate={"numerator": 25, "denominator": 1}  # Changed from string to dict
         )
     
     @pytest.fixture
@@ -101,11 +100,11 @@ class TestVASTIntegration:
     
     @pytest.fixture
     def sample_object(self):
-        """Create a sample object for testing."""
+        """Sample object for testing"""
         return Object(
-            object_id="integration_test_obj_001",
-            flow_references=[{"flow_id": "test_flow_001"}],
-            size=1024000
+            id="integration_test_obj_001",  # Changed from object_id to id
+            referenced_by_flows=[uuid.uuid4()],  # Changed from flow_references to referenced_by_flows
+            first_referenced_by_flow=uuid.uuid4()  # New field
         )
     
     @pytest.mark.asyncio
@@ -205,13 +204,13 @@ class TestVASTIntegration:
         assert result is True
         
         # Get object
-        retrieved_object = await vast_store.get_object(sample_object.object_id)
+        retrieved_object = await vast_store.get_object(sample_object.id)
         if retrieved_object:  # Only check if real database returned data
-            assert retrieved_object.object_id == sample_object.object_id
+            assert retrieved_object.id == sample_object.id
         
         # Test soft delete
         delete_result = await vast_store.delete_object(
-            sample_object.object_id,
+            sample_object.id,
             soft_delete=True,
             deleted_by="integration_test"
         )

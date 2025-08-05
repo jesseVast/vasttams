@@ -56,17 +56,16 @@ class TestSoftDelete:
         )
 
     @pytest.fixture
-    def sample_flow(self, sample_source):
-        """Create a sample flow for testing."""
+    def sample_flow(self):
+        """Sample flow for testing"""
         return VideoFlow(
             id=uuid.uuid4(),
-            source_id=sample_source.id,
+            source_id=uuid.uuid4(),
             format="urn:x-nmos:format:video",
-            codec="urn:x-nmos:codec:prores",
+            codec="video/mp4",
             frame_width=1920,
             frame_height=1080,
-            frame_rate="25/1",
-            tags=Tags({"quality": "high"})
+            frame_rate={"numerator": 25, "denominator": 1}  # Changed from string to dict
         )
 
     @pytest.fixture
@@ -81,11 +80,11 @@ class TestSoftDelete:
 
     @pytest.fixture
     def sample_object(self):
-        """Create a sample object for testing."""
+        """Sample object for testing"""
         return Object(
-            object_id="obj_001",
-            flow_references=[{"flow_id": "flow_001"}],
-            size=1024000
+            id="obj_001",  # Changed from object_id to id
+            referenced_by_flows=[uuid.uuid4()],  # Changed from flow_references to referenced_by_flows
+            first_referenced_by_flow=uuid.uuid4()  # New field
         )
 
     def test_add_soft_delete_predicate(self, mock_store):
@@ -154,9 +153,9 @@ class TestSoftDelete:
         assert result is True
         # Verify the method was called with the correct parameters
         mock_store.delete_flow.assert_called_once_with(
-            str(sample_flow.id), 
-            soft_delete=True, 
-            cascade=True, 
+            str(sample_flow.id),  # Convert UUID to string
+            soft_delete=True,
+            cascade=True,
             deleted_by="test_user"
         )
 
@@ -202,7 +201,7 @@ class TestSoftDelete:
         """Test soft deleting an object."""
         # Test that the method accepts the new parameters
         result = await mock_store.delete_object(
-            sample_object.object_id, 
+            sample_object.id, 
             soft_delete=True, 
             deleted_by="test_user"
         )
@@ -210,7 +209,7 @@ class TestSoftDelete:
         assert result is True
         # Verify the method was called with the correct parameters
         mock_store.delete_object.assert_called_once_with(
-            sample_object.object_id, 
+            sample_object.id, 
             soft_delete=True, 
             deleted_by="test_user"
         )
@@ -282,8 +281,7 @@ class TestSoftDelete:
             deleted_by="test_user"
         )
         
-        assert "soft deleted" in result["message"]
-        assert "with cascade" in result["message"]
+        assert result["message"] == "Source soft deleted with cascade"
 
     @pytest.mark.asyncio
     async def test_flow_manager_soft_delete(self, mock_store, sample_flow):
@@ -302,27 +300,42 @@ class TestSoftDelete:
             deleted_by="test_user"
         )
         
-        assert "soft deleted" in result["message"]
-        assert "with cascade" in result["message"]
+        assert result["message"] == "Flow soft deleted with cascade"
+
+        # Verify the method was called with the correct parameters
+        mock_store.delete_flow.assert_called_once_with(
+            str(sample_flow.id),  # Convert UUID to string
+            soft_delete=True,
+            cascade=True,
+            deleted_by="test_user"
+        )
 
     @pytest.mark.asyncio
     async def test_segment_manager_soft_delete(self, mock_store, sample_flow):
         """Test SegmentManager soft delete functionality."""
         manager = SegmentManager()
-        
+
         # Mock the store operation
         mock_store.delete_flow_segments.return_value = True
-        
+
         # Test soft delete
         result = await manager.delete_segments(
-            str(sample_flow.id), 
-            timerange=None,
-            store=mock_store, 
+            sample_flow.id,
+            timerange="[0:0,100:0)",  # Add required timerange parameter
+            store=mock_store,
+            soft_delete=True,
+            deleted_by="test_user"
+        )
+
+        assert result["message"] == "Segments soft deleted in timerange [0:0,100:0)"
+
+        # Verify the method was called with the correct parameters
+        mock_store.delete_flow_segments.assert_called_once_with(
+            sample_flow.id,  # Keep as UUID object
+            timerange="[0:0,100:0)",  # Add required timerange parameter
             soft_delete=True, 
             deleted_by="test_user"
         )
-        
-        assert "soft deleted" in result["message"]
 
     @pytest.mark.asyncio
     async def test_object_manager_soft_delete(self, mock_store, sample_object):
@@ -334,13 +347,13 @@ class TestSoftDelete:
         
         # Test soft delete
         result = await manager.delete_object(
-            sample_object.object_id, 
+            sample_object.id, 
             store=mock_store, 
             soft_delete=True, 
             deleted_by="test_user"
         )
         
-        assert "soft deleted" in result["message"]
+        assert result["message"] == "Object soft deleted"
 
     @pytest.mark.asyncio
     async def test_soft_delete_record_method(self, mock_store):

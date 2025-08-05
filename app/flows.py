@@ -121,7 +121,7 @@ class FlowManager:
         try:
             now = datetime.now(timezone.utc)
             flow.created = now
-            flow.updated = now
+            flow.metadata_updated = now  # Changed from updated to metadata_updated
             success = await store.create_flow(flow)
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create flow")

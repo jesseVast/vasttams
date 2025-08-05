@@ -23,8 +23,9 @@ def segment_manager(mock_store):
 
 @pytest.mark.asyncio
 async def test_get_segments(segment_manager, mock_store):
+    """Test getting segments"""
     mock_store.get_flow_segments.return_value = []
-    result = await segment_manager.get_segments("flow1")
+    result = await segment_manager.get_segments("flow1", timerange="[0:0,100:0)")  # Add required timerange parameter
     assert result == []
 
 @pytest.mark.asyncio
@@ -40,8 +41,9 @@ async def test_create_segment(segment_manager, mock_store):
 
 @pytest.mark.asyncio
 async def test_delete_segments(segment_manager, mock_store):
+    """Test deleting segments"""
     mock_store.delete_flow_segments.return_value = True
-    result = await segment_manager.delete_segments("flow1")
-    assert result["message"] == "Flow segments deleted"
+    result = await segment_manager.delete_segments("flow1", timerange="[0:0,100:0)")  # Add required timerange parameter
+    assert result["message"] == "Segments soft deleted in timerange [0:0,100:0)"
 
 # Add more tests for allocate_storage and edge cases 

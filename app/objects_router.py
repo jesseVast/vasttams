@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
-from app.models import Object
+from app.models import Object, ObjectFilters, PagingInfo
 from app.objects import get_object, create_object, delete_object
 from app.vast_store import VASTStore
 from app.dependencies import get_vast_store
@@ -20,9 +20,11 @@ async def head_object(object_id: str):
 @router.get("/objects/{object_id}", response_model=Object)
 async def get_object_by_id(
     object_id: str,
+    page: Optional[str] = Query(None, description="Pagination key"),
+    limit: Optional[int] = Query(None, ge=1, le=1000, description="Number of items per page"),
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Get a specific object by ID"""
+    """Get a specific object by ID with pagination support"""
     try:
         obj = await get_object(store, object_id)
         if not obj:

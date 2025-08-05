@@ -1,16 +1,25 @@
 """
-Tests for soft delete and cascade delete functionality.
+Tests for soft delete and cascade delete functionality with real database.
 """
 import pytest
 import uuid
+import asyncio
+import logging
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
-from app.models import Source, VideoFlow, FlowSegment, Object, Tags
+from app.models import Source, VideoFlow, FlowSegment, Object, Tags, CollectionItem
 from app.vast_store import VASTStore
 from app.sources import SourceManager
 from app.flows import FlowManager
 from app.segments import SegmentManager
 from app.objects import ObjectManager
+from app.config import get_settings
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.asyncio
 
 
 class TestSoftDelete:
@@ -46,7 +55,7 @@ class TestSoftDelete:
     def sample_source(self):
         """Create a sample source for testing."""
         return Source(
-            id=uuid.uuid4(),
+            id=str(uuid.uuid4()),
             format="urn:x-nmos:format:video",
             label="Test Camera",
             description="Test camera source",
@@ -59,7 +68,7 @@ class TestSoftDelete:
     def sample_flow(self, sample_source):
         """Create a sample flow for testing."""
         return VideoFlow(
-            id=uuid.uuid4(),
+            id=str(uuid.uuid4()),
             source_id=sample_source.id,
             format="urn:x-nmos:format:video",
             codec="urn:x-nmos:codec:prores",
@@ -384,23 +393,206 @@ class TestSoftDelete:
 
 
 class TestSoftDeleteIntegration:
-    """Integration tests for soft delete functionality."""
+    """Integration tests for soft delete functionality with real database."""
+
+    @pytest.fixture(autouse=True)
+    async def setup(self):
+        """Setup test environment with real database."""
+        self.settings = get_settings()
+        self.store = VASTStore(
+            endpoint=self.settings.vast_endpoint,
+            access_key=self.settings.vast_access_key,
+            secret_key=self.settings.vast_secret_key,
+            bucket=self.settings.vast_bucket,
+            schema=self.settings.vast_schema,
+            s3_endpoint_url=self.settings.s3_endpoint_url,
+            s3_access_key_id=self.settings.s3_access_key_id,
+            s3_secret_access_key=self.settings.s3_secret_access_key,
+            s3_bucket_name=self.settings.s3_bucket_name,
+            s3_use_ssl=self.settings.s3_use_ssl
+        )
+        
+        # Initialize managers
+        self.source_manager = SourceManager()
+        self.flow_manager = FlowManager()
+        self.segment_manager = SegmentManager()
+        self.object_manager = ObjectManager()
+        
+        # Test data storage
+        self.test_data = {}
+        
+        logger.info("✅ Real database test environment setup complete")
+        
+        yield
+        
+        # Cleanup after tests
+        await self.cleanup_test_data()
+    
+    async def cleanup_test_data(self):
+        """Clean up test data after tests."""
+        try:
+            logger.info("🧹 Cleaning up test data...")
+            
+            # Hard delete all test data
+            if 'test_sources' in self.test_data:
+                for source_id in self.test_data['test_sources']:
+                    try:
+                        await self.store.delete_source(source_id, soft_delete=False, cascade=True, deleted_by="test_cleanup")
+                    except Exception as e:
+                        logger.warning(f"Failed to cleanup source {source_id}: {e}")
+            
+            if 'test_flows' in self.test_data:
+                for flow_id in self.test_data['test_flows']:
+                    try:
+                        await self.store.delete_flow(flow_id, soft_delete=False, cascade=True, deleted_by="test_cleanup")
+                    except Exception as e:
+                        logger.warning(f"Failed to cleanup flow {flow_id}: {e}")
+            
+            if 'test_objects' in self.test_data:
+                for object_id in self.test_data['test_objects']:
+                    try:
+                        await self.store.delete_object(object_id, soft_delete=False, deleted_by="test_cleanup")
+                    except Exception as e:
+                        logger.warning(f"Failed to cleanup object {object_id}: {e}")
+            
+            logger.info("✅ Test data cleanup complete")
+            
+        except Exception as e:
+            logger.error(f"❌ Cleanup failed: {e}")
+    
+    def create_test_source(self) -> Source:
+        """Create a test source."""
+        source = Source(
+            id=uuid.uuid4(),
+            format="urn:x-nmos:format:video",
+            label="Test Camera for Soft Delete",
+            description="Test camera source for soft delete testing",
+            created_by="test_user",
+            updated_by="test_user",
+            created=datetime.now(timezone.utc),
+            updated=datetime.now(timezone.utc),
+            tags=Tags({"location": "studio1", "test": "soft_delete"}),
+            source_collection=[CollectionItem(id=str(uuid.uuid4()), label="Test Collection")],
+            collected_by=[str(uuid.uuid4())]
+        )
+        return source
+    
+    def create_test_flow(self, source_id: str) -> VideoFlow:
+        """Create a test flow."""
+        flow = VideoFlow(
+            id=str(uuid.uuid4()),
+            source_id=uuid.UUID(source_id),
+            format="urn:x-nmos:format:video",
+            codec="video/mp4",
+            label="Test Video Flow",
+            description="Test video flow for soft delete testing",
+            created_by="test_user",
+            updated_by="test_user",
+            created=datetime.now(timezone.utc),
+            updated=datetime.now(timezone.utc),
+            tags=Tags({"quality": "high", "test": "soft_delete"}),
+            frame_width=1920,
+            frame_height=1080,
+            frame_rate="25/1",
+            container="mp4",
+            read_only=False,
+            max_bit_rate=5000000,
+            avg_bit_rate=3000000
+        )
+        return flow
 
     @pytest.mark.asyncio
-    async def test_soft_delete_workflow(self):
-        """Test complete soft delete workflow."""
-        # This would be an integration test that tests the full workflow
-        # from API endpoint through to database operations
+    async def test_soft_delete_workflow_real_db(self):
+        """Test complete soft delete workflow with real database."""
+        logger.info("🔄 Testing soft delete workflow with real database...")
         
-        # For now, this is a placeholder for integration tests
-        # that would require a real VAST database connection
-        assert True
+        # Create test source
+        source = self.create_test_source()
+        created_source = await self.source_manager.create_source(source, store=self.store)
+        assert created_source is not None, "Source creation failed"
+        
+        # Store for cleanup
+        if 'test_sources' not in self.test_data:
+            self.test_data['test_sources'] = []
+        self.test_data['test_sources'].append(str(source.id))
+        
+        # Verify source exists
+        retrieved_source = await self.source_manager.get_source(str(source.id), store=self.store)
+        assert retrieved_source is not None, "Source should exist after creation"
+        assert retrieved_source.id == source.id, "Retrieved source ID mismatch"
+        
+        # Soft delete the source
+        delete_result = await self.source_manager.delete_source(
+            str(source.id), 
+            store=self.store, 
+            soft_delete=True, 
+            cascade=False, 
+            deleted_by="test_user"
+        )
+        assert "soft deleted" in delete_result["message"], "Soft delete failed"
+        
+        # Verify source is soft deleted (should not be returned in normal queries)
+        deleted_source = await self.source_manager.get_source(str(source.id), store=self.store)
+        assert deleted_source is None, "Soft deleted source should not be returned"
+        
+        # Test restore
+        restore_result = await self.store.restore_record('sources', str(source.id))
+        assert restore_result is True, "Restore failed"
+        
+        # Verify restore
+        restored_source = await self.source_manager.get_source(str(source.id), store=self.store)
+        assert restored_source is not None, "Restored source should be returned"
+        assert restored_source.id == source.id, "Restored source ID mismatch"
+        
+        logger.info("✅ Soft delete workflow with real database completed successfully")
 
     @pytest.mark.asyncio
-    async def test_cascade_delete_workflow(self):
-        """Test complete cascade delete workflow."""
-        # This would test the full cascade delete workflow
-        # from source deletion through to segment deletion
+    async def test_cascade_delete_workflow_real_db(self):
+        """Test complete cascade delete workflow with real database."""
+        logger.info("🔄 Testing cascade delete workflow with real database...")
         
-        # For now, this is a placeholder for integration tests
-        assert True 
+        # Create test source
+        source = self.create_test_source()
+        created_source = await self.source_manager.create_source(source, store=self.store)
+        assert created_source is not None, "Source creation failed"
+        
+        # Create test flow
+        flow = self.create_test_flow(str(source.id))
+        created_flow = await self.flow_manager.create_flow(flow, store=self.store)
+        assert created_flow is not None, "Flow creation failed"
+        
+        # Store for cleanup
+        if 'test_sources' not in self.test_data:
+            self.test_data['test_sources'] = []
+        self.test_data['test_sources'].append(str(source.id))
+        
+        if 'test_flows' not in self.test_data:
+            self.test_data['test_flows'] = []
+        self.test_data['test_flows'].append(str(flow.id))
+        
+        # Verify hierarchy exists
+        retrieved_source = await self.source_manager.get_source(str(source.id), store=self.store)
+        assert retrieved_source is not None, "Source should exist"
+        
+        retrieved_flow = await self.flow_manager.get_flow(str(flow.id), store=self.store)
+        assert retrieved_flow is not None, "Flow should exist"
+        
+        # Test cascade soft delete
+        delete_result = await self.source_manager.delete_source(
+            str(source.id), 
+            store=self.store, 
+            soft_delete=True, 
+            cascade=True, 
+            deleted_by="test_user"
+        )
+        assert "soft deleted" in delete_result["message"], "Cascade soft delete failed"
+        assert "with cascade" in delete_result["message"], "Cascade not performed"
+        
+        # Verify cascade delete
+        deleted_source = await self.source_manager.get_source(str(source.id), store=self.store)
+        assert deleted_source is None, "Soft deleted source should not be returned"
+        
+        deleted_flow = await self.flow_manager.get_flow(str(flow.id), store=self.store)
+        assert deleted_flow is None, "Cascade soft deleted flow should not be returned"
+        
+        logger.info("✅ Cascade delete workflow with real database completed successfully") 

@@ -101,8 +101,12 @@ class Source(BaseModel):
     tags: Optional[Tags] = None
     source_collection: Optional[List[CollectionItem]] = None
     collected_by: Optional[List[UUID4]] = None
+    # Soft delete fields
+    deleted: Optional[bool] = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
     
-    @field_serializer('created', 'updated')
+    @field_serializer('created', 'updated', 'deleted_at')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
@@ -123,6 +127,10 @@ class FlowSegment(BaseModel):
     sample_count: Optional[int] = None
     get_urls: Optional[List[GetUrl]] = None
     key_frame_count: Optional[int] = None
+    # Soft delete fields
+    deleted: Optional[bool] = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
 
 
 class VideoFlow(BaseModel):
@@ -150,8 +158,12 @@ class VideoFlow(BaseModel):
     read_only: Optional[bool] = False
     max_bit_rate: Optional[int] = None
     avg_bit_rate: Optional[int] = None
+    # Soft delete fields
+    deleted: Optional[bool] = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
     
-    @field_serializer('created', 'updated')
+    @field_serializer('created', 'updated', 'deleted_at')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
@@ -176,8 +188,12 @@ class AudioFlow(BaseModel):
     read_only: Optional[bool] = False
     max_bit_rate: Optional[int] = None
     avg_bit_rate: Optional[int] = None
+    # Soft delete fields
+    deleted: Optional[bool] = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
     
-    @field_serializer('created', 'updated')
+    @field_serializer('created', 'updated', 'deleted_at')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
@@ -197,8 +213,12 @@ class DataFlow(BaseModel):
     tags: Optional[Tags] = None
     container: Optional[str] = None
     read_only: Optional[bool] = False
+    # Soft delete fields
+    deleted: Optional[bool] = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
     
-    @field_serializer('created', 'updated')
+    @field_serializer('created', 'updated', 'deleted_at')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
@@ -222,8 +242,12 @@ class ImageFlow(BaseModel):
     read_only: Optional[bool] = False
     max_bit_rate: Optional[int] = None
     avg_bit_rate: Optional[int] = None
+    # Soft delete fields
+    deleted: Optional[bool] = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
     
-    @field_serializer('created', 'updated')
+    @field_serializer('created', 'updated', 'deleted_at')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
@@ -244,8 +268,12 @@ class MultiFlow(BaseModel):
     container: Optional[str] = None
     read_only: Optional[bool] = False
     flow_collection: List[UUID4]
+    # Soft delete fields
+    deleted: Optional[bool] = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
     
-    @field_serializer('created', 'updated')
+    @field_serializer('created', 'updated', 'deleted_at')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
@@ -316,8 +344,12 @@ class Object(BaseModel):
     flow_references: List[Dict[str, Any]]
     size: Optional[int] = None
     created: Optional[datetime] = None
+    # Soft delete fields
+    deleted: Optional[bool] = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
     
-    @field_serializer('created')
+    @field_serializer('created', 'deleted_at')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 

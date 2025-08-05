@@ -86,16 +86,7 @@ def custom_openapi() -> Dict[str, Any]:
     """Generate custom OpenAPI schema"""
     if app.openapi_schema:
         return cast(Dict[str, Any], app.openapi_schema)
-    # Try to load from file first
-    openapi_file = os.path.join(os.path.dirname(__file__), "..", "api", "openapi.json")
-    if os.path.exists(openapi_file):
-        try:
-            with open(openapi_file, 'r') as f:
-                app.openapi_schema = json.load(f)
-                return cast(Dict[str, Any], app.openapi_schema)
-        except Exception as e:
-            logger.warning(f"Failed to load OpenAPI file: {e}")
-    # Fallback to auto-generated schema
+    # Always use auto-generated schema to include all registered routes
     try:
         app.openapi_schema = get_openapi(
             title="TAMS API",

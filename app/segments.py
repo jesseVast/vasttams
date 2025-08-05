@@ -93,7 +93,7 @@ class SegmentManager:
             logger.error(f"Failed to create flow segment: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def delete_segments(self, flow_id: str, timerange: Optional[str] = None, store: Optional[VASTStore] = None):
+    async def delete_segments(self, flow_id: str, timerange: Optional[str] = None, store: Optional[VASTStore] = None, soft_delete: bool = True, deleted_by: str = "system"):
         """
         Delete segments for a given flow, optionally filtered by timerange.
 
@@ -101,6 +101,8 @@ class SegmentManager:
             flow_id (str): The unique identifier of the flow.
             timerange (Optional[str]): Optional timerange filter for deletion.
             store (Optional[VASTStore]): Optional VASTStore instance to use. Defaults to the manager's store.
+            soft_delete (bool): If True, perform soft delete; if False, hard delete and delete S3 data.
+            deleted_by (str): User/system performing the deletion.
 
         Returns:
             dict: Message indicating successful deletion.
@@ -112,10 +114,12 @@ class SegmentManager:
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
         try:
-            success = await store.delete_flow_segments(flow_id, timerange=timerange)
+            success = await store.delete_flow_segments(flow_id, timerange=timerange, soft_delete=soft_delete, deleted_by=deleted_by)
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to delete flow segments")
-            return {"message": "Flow segments deleted"}
+            
+            delete_type = "soft deleted" if soft_delete else "hard deleted"
+            return {"message": f"Flow segments {delete_type}"}
         except HTTPException:
             raise
         except Exception as e:

@@ -42,11 +42,13 @@ async def create_flow_segment(
 async def delete_flow_segments(
     flow_id: str,
     timerange: Optional[str] = Query(None, description="Delete segments in time range"),
+    soft_delete: bool = Query(True, description="Perform soft delete (default) or hard delete"),
+    deleted_by: str = Query("system", description="User/system performing the deletion"),
     store: VASTStore = Depends(get_vast_store)
 ):
     """Delete flow segments for a flow, optionally filtered by timerange."""
-    logger.info(f"DELETE /flows/{flow_id}/segments called with timerange={timerange}")
-    return await segment_manager.delete_segments(flow_id, timerange, store)
+    logger.info(f"DELETE /flows/{flow_id}/segments called with timerange={timerange}, soft_delete={soft_delete}")
+    return await segment_manager.delete_segments(flow_id, timerange, store, soft_delete=soft_delete, deleted_by=deleted_by)
 
 @router.post("/flows/{flow_id}/storage", response_model=FlowStorage)
 async def allocate_flow_storage(

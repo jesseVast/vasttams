@@ -1,0 +1,20 @@
+{
+    "title": "Flow Collection",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "title": "Flow Collection Item",
+        "allOf": [
+            { "$ref": "collection-item.json" },
+            {
+                "type": "object",
+                "properties": {
+                    "container_mapping": {
+                        "description": "Describes the mapping of the Flow essence from this Flow collection's container",
+                        "$ref": "container-mapping.json"
+                    }
+                }
+            }
+        ]
+    }
+}

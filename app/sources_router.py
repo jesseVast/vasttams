@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
-from app.models import Source, SourcesResponse, SourceFilters
+from app.models import Source, SourcesResponse, SourceFilters, Tags
 from app.sources import get_sources, get_source, create_source, delete_source
 from app.vast_store import VASTStore
 from app.dependencies import get_vast_store
@@ -147,7 +147,7 @@ async def get_source_tag(
 async def update_source_tag(
     source_id: str,
     name: str,
-    value: str,
+    value: str = Body(..., description="Tag value"),
     store: VASTStore = Depends(get_vast_store)
 ):
     """Create or update source tag"""
@@ -172,6 +172,45 @@ async def update_source_tag(
     except Exception as e:
         logger.error(f"Failed to update source tag {name} for {source_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.delete("/sources/{source_id}/tags/{name}")
+async def delete_source_tag(
+    source_id: str,
+    name: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete specific source tag"""
+    try:
+        source = await get_source(store, source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        if not source.tags or name not in source.tags:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        # Remove the tag
+        if source.tags and name in source.tags:
+            # Create a new dict without the deleted tag
+            new_tags = dict(source.tags.root)
+            del new_tags[name]
+            source.tags = Tags(root=new_tags)
+        
+        # Save the updated source
+        success = await store.update_source(source_id, source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete source tag")
+        
+        return {"message": "Tag deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete source tag {name} for {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.head("/sources/{source_id}/description")
+async def head_source_description(source_id: str):
+    """Return source description path headers"""
+    return {}
 
 @router.get("/sources/{source_id}/description")
 async def get_source_description(
@@ -214,6 +253,36 @@ async def update_source_description(
         logger.error(f"Failed to update source description for {source_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@router.delete("/sources/{source_id}/description")
+async def delete_source_description(
+    source_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete source description"""
+    try:
+        source = await get_source(store, source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        source.description = None
+        
+        # Save the updated source
+        success = await store.update_source(source_id, source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete source description")
+        
+        return {"message": "Description deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete source description for {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.head("/sources/{source_id}/label")
+async def head_source_label(source_id: str):
+    """Return source label path headers"""
+    return {}
+
 @router.get("/sources/{source_id}/label")
 async def get_source_label(
     source_id: str,
@@ -253,6 +322,31 @@ async def update_source_label(
         raise
     except Exception as e:
         logger.error(f"Failed to update source label for {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.delete("/sources/{source_id}/label")
+async def delete_source_label(
+    source_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete source label"""
+    try:
+        source = await get_source(store, source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        source.label = None
+        
+        # Save the updated source
+        success = await store.update_source(source_id, source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete source label")
+        
+        return {"message": "Label deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete source label for {source_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
  

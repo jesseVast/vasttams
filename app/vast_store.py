@@ -225,7 +225,11 @@ class VASTStore:
             ('updated', pa.timestamp('us')),
             ('tags', pa.string()),  # JSON string
             ('source_collection', pa.string()),  # JSON string
-            ('collected_by', pa.string())  # JSON string
+            ('collected_by', pa.string()),  # JSON string
+            # Soft delete fields
+            ('deleted', pa.bool_()),
+            ('deleted_at', pa.timestamp('us')),
+            ('deleted_by', pa.string())
         ])
         
         # Flow table schema
@@ -257,7 +261,11 @@ class VASTStore:
             ('bits_per_sample', pa.int32()),
             ('channels', pa.int32()),
             # Multi flow specific
-            ('flow_collection', pa.string())  # JSON string
+            ('flow_collection', pa.string()),  # JSON string
+            # Soft delete fields
+            ('deleted', pa.bool_()),
+            ('deleted_at', pa.timestamp('us')),
+            ('deleted_by', pa.string())
         ])
         
         # Flow segment table schema (time-series optimized)
@@ -276,7 +284,11 @@ class VASTStore:
             # Time-series optimization fields
             ('start_time', pa.timestamp('us')),
             ('end_time', pa.timestamp('us')),
-            ('duration_seconds', pa.float64())
+            ('duration_seconds', pa.float64()),
+            # Soft delete fields
+            ('deleted', pa.bool_()),
+            ('deleted_at', pa.timestamp('us')),
+            ('deleted_by', pa.string())
         ])
         
         # Object table schema
@@ -286,7 +298,11 @@ class VASTStore:
             ('size', pa.int64()),
             ('created', pa.timestamp('us')),
             ('last_accessed', pa.timestamp('us')),
-            ('access_count', pa.int32())
+            ('access_count', pa.int32()),
+            # Soft delete fields
+            ('deleted', pa.bool_()),
+            ('deleted_at', pa.timestamp('us')),
+            ('deleted_by', pa.string())
         ])
         
         # Webhook table schema
@@ -398,7 +414,17 @@ class VASTStore:
     
     def _dict_to_json(self, data: Union[Dict[str, Any], List[Any]]) -> str:
         """Convert dictionary or list to JSON string"""
-        return json.dumps(data) if data else ""
+        if not data:
+            return ""
+        
+        # Custom JSON encoder to handle UUIDs and other non-serializable types
+        class UUIDEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, uuid.UUID):
+                    return str(obj)
+                return super().default(obj)
+        
+        return json.dumps(data, cls=UUIDEncoder)
     
     def _json_to_dict(self, json_str: Union[str, List[Any], Any]) -> Dict[str, Any]:
         """Convert JSON string, list, or any data to dictionary"""
@@ -429,7 +455,11 @@ class VASTStore:
                 'updated': source.updated or datetime.now(timezone.utc),
                 'tags': self._dict_to_json(source.tags.root if source.tags else {}),
                 'source_collection': self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else []),
-                'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else [])
+                'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else []),
+                # Soft delete fields with default values
+                'deleted': False,
+                'deleted_at': None,
+                'deleted_by': None
             }
             # Insert into VAST database as dict of lists
             self.db_manager.insert('sources', {k: [v] for k, v in source_data.items()})
@@ -444,6 +474,8 @@ class VASTStore:
         try:
             # Query for specific source
             predicate = (ibis_.id == source_id)
+            # Add soft delete filtering
+            predicate = self._add_soft_delete_predicate(predicate)
             results = self.db_manager.select('sources', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -467,8 +499,11 @@ class VASTStore:
                 'created': row['created'],
                 'updated': row['updated'],
                 'tags': Tags(self._json_to_dict(row['tags'])),
-                'source_collection': [CollectionItem(id=uuid.uuid4(), label=item) if isinstance(item, str) else CollectionItem(id=uuid.uuid4() if not item.get('id') else item.get('id'), **item) for item in self._json_to_dict(row['source_collection'])],
-                'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])]
+                'source_collection': [CollectionItem(id=item.get('id', str(uuid.uuid4())), label=item.get('label', '')) if isinstance(item, dict) else CollectionItem(id=str(uuid.uuid4()), label=str(item)) for item in self._json_to_dict(row['source_collection'])],
+                'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])],
+                'deleted': row.get('deleted', False),
+                'deleted_at': row.get('deleted_at'),
+                'deleted_by': row.get('deleted_by')
             }
             
             return Source(**source_data)
@@ -491,6 +526,8 @@ class VASTStore:
                 if conditions:
                     predicate = conditions[0] if len(conditions) == 1 else conditions[0] & conditions[1]
             
+            # Add soft delete filtering
+            predicate = self._add_soft_delete_predicate(predicate)
             # Query sources
             results = self.db_manager.select('sources', predicate=predicate, output_by_row=True)
             
@@ -518,8 +555,11 @@ class VASTStore:
                         'created': row['created'],
                         'updated': row['updated'],
                         'tags': Tags(self._json_to_dict(row['tags'])),
-                        'source_collection': [CollectionItem(id=uuid.uuid4(), label=item) if isinstance(item, str) else CollectionItem(id=uuid.uuid4() if not item.get('id') else item.get('id'), **item) for item in self._json_to_dict(row['source_collection'])],
-                        'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])]
+                        'source_collection': [CollectionItem(id=item.get('id', str(uuid.uuid4())), label=item.get('label', '')) if isinstance(item, dict) else CollectionItem(id=str(uuid.uuid4()), label=str(item)) for item in self._json_to_dict(row['source_collection'])],
+                        'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])],
+                        'deleted': row.get('deleted', False),
+                        'deleted_at': row.get('deleted_at'),
+                        'deleted_by': row.get('deleted_by')
                     }
                     sources.append(Source(**source_data))
             
@@ -558,7 +598,11 @@ class VASTStore:
                 'sample_rate': getattr(flow, 'sample_rate', 0),
                 'bits_per_sample': getattr(flow, 'bits_per_sample', 0),
                 'channels': getattr(flow, 'channels', 0),
-                'flow_collection': self._dict_to_json([str(uuid) for uuid in getattr(flow, 'flow_collection', [])])
+                'flow_collection': self._dict_to_json([str(uuid) for uuid in getattr(flow, 'flow_collection', [])]),
+                # Soft delete fields with default values
+                'deleted': False,
+                'deleted_at': None,
+                'deleted_by': None
             }
             # Insert into VAST database as dict of lists
             self.db_manager.insert('flows', {k: [v] for k, v in flow_data.items()})
@@ -573,6 +617,8 @@ class VASTStore:
         try:
             # Query for specific flow
             predicate = (ibis_.id == flow_id)
+            # Add soft delete filtering
+            predicate = self._add_soft_delete_predicate(predicate)
             results = self.db_manager.select('flows', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -599,7 +645,10 @@ class VASTStore:
                 'updated': row['updated'],
                 'tags': Tags(self._json_to_dict(row['tags'])),
                 'container': row['container'] if row['container'] else None,
-                'read_only': row['read_only']
+                'read_only': row['read_only'],
+                'deleted': row.get('deleted', False),
+                'deleted_at': row.get('deleted_at'),
+                'deleted_by': row.get('deleted_by')
             }
             
             # Add format-specific fields
@@ -715,7 +764,11 @@ class VASTStore:
                 'size': obj.size or 0,
                 'created': obj.created or datetime.now(timezone.utc),
                 'last_accessed': datetime.now(timezone.utc),
-                'access_count': 0
+                'access_count': 0,
+                # Soft delete fields with default values
+                'deleted': False,
+                'deleted_at': None,
+                'deleted_by': None
             }
             # Insert into VAST database as dict of lists
             self.db_manager.insert('objects', {k: [v] for k, v in object_data.items()})
@@ -730,6 +783,8 @@ class VASTStore:
         try:
             # Query for specific object
             predicate = (ibis_.object_id == object_id)
+            # Add soft delete filtering
+            predicate = self._add_soft_delete_predicate(predicate)
             results = self.db_manager.select('objects', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -1120,6 +1175,97 @@ class VASTStore:
         logger.info("Closing VAST store")
         # The vastdbmanager handles its own connection cleanup 
 
+    def _add_soft_delete_predicate(self, predicate=None):
+        """Add soft delete predicate to exclude deleted records from queries."""
+        from ibis import _ as ibis_
+        
+        # Base predicate to exclude soft-deleted records
+        soft_delete_predicate = (ibis_.deleted.isnull() | (ibis_.deleted == False))
+        
+        if predicate is None:
+            return soft_delete_predicate
+        else:
+            return predicate & soft_delete_predicate
+    
+    async def soft_delete_record(self, table_name: str, record_id: str, deleted_by: str) -> bool:
+        """Soft delete a record by marking it as deleted."""
+        try:
+            from datetime import datetime, timezone
+            
+            # Update the record to mark it as soft deleted
+            update_data = {
+                'deleted': True,
+                'deleted_at': datetime.now(timezone.utc),
+                'deleted_by': deleted_by
+            }
+            
+            # Create predicate to find the record
+            from ibis import _ as ibis_
+            predicate = (ibis_.id == record_id) if table_name != 'objects' else (ibis_.object_id == record_id)
+            
+            # Update the record
+            updated_count = self.db_manager.update(table_name, update_data, predicate)
+            
+            if updated_count > 0:
+                logger.info(f"Soft deleted record {record_id} from table {table_name}")
+                return True
+            else:
+                logger.warning(f"Record {record_id} not found in table {table_name} for soft delete")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to soft delete record {record_id} from table {table_name}: {e}")
+            return False
+    
+    async def hard_delete_record(self, table_name: str, record_id: str) -> bool:
+        """Hard delete a record by removing it from the database."""
+        try:
+            # Create predicate to find the record
+            from ibis import _ as ibis_
+            predicate = (ibis_.id == record_id) if table_name != 'objects' else (ibis_.object_id == record_id)
+            
+            # Delete the record
+            deleted_count = self.db_manager.delete(table_name, predicate)
+            
+            if deleted_count > 0:
+                logger.info(f"Hard deleted record {record_id} from table {table_name}")
+                return True
+            else:
+                logger.warning(f"Record {record_id} not found in table {table_name} for hard delete")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to hard delete record {record_id} from table {table_name}: {e}")
+            return False
+    
+    async def restore_record(self, table_name: str, record_id: str) -> bool:
+        """Restore a soft-deleted record by unmarking it as deleted."""
+        try:
+            # Update the record to unmark it as soft deleted
+            update_data = {
+                'deleted': False,
+                'deleted_at': None,
+                'deleted_by': None
+            }
+            
+            # Create predicate to find the record
+            from ibis import _ as ibis_
+            predicate = (ibis_.id == record_id) if table_name != 'objects' else (ibis_.object_id == record_id)
+            
+            # Update the record
+            updated_count = self.db_manager.update(table_name, update_data, predicate)
+            
+            if updated_count > 0:
+                logger.info(f"Restored record {record_id} from table {table_name}")
+                return True
+            else:
+                logger.warning(f"Record {record_id} not found in table {table_name} for restore")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to restore record {record_id} from table {table_name}: {e}")
+            return False
+
     async def update_source(self, source_id: str, source: Source) -> bool:
         """Update an existing source in VAST store"""
         try:
@@ -1391,50 +1537,79 @@ class VASTStore:
             logger.error(f"Failed to get deletion request {request_id}: {e}")
             return None 
 
-    async def delete_source(self, source_id: str) -> bool:
+    async def delete_source(self, source_id: str, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system") -> bool:
         """
         Delete a source from the VAST store by its unique identifier.
 
         Args:
             source_id (str): The unique identifier of the source to delete.
+            soft_delete (bool): If True, mark as deleted instead of physically removing.
+            cascade (bool): If True, also delete associated flows.
+            deleted_by (str): User or system performing the deletion.
 
         Returns:
             bool: True if the source was deleted, False if not found or deletion failed.
         """
         try:
-            from ibis import _ as ibis_
-            predicate = (ibis_.id == source_id)
-            deleted_count = self.db_manager.delete('sources', predicate)
-            if deleted_count > 0:
-                logger.info(f"Deleted source {source_id} from VAST store")
-                return True
+            if soft_delete:
+                # Soft delete - mark as deleted
+                success = await self.soft_delete_record('sources', source_id, deleted_by)
+                if success and cascade:
+                    # Also soft delete associated flows
+                    flows = await self.list_flows({'source_id': source_id})
+                    for flow in flows:
+                        await self.delete_flow(str(flow.id), soft_delete=True, cascade=True, deleted_by=deleted_by)
+                return success
             else:
-                logger.warning(f"Source {source_id} not found for deletion")
-                return False
+                # Hard delete - physically remove
+                if cascade:
+                    # Also hard delete associated flows
+                    flows = await self.list_flows({'source_id': source_id})
+                    for flow in flows:
+                        await self.delete_flow(str(flow.id), soft_delete=False, cascade=True, deleted_by=deleted_by)
+                
+                # Delete from VAST database
+                from ibis import _ as ibis_
+                predicate = (ibis_.id == source_id)
+                deleted_count = self.db_manager.delete('sources', predicate)
+                if deleted_count > 0:
+                    logger.info(f"Hard deleted source {source_id} from VAST store")
+                    return True
+                else:
+                    logger.warning(f"Source {source_id} not found for hard deletion")
+                    return False
         except Exception as e:
             logger.error(f"Failed to delete source {source_id}: {e}")
             return False 
 
-    async def delete_object(self, object_id: str) -> bool:
+    async def delete_object(self, object_id: str, soft_delete: bool = True, deleted_by: str = "system") -> bool:
         """
         Delete an object from the VAST store by its unique identifier.
 
         Args:
             object_id (str): The unique identifier of the object to delete.
+            soft_delete (bool): If True, mark as deleted instead of physically removing.
+            deleted_by (str): User or system performing the deletion.
 
         Returns:
             bool: True if the object was deleted, False if not found or deletion failed.
         """
         try:
-            from ibis import _ as ibis_
-            predicate = (ibis_.object_id == object_id)
-            deleted_count = self.db_manager.delete('objects', predicate)
-            if deleted_count > 0:
-                logger.info(f"Deleted object {object_id} from VAST store")
-                return True
+            if soft_delete:
+                # Soft delete - mark as deleted
+                success = await self.soft_delete_record('objects', object_id, deleted_by)
+                return success
             else:
-                logger.warning(f"Object {object_id} not found for deletion")
-                return False
+                # Hard delete - physically remove
+                from ibis import _ as ibis_
+                predicate = (ibis_.object_id == object_id)
+                deleted_count = self.db_manager.delete('objects', predicate)
+                if deleted_count > 0:
+                    logger.info(f"Hard deleted object {object_id} from VAST store")
+                    return True
+                else:
+                    logger.warning(f"Object {object_id} not found for hard deletion")
+                    return False
         except Exception as e:
             logger.error(f"Failed to delete object {object_id}: {e}")
             return False 

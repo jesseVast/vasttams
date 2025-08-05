@@ -17,6 +17,8 @@ A comprehensive FastAPI implementation of the BBC TAMS API specification with VA
 - **Kubernetes Ready**: Complete K8s manifests for production deployment
 - **Comprehensive Testing**: Automated test suite for all endpoints
 - **Pydantic v2 Compatible**: Modern data validation with RootModel support
+- **Soft Delete Support**: Optional soft delete with cascade delete capabilities
+- **Data Integrity**: Maintains referential integrity with cascade operations
 
 ## 🏗️ Architecture
 
@@ -66,6 +68,14 @@ The VAST store creates the following tables with optimized schemas:
 - **objects**: Media objects with access tracking
 - **webhooks**: Event notification configuration
 - **deletion_requests**: Media deletion tracking
+
+#### Soft Delete Schema Fields
+All tables include soft delete fields for data integrity:
+- `deleted` (boolean) - Flag indicating if record is soft-deleted
+- `deleted_at` (timestamp) - When the record was soft-deleted
+- `deleted_by` (string) - User/system that performed the soft deletion
+
+Soft-deleted records are automatically excluded from all query operations to maintain data consistency.
 
 ## 📁 Project Structure
 
@@ -172,6 +182,35 @@ bbctams/
 - `GET /flow-delete-requests` - List deletion requests
 - `POST /flow-delete-requests` - Create deletion request
 - `GET /flow-delete-requests/{id}` - Get deletion request by ID
+
+### Soft Delete and Cascade Delete Support
+All delete endpoints support optional soft delete and cascade delete functionality:
+
+#### Delete Parameters
+- `soft_delete` (bool, default: `true`) - Perform soft delete (flag as deleted) or hard delete (remove from database)
+- `cascade` (bool, default: `true`) - Cascade delete to associated records
+- `deleted_by` (string, default: `"system"`) - User/system performing the deletion
+
+#### Examples
+```bash
+# Soft delete a source (default behavior)
+DELETE /sources/{id}?soft_delete=true&cascade=true&deleted_by=user123
+
+# Hard delete a source with cascade
+DELETE /sources/{id}?soft_delete=false&cascade=true&deleted_by=admin
+
+# Soft delete a flow without cascade
+DELETE /flows/{id}?soft_delete=true&cascade=false&deleted_by=user123
+
+# Hard delete flow segments (removes S3 data)
+DELETE /flows/{id}/segments?soft_delete=false&deleted_by=admin
+```
+
+#### Cascade Delete Behavior
+- **Source Deletion**: When `cascade=true`, deletes all associated flows and their segments
+- **Flow Deletion**: When `cascade=true`, deletes all associated segments
+- **Segment Deletion**: When `soft_delete=false`, also deletes S3 data; when `soft_delete=true`, preserves S3 data
+- **Object Deletion**: Standalone deletion without cascade
 
 ### Observability Endpoints
 - `GET /metrics` - Prometheus metrics endpoint

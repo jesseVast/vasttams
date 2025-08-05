@@ -64,20 +64,25 @@ class SourceManager:
             logger.error(f"Failed to create source: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def delete_source(self, source_id: str, store: Optional[VASTStore] = None):
+    async def delete_source(self, source_id: str, store: Optional[VASTStore] = None, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system"):
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
         try:
-            success = await store.delete_source(source_id)
+            success = await store.delete_source(source_id, soft_delete=soft_delete, cascade=cascade, deleted_by=deleted_by)
             if not success:
                 raise HTTPException(status_code=404, detail="Source not found")
-            return {"message": "Source deleted"}
+            
+            delete_type = "soft deleted" if soft_delete else "hard deleted"
+            cascade_msg = " with cascade" if cascade else ""
+            return {"message": f"Source {delete_type}{cascade_msg}"}
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Failed to delete source {source_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
+
+
 
     async def update_source(self, source_id: str, source: Source, store: Optional[VASTStore] = None) -> Source:
         """

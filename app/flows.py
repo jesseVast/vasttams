@@ -138,13 +138,16 @@ class FlowManager:
             logger.error(f"Failed to update flow {flow_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def delete_flow(self, flow_id: str, store: Optional[VASTStore] = None):
+    async def delete_flow(self, flow_id: str, store: Optional[VASTStore] = None, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system"):
         """
-        Delete a flow by its unique identifier.
+        Delete a flow by its unique identifier with optional soft delete and cascade options.
 
         Args:
             flow_id (str): The unique identifier of the flow to delete.
             store (Optional[VASTStore]): Optional VASTStore instance to use. Defaults to the manager's store.
+            soft_delete (bool): If True, perform soft delete; if False, hard delete.
+            cascade (bool): If True, also delete associated segments.
+            deleted_by (str): User/system performing the deletion.
 
         Returns:
             dict: A message indicating successful deletion.
@@ -156,15 +159,20 @@ class FlowManager:
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
         try:
-            success = await store.delete_flow(flow_id)
+            success = await store.delete_flow(flow_id, soft_delete=soft_delete, cascade=cascade, deleted_by=deleted_by)
             if not success:
                 raise HTTPException(status_code=404, detail="Flow not found")
-            return {"message": "Flow deleted"}
+            
+            delete_type = "soft deleted" if soft_delete else "hard deleted"
+            cascade_msg = " with cascade" if cascade else ""
+            return {"message": f"Flow {delete_type}{cascade_msg}"}
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Failed to delete flow {flow_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
+
+
 
     async def get_tags(self, flow_id: str, store: Optional[VASTStore] = None):
         """

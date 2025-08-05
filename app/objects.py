@@ -74,5 +74,19 @@ class ObjectManager:
             logger.error(f"Failed to create object: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def delete_object(self, object_id: str, store: VASTStore) -> bool:
-        return await store.delete_object(object_id) 
+    async def delete_object(self, object_id: str, store: VASTStore, soft_delete: bool = True, deleted_by: str = "system") -> bool:
+        """
+        Delete an object by its unique identifier with optional soft delete.
+
+        Args:
+            object_id (str): The unique identifier of the object to delete.
+            store (VASTStore): VASTStore instance to use.
+            soft_delete (bool): If True, perform soft delete; if False, hard delete.
+            deleted_by (str): User/system performing the deletion.
+
+        Returns:
+            bool: True if successful, False otherwise.
+        """
+        return await store.delete_object(object_id, soft_delete=soft_delete, deleted_by=deleted_by)
+
+ 

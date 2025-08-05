@@ -52,7 +52,15 @@ async def create_source(source: Source, store: VASTStore = Depends(get_vast_stor
     return await source_manager.create_source(source, store)
 
 @router.delete("/sources/{source_id}")
-async def delete_source(source_id: str, store: VASTStore = Depends(get_vast_store)):
-    """Delete a source by its unique identifier."""
-    logger.info(f"DELETE /sources/{source_id} called")
-    return await source_manager.delete_source(source_id, store) 
+async def delete_source(
+    source_id: str, 
+    soft_delete: bool = Query(True, description="Perform soft delete (default) or hard delete"),
+    cascade: bool = Query(True, description="Cascade delete to associated flows and segments"),
+    deleted_by: str = Query("system", description="User/system performing the deletion"),
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete a source by its unique identifier with optional soft delete and cascade options."""
+    logger.info(f"DELETE /sources/{source_id} called with soft_delete={soft_delete}, cascade={cascade}")
+    return await source_manager.delete_source(source_id, store, soft_delete=soft_delete, cascade=cascade, deleted_by=deleted_by)
+
+ 

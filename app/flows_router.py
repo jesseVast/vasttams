@@ -48,8 +48,17 @@ async def update_flow(flow_id: str, flow: Flow, store: VASTStore = Depends(get_v
     return await flow_manager.update_flow(flow_id, flow, store)
 
 @router.delete("/flows/{flow_id}")
-async def delete_flow(flow_id: str, store: VASTStore = Depends(get_vast_store)):
-    return await flow_manager.delete_flow(flow_id, store)
+async def delete_flow(
+    flow_id: str, 
+    soft_delete: bool = Query(True, description="Perform soft delete (default) or hard delete"),
+    cascade: bool = Query(True, description="Cascade delete to associated segments"),
+    deleted_by: str = Query("system", description="User/system performing the deletion"),
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete a flow with optional soft delete and cascade options."""
+    return await flow_manager.delete_flow(flow_id, store, soft_delete=soft_delete, cascade=cascade, deleted_by=deleted_by)
+
+
 
 @router.post("/flows", response_model=Flow, status_code=201)
 async def create_flow(flow: Flow, store: VASTStore = Depends(get_vast_store)):

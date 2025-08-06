@@ -37,9 +37,18 @@ pytestmark = pytest.mark.asyncio
 class TestTAMSIntegration:
     """Comprehensive integration tests for TAMS with real database."""
     
-    @pytest.fixture(autouse=True)
-    async def setup(self):
+    def setup_method(self, method):
         """Setup test environment with real database."""
+        # Run async setup in sync context
+        asyncio.run(self._async_setup())
+
+    def teardown_method(self, method):
+        """Cleanup after tests."""
+        # Run async teardown in sync context
+        asyncio.run(self._async_teardown())
+
+    async def _async_setup(self):
+        """Async setup method."""
         self.settings = get_settings()
         self.store = VASTStore(
             endpoint=self.settings.vast_endpoint,
@@ -64,10 +73,9 @@ class TestTAMSIntegration:
         self.test_data = {}
         
         logger.info("✅ Test environment setup complete")
-        
-        yield
-        
-        # Cleanup after tests
+
+    async def _async_teardown(self):
+        """Async teardown method."""
         await self.cleanup_test_data()
     
     async def cleanup_test_data(self):

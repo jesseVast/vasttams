@@ -732,6 +732,10 @@ class VASTStore:
             if timerange:
                 target_start, target_end, _ = self._parse_timerange(timerange)
                 predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)
+            
+            # Add soft delete filtering
+            predicate = self._add_soft_delete_predicate(predicate)
+            
             results = self.db_manager.select('segments', predicate=predicate, output_by_row=True)
             segments = []
             if isinstance(results, list):
@@ -1092,7 +1096,11 @@ class VASTStore:
                 if 'frame_height' in filters:
                     conditions.append((ibis_.frame_height == filters['frame_height']))
                 if conditions:
-                    predicate = conditions[0] if len(conditions) == 1 else (conditions[0] & conditions[1])            
+                    predicate = conditions[0] if len(conditions) == 1 else (conditions[0] & conditions[1])
+            
+            # Add soft delete filtering
+            predicate = self._add_soft_delete_predicate(predicate)
+            
             # Query flows
             results = self.db_manager.select('flows', predicate=predicate, output_by_row=True)
             

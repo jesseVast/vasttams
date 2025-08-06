@@ -130,17 +130,14 @@ You can create additional dashboards for:
 ### Environment Variables
 
 ```bash
-# Telemetry Settings
-TELEMETRY_ENABLED=true
-METRICS_ENABLED=true
-TRACING_ENABLED=true
-
-# Jaeger Configuration
+# Jaeger Configuration (Optional)
 JAEGER_ENDPOINT=localhost:14268
 
-# OTLP Configuration
+# OTLP Configuration (Optional)
 OTLP_ENDPOINT=http://localhost:4318/v1/traces
 ```
+
+**Note**: Telemetry is enabled by default and cannot be disabled through configuration.
 
 ### Prometheus Configuration
 

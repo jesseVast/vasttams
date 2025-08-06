@@ -395,9 +395,18 @@ class TestSoftDelete:
 class TestSoftDeleteIntegration:
     """Integration tests for soft delete functionality with real database."""
 
-    @pytest.fixture(autouse=True)
-    async def setup(self):
+    def setup_method(self, method):
         """Setup test environment with real database."""
+        # Run async setup in sync context
+        asyncio.run(self._async_setup())
+
+    def teardown_method(self, method):
+        """Cleanup after tests."""
+        # Run async teardown in sync context
+        asyncio.run(self._async_teardown())
+
+    async def _async_setup(self):
+        """Async setup method."""
         self.settings = get_settings()
         self.store = VASTStore(
             endpoint=self.settings.vast_endpoint,
@@ -422,10 +431,9 @@ class TestSoftDeleteIntegration:
         self.test_data = {}
         
         logger.info("✅ Real database test environment setup complete")
-        
-        yield
-        
-        # Cleanup after tests
+
+    async def _async_teardown(self):
+        """Async teardown method."""
         await self.cleanup_test_data()
     
     async def cleanup_test_data(self):

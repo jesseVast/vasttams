@@ -51,6 +51,18 @@ spec:
               name: tams-secrets
               key: s3-secret-access-key
         
+        # Telemetry and Observability
+        - name: TELEMETRY_ENABLED
+          value: "true"
+        - name: METRICS_ENABLED
+          value: "true"
+        - name: TRACING_ENABLED
+          value: "true"
+        - name: JAEGER_ENDPOINT
+          value: "jaeger-collector:14268"
+        - name: OTLP_ENDPOINT
+          value: "http://otel-collector:4318/v1/traces"
+        
         volumeMounts:
         - name: tams-config
           mountPath: /etc/tams

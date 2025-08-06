@@ -2,7 +2,7 @@
 Objects submodule for TAMS API.
 Handles object-related operations and business logic.
 """
-from typing import Optional
+from typing import List, Optional, Dict
 from fastapi import HTTPException
 from datetime import datetime, timezone
 from .models import Object
@@ -11,25 +11,42 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Standalone functions for router use
+async def get_object(store: VASTStore, object_id: str) -> Optional[Object]:
+    """Get a specific object by ID"""
+    try:
+        obj = await store.get_object(object_id)
+        return obj
+    except Exception as e:
+        logger.error(f"Failed to get object {object_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+async def create_object(store: VASTStore, obj: Object) -> bool:
+    """Create a new object"""
+    try:
+        now = datetime.now(timezone.utc)
+        obj.created = now
+        success = await store.create_object(obj)
+        return success
+    except Exception as e:
+        logger.error(f"Failed to create object: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+async def delete_object(store: VASTStore, object_id: str, soft_delete: bool = True, deleted_by: str = "system") -> bool:
+    """Delete an object"""
+    try:
+        success = await store.delete_object(object_id, soft_delete=soft_delete, deleted_by=deleted_by)
+        return success
+    except Exception as e:
+        logger.error(f"Failed to delete object {object_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 class ObjectManager:
     """Manager for object operations (create, retrieve, update, delete, etc.)."""
     def __init__(self, store: Optional[VASTStore] = None):
         self.store = store
 
     async def get_object(self, object_id: str, store: Optional[VASTStore] = None) -> Object:
-        """
-        Retrieve an object by its unique identifier.
-
-        Args:
-            object_id (str): The unique identifier of the object to retrieve.
-            store (Optional[VASTStore]): Optional VASTStore instance to use. Defaults to the manager's store.
-
-        Returns:
-            Object: The object corresponding to the given ID.
-
-        Raises:
-            HTTPException: 404 if the object is not found, 500 for internal errors or if the store is not initialized.
-        """
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
@@ -45,19 +62,6 @@ class ObjectManager:
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def create_object(self, obj: Object, store: Optional[VASTStore] = None) -> Object:
-        """
-        Create a new object and store it in the database.
-
-        Args:
-            obj (Object): The object to create.
-            store (Optional[VASTStore]): Optional VASTStore instance to use. Defaults to the manager's store.
-
-        Returns:
-            Object: The created object.
-
-        Raises:
-            HTTPException: 500 if the VAST store is not initialized or creation fails.
-        """
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
@@ -74,5 +78,21 @@ class ObjectManager:
             logger.error(f"Failed to create object: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def delete_object(self, object_id: str, store: VASTStore) -> bool:
-        return await store.delete_object(object_id) 
+    async def delete_object(self, object_id: str, store: Optional[VASTStore] = None, soft_delete: bool = True, deleted_by: str = "system"):
+        store = store or self.store
+        if store is None:
+            raise HTTPException(status_code=500, detail="VAST store is not initialized")
+        try:
+            success = await store.delete_object(object_id, soft_delete=soft_delete, deleted_by=deleted_by)
+            if not success:
+                raise HTTPException(status_code=404, detail="Object not found")
+            
+            delete_type = "soft deleted" if soft_delete else "hard deleted"
+            return {"message": f"Object {delete_type}"}
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to delete object {object_id}: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+ 

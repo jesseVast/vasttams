@@ -232,5 +232,5 @@ kubectl get secret tams-api-secrets -o yaml
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/jesseVast/bbctams/issues
-- Documentation: https://github.com/jesseVast/bbctams 
+- GitHub Issues: https://github.com/jesseVast/vasttams/issues
+- Documentation: https://github.com/jesseVast/vasttams 

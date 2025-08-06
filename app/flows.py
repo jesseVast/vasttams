@@ -5,33 +5,119 @@ Handles flow-related operations and business logic.
 from typing import List, Optional, Dict
 from fastapi import HTTPException
 from datetime import datetime, timezone
-from .models import Flow, FlowsResponse, PagingInfo, Tags
+from .models import Flow, FlowsResponse, PagingInfo, FlowFilters, FlowDetailFilters
 from .vast_store import VASTStore
-import uuid
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
+
+# Standalone functions for router use
+async def get_flows(store: VASTStore, filters: FlowFilters) -> List[Flow]:
+    """Get flows with filtering"""
+    try:
+        filter_dict = {}
+        if filters.source_id:
+            filter_dict['source_id'] = str(filters.source_id)
+        if filters.timerange:
+            filter_dict['timerange'] = filters.timerange
+        if filters.format:
+            filter_dict['format'] = filters.format
+        if filters.codec:
+            filter_dict['codec'] = filters.codec
+        if filters.label:
+            filter_dict['label'] = filters.label
+        if filters.frame_width:
+            filter_dict['frame_width'] = filters.frame_width
+        if filters.frame_height:
+            filter_dict['frame_height'] = filters.frame_height
+        
+        flows = await store.list_flows(filters=filter_dict, limit=filters.limit)
+        return flows
+    except Exception as e:
+        logger.error(f"Failed to get flows: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+async def get_flow(store: VASTStore, flow_id: str, filters: Optional[FlowDetailFilters] = None) -> Optional[Flow]:
+    """Get a specific flow by ID"""
+    try:
+        flow = await store.get_flow(flow_id)
+        return flow
+    except Exception as e:
+        logger.error(f"Failed to get flow {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+async def create_flow(store: VASTStore, flow: Flow) -> bool:
+    """Create a new flow"""
+    try:
+        now = datetime.now(timezone.utc)
+        flow.created = now
+        flow.updated = now
+        success = await store.create_flow(flow)
+        return success
+    except Exception as e:
+        logger.error(f"Failed to create flow: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+async def update_flow(store: VASTStore, flow_id: str, flow: Flow) -> Optional[Flow]:
+    """Update a flow"""
+    try:
+        flow.updated = datetime.now(timezone.utc)
+        success = await store.update_flow(flow_id, flow)
+        if success:
+            return flow
+        return None
+    except Exception as e:
+        logger.error(f"Failed to update flow {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+async def delete_flow(store: VASTStore, flow_id: str, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system") -> bool:
+    """Delete a flow"""
+    try:
+        success = await store.delete_flow(flow_id, soft_delete=soft_delete, cascade=cascade, deleted_by=deleted_by)
+        return success
+    except Exception as e:
+        logger.error(f"Failed to delete flow {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 class FlowManager:
     """Manager for flow operations (create, retrieve, update, delete, etc.)."""
     def __init__(self, store: Optional[VASTStore] = None):
         self.store = store
 
-    async def list_flows(self, filters: Dict, limit: int, store: Optional[VASTStore] = None) -> FlowsResponse:
+    async def _check_flow_read_only(self, flow_id: str, store: Optional[VASTStore] = None) -> None:
         """
-        List flows with optional filtering and pagination.
-
+        Check if a flow is read-only and raise 403 Forbidden if it is.
+        
         Args:
-            filters (Dict): Dictionary of filter criteria for flows.
-            limit (int): Maximum number of flows to return.
-            store (Optional[VASTStore]): Optional VASTStore instance to use. Defaults to the manager's store.
-
-        Returns:
-            FlowsResponse: Response containing a list of flows and optional paging info.
-
+            flow_id: Flow ID to check
+            store: VAST store instance
+            
         Raises:
-            HTTPException: 500 if the VAST store is not initialized or an internal error occurs.
+            HTTPException: 403 Forbidden if flow is read-only
+            HTTPException: 404 Not Found if flow doesn't exist
         """
+        store = store or self.store
+        if store is None:
+            raise HTTPException(status_code=500, detail="VAST store is not initialized")
+        
+        try:
+            flow = await store.get_flow(flow_id)
+            if not flow:
+                raise HTTPException(status_code=404, detail="Flow not found")
+            
+            if flow.read_only:
+                raise HTTPException(
+                    status_code=403, 
+                    detail="Forbidden. You do not have permission to modify this flow. It may be marked read-only."
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to check flow read-only status for {flow_id}: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    async def list_flows(self, filters: Dict, limit: int, store: Optional[VASTStore] = None) -> FlowsResponse:
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
@@ -39,26 +125,13 @@ class FlowManager:
             flows = await store.list_flows(filters=filters, limit=limit)
             paging = None
             if len(flows) == limit:
-                paging = PagingInfo(limit=limit, next_key=str(uuid.uuid4()))
+                paging = None  # PagingInfo can be added if needed
             return FlowsResponse(data=flows, paging=paging)
         except Exception as e:
             logger.error(f"Failed to list flows: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def get_flow(self, flow_id: str, store: Optional[VASTStore] = None) -> Flow:
-        """
-        Retrieve a flow by its unique identifier.
-
-        Args:
-            flow_id (str): The unique identifier of the flow to retrieve.
-            store (Optional[VASTStore]): Optional VASTStore instance to use. Defaults to the manager's store.
-
-        Returns:
-            Flow: The flow object corresponding to the given ID.
-
-        Raises:
-            HTTPException: 404 if the flow is not found, 500 for internal errors or if the store is not initialized.
-        """
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
@@ -74,19 +147,6 @@ class FlowManager:
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def create_flow(self, flow: Flow, store: Optional[VASTStore] = None) -> Flow:
-        """
-        Create a new flow and store it in the database.
-
-        Args:
-            flow (Flow): The flow object to create.
-            store (Optional[VASTStore]): Optional VASTStore instance to use. Defaults to the manager's store.
-
-        Returns:
-            Flow: The created flow object.
-
-        Raises:
-            HTTPException: 500 if the VAST store is not initialized or creation fails.
-        """
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
@@ -105,32 +165,17 @@ class FlowManager:
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def update_flow(self, flow_id: str, flow: Flow, store: Optional[VASTStore] = None) -> Flow:
-        """
-        Update an existing flow with new data.
-
-        Args:
-            flow_id (str): The unique identifier of the flow to update.
-            flow (Flow): The updated flow object.
-            store (Optional[VASTStore]): Optional VASTStore instance to use. Defaults to the manager's store.
-
-        Returns:
-            Flow: The updated flow object.
-
-        Raises:
-            HTTPException: 404 if the flow is not found, 500 for internal errors or if the store is not initialized.
-        """
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
         try:
-            existing_flow = await store.get_flow(flow_id)
-            if not existing_flow:
-                raise HTTPException(status_code=404, detail="Flow not found")
-            flow.id = existing_flow.id
+            # Check if flow is read-only before updating
+            await self._check_flow_read_only(flow_id, store)
+            
             flow.updated = datetime.now(timezone.utc)
-            success = await store.update_flow(flow)
+            success = await store.update_flow(flow_id, flow)
             if not success:
-                raise HTTPException(status_code=500, detail="Failed to update flow")
+                raise HTTPException(status_code=404, detail="Flow not found")
             return flow
         except HTTPException:
             raise
@@ -138,33 +183,28 @@ class FlowManager:
             logger.error(f"Failed to update flow {flow_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def delete_flow(self, flow_id: str, store: Optional[VASTStore] = None):
-        """
-        Delete a flow by its unique identifier.
-
-        Args:
-            flow_id (str): The unique identifier of the flow to delete.
-            store (Optional[VASTStore]): Optional VASTStore instance to use. Defaults to the manager's store.
-
-        Returns:
-            dict: A message indicating successful deletion.
-
-        Raises:
-            HTTPException: 404 if the flow is not found, 500 for internal errors or if the store is not initialized.
-        """
+    async def delete_flow(self, flow_id: str, store: Optional[VASTStore] = None, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system"):
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
         try:
-            success = await store.delete_flow(flow_id)
+            # Check if flow is read-only before deleting
+            await self._check_flow_read_only(flow_id, store)
+            
+            success = await store.delete_flow(flow_id, soft_delete=soft_delete, cascade=cascade, deleted_by=deleted_by)
             if not success:
                 raise HTTPException(status_code=404, detail="Flow not found")
-            return {"message": "Flow deleted"}
+            
+            delete_type = "soft deleted" if soft_delete else "hard deleted"
+            cascade_msg = " with cascade" if cascade else ""
+            return {"message": f"Flow {delete_type}{cascade_msg}"}
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Failed to delete flow {flow_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
+
+
 
     async def get_tags(self, flow_id: str, store: Optional[VASTStore] = None):
         """

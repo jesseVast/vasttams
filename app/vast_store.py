@@ -42,6 +42,7 @@ Example Usage:
 import logging
 import json
 import uuid
+import time
 from ibis import _ as ibis_
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any, Union, Tuple
@@ -50,6 +51,7 @@ import pyarrow as pa
 from pydantic import UUID4
 
 from .vastdbmanager import VastDBManager
+from .telemetry import telemetry_manager, trace_operation
 from .models import (
     Source, Flow, FlowSegment, Object, DeletionRequest, 
     TimeRange, Tags, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow,
@@ -223,7 +225,11 @@ class VASTStore:
             ('updated', pa.timestamp('us')),
             ('tags', pa.string()),  # JSON string
             ('source_collection', pa.string()),  # JSON string
-            ('collected_by', pa.string())  # JSON string
+            ('collected_by', pa.string()),  # JSON string
+            # Soft delete fields
+            ('deleted', pa.bool_()),
+            ('deleted_at', pa.timestamp('us')),
+            ('deleted_by', pa.string())
         ])
         
         # Flow table schema
@@ -255,7 +261,11 @@ class VASTStore:
             ('bits_per_sample', pa.int32()),
             ('channels', pa.int32()),
             # Multi flow specific
-            ('flow_collection', pa.string())  # JSON string
+            ('flow_collection', pa.string()),  # JSON string
+            # Soft delete fields
+            ('deleted', pa.bool_()),
+            ('deleted_at', pa.timestamp('us')),
+            ('deleted_by', pa.string())
         ])
         
         # Flow segment table schema (time-series optimized)
@@ -274,7 +284,11 @@ class VASTStore:
             # Time-series optimization fields
             ('start_time', pa.timestamp('us')),
             ('end_time', pa.timestamp('us')),
-            ('duration_seconds', pa.float64())
+            ('duration_seconds', pa.float64()),
+            # Soft delete fields
+            ('deleted', pa.bool_()),
+            ('deleted_at', pa.timestamp('us')),
+            ('deleted_by', pa.string())
         ])
         
         # Object table schema
@@ -284,7 +298,11 @@ class VASTStore:
             ('size', pa.int64()),
             ('created', pa.timestamp('us')),
             ('last_accessed', pa.timestamp('us')),
-            ('access_count', pa.int32())
+            ('access_count', pa.int32()),
+            # Soft delete fields
+            ('deleted', pa.bool_()),
+            ('deleted_at', pa.timestamp('us')),
+            ('deleted_by', pa.string())
         ])
         
         # Webhook table schema
@@ -294,6 +312,9 @@ class VASTStore:
             ('api_key_name', pa.string()),
             ('api_key_value', pa.string()),
             ('events', pa.string()),  # JSON string
+            # Ownership fields for TAMS API v6.0 compliance
+            ('owner_id', pa.string()),
+            ('created_by', pa.string()),
             ('created', pa.timestamp('us')),
             ('updated', pa.timestamp('us'))
         ])
@@ -396,7 +417,17 @@ class VASTStore:
     
     def _dict_to_json(self, data: Union[Dict[str, Any], List[Any]]) -> str:
         """Convert dictionary or list to JSON string"""
-        return json.dumps(data) if data else ""
+        if not data:
+            return ""
+        
+        # Custom JSON encoder to handle UUIDs and other non-serializable types
+        class UUIDEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, uuid.UUID):
+                    return str(obj)
+                return super().default(obj)
+        
+        return json.dumps(data, cls=UUIDEncoder)
     
     def _json_to_dict(self, json_str: Union[str, List[Any], Any]) -> Dict[str, Any]:
         """Convert JSON string, list, or any data to dictionary"""
@@ -427,7 +458,11 @@ class VASTStore:
                 'updated': source.updated or datetime.now(timezone.utc),
                 'tags': self._dict_to_json(source.tags.root if source.tags else {}),
                 'source_collection': self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else []),
-                'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else [])
+                'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else []),
+                # Soft delete fields with default values
+                'deleted': False,
+                'deleted_at': None,
+                'deleted_by': None
             }
             # Insert into VAST database as dict of lists
             self.db_manager.insert('sources', {k: [v] for k, v in source_data.items()})
@@ -442,6 +477,8 @@ class VASTStore:
         try:
             # Query for specific source
             predicate = (ibis_.id == source_id)
+            # Add soft delete filtering
+            predicate = self._add_soft_delete_predicate(predicate)
             results = self.db_manager.select('sources', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -465,8 +502,11 @@ class VASTStore:
                 'created': row['created'],
                 'updated': row['updated'],
                 'tags': Tags(self._json_to_dict(row['tags'])),
-                'source_collection': [CollectionItem(id=uuid.uuid4(), label=item) if isinstance(item, str) else CollectionItem(id=uuid.uuid4() if not item.get('id') else item.get('id'), **item) for item in self._json_to_dict(row['source_collection'])],
-                'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])]
+                'source_collection': [CollectionItem(id=item.get('id', str(uuid.uuid4())), label=item.get('label', '')) if isinstance(item, dict) else CollectionItem(id=str(uuid.uuid4()), label=str(item)) for item in self._json_to_dict(row['source_collection'])],
+                'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])],
+                'deleted': row.get('deleted', False),
+                'deleted_at': row.get('deleted_at'),
+                'deleted_by': row.get('deleted_by')
             }
             
             return Source(**source_data)
@@ -489,6 +529,8 @@ class VASTStore:
                 if conditions:
                     predicate = conditions[0] if len(conditions) == 1 else conditions[0] & conditions[1]
             
+            # Add soft delete filtering
+            predicate = self._add_soft_delete_predicate(predicate)
             # Query sources
             results = self.db_manager.select('sources', predicate=predicate, output_by_row=True)
             
@@ -516,8 +558,11 @@ class VASTStore:
                         'created': row['created'],
                         'updated': row['updated'],
                         'tags': Tags(self._json_to_dict(row['tags'])),
-                        'source_collection': [CollectionItem(id=uuid.uuid4(), label=item) if isinstance(item, str) else CollectionItem(id=uuid.uuid4() if not item.get('id') else item.get('id'), **item) for item in self._json_to_dict(row['source_collection'])],
-                        'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])]
+                        'source_collection': [CollectionItem(id=item.get('id', str(uuid.uuid4())), label=item.get('label', '')) if isinstance(item, dict) else CollectionItem(id=str(uuid.uuid4()), label=str(item)) for item in self._json_to_dict(row['source_collection'])],
+                        'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])],
+                        'deleted': row.get('deleted', False),
+                        'deleted_at': row.get('deleted_at'),
+                        'deleted_by': row.get('deleted_by')
                     }
                     sources.append(Source(**source_data))
             
@@ -556,7 +601,11 @@ class VASTStore:
                 'sample_rate': getattr(flow, 'sample_rate', 0),
                 'bits_per_sample': getattr(flow, 'bits_per_sample', 0),
                 'channels': getattr(flow, 'channels', 0),
-                'flow_collection': self._dict_to_json([str(uuid) for uuid in getattr(flow, 'flow_collection', [])])
+                'flow_collection': self._dict_to_json([str(uuid) for uuid in getattr(flow, 'flow_collection', [])]),
+                # Soft delete fields with default values
+                'deleted': False,
+                'deleted_at': None,
+                'deleted_by': None
             }
             # Insert into VAST database as dict of lists
             self.db_manager.insert('flows', {k: [v] for k, v in flow_data.items()})
@@ -571,6 +620,8 @@ class VASTStore:
         try:
             # Query for specific flow
             predicate = (ibis_.id == flow_id)
+            # Add soft delete filtering
+            predicate = self._add_soft_delete_predicate(predicate)
             results = self.db_manager.select('flows', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -597,7 +648,10 @@ class VASTStore:
                 'updated': row['updated'],
                 'tags': Tags(self._json_to_dict(row['tags'])),
                 'container': row['container'] if row['container'] else None,
-                'read_only': row['read_only']
+                'read_only': row['read_only'],
+                'deleted': row.get('deleted', False),
+                'deleted_at': row.get('deleted_at'),
+                'deleted_by': row.get('deleted_by')
             }
             
             # Add format-specific fields
@@ -642,11 +696,14 @@ class VASTStore:
     async def create_flow_segment(self, segment: FlowSegment, flow_id: str, data: bytes, content_type: str = "application/octet-stream") -> bool:
         """Create a new flow segment: store data in S3 and metadata in VAST DB"""
         try:
-            # Store segment data in S3
-            s3_success = await self.s3_store.store_flow_segment(flow_id, segment, data, content_type)
-            if not s3_success:
-                logger.error(f"Failed to store flow segment data in S3 for flow {flow_id}")
-                return False
+            # Store segment data in S3 only if data is not empty
+            if data:
+                s3_success = await self.s3_store.store_flow_segment(flow_id, segment, data, content_type)
+                if not s3_success:
+                    logger.error(f"Failed to store flow segment data in S3 for flow {flow_id}")
+                    return False
+            else:
+                logger.info(f"Skipping S3 storage for empty segment data in flow {flow_id}")
             # Store only segment metadata in VAST DB
             start_time, end_time, duration = self._parse_timerange(segment.timerange)
             get_urls_objs = await self.s3_store.create_get_urls(flow_id, segment.object_id, segment.timerange)
@@ -681,6 +738,10 @@ class VASTStore:
             if timerange:
                 target_start, target_end, _ = self._parse_timerange(timerange)
                 predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)
+            
+            # Add soft delete filtering
+            predicate = self._add_soft_delete_predicate(predicate)
+            
             results = self.db_manager.select('segments', predicate=predicate, output_by_row=True)
             segments = []
             if isinstance(results, list):
@@ -713,7 +774,11 @@ class VASTStore:
                 'size': obj.size or 0,
                 'created': obj.created or datetime.now(timezone.utc),
                 'last_accessed': datetime.now(timezone.utc),
-                'access_count': 0
+                'access_count': 0,
+                # Soft delete fields with default values
+                'deleted': False,
+                'deleted_at': None,
+                'deleted_by': None
             }
             # Insert into VAST database as dict of lists
             self.db_manager.insert('objects', {k: [v] for k, v in object_data.items()})
@@ -728,6 +793,8 @@ class VASTStore:
         try:
             # Query for specific object
             predicate = (ibis_.object_id == object_id)
+            # Add soft delete filtering
+            predicate = self._add_soft_delete_predicate(predicate)
             results = self.db_manager.select('objects', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -768,6 +835,7 @@ class VASTStore:
             logger.error(f"Failed to get object {object_id}: {e}")
             return None
     
+    @trace_operation("analytics_query")
     async def analytics_query(self, query_type: str, **kwargs) -> Dict[str, Any]:
         """
         Perform analytics queries on VAST data
@@ -780,19 +848,30 @@ class VASTStore:
             Analytics results
         """
         try:
+            start_time = time.time()
+            
             if query_type == "flow_usage":
-                return await self._flow_usage_analytics(**kwargs)
+                result = await self._flow_usage_analytics(**kwargs)
             elif query_type == "storage_usage":
-                return await self._storage_usage_analytics(**kwargs)
+                result = await self._storage_usage_analytics(**kwargs)
             elif query_type == "time_range_analysis":
-                return await self._time_range_analysis(**kwargs)
+                result = await self._time_range_analysis(**kwargs)
             elif query_type == "catalog_summary":
-                return await self._catalog_summary(**kwargs)
+                result = await self._catalog_summary(**kwargs)
             else:
                 raise ValueError(f"Unknown analytics query type: {query_type}")
+            
+            # Record performance metrics
+            duration = time.time() - start_time
+            telemetry_manager.record_performance_metrics(
+                f"analytics_{query_type}", duration, "vast"
+            )
+            
+            return result
                 
         except Exception as e:
             logger.error(f"Analytics query failed: {e}")
+            telemetry_manager.record_error("vast_query_error", f"analytics_{query_type}", str(e))
             return {"error": str(e)}
     
     async def _flow_usage_analytics(self, **kwargs) -> Dict[str, Any]:
@@ -1023,7 +1102,11 @@ class VASTStore:
                 if 'frame_height' in filters:
                     conditions.append((ibis_.frame_height == filters['frame_height']))
                 if conditions:
-                    predicate = conditions[0] if len(conditions) == 1 else (conditions[0] & conditions[1])            
+                    predicate = conditions[0] if len(conditions) == 1 else (conditions[0] & conditions[1])
+            
+            # Add soft delete filtering
+            predicate = self._add_soft_delete_predicate(predicate)
+            
             # Query flows
             results = self.db_manager.select('flows', predicate=predicate, output_by_row=True)
             
@@ -1106,7 +1189,98 @@ class VASTStore:
         logger.info("Closing VAST store")
         # The vastdbmanager handles its own connection cleanup 
 
-    async def update_source(self, source: Source) -> bool:
+    def _add_soft_delete_predicate(self, predicate=None):
+        """Add soft delete predicate to exclude deleted records from queries."""
+        from ibis import _ as ibis_
+        
+        # Base predicate to exclude soft-deleted records
+        soft_delete_predicate = (ibis_.deleted.isnull() | (ibis_.deleted == False))
+        
+        if predicate is None:
+            return soft_delete_predicate
+        else:
+            return predicate & soft_delete_predicate
+    
+    async def soft_delete_record(self, table_name: str, record_id: str, deleted_by: str) -> bool:
+        """Soft delete a record by marking it as deleted."""
+        try:
+            from datetime import datetime, timezone
+            
+            # Update the record to mark it as soft deleted
+            update_data = {
+                'deleted': True,
+                'deleted_at': datetime.now(timezone.utc),
+                'deleted_by': deleted_by
+            }
+            
+            # Create predicate to find the record
+            from ibis import _ as ibis_
+            predicate = (ibis_.id == record_id) if table_name != 'objects' else (ibis_.object_id == record_id)
+            
+            # Update the record
+            updated_count = self.db_manager.update(table_name, update_data, predicate)
+            
+            if updated_count > 0:
+                logger.info(f"Soft deleted record {record_id} from table {table_name}")
+                return True
+            else:
+                logger.warning(f"Record {record_id} not found in table {table_name} for soft delete")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to soft delete record {record_id} from table {table_name}: {e}")
+            return False
+    
+    async def hard_delete_record(self, table_name: str, record_id: str) -> bool:
+        """Hard delete a record by removing it from the database."""
+        try:
+            # Create predicate to find the record
+            from ibis import _ as ibis_
+            predicate = (ibis_.id == record_id) if table_name != 'objects' else (ibis_.object_id == record_id)
+            
+            # Delete the record
+            deleted_count = self.db_manager.delete(table_name, predicate)
+            
+            if deleted_count > 0:
+                logger.info(f"Hard deleted record {record_id} from table {table_name}")
+                return True
+            else:
+                logger.warning(f"Record {record_id} not found in table {table_name} for hard delete")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to hard delete record {record_id} from table {table_name}: {e}")
+            return False
+    
+    async def restore_record(self, table_name: str, record_id: str) -> bool:
+        """Restore a soft-deleted record by unmarking it as deleted."""
+        try:
+            # Update the record to unmark it as soft deleted
+            update_data = {
+                'deleted': False,
+                'deleted_at': None,
+                'deleted_by': None
+            }
+            
+            # Create predicate to find the record
+            from ibis import _ as ibis_
+            predicate = (ibis_.id == record_id) if table_name != 'objects' else (ibis_.object_id == record_id)
+            
+            # Update the record
+            updated_count = self.db_manager.update(table_name, update_data, predicate)
+            
+            if updated_count > 0:
+                logger.info(f"Restored record {record_id} from table {table_name}")
+                return True
+            else:
+                logger.warning(f"Record {record_id} not found in table {table_name} for restore")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to restore record {record_id} from table {table_name}: {e}")
+            return False
+
+    async def update_source(self, source_id: str, source: Source) -> bool:
         """Update an existing source in VAST store"""
         try:
             # Convert source to dictionary
@@ -1125,17 +1299,17 @@ class VASTStore:
             }
             
             # Update in VAST database
-            predicate = (ibis_.id == str(source.id))
+            predicate = (ibis_.id == source_id)
             self.db_manager.update('sources', source_data, predicate)
             
-            logger.info(f"Updated source {source.id} in VAST store")
+            logger.info(f"Updated source {source_id} in VAST store")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to update source {source.id}: {e}")
+            logger.error(f"Failed to update source {source_id}: {e}")
             return False
 
-    async def update_flow(self, flow: Flow) -> bool:
+    async def update_flow(self, flow_id: str, flow: Flow) -> bool:
         """Update an existing flow in VAST store"""
         try:
             # Convert flow to dictionary
@@ -1164,58 +1338,82 @@ class VASTStore:
                 'sample_rate': getattr(flow, 'sample_rate', 0),
                 'bits_per_sample': getattr(flow, 'bits_per_sample', 0),
                 'channels': getattr(flow, 'channels', 0),
+                'max_bit_rate': getattr(flow, 'max_bit_rate', None),
+                'avg_bit_rate': getattr(flow, 'avg_bit_rate', None),
                 'flow_collection': self._dict_to_json([str(uuid) for uuid in getattr(flow, 'flow_collection', [])])
             }
             
             # Update in VAST database
-            predicate = (ibis_.id == str(flow.id))
+            predicate = (ibis_.id == flow_id)
             self.db_manager.update('flows', flow_data, predicate)
             
-            logger.info(f"Updated flow {flow.id} in VAST store")
+            logger.info(f"Updated flow {flow_id} in VAST store")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to update flow {flow.id}: {e}")
+            logger.error(f"Failed to update flow {flow_id}: {e}")
             return False
 
-    async def delete_flow(self, flow_id: str) -> bool:
+    async def delete_flow(self, flow_id: str, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system") -> bool:
         """Delete a flow from VAST store"""
         try:
-            # Delete from VAST database
-            predicate = (ibis_.id == flow_id)
-            deleted_count = self.db_manager.delete('flows', predicate)
-            
-            if deleted_count > 0:
-                logger.info(f"Deleted flow {flow_id} from VAST store")
-                return True
+            if soft_delete:
+                # Soft delete - mark as deleted
+                success = await self.soft_delete_record('flows', flow_id, deleted_by)
+                if success and cascade:
+                    # Also soft delete associated segments
+                    await self.delete_flow_segments(flow_id, soft_delete=True, deleted_by=deleted_by)
+                return success
             else:
-                logger.warning(f"Flow {flow_id} not found for deletion")
-                return False
+                # Hard delete - physically remove
+                if cascade:
+                    # Also hard delete associated segments
+                    await self.delete_flow_segments(flow_id, soft_delete=False, deleted_by=deleted_by)
+                
+                # Delete from VAST database
+                predicate = (ibis_.id == flow_id)
+                deleted_count = self.db_manager.delete('flows', predicate)
+                
+                if deleted_count > 0:
+                    logger.info(f"Hard deleted flow {flow_id} from VAST store")
+                    return True
+                else:
+                    logger.warning(f"Flow {flow_id} not found for deletion")
+                    return False
             
         except Exception as e:
             logger.error(f"Failed to delete flow {flow_id}: {e}")
             return False
 
-    async def delete_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> bool:
+    async def delete_flow_segments(self, flow_id: str, timerange: Optional[str] = None, soft_delete: bool = True, deleted_by: str = "system") -> bool:
         """Delete flow segments from VAST store and S3"""
         try:
             # Get segments to delete
             segments = await self.get_flow_segments(flow_id, timerange=timerange)
             
-            for segment in segments:
-                # Delete from S3
-                await self.s3_store.delete_flow_segment(flow_id, segment.object_id, segment.timerange)
-            
-            # Delete from VAST database
-            predicate = (ibis_.flow_id == flow_id)
-            if timerange:
-                target_start, target_end, _ = self._parse_timerange(timerange)
-                predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)
-            
-            deleted_count = self.db_manager.delete('segments', predicate)
-            
-            logger.info(f"Deleted {deleted_count} flow segments for flow {flow_id}")
-            return True
+            if soft_delete:
+                # Soft delete - mark segments as deleted
+                for segment in segments:
+                    await self.soft_delete_record('segments', segment.object_id, deleted_by)
+                
+                logger.info(f"Soft deleted {len(segments)} flow segments for flow {flow_id}")
+                return True
+            else:
+                # Hard delete - physically remove segments and S3 data
+                for segment in segments:
+                    # Delete from S3
+                    await self.s3_store.delete_flow_segment(flow_id, segment.object_id, segment.timerange)
+                
+                # Delete from VAST database
+                predicate = (ibis_.flow_id == flow_id)
+                if timerange:
+                    target_start, target_end, _ = self._parse_timerange(timerange)
+                    predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)
+                
+                deleted_count = self.db_manager.delete('segments', predicate)
+                
+                logger.info(f"Hard deleted {deleted_count} flow segments for flow {flow_id}")
+                return True
             
         except Exception as e:
             logger.error(f"Failed to delete flow segments for flow {flow_id}: {e}")
@@ -1238,7 +1436,11 @@ class VASTStore:
                         url=row['url'],
                         api_key_name=row['api_key_name'],
                         api_key_value=row.get('api_key_value'),
-                        events=events
+                        events=events,
+                        # Ownership fields for TAMS API v6.0 compliance
+                        owner_id=row.get('owner_id'),
+                        created_by=row.get('created_by'),
+                        created=row.get('created')
                     )
                     webhooks.append(webhook)
             
@@ -1257,6 +1459,9 @@ class VASTStore:
                 'api_key_name': webhook.api_key_name,
                 'api_key_value': webhook.api_key_value,
                 'events': self._dict_to_json(webhook.events),
+                # Ownership fields for TAMS API v6.0 compliance
+                'owner_id': webhook.owner_id or "system",
+                'created_by': webhook.created_by or "system",
                 'created': datetime.now(timezone.utc),
                 'updated': datetime.now(timezone.utc)
             }
@@ -1353,50 +1558,79 @@ class VASTStore:
             logger.error(f"Failed to get deletion request {request_id}: {e}")
             return None 
 
-    async def delete_source(self, source_id: str) -> bool:
+    async def delete_source(self, source_id: str, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system") -> bool:
         """
         Delete a source from the VAST store by its unique identifier.
 
         Args:
             source_id (str): The unique identifier of the source to delete.
+            soft_delete (bool): If True, mark as deleted instead of physically removing.
+            cascade (bool): If True, also delete associated flows.
+            deleted_by (str): User or system performing the deletion.
 
         Returns:
             bool: True if the source was deleted, False if not found or deletion failed.
         """
         try:
-            from ibis import _ as ibis_
-            predicate = (ibis_.id == source_id)
-            deleted_count = self.db_manager.delete('sources', predicate)
-            if deleted_count > 0:
-                logger.info(f"Deleted source {source_id} from VAST store")
-                return True
+            if soft_delete:
+                # Soft delete - mark as deleted
+                success = await self.soft_delete_record('sources', source_id, deleted_by)
+                if success and cascade:
+                    # Also soft delete associated flows
+                    flows = await self.list_flows({'source_id': source_id})
+                    for flow in flows:
+                        await self.delete_flow(str(flow.id), soft_delete=True, cascade=True, deleted_by=deleted_by)
+                return success
             else:
-                logger.warning(f"Source {source_id} not found for deletion")
-                return False
+                # Hard delete - physically remove
+                if cascade:
+                    # Also hard delete associated flows
+                    flows = await self.list_flows({'source_id': source_id})
+                    for flow in flows:
+                        await self.delete_flow(str(flow.id), soft_delete=False, cascade=True, deleted_by=deleted_by)
+                
+                # Delete from VAST database
+                from ibis import _ as ibis_
+                predicate = (ibis_.id == source_id)
+                deleted_count = self.db_manager.delete('sources', predicate)
+                if deleted_count > 0:
+                    logger.info(f"Hard deleted source {source_id} from VAST store")
+                    return True
+                else:
+                    logger.warning(f"Source {source_id} not found for hard deletion")
+                    return False
         except Exception as e:
             logger.error(f"Failed to delete source {source_id}: {e}")
             return False 
 
-    async def delete_object(self, object_id: str) -> bool:
+    async def delete_object(self, object_id: str, soft_delete: bool = True, deleted_by: str = "system") -> bool:
         """
         Delete an object from the VAST store by its unique identifier.
 
         Args:
             object_id (str): The unique identifier of the object to delete.
+            soft_delete (bool): If True, mark as deleted instead of physically removing.
+            deleted_by (str): User or system performing the deletion.
 
         Returns:
             bool: True if the object was deleted, False if not found or deletion failed.
         """
         try:
-            from ibis import _ as ibis_
-            predicate = (ibis_.object_id == object_id)
-            deleted_count = self.db_manager.delete('objects', predicate)
-            if deleted_count > 0:
-                logger.info(f"Deleted object {object_id} from VAST store")
-                return True
+            if soft_delete:
+                # Soft delete - mark as deleted
+                success = await self.soft_delete_record('objects', object_id, deleted_by)
+                return success
             else:
-                logger.warning(f"Object {object_id} not found for deletion")
-                return False
+                # Hard delete - physically remove
+                from ibis import _ as ibis_
+                predicate = (ibis_.object_id == object_id)
+                deleted_count = self.db_manager.delete('objects', predicate)
+                if deleted_count > 0:
+                    logger.info(f"Hard deleted object {object_id} from VAST store")
+                    return True
+                else:
+                    logger.warning(f"Object {object_id} not found for hard deletion")
+                    return False
         except Exception as e:
             logger.error(f"Failed to delete object {object_id}: {e}")
             return False 

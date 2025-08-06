@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     
     # API settings
     api_title: str = "TAMS API"
-    api_version: str = "6.0.0"
+    api_version: str = "6.0"
     api_description: str = "Time-addressable Media Store API"
     
     # Server settings
@@ -22,21 +22,21 @@ class Settings(BaseSettings):
     debug: bool = True
     
     # VAST Database settings
-    vast_endpoint: str = "http://172.200.204.1"
+    vast_endpoint: str = "http://100.100.0.1:9090"
     vast_access_key: str = "SRSPW0DQT9T70Y787U68"
     vast_secret_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
-    vast_bucket: str = "jthaloor-db"
-    vast_schema: str = "bbctams"
+    vast_bucket: str = "tamsdb"
+    vast_schema: str = "tams"
     
     # Logging settings
     log_level: str = "INFO"
     log_format: str = "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
     
     # S3 settings for flow segment storage
-    s3_endpoint_url: str = "http://172.200.204.1"
+    s3_endpoint_url: str = "http://100.100.0.2:9090"
     s3_access_key_id: str = "SRSPW0DQT9T70Y787U68"
     s3_secret_access_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
-    s3_bucket_name: str = "jthaloor-s3"
+    s3_bucket_name: str = "tamsbucket"
     s3_use_ssl: bool = False
     
     class Config:

@@ -23,8 +23,11 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy application code
 COPY . .
 
+# Set environment variables for build
+ENV PYTHONPATH=/app
+
 # Generate OpenAPI specification
-RUN python generate_openapi.py
+RUN python mgmt/generate_openapi.py
 
 # Create data directories and set permissions
 RUN mkdir -p /app/vast_data /app/logs /app/temp \

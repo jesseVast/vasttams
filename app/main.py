@@ -42,6 +42,7 @@ from app.sources_router import router as sources_router
 from app.objects_router import router as objects_router
 from app.analytics_router import router as analytics_router
 from .dependencies import get_vast_store, set_vast_store
+from .telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -85,20 +86,11 @@ def custom_openapi() -> Dict[str, Any]:
     """Generate custom OpenAPI schema"""
     if app.openapi_schema:
         return cast(Dict[str, Any], app.openapi_schema)
-    # Try to load from file first
-    openapi_file = os.path.join(os.path.dirname(__file__), "..", "api", "openapi.json")
-    if os.path.exists(openapi_file):
-        try:
-            with open(openapi_file, 'r') as f:
-                app.openapi_schema = json.load(f)
-                return cast(Dict[str, Any], app.openapi_schema)
-        except Exception as e:
-            logger.warning(f"Failed to load OpenAPI file: {e}")
-    # Fallback to auto-generated schema
+    # Always use auto-generated schema to include all registered routes
     try:
         app.openapi_schema = get_openapi(
             title="TAMS API",
-            version="6.0.0",
+            version="6.0",
             description="Time-addressable Media Store API",
             routes=app.routes,
         )
@@ -111,11 +103,18 @@ def custom_openapi() -> Dict[str, Any]:
 app = FastAPI(
     title="TAMS API",
     description="Time-addressable Media Store API",
-    version="6.0.0",
+    version="6.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
 )
+
+# Initialize telemetry
+telemetry_manager.initialize("tams-api", "6.0")
+telemetry_manager.instrument_fastapi(app)
+
+# Add telemetry middleware
+app.middleware("http")(telemetry_middleware)
 
 # Set custom OpenAPI schema
 app.openapi = custom_openapi
@@ -203,7 +202,11 @@ async def create_webhook(
         return Webhook(
             url=webhook.url,
             api_key_name=webhook.api_key_name,
-            events=webhook.events
+            events=webhook.events,
+            # Ownership fields for TAMS API v6.0 compliance
+            owner_id=webhook.owner_id,
+            created_by=webhook.created_by,
+            created=datetime.now(timezone.utc)
         )
         
     except HTTPException:
@@ -297,7 +300,13 @@ async def process_deletion_request(deletion_request: DeletionRequest):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return enhanced_health_check()
+
+# Prometheus metrics endpoint
+@app.get("/metrics")
+async def get_metrics():
+    """Prometheus metrics endpoint"""
+    return metrics_endpoint()
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000) 

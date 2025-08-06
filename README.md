@@ -10,12 +10,15 @@ A comprehensive FastAPI implementation of the BBC TAMS API specification with VA
 - **Time-Series Analytics**: Optimized for media flow segments with time ranges
 - **RESTful API**: Complete CRUD operations for sources, flows, segments, and objects
 - **Analytics Endpoints**: Built-in analytics for flow usage, storage patterns, and time analysis
+- **Comprehensive Observability**: Prometheus metrics, OpenTelemetry tracing, and Grafana dashboards
 - **Modular Architecture**: Clean separation of concerns with dedicated routers for each domain
 - **Webhook Support**: Event-driven notifications for media operations
 - **Docker Support**: Containerized deployment with Docker and docker-compose
 - **Kubernetes Ready**: Complete K8s manifests for production deployment
 - **Comprehensive Testing**: Automated test suite for all endpoints
 - **Pydantic v2 Compatible**: Modern data validation with RootModel support
+- **Soft Delete Extension**: Vendor-specific enhancement with optional soft delete and cascade delete capabilities
+- **Data Integrity**: Maintains referential integrity with cascade operations
 
 ## 🏗️ Architecture
 
@@ -69,6 +72,14 @@ The VAST store creates the following tables with optimized schemas:
 - **webhooks**: Event notification configuration
 - **deletion_requests**: Media deletion tracking
 
+#### Soft Delete Schema Fields
+All tables include soft delete fields for data integrity:
+- `deleted` (boolean) - Flag indicating if record is soft-deleted
+- `deleted_at` (timestamp) - When the record was soft-deleted
+- `deleted_by` (string) - User/system that performed the soft deletion
+
+Soft-deleted records are automatically excluded from all query operations to maintain data consistency.
+
 ## 📁 Project Structure
 
 ```
@@ -82,6 +93,8 @@ bbctams/
 │   ├── vast_store.py           # VAST database store
 │   ├── vastdbmanager.py        # VAST database manager
 │   ├── s3_store.py             # S3 storage manager
+│   ├── telemetry.py            # Telemetry and observability
+│   ├── utils.py                # Utility functions and helpers
 │   ├── flows.py                # Flow business logic
 │   ├── segments.py             # Segment business logic
 │   ├── sources.py              # Source business logic
@@ -97,9 +110,17 @@ bbctams/
 │   └── TimeAddressableMediaStore.yaml
 ├── tests/                      # Test suite
 ├── k8s/                        # Kubernetes manifests
+├── observability/              # Observability stack config
+│   ├── prometheus/             # Prometheus configuration
+│   ├── grafana/                # Grafana dashboards and config
+│   └── alertmanager/           # Alertmanager configuration
 ├── docker-compose.yml
+├── docker-compose.observability.yml  # Observability stack
+├── start-observability.sh      # Observability startup script
 ├── Dockerfile
 ├── requirements.txt
+├── OBSERVABILITY.md            # Detailed observability documentation
+├── SOFT_DELETE_EXTENSION.md    # Soft delete extension documentation
 └── README.md
 ```
 
@@ -167,6 +188,115 @@ bbctams/
 - `POST /flow-delete-requests` - Create deletion request
 - `GET /flow-delete-requests/{id}` - Get deletion request by ID
 
+## 🔒 Soft Delete Extension
+
+This implementation extends the official TAMS API specification with comprehensive soft delete functionality. This is a **vendor-specific enhancement** that provides data safety and audit capabilities beyond the base specification.
+
+### Extension Overview
+
+The soft delete extension adds the following capabilities to the standard TAMS API:
+
+- **Soft Delete Operations**: Records are marked as deleted instead of being physically removed
+- **Audit Trail**: Complete tracking of who deleted what and when
+- **Cascade Delete**: Automatic deletion of related records
+- **Data Recovery**: Ability to restore soft-deleted records
+- **Query Filtering**: Automatic exclusion of soft-deleted records from queries
+
+### Schema Extensions
+
+All database tables include additional soft delete fields:
+
+```json
+{
+  "deleted": false,           // Boolean flag indicating soft-deleted state
+  "deleted_at": null,         // ISO 8601 timestamp of deletion
+  "deleted_by": null          // String identifier of user/system that performed deletion
+}
+```
+
+### API Extensions
+
+#### Delete Endpoint Parameters
+
+All delete endpoints support these additional parameters:
+
+- `soft_delete` (bool, default: `true`) - Perform soft delete (flag as deleted) or hard delete (remove from database)
+- `cascade` (bool, default: `true`) - Cascade delete to associated records
+- `deleted_by` (string, default: `"system"`) - User/system performing the deletion
+
+#### Examples
+
+```bash
+# Soft delete a source (default behavior)
+DELETE /sources/{id}?soft_delete=true&cascade=true&deleted_by=user123
+
+# Hard delete a source with cascade
+DELETE /sources/{id}?soft_delete=false&cascade=true&deleted_by=admin
+
+# Soft delete a flow without cascading to segments
+DELETE /flows/{id}?soft_delete=true&cascade=false&deleted_by=editor
+
+# Hard delete flow segments (removes S3 data)
+DELETE /flows/{id}/segments?soft_delete=false&deleted_by=admin
+```
+
+#### Cascade Delete Behavior
+- **Source Deletion**: When `cascade=true`, deletes all associated flows and their segments
+- **Flow Deletion**: When `cascade=true`, deletes all associated segments
+- **Segment Deletion**: When `soft_delete=false`, also deletes S3 data; when `soft_delete=true`, preserves S3 data
+- **Object Deletion**: Standalone deletion without cascade
+
+### Query Behavior
+
+**Important**: This extension automatically excludes soft-deleted records from all query operations by default. This ensures data consistency and prevents accidental exposure of deleted data.
+
+#### Current Query Behavior
+
+- ✅ **Sources List**: Automatically excludes soft-deleted sources
+- ✅ **Flows List**: Automatically excludes soft-deleted flows
+- ✅ **Segments List**: Automatically excludes soft-deleted segments
+
+#### Future Enhancements
+
+The following query parameters may be added in future versions:
+
+```bash
+# Proposed future parameters (not yet implemented)
+GET /sources?include_deleted=true          # Include soft-deleted records
+GET /sources?deleted_only=true             # Show only soft-deleted records
+GET /sources?deleted_state=all             # Show all records (active + deleted)
+```
+
+### Data Integrity
+
+The soft delete extension maintains referential integrity through cascade operations:
+
+1. **Source Deletion**: When a source is soft-deleted, all associated flows are also soft-deleted
+2. **Flow Deletion**: When a flow is soft-deleted, all associated segments are also soft-deleted
+3. **Restore Operations**: Restoring a parent record does not automatically restore child records
+
+### Compliance Note
+
+This soft delete functionality is **NOT part of the official TAMS API specification**. It is a vendor-specific enhancement that provides additional data safety and audit capabilities. Implementations that require strict compliance with the official specification should:
+
+1. Disable soft delete functionality, OR
+2. Document this as a non-standard extension, OR
+3. Implement the official specification without these enhancements
+
+### Configuration
+
+Soft delete functionality is enabled by default and cannot be disabled through configuration. The behavior is hardcoded to provide consistent data safety across all operations.
+
+### Detailed Documentation
+
+For comprehensive information about the soft delete extension, including implementation details, troubleshooting, and future enhancements, see:
+
+📖 **[SOFT_DELETE_EXTENSION.md](SOFT_DELETE_EXTENSION.md)** - Complete soft delete extension documentation
+
+### Observability Endpoints
+- `GET /metrics` - Prometheus metrics endpoint
+- `GET /health` - Enhanced health check with system metrics
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -197,6 +327,8 @@ bbctams/
 4. **Run the application**
    ```bash
    python run.py
+   # Or use the development server
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
 5. **Access the API**
@@ -204,6 +336,7 @@ bbctams/
    - Interactive Documentation: http://localhost:8000/docs
    - ReDoc Documentation: http://localhost:8000/redoc
    - Health Check: http://localhost:8000/health
+   - Metrics: http://localhost:8000/metrics
 
 ### Docker Deployment
 
@@ -230,6 +363,34 @@ bbctams/
    kubectl get pods -n tams
    kubectl get services -n tams
    ```
+
+### Observability Stack
+
+1. **Start the observability stack**
+   ```bash
+   ./start-observability.sh
+   ```
+
+2. **Access observability tools**
+   - **Grafana Dashboard**: http://localhost:3000 (admin/admin)
+   - **Prometheus**: http://localhost:9090
+   - **Jaeger Tracing**: http://localhost:16686
+   - **Alertmanager**: http://localhost:9093
+
+3. **View TAMS metrics**
+   - **Prometheus Metrics**: http://localhost:8000/metrics
+   - **Enhanced Health**: http://localhost:8000/health
+
+#### **Telemetry Features**
+
+- **Prometheus Metrics**: HTTP, business, performance, and system metrics
+- **OpenTelemetry Tracing**: Distributed tracing with correlation IDs
+- **Enhanced Logging**: Structured logging with telemetry context
+- **Health Checks**: System metrics and dependency health
+- **Pre-configured Dashboards**: Ready-to-use Grafana dashboards
+- **Alerting**: Configurable alerts for critical metrics
+
+For detailed observability documentation, see [OBSERVABILITY.md](OBSERVABILITY.md).
 
 ## ⚙️ Configuration
 
@@ -266,11 +427,11 @@ SECRET_KEY=your-secret-key-here-change-in-production
 
 ### VAST Database Configuration
 
-The application uses the following VAST database settings:
+The application uses the following VAST database settings (already included above):
 
 ```env
 # VAST Database settings
-VAST_ENDPOINT=http://main.vast.acme.com/
+VAST_ENDPOINT=http://main.vast.acme.com
 VAST_ACCESS_KEY=test-access-key
 VAST_SECRET_KEY=test-secret-key
 VAST_BUCKET=tams-bucket
@@ -355,16 +516,30 @@ Comprehensive unit tests are provided for all major manager classes:
 
 Unit tests use `pytest` and mock dependencies for isolated logic testing.
 
-### Integration Test
+### Integration Tests
 
-A full integration test (`tests/test_integration_api.py`) covers the end-to-end API flow:
-- Create source
-- Create flow
-- Create object
-- Create segment (with file upload)
-- Retrieve and validate all entities
-- Delete all entities and confirm deletion
+Multiple integration test suites provide comprehensive coverage:
+
+#### **Real Database Integration** (`tests/test_integration_real_db.py`)
+- Full end-to-end testing with real VAST database and S3 storage
+- Tests all CRUD operations, soft delete functionality, and cascade operations
 - Validates data integrity and error handling
+- Tests analytics queries and comprehensive workflows
+
+#### **VAST Integration** (`tests/test_vast_integration.py`)
+- Tests VAST database connectivity and operations
+- Validates schema management and table operations
+- Tests analytics and statistics functionality
+
+#### **API Integration** (`tests/test_integration_api.py`)
+- Tests the complete API flow with HTTP requests
+- Validates request/response formats and error handling
+- Tests file upload/download functionality
+
+#### **Soft Delete Integration** (`tests/test_soft_delete.py`)
+- Comprehensive testing of soft delete functionality
+- Tests cascade delete operations and restore functionality
+- Validates soft delete filtering in all list operations
 
 ### Running Tests
 
@@ -385,18 +560,31 @@ pytest tests/test_segment_manager.py
 pytest tests/test_source_manager.py
 pytest tests/test_object_manager.py
 pytest tests/test_integration_api.py
+pytest tests/test_integration_real_db.py
+pytest tests/test_vast_integration.py
+pytest tests/test_soft_delete.py
+```
+
+Run the full integration test suite:
+```bash
+python run_integration_tests.py
 ```
 
 ### Test Coverage
 - All CRUD operations and edge cases for flows, segments, sources, and objects
-- End-to-end API integration
+- End-to-end API integration with real database and S3 storage
+- Soft delete functionality and cascade operations
+- Analytics queries and comprehensive workflows
 - Error handling and data validation
+- VAST database connectivity and operations
 
 ### Best Practices
 - All tests use descriptive names and docstrings
 - Mock external dependencies for unit tests
-- Integration test assumes API is running at `http://localhost:8000`
+- Integration tests use real database and S3 storage for comprehensive validation
+- API integration tests assume API is running at `http://localhost:8000`
 - Update and expand tests as new features are added
+- Run full integration test suite before deploying changes
 
 ## 🔧 Development
 
@@ -412,6 +600,8 @@ bbctams/
 │   ├── vast_store.py           # VAST database store
 │   ├── vastdbmanager.py        # VAST database manager
 │   ├── s3_store.py             # S3 storage manager
+│   ├── telemetry.py            # Telemetry and observability
+│   ├── utils.py                # Utility functions and helpers
 │   ├── flows.py                # Flow business logic
 │   ├── segments.py             # Segment business logic
 │   ├── sources.py              # Source business logic
@@ -468,6 +658,7 @@ The OpenAPI specification includes:
 - Apache Arrow schemas for type safety
 - Optimized table structures for TAMS data types
 - Vectorized operations for analytics
+- Soft delete support with automatic filtering
 
 #### Transaction Support
 The vastdbmanager provides transaction support:
@@ -547,20 +738,42 @@ url = await s3_store.generate_presigned_url(
 
 ## 🔒 Security
 
+### ✅ Implemented Security Features
 - **Input Validation**: All inputs validated with Pydantic v2 models
-- **Authentication**: API key support for webhooks
-- **Authorization**: Role-based access control (configurable)
-- **HTTPS**: TLS/SSL support for production deployments
-- **Rate Limiting**: Configurable rate limiting for API endpoints
-- **CORS**: Configurable Cross-Origin Resource Sharing
+- **Webhook Authentication**: API key support for webhook endpoints
+- **Database Authentication**: VAST database access key/secret key
+- **Storage Authentication**: S3 access key/secret key
+- **Soft Delete**: Data safety with audit trails and recovery capabilities
 
-## 📊 Monitoring
+### ⚠️ Security Considerations
+- **No User Authentication**: OAuth2/JWT not implemented
+- **No Authorization**: Role-based access control not implemented
+- **No Rate Limiting**: Request rate limiting not implemented
+- **No CORS**: Cross-Origin Resource Sharing not configured
+- **No Security Headers**: Security header enforcement not implemented
 
-- **Health Checks**: Built-in health check endpoint
-- **Logging**: Comprehensive logging with configurable levels
-- **Metrics**: Built-in analytics and usage statistics
-- **Error Tracking**: Detailed error responses and logging
-- **Performance**: VAST database performance monitoring
+### 🔧 Production Security Recommendations
+- Implement OAuth2/JWT authentication for user management
+- Add role-based authorization for sensitive endpoints
+- Configure rate limiting to prevent abuse
+- Set up CORS for web application integration
+- Add security headers (HSTS, CSP, etc.)
+- Use HTTPS/TLS in production deployments
+- Implement audit logging for security events
+
+For detailed security setup instructions, see [SECURITY.md](SECURITY.md).
+
+## 📊 Monitoring & Observability
+
+- **Comprehensive Telemetry**: Prometheus metrics, OpenTelemetry tracing, and structured logging
+- **Health Checks**: Enhanced health endpoint with system metrics and dependency status
+- **Real-time Monitoring**: Live metrics collection and visualization with Grafana
+- **Distributed Tracing**: Request tracking across services with Jaeger integration
+- **Alerting**: Configurable alerts for performance, errors, and business metrics
+- **Performance Monitoring**: VAST database and S3 operation performance tracking
+- **Business Metrics**: Sources, flows, segments, and storage usage analytics
+
+For complete observability setup and configuration, see [OBSERVABILITY.md](OBSERVABILITY.md).
 
 ## 🤝 Contributing
 
@@ -631,3 +844,10 @@ If S3 storage operations fail:
 - [ ] Plugin system for custom storage backends
 - [ ] Performance optimization for large-scale deployments
 - [ ] Integration with popular media processing tools
+- [ ] Advanced observability features (custom dashboards, alerting rules)
+- [ ] Service mesh integration for distributed tracing
+- [ ] Metrics aggregation and long-term storage
+- [ ] Automated performance baselining and anomaly detection
+- [ ] Enhanced soft delete query parameters (include_deleted, deleted_only, deleted_state)
+- [ ] Bulk operations for soft delete and restore
+- [ ] Advanced audit trail and compliance reporting

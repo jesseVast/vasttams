@@ -46,9 +46,9 @@ servers:
         description: API version
         default: v6.0
 security:
-  - bearer_token_auth: []
-  - url_token_auth: []
+  - {}
   - basic_auth: []
+  - bearer_token_auth: []
 paths:
   /:
     head:
@@ -236,11 +236,6 @@ paths:
             is performed.
           schema:
             type: boolean
-        - name: format
-          in: query
-          description: Filter on source format.
-          schema:
-            $ref: '#/components/schemas/contentformat'
         - $ref: '#/components/parameters/trait_resource_paged_key'
         - $ref: '#/components/parameters/trait_paged_limit'
       responses:
@@ -866,10 +861,6 @@ paths:
                   summary: Video Flow - Uncompressed (Quicktime)
                   value:
                     $ref: examples/flow-get-200-video-raw.json
-                jpegimage:
-                  summary: Image Flow - JPEG Codec
-                  value:
-                    $ref: examples/flow-get-200-image-jpeg.json
                 ttml:
                   summary: Data Flow - TTML
                   description: TAMS can also be used for storing non-AV content such as subtitles or event data
@@ -1697,13 +1688,14 @@ paths:
         "404":
           description: The flow ID in the path is invalid.
     post:
-      summary: Create Flow Segments
+      summary: Create Flow Segment
       description: |
-        Register either a single new flow segment or an array of segments, attaching the object id given to a point in the flow timeline.
+        Register a new flow segment, attaching the object id given to a point in the flow timeline.
 
         The segment may use a newly-written object, or re-use an existing object from another flow.
 
         For newly-written objects, the client is responsible for ensuring that the segment written to the store obeys the following restrictions:
+        - The object id provided for a segment MUST be one which was received in a POST from /storage for this flow.
         - All samples in the object SHOULD be used by the segment.
         - The timestamps of each sample in the media object MUST equal its position on the Flow timeline, OR `ts_offset` MUST
           be set such that `media_object_ts + ts_offset = segment_ts`
@@ -1711,20 +1703,9 @@ paths:
           undefined if there is an overlap with existing segments and a store may return a 400 error response.
         - The `sample_offset` SHOULD be zero.
 
-        A TAMS SHOULD reject registrations of Flow Segments with a 400 error response if it references a newly created media object
-        in the local TAMS storage that was not intended to be used for the Flow. A TAMS SHOULD accept Flow Segments that reference an
-        existing media object in the local TAMS storage that was originally created for another Flow.
-
-        A TAMS MAY support media objects that are held in external storage in another TAMS or other media storage system. The Flow Segment
-        may in that case require the `get_urls` property to provide the information needed by clients to access the media object.
-
         If a client needs to modify a Flow segment, e.g. to correct metadata such as the `key_frame_count` or add additional
         URLs to `get_urls`, then the client SHOULD first delete the existing segment and then write a new one. The behaviour is
         undefined if the segment exists and a store may return a 400 error response.
-
-        For successful creation of all segments in the request a 201 response should be provided.  If an error is detected when processing
-        a list of segments then processing should continue to try and process the remaining segments.  A 200 response should be returned 
-        listing the failed segments.
 
         Clients are expected to decide how to break content into media objects, however those objects SHOULD be large
         enough to avoid excessive round trip overheads in the underlying store (_e.g._ of the order of several megabytes)
@@ -1747,23 +1728,11 @@ paths:
             example:
               $ref: examples/flow-segment-post.json
             schema:
-              oneOf:
-              - $ref: schemas/flow-segment.json
-              - type: array
-                items:
-                  $ref: schemas/flow-segment.json
+              $ref: schemas/flow-segment.json
         required: true
       responses:
-        "200":
-          description: Partial success creating segments returning list of failed segments.  
-          content:
-            application/json:
-              schema:
-                $ref: schemas/flow-segment-bulk-failure.json
-              example:
-                $ref: examples/flow-segment-partial-failure.json
         "201":
-          description: created. The flow segment or list of segments has been created.
+          description: created. The flow segment has been created.
         "400":
           description: Bad request. Invalid flow segment JSON or the flow 'container' is not set.
         "403":
@@ -1849,17 +1818,10 @@ paths:
       requestBody:
         content:
           application/json:
-            examples:
-              limit:
-                summary: limit
-                value:
-                  $ref: examples/flow-storage-post.json
-              object_ids:
-                summary: object_ids
-                value:
-                  $ref: examples/flow-storage-post-object_ids.json
             schema:
               $ref: schemas/flow-storage-post.json
+            example:
+              $ref: examples/flow-storage-post.json
       responses:
         "201":
           description: Storage locations for writing media objects.
@@ -1870,97 +1832,11 @@ paths:
               example:
                 $ref: examples/flow-storage-post-201.json
         "400":
-          description: Bad request. Invalid flow storage request JSON or the flow 'container' is not set. If object_ids supplied, some or all already exist.
+          description: Bad request. Invalid flow storage request JSON or the flow 'container' is not set.
         "403":
           description: Forbidden. You do not have permission to modify this flow. It may be marked read-only.
         "404":
           description: The requested flow does not exist.
-  /objects/{objectId}:
-    head:
-      summary: Media Object Information
-      description: Return flow references and other information about media objects.
-      operationId: HEAD_objects
-      tags:
-        - Objects
-      parameters:
-        - name: objectId
-          in: path
-          description: The media object identifier.
-          required: true
-          schema:
-            type: string
-        - $ref: '#/components/parameters/trait_resource_paged_key'
-        - $ref: '#/components/parameters/trait_paged_limit'
-      responses:
-        "200":
-          description: ""
-          headers:
-            Link:
-              description: Provides references to cursors for paging. Only the 'rel' attribute with value 'next' and a link to the next page is currently supported. If 'next' is not present then it is the last page.
-              schema:
-                type: string
-            X-Paging-Limit:
-              description: Identifies the current limit being used for paging. This may not match the requested value if the requested value was too high for the implementation
-              schema:
-                type: integer
-            X-Paging-NextKey:
-              description: Opaque string that can be supplied to the `page` query parameter to get the next page of results.
-              schema:
-                type: string
-          content:
-            application/json:
-              schema:
-                type: string
-        "400":
-          $ref: '#/components/responses/trait_resource_info_head_400'
-        "404":
-          description: The requested media object does not exist.
-    get:
-      summary: Media Object Information
-      description: |
-        Contains flows that references the media object and other information.
-
-        The paging query parameters and headers are required for the list of flow references in the media object.
-        API implementations should return a complete list of flow references within reason and API clients should expect
-        paging to happen in some rare cases where a media object is used in many flows.
-      operationId: GET_objects
-      tags:
-        - Objects
-      parameters:
-        - name: objectId
-          in: path
-          description: The media object identifier.
-          required: true
-          schema:
-            type: string
-        - $ref: '#/components/parameters/trait_resource_paged_key'
-        - $ref: '#/components/parameters/trait_paged_limit'
-      responses:
-        "200":
-          description: ""
-          headers:
-            Link:
-              description: Provides references to cursors for paging. Only the 'rel' attribute with value 'next' and a link to the next page is currently supported. If 'next' is not present then it is the last page.
-              schema:
-                type: string
-            X-Paging-Limit:
-              description: Identifies the current limit being used for paging. This may not match the requested value if the requested value was too high for the implementation
-              schema:
-                type: integer
-            X-Paging-NextKey:
-              description: Opaque string that can be supplied to the `page` query parameter to get the next page of results.
-              schema:
-                type: string
-          content:
-            application/json:
-              example:
-                $ref: examples/objects-get-200.json
-              schema:
-                $ref: "schemas/object.json"
-        "400":
-          description: Bad request. Invalid query options.
-        "404":
-          description: The requested media object does not exist.
   /flow-delete-requests:
     head:
       summary: List Flow Delete Requests
@@ -2285,7 +2161,6 @@ components:
       description: Identifies the content format for a flow or source using a URN string.
       enum:
         - urn:x-nmos:format:video
-        - urn:x-tam:format:image
         - urn:x-nmos:format:audio
         - urn:x-nmos:format:data
         - urn:x-nmos:format:multi
@@ -2329,39 +2204,11 @@ components:
     basic_auth:
       type: http
       scheme: basic
-      description: |
-        HTTP basic authentication using a username and password.
-
-        This option should only be used in constrained cases where Bearer tokens are impractical, since the password is
-        intrinsically long-lived, and managing user credentials across systems is difficult compared to using
-        centralised auth (e.g. via OAuth2) with Bearer tokens
+      description: HTTP basic authentication
     bearer_token_auth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
-      description: |
-        HTTP bearer token authentication.
-
-        The method through which a client should acquire a bearer token is assumed to be an OAuth2 grant (either the
-        Authorization Code or Client Credentials grant), however the OpenAPI `OAuth Flow` object cannot be used because
-        it requires that the relevant URLs are known in advance.
-
-        Clients should provide options to allow one (or both) grant types to be configured, as appropriate.
-
-        Where tokens are not JWTs, or are acquired through some other mechanism, the API key method should be used
-        instead.
-    url_token_auth:
-      type: apiKey
-      name: access_token
-      in: query
-      description: |
-        URL token authentication.
-
-        The method through which a client should acquire the token is not specified: it is assumed this takes place in
-        another way, and a TAMS client may well be passed a URL to a store including the token.
-
-        Clients should retain the token in the `access_token` query string parameter, and use it for subsequent store
-        requests in the same session.
+      description: HTTP bearer token authentication
 tags:
   - name: Service
     description: The service root and documentation about the service itself
@@ -2378,8 +2225,6 @@ tags:
   - name: FlowSegments
     description: |
       A timerange segment of a Flow that references a media object in the object store.
-  - name: Objects
-    description: The object in the object store that contains the media essence.
   - name: MediaStorage
     description: The system that stores the media objects referenced by flow segments.
   - name: FlowDeleteRequests

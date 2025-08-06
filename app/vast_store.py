@@ -312,6 +312,9 @@ class VASTStore:
             ('api_key_name', pa.string()),
             ('api_key_value', pa.string()),
             ('events', pa.string()),  # JSON string
+            # Ownership fields for TAMS API v6.0 compliance
+            ('owner_id', pa.string()),
+            ('created_by', pa.string()),
             ('created', pa.timestamp('us')),
             ('updated', pa.timestamp('us'))
         ])
@@ -693,11 +696,14 @@ class VASTStore:
     async def create_flow_segment(self, segment: FlowSegment, flow_id: str, data: bytes, content_type: str = "application/octet-stream") -> bool:
         """Create a new flow segment: store data in S3 and metadata in VAST DB"""
         try:
-            # Store segment data in S3
-            s3_success = await self.s3_store.store_flow_segment(flow_id, segment, data, content_type)
-            if not s3_success:
-                logger.error(f"Failed to store flow segment data in S3 for flow {flow_id}")
-                return False
+            # Store segment data in S3 only if data is not empty
+            if data:
+                s3_success = await self.s3_store.store_flow_segment(flow_id, segment, data, content_type)
+                if not s3_success:
+                    logger.error(f"Failed to store flow segment data in S3 for flow {flow_id}")
+                    return False
+            else:
+                logger.info(f"Skipping S3 storage for empty segment data in flow {flow_id}")
             # Store only segment metadata in VAST DB
             start_time, end_time, duration = self._parse_timerange(segment.timerange)
             get_urls_objs = await self.s3_store.create_get_urls(flow_id, segment.object_id, segment.timerange)
@@ -1430,7 +1436,11 @@ class VASTStore:
                         url=row['url'],
                         api_key_name=row['api_key_name'],
                         api_key_value=row.get('api_key_value'),
-                        events=events
+                        events=events,
+                        # Ownership fields for TAMS API v6.0 compliance
+                        owner_id=row.get('owner_id'),
+                        created_by=row.get('created_by'),
+                        created=row.get('created')
                     )
                     webhooks.append(webhook)
             
@@ -1449,6 +1459,9 @@ class VASTStore:
                 'api_key_name': webhook.api_key_name,
                 'api_key_value': webhook.api_key_value,
                 'events': self._dict_to_json(webhook.events),
+                # Ownership fields for TAMS API v6.0 compliance
+                'owner_id': webhook.owner_id or "system",
+                'created_by': webhook.created_by or "system",
                 'created': datetime.now(timezone.utc),
                 'updated': datetime.now(timezone.utc)
             }

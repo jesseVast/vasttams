@@ -10,7 +10,9 @@ This document describes the comprehensive observability and telemetry features i
 ```
 
 ### Access Points
-- **Grafana Dashboard**: http://localhost:3000 (admin/admin)
+- **Grafana Dashboard**: http://localhost:3000
+  - **Username:** admin
+  - **Password:** admin
 - **Prometheus**: http://localhost:9090
 - **Jaeger Tracing**: http://localhost:16686
 - **Alertmanager**: http://localhost:9093
@@ -125,9 +127,47 @@ You can create additional dashboards for:
 - **Error Analysis** - Error patterns and debugging
 - **Performance Monitoring** - System performance trends
 
-## 🔧 Configuration
+## 🔐 Authentication & Security
 
-### Environment Variables
+### Default Credentials
+
+The observability stack uses the following default credentials:
+
+#### Grafana
+- **URL:** http://localhost:3000
+- **Username:** admin
+- **Password:** admin
+
+#### Other Services
+- **Prometheus:** No authentication required
+- **Jaeger:** No authentication required  
+- **Alertmanager:** No authentication required
+- **TAMS API:** No authentication required
+
+### Security Considerations
+
+⚠️ **Important:** The default credentials (`admin/admin`) are suitable for development and testing environments only. For production deployments:
+
+1. **Change default passwords** - Update Grafana admin password
+2. **Use environment variables** - Set credentials via environment variables
+3. **Implement additional security** - Consider reverse proxy authentication
+4. **Network security** - Restrict access to observability endpoints
+5. **Regular credential rotation** - Implement password rotation policies
+
+### Production Security Setup
+
+For production environments, modify the docker-compose configuration:
+
+```yaml
+grafana:
+  environment:
+    - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+    - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    - GF_USERS_ALLOW_SIGN_UP=false
+    - GF_AUTH_ANONYMOUS_ENABLED=false
+```
+
+## 🔧 Configuration
 
 ```bash
 # Jaeger Configuration (Optional)

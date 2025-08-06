@@ -1,140 +1,138 @@
 {
-  "dashboard": {
-    "id": null,
-    "title": "TAMS API Overview",
-    "tags": ["tams", "api", "overview"],
-    "style": "dark",
-    "timezone": "browser",
-    "panels": [
-      {
-        "id": 1,
-        "title": "HTTP Request Rate",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "rate(tams_http_requests_total[5m])",
-            "legendFormat": "{{method}} {{endpoint}}"
-          }
-        ],
-        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
-      },
-      {
-        "id": 2,
-        "title": "HTTP Request Duration",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "histogram_quantile(0.95, rate(tams_http_request_duration_seconds_bucket[5m]))",
-            "legendFormat": "95th percentile"
-          },
-          {
-            "expr": "histogram_quantile(0.50, rate(tams_http_request_duration_seconds_bucket[5m]))",
-            "legendFormat": "50th percentile"
-          }
-        ],
-        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
-      },
-      {
-        "id": 3,
-        "title": "Error Rate",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "rate(tams_errors_total[5m])",
-            "legendFormat": "{{type}} - {{endpoint}}"
-          }
-        ],
-        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
-      },
-      {
-        "id": 4,
-        "title": "Business Metrics",
-        "type": "stat",
-        "targets": [
-          {
-            "expr": "tams_sources_total",
-            "legendFormat": "Total Sources"
-          },
-          {
-            "expr": "tams_flows_total",
-            "legendFormat": "Total Flows"
-          },
-          {
-            "expr": "tams_segments_total",
-            "legendFormat": "Total Segments"
-          },
-          {
-            "expr": "tams_storage_bytes_total",
-            "legendFormat": "Storage (bytes)"
-          }
-        ],
-        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
-      },
-      {
-        "id": 5,
-        "title": "VAST Query Performance",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "histogram_quantile(0.95, rate(tams_vast_query_duration_seconds_bucket[5m]))",
-            "legendFormat": "{{query_type}} - 95th percentile"
-          }
-        ],
-        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
-      },
-      {
-        "id": 6,
-        "title": "S3 Operation Performance",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "histogram_quantile(0.95, rate(tams_s3_operation_duration_seconds_bucket[5m]))",
-            "legendFormat": "{{operation}} - 95th percentile"
-          }
-        ],
-        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
-      },
-      {
-        "id": 7,
-        "title": "System Resources",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "tams_memory_usage_bytes",
-            "legendFormat": "Memory Usage"
-          },
-          {
-            "expr": "node_memory_MemAvailable_bytes",
-            "legendFormat": "Available Memory"
-          }
-        ],
-        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
-      },
-      {
-        "id": 8,
-        "title": "Operation Counts",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "rate(tams_flow_operations_total[5m])",
-            "legendFormat": "Flow Operations - {{operation}}"
-          },
-          {
-            "expr": "rate(tams_segment_operations_total[5m])",
-            "legendFormat": "Segment Operations - {{operation}}"
-          },
-          {
-            "expr": "rate(tams_source_operations_total[5m])",
-            "legendFormat": "Source Operations - {{operation}}"
-          }
-        ],
-        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
-      }
-    ],
-    "time": {
-      "from": "now-1h",
-      "to": "now"
+  "id": null,
+  "title": "TAMS API Overview",
+  "tags": ["tams", "api", "overview"],
+  "style": "dark",
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP Request Rate",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "rate(tams_http_requests_total[5m])",
+          "legendFormat": "{{method}} {{endpoint}}"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
     },
-    "refresh": "10s"
-  }
+    {
+      "id": 2,
+      "title": "HTTP Request Duration",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(tams_http_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "95th percentile"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(tams_http_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "50th percentile"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+    },
+    {
+      "id": 3,
+      "title": "Error Rate",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "rate(tams_errors_total[5m])",
+          "legendFormat": "{{type}} - {{endpoint}}"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "id": 4,
+      "title": "Business Metrics",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "tams_sources_total",
+          "legendFormat": "Total Sources"
+        },
+        {
+          "expr": "tams_flows_total",
+          "legendFormat": "Total Flows"
+        },
+        {
+          "expr": "tams_segments_total",
+          "legendFormat": "Total Segments"
+        },
+        {
+          "expr": "tams_storage_bytes_total",
+          "legendFormat": "Storage (bytes)"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+    },
+    {
+      "id": 5,
+      "title": "VAST Query Performance",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(tams_vast_query_duration_seconds_bucket[5m]))",
+          "legendFormat": "{{query_type}} - 95th percentile"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+    },
+    {
+      "id": 6,
+      "title": "S3 Operation Performance",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(tams_s3_operation_duration_seconds_bucket[5m]))",
+          "legendFormat": "{{operation}} - 95th percentile"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+    },
+    {
+      "id": 7,
+      "title": "System Resources",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "tams_memory_usage_bytes",
+          "legendFormat": "Memory Usage"
+        },
+        {
+          "expr": "node_memory_MemAvailable_bytes",
+          "legendFormat": "Available Memory"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+    },
+    {
+      "id": 8,
+      "title": "Operation Counts",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "rate(tams_flow_operations_total[5m])",
+          "legendFormat": "Flow Operations - {{operation}}"
+        },
+        {
+          "expr": "rate(tams_segment_operations_total[5m])",
+          "legendFormat": "Segment Operations - {{operation}}"
+        },
+        {
+          "expr": "rate(tams_source_operations_total[5m])",
+          "legendFormat": "Source Operations - {{operation}}"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "refresh": "10s"
 } 

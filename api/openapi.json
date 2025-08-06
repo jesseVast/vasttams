@@ -3,7 +3,7 @@
   "info": {
     "title": "TAMS API",
     "description": "Time-addressable Media Store API - A comprehensive FastAPI implementation of the BBC TAMS API specification with VAST database integration for high-performance time-series analytics and S3-compatible storage for media segments.",
-    "version": "6.0.0",
+    "version": "6.0",
     "contact": {
       "name": "TAMS API Support",
       "url": "https://github.com/jesseVast/bbctams"

@@ -10,6 +10,34 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+async def check_flow_read_only(store: VASTStore, flow_id: str) -> None:
+    """
+    Check if a flow is read-only and raise 403 Forbidden if it is.
+    
+    Args:
+        store: VAST store instance
+        flow_id: Flow ID to check
+        
+    Raises:
+        HTTPException: 403 Forbidden if flow is read-only
+        HTTPException: 404 Not Found if flow doesn't exist
+    """
+    try:
+        flow = await store.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        if flow.read_only:
+            raise HTTPException(
+                status_code=403, 
+                detail="Forbidden. You do not have permission to modify this flow. It may be marked read-only."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to check flow read-only status for {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # HEAD endpoints
 @router.head("/flows")
 async def head_flows():
@@ -83,6 +111,7 @@ async def update_flow_by_id(
 ):
     """Update a flow"""
     try:
+        await check_flow_read_only(store, flow_id)
         updated_flow = await update_flow(store, flow_id, flow)
         if not updated_flow:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -104,6 +133,7 @@ async def delete_flow_by_id(
 ):
     """Delete a flow"""
     try:
+        await check_flow_read_only(store, flow_id)
         success = await delete_flow(store, flow_id, soft_delete, cascade, deleted_by)
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -189,6 +219,7 @@ async def update_flow_tag(
 ):
     """Create or update flow tag"""
     try:
+        await check_flow_read_only(store, flow_id)
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -218,6 +249,7 @@ async def delete_flow_tag(
 ):
     """Delete specific flow tag"""
     try:
+        await check_flow_read_only(store, flow_id)
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -274,6 +306,7 @@ async def update_flow_description(
 ):
     """Update flow description"""
     try:
+        await check_flow_read_only(store, flow_id)
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -297,6 +330,7 @@ async def delete_flow_description(
 ):
     """Delete flow description"""
     try:
+        await check_flow_read_only(store, flow_id)
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -345,6 +379,7 @@ async def update_flow_label(
 ):
     """Update flow label"""
     try:
+        await check_flow_read_only(store, flow_id)
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -368,6 +403,7 @@ async def delete_flow_label(
 ):
     """Delete flow label"""
     try:
+        await check_flow_read_only(store, flow_id)
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -416,6 +452,7 @@ async def update_flow_read_only(
 ):
     """Update flow read-only status"""
     try:
+        # Don't check read-only status for this endpoint since it's the one that sets it
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -467,6 +504,7 @@ async def update_flow_collection(
 ):
     """Update flow collection"""
     try:
+        await check_flow_read_only(store, flow_id)
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -521,6 +559,7 @@ async def update_flow_max_bit_rate(
 ):
     """Update flow max bit rate"""
     try:
+        await check_flow_read_only(store, flow_id)
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -575,6 +614,7 @@ async def update_flow_avg_bit_rate(
 ):
     """Update flow average bit rate"""
     try:
+        await check_flow_read_only(store, flow_id)
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")

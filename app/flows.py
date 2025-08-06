@@ -85,6 +85,38 @@ class FlowManager:
     def __init__(self, store: Optional[VASTStore] = None):
         self.store = store
 
+    async def _check_flow_read_only(self, flow_id: str, store: Optional[VASTStore] = None) -> None:
+        """
+        Check if a flow is read-only and raise 403 Forbidden if it is.
+        
+        Args:
+            flow_id: Flow ID to check
+            store: VAST store instance
+            
+        Raises:
+            HTTPException: 403 Forbidden if flow is read-only
+            HTTPException: 404 Not Found if flow doesn't exist
+        """
+        store = store or self.store
+        if store is None:
+            raise HTTPException(status_code=500, detail="VAST store is not initialized")
+        
+        try:
+            flow = await store.get_flow(flow_id)
+            if not flow:
+                raise HTTPException(status_code=404, detail="Flow not found")
+            
+            if flow.read_only:
+                raise HTTPException(
+                    status_code=403, 
+                    detail="Forbidden. You do not have permission to modify this flow. It may be marked read-only."
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to check flow read-only status for {flow_id}: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
     async def list_flows(self, filters: Dict, limit: int, store: Optional[VASTStore] = None) -> FlowsResponse:
         store = store or self.store
         if store is None:
@@ -137,6 +169,9 @@ class FlowManager:
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
         try:
+            # Check if flow is read-only before updating
+            await self._check_flow_read_only(flow_id, store)
+            
             flow.updated = datetime.now(timezone.utc)
             success = await store.update_flow(flow_id, flow)
             if not success:
@@ -153,6 +188,9 @@ class FlowManager:
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
         try:
+            # Check if flow is read-only before deleting
+            await self._check_flow_read_only(flow_id, store)
+            
             success = await store.delete_flow(flow_id, soft_delete=soft_delete, cascade=cascade, deleted_by=deleted_by)
             if not success:
                 raise HTTPException(status_code=404, detail="Flow not found")

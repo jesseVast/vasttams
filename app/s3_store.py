@@ -44,15 +44,14 @@ class S3Store:
             self.secret_access_key = settings.s3_secret_access_key
             self.bucket_name = settings.s3_bucket_name
             self.use_ssl = settings.s3_use_ssl
-        # Initialize S3 client
+        # Initialize S3 client using VastS3 approach
         try:
-            self.s3_client = boto3.client(
-                's3',
-                endpoint_url=self.endpoint_url,
+            session = boto3.session.Session()
+            self.s3_client = session.client(
+                service_name='s3',
                 aws_access_key_id=self.access_key_id,
                 aws_secret_access_key=self.secret_access_key,
-                use_ssl=self.use_ssl,
-                verify=False
+                endpoint_url=self.endpoint_url
             )
             self._ensure_bucket_exists()
             logger.info(f"S3 Store initialized with endpoint: {self.endpoint_url}, bucket: {self.bucket_name}")
@@ -177,15 +176,22 @@ class S3Store:
             else:
                 raise ValueError("Data must be bytes, file path, or file-like object")
             
-            # Upload to S3
-            self.s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=data_bytes,
-                ContentType=content_type,
-                Metadata=metadata
-            )
+            # Upload to S3 with absolute minimal headers for MinIO compatibility
+            put_kwargs = {
+                'Bucket': self.bucket_name,
+                'Key': object_key,
+                'Body': data_bytes
+            }
             
+            # Only add content type if it's not the default
+            if content_type != "application/octet-stream":
+                put_kwargs['ContentType'] = content_type
+            
+            # Only add metadata if it's not empty
+            if metadata:
+                put_kwargs['Metadata'] = metadata
+            
+            self.s3_client.put_object(**put_kwargs)
             logger.info(f"Stored flow segment {segment_id} for flow {flow_id} in S3")
             return True
             

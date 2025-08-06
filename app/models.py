@@ -310,6 +310,10 @@ class Webhook(BaseModel):
     api_key_name: str
     api_key_value: Optional[str] = None
     events: List[str]
+    # Ownership fields for TAMS API v6.0 compliance
+    owner_id: Optional[str] = None
+    created_by: Optional[str] = None
+    created: Optional[datetime] = None
 
 
 class WebhookPost(BaseModel):
@@ -318,6 +322,9 @@ class WebhookPost(BaseModel):
     api_key_name: str
     api_key_value: str
     events: List[str]
+    # Ownership fields for TAMS API v6.0 compliance
+    owner_id: Optional[str] = None
+    created_by: Optional[str] = None
 
 
 class FlowStoragePost(BaseModel):

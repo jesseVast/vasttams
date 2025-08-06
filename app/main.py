@@ -90,7 +90,7 @@ def custom_openapi() -> Dict[str, Any]:
     try:
         app.openapi_schema = get_openapi(
             title="TAMS API",
-            version="6.0.0",
+            version="6.0",
             description="Time-addressable Media Store API",
             routes=app.routes,
         )
@@ -103,14 +103,14 @@ def custom_openapi() -> Dict[str, Any]:
 app = FastAPI(
     title="TAMS API",
     description="Time-addressable Media Store API",
-    version="6.0.0",
+    version="6.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
 )
 
 # Initialize telemetry
-telemetry_manager.initialize("tams-api", "6.0.0")
+telemetry_manager.initialize("tams-api", "6.0")
 telemetry_manager.instrument_fastapi(app)
 
 # Add telemetry middleware
@@ -202,7 +202,11 @@ async def create_webhook(
         return Webhook(
             url=webhook.url,
             api_key_name=webhook.api_key_name,
-            events=webhook.events
+            events=webhook.events,
+            # Ownership fields for TAMS API v6.0 compliance
+            owner_id=webhook.owner_id,
+            created_by=webhook.created_by,
+            created=datetime.now(timezone.utc)
         )
         
     except HTTPException:

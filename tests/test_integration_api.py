@@ -71,7 +71,7 @@ async def test_full_integration_flow():
         }
         files = {
             "file": ("test.mp4", b"dummydata", "video/mp4"),
-            "segment": (None, json.dumps(segment_data), "application/json")
+            "segment_data": (None, json.dumps(segment_data), "application/json")
         }
         resp = await client.post(f"{BASE_URL}/flows/{flow_id}/segments", files=files)
         assert resp.status_code in (200, 201)

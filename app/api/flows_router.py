@@ -446,30 +446,7 @@ async def get_flow_read_only(
         logger.error(f"Failed to get flow read-only status for {flow_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.put("/flows/{flow_id}/read_only")
-async def update_flow_read_only(
-    flow_id: str,
-    read_only: bool,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update flow read-only status"""
-    try:
-        # Don't check read-only status for this endpoint since it's the one that sets it
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        flow.read_only = read_only
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update flow read-only status")
-        
-        return {"message": "Read-only status updated successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to update flow read-only status for {flow_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+
 
 @router.head("/flows/{flow_id}/flow_collection")
 async def head_flow_collection(flow_id: str):

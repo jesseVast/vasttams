@@ -7,7 +7,7 @@ from fastapi import HTTPException
 import json
 import uuid
 from datetime import datetime, timezone
-from ..models.models import FlowSegment, FlowStorage, FlowStoragePost, StorageLocation
+from ..models.models import FlowSegment, FlowStorage, FlowStoragePost, MediaObject, HttpRequest
 from ..storage.vast_store import VASTStore
 import logging
 
@@ -48,16 +48,18 @@ async def create_flow_storage(store: VASTStore, flow_id: str, storage_request: F
     try:
         # This would typically involve creating storage locations
         # For now, return a mock response
-        storage_locations = []
+        media_objects = []
         if storage_request.object_ids:
             for object_id in storage_request.object_ids:
-                storage_locations.append({
-                    "object_id": object_id,
-                    "put_url": f"http://example.com/upload/{object_id}",
-                    "bucket_put_url": f"http://example.com/bucket/{object_id}"
-                })
+                media_objects.append(MediaObject(
+                    object_id=object_id,
+                    put_url=HttpRequest(
+                        url=f"http://example.com/upload/{object_id}",
+                        headers={"Content-Type": "application/octet-stream"}
+                    )
+                ))
         
-        return FlowStorage(storage_locations=storage_locations)
+        return FlowStorage(media_objects=media_objects)
     except Exception as e:
         logger.error(f"Failed to create flow storage for {flow_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -20,9 +20,9 @@ class BasicAuthProvider(AuthProvider):
         
         # Fallback in-memory users for development/testing
         self.fallback_users = fallback_users or {
-            "admin": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # admin123
-            "user": "$2b$12$8H8N7Y6.vKGHRs8FkB1ZQeJhNhJJqCPr6rLGxwV.fK8D/2G4u8WB.",   # user123
-            "test": "$2b$12$7o3TzJzl8FpF6y.oV6K8GeLNfI8rSjRp2r3mN9xE6VvFQ4MrO7BNe"   # test123
+            "admin": "$2b$12$P1HfguryTOezJ3aSyiwYfOLiJQCbmeEmOSdogJBrsCIYP3L8/Lfeq",  # admin123
+            "user": "$2b$12$v7SDbmZvU1hZ1Pk4IXjezu5T6Yg1w3sSAy/ICOS/Ug5Il1lGKNvpi",   # user123
+            "test": "$2b$12$EXIdqzfdI8pJrUdJagN4qeeMNoeZda/niFkdtCMBh0ROP2qL5tVZS"   # test123
         }
         self.security = HTTPBasic(auto_error=False)
         self._enabled = True

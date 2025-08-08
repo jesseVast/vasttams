@@ -1517,6 +1517,31 @@ class VASTStore:
             logger.error(f"Failed to update source {source_id}: {e}")
             return False
 
+    async def update_source_tags(self, source_id: str, tags) -> bool:
+        """Update source tags"""
+        try:
+            from ibis import _ as ibis_
+            predicate = (ibis_.source_id == source_id)
+            predicate = self._add_soft_delete_predicate(predicate)
+            
+            update_data = {
+                'tags': self._dict_to_json(tags.model_dump()) if tags else "{}",
+                'updated': datetime.now(timezone.utc)
+            }
+            
+            updated_count = self.db_manager.update('sources', update_data, predicate)
+            
+            if updated_count > 0:
+                logger.info(f"Updated source {source_id} tags")
+                return True
+            else:
+                logger.warning(f"Source {source_id} not found for tags update")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to update source {source_id} tags: {e}")
+            return False
+
     async def update_flow(self, flow_id: str, flow: Flow) -> bool:
         """Update an existing flow in VAST store"""
         try:
@@ -2262,3 +2287,152 @@ class VASTStore:
         except Exception as e:
             logger.error(f"Failed to create auth log: {e}")
             return False 
+
+    # Column Management Methods
+    def get_table_columns(self, table_name: str) -> pa.Schema:
+        """
+        Get column definitions for a specific table.
+        
+        Args:
+            table_name: Name of the table to get columns for
+            
+        Returns:
+            PyArrow schema containing column definitions
+        """
+        try:
+            return self.db_manager.get_table_columns(table_name)
+        except Exception as e:
+            logger.error(f"Failed to get columns for table {table_name}: {e}")
+            raise
+    
+    def column_exists(self, table_name: str, column_name: str) -> bool:
+        """
+        Check if a column exists in a table.
+        
+        Args:
+            table_name: Name of the table to check
+            column_name: Name of the column to check for
+            
+        Returns:
+            True if column exists, False otherwise
+        """
+        try:
+            return self.db_manager.column_exists(table_name, column_name)
+        except Exception as e:
+            logger.error(f"Failed to check column existence for {table_name}.{column_name}: {e}")
+            return False
+    
+    def add_columns(self, table_name: str, new_columns: pa.Schema) -> bool:
+        """
+        Add new columns to an existing table.
+        
+        This is a transactional metadata operation that does not result in any data updates
+        or allocations in main storage. Since VAST-DB is a columnar data store, there is
+        no impact on subsequent inserts or updates but there is also no provision for
+        default values during column addition.
+        
+        Args:
+            table_name: Name of the table to add columns to
+            new_columns: PyArrow schema containing the new columns to add
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            success = self.db_manager.add_columns(table_name, new_columns)
+            if success:
+                logger.info(f"Added columns to table {table_name}: {[field.name for field in new_columns]}")
+            return success
+        except Exception as e:
+            logger.error(f"Failed to add columns to table {table_name}: {e}")
+            return False
+    
+    def rename_column(self, table_name: str, current_column_name: str, new_column_name: str) -> bool:
+        """
+        Rename a column in a table.
+        
+        Args:
+            table_name: Name of the table containing the column
+            current_column_name: Current name of the column to rename
+            new_column_name: New name for the column
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            success = self.db_manager.rename_column(table_name, current_column_name, new_column_name)
+            if success:
+                logger.info(f"Renamed column {current_column_name} to {new_column_name} in table {table_name}")
+            return success
+        except Exception as e:
+            logger.error(f"Failed to rename column {current_column_name} in table {table_name}: {e}")
+            return False
+    
+    def drop_column(self, table_name: str, column_to_drop: pa.Schema) -> bool:
+        """
+        Remove columns from a table.
+        
+        Column removals are transactional and will operate similarly to data delete operations.
+        The column is tombstoned and becomes immediately inaccessible. Async tasks then take
+        over and rewrite/unlink data chunks as necessary in main storage. A column removal
+        can imply a lot of background activity, similar to a large delete, relative to the
+        amount of data in that column (sparsity, data size, etc).
+        
+        Args:
+            table_name: Name of the table to remove columns from
+            column_to_drop: PyArrow schema containing the columns to remove
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            success = self.db_manager.drop_column(table_name, column_to_drop)
+            if success:
+                logger.info(f"Dropped columns from table {table_name}: {[field.name for field in column_to_drop]}")
+            return success
+        except Exception as e:
+            logger.error(f"Failed to drop columns from table {table_name}: {e}")
+            return False
+    
+    def list_table_columns(self, table_name: str) -> List[str]:
+        """
+        Get a list of column names for a table.
+        
+        Args:
+            table_name: Name of the table to list columns for
+            
+        Returns:
+            List of column names
+        """
+        try:
+            schema = self.get_table_columns(table_name)
+            return [field.name for field in schema]
+        except Exception as e:
+            logger.error(f"Failed to list columns for table {table_name}: {e}")
+            return []
+    
+    def get_column_info(self, table_name: str, column_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get detailed information about a specific column.
+        
+        Args:
+            table_name: Name of the table containing the column
+            column_name: Name of the column to get info for
+            
+        Returns:
+            Dictionary containing column information or None if not found
+        """
+        try:
+            schema = self.get_table_columns(table_name)
+            for field in schema:
+                if field.name == column_name:
+                    return {
+                        'name': field.name,
+                        'type': str(field.type),
+                        'nullable': field.nullable,
+                        'metadata': field.metadata
+                    }
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get column info for {table_name}.{column_name}: {e}")
+            return None

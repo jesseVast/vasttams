@@ -27,8 +27,8 @@ from .models.models import (
     Service, ServiceResponse, Source, SourcesResponse, Flow, FlowsResponse,
     FlowSegment, Object, Webhook, WebhookPost, WebhooksResponse,
     FlowStoragePost, FlowStorage, DeletionRequest, DeletionRequestsResponse,
-    SourceFilters, FlowFilters, FlowDetailFilters, PagingInfo, Tags, MediaStore, EventStreamMechanism, StorageLocation,
-    DeletionRequestsList
+    SourceFilters, FlowFilters, FlowDetailFilters, PagingInfo, Tags, MediaStore, EventStreamMechanism, 
+    DeletionRequestsList, StorageBackend, StorageBackendsList, HttpRequest, MediaObject
 )
 from .storage.vast_store import VASTStore
 from .core.config import get_settings
@@ -168,6 +168,29 @@ async def update_service(service: Service):
     """Update service information"""
     # In a real implementation, this would update the service configuration
     return {"message": "Service information updated"}
+
+# Storage backends endpoints
+@app.head("/service/storage-backends")
+async def head_storage_backends():
+    """Return storage backends path headers"""
+    return {}
+
+@app.get("/service/storage-backends", response_model=List[StorageBackend])
+async def list_storage_backends():
+    """Provide information about the storage backends available on this service instance"""
+    # For now, return our S3-compatible backend configuration
+    # In a real implementation, this would be configured at deployment time
+    return [
+        StorageBackend(
+            id="550e8400-e29b-41d4-a716-446655440000",
+            store_type="http_object_store",
+            provider="VAST Data",
+            store_product="VAST S3 Compatible Store",
+            region="us-west-1",
+            label="Primary VAST Storage",
+            default_storage=True
+        )
+    ]
 
 # Webhook endpoints
 @app.head("/service/webhooks")

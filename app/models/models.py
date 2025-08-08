@@ -329,20 +329,53 @@ class WebhookPost(BaseModel):
 
 class FlowStoragePost(BaseModel):
     """Flow storage allocation request"""
-    limit: Optional[int] = None
-    object_ids: Optional[List[str]] = None
+    limit: Optional[int] = Field(None, description="Limit the number of storage segments in each response page")
+    object_ids: Optional[List[str]] = Field(None, description="Array of object_ids to use")
+    storage_id: Optional[str] = Field(None, description="The storage backend to allocate storage in", pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 
 
-class StorageLocation(BaseModel):
-    """Storage location for media objects"""
-    object_id: str
-    put_url: str
-    bucket_put_url: Optional[str] = None
+class HttpRequest(BaseModel):
+    """HTTP request information"""
+    url: str
+    headers: Optional[Dict[str, str]] = None
+
+
+class PreAction(BaseModel):
+    """Pre-action for storage preparation"""
+    action: str = Field(..., description="Action type")
+    bucket_id: Optional[str] = Field(None, description="The name of the bucket that needs to be created")
+    put_url: Optional[HttpRequest] = None
+    put_cors_url: Optional[HttpRequest] = None
+
+
+class MediaObject(BaseModel):
+    """Media object storage information"""
+    object_id: str = Field(..., description="The object store identifier for the media object")
+    put_url: HttpRequest = Field(..., description="PUT URL for uploading the media object")
+    put_cors_url: Optional[HttpRequest] = None
 
 
 class FlowStorage(BaseModel):
     """Flow storage response"""
-    storage_locations: List[StorageLocation]
+    pre: Optional[List[PreAction]] = Field(None, description="Actions that need to be taken before the media object can be written")
+    media_objects: List[MediaObject] = Field(..., description="List of information for identifying and uploading media objects")
+
+
+class StorageBackend(BaseModel):
+    """Storage backend information"""
+    id: str = Field(..., description="Storage backend identifier", pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+    store_type: str = Field(..., description="The generic store type")
+    provider: str = Field(..., description="The cloud provider of the storage")
+    store_product: str = Field(..., description="The storage product name")
+    region: Optional[str] = Field(None, description="The region in the cloud this storage backend resides")
+    availability_zone: Optional[str] = Field(None, description="The availability zone in the cloud region")
+    label: Optional[str] = Field(None, description="Freeform string label for a storage backend")
+    default_storage: bool = Field(False, description="If set to true, this is the default storage backend")
+
+
+class StorageBackendsList(BaseModel):
+    """List of storage backends"""
+    backends: List[StorageBackend] = Field(..., description="Information about the storage backends available on this service instance")
 
 
 class Object(BaseModel):

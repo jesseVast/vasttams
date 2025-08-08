@@ -95,117 +95,144 @@ async def delete_source_by_id(
         logger.error(f"Failed to delete source {source_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# Individual field endpoints
+# Source tags endpoints
 @router.head("/sources/{source_id}/tags")
 async def head_source_tags(source_id: str):
-    """Return source tags path headers"""
+    """Return Source tags path headers"""
     return {}
 
-@router.get("/sources/{source_id}/tags")
-async def get_source_tags(
+@router.get("/sources/{source_id}/tags", response_model=Tags)
+async def list_source_tags(
     source_id: str,
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Get source tags"""
+    """List Source Tags"""
     try:
         source = await get_source(store, source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
-        return source.tags.root if source.tags else {}
+        
+        # Return the source tags or empty dict if no tags
+        return source.tags or Tags()
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get source tags for {source_id}: {e}")
+        logger.error(f"Failed to list source tags for {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.put("/sources/{source_id}/tags", response_model=Tags)
+async def update_source_tags(
+    source_id: str,
+    tags: Tags,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update Source Tags"""
+    try:
+        source = await get_source(store, source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        # Update source tags
+        success = await store.update_source_tags(source_id, tags)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update source tags")
+        
+        return tags
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update source tags for {source_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.head("/sources/{source_id}/tags/{name}")
 async def head_source_tag(source_id: str, name: str):
-    """Return source tag path headers"""
+    """Return Source tag path headers"""
     return {}
 
-@router.get("/sources/{source_id}/tags/{name}")
+@router.get("/sources/{source_id}/tags/{name}", response_model=str)
 async def get_source_tag(
     source_id: str,
     name: str,
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Get specific source tag value"""
+    """Source Tag Value"""
     try:
         source = await get_source(store, source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
-        if not source.tags or name not in source.tags:
+        
+        # Get specific tag value
+        if source.tags and name in source.tags:
+            return source.tags[name]
+        else:
             raise HTTPException(status_code=404, detail="Tag not found")
-        return source.tags[name]
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to get source tag {name} for {source_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.put("/sources/{source_id}/tags/{name}")
+@router.put("/sources/{source_id}/tags/{name}", status_code=204)
 async def update_source_tag(
     source_id: str,
     name: str,
-    value: str = Body(..., description="Tag value"),
+    value: str = Body(..., media_type="text/plain"),
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Create or update source tag"""
+    """Update Source Tag Value"""
     try:
         source = await get_source(store, source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
-        # Update the tag
-        if not source.tags:
-            source.tags = {}
-        source.tags[name] = value
+        # Update specific tag
+        current_tags = source.tags or {}
+        current_tags[name] = value
         
-        # Save the updated source
-        success = await store.update_source(source_id, source)
+        success = await store.update_source_tags(source_id, Tags(**current_tags))
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update source tag")
         
-        return {"message": "Tag updated successfully"}
+        return  # 204 No Content
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to update source tag {name} for {source_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.delete("/sources/{source_id}/tags/{name}")
+@router.delete("/sources/{source_id}/tags/{name}", status_code=204)
 async def delete_source_tag(
     source_id: str,
     name: str,
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Delete specific source tag"""
+    """Delete Source Tag"""
     try:
         source = await get_source(store, source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
-        if not source.tags or name not in source.tags:
-            raise HTTPException(status_code=404, detail="Tag not found")
+        # Remove specific tag
+        current_tags = source.tags or {}
+        if name in current_tags:
+            del current_tags[name]
+            success = await store.update_source_tags(source_id, Tags(**current_tags))
+            if not success:
+                raise HTTPException(status_code=500, detail="Failed to delete source tag")
         
-        # Remove the tag
-        if source.tags and name in source.tags:
-            # Create a new dict without the deleted tag
-            new_tags = dict(source.tags.root)
-            del new_tags[name]
-            source.tags = Tags(root=new_tags)
+        return  # 204 No Content
         
-        # Save the updated source
-        success = await store.update_source(source_id, source)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to delete source tag")
-        
-        return {"message": "Tag deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to delete source tag {name} for {source_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
 
 @router.head("/sources/{source_id}/description")
 async def head_source_description(source_id: str):

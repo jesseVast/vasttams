@@ -7,8 +7,8 @@ from fastapi import HTTPException
 import json
 import uuid
 from datetime import datetime, timezone
-from .models import FlowSegment, FlowStorage, FlowStoragePost, StorageLocation
-from .vast_store import VASTStore
+from ..models.models import FlowSegment, FlowStorage, FlowStoragePost, StorageLocation
+from ..storage.vast_store import VASTStore
 import logging
 
 logger = logging.getLogger(__name__)

@@ -8,6 +8,12 @@ starlette==0.45.2
 pydantic==2.11.7
 pydantic-settings==2.10.1
 
+# Authentication and security
+bcrypt==4.1.2
+PyJWT==2.8.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
 # Environment and configuration
 python-dotenv==1.1.1
 click==8.1.7

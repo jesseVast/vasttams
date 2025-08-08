@@ -513,6 +513,7 @@ class ApiToken(BaseModel):
     user_id: str
     token_name: str
     token_type: str  # 'url_token', 'bearer', etc.
+    token_hash: Optional[str] = None  # Hashed version of the token for security
     
     # Permissions and scope
     permissions: Optional[List[str]] = None

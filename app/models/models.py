@@ -440,4 +440,173 @@ class FlowFilters(BaseModel):
 class FlowDetailFilters(BaseModel):
     """Flow detail query filters"""
     include_timerange: bool = False
-    timerange: Optional[TimeRange] = None 
+    timerange: Optional[TimeRange] = None
+
+
+# Authentication models
+class User(BaseModel):
+    """User model for authentication"""
+    user_id: str
+    username: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    is_active: bool = True
+    is_admin: bool = False
+    
+    # Authentication fields
+    password_hash: Optional[str] = None
+    password_salt: Optional[str] = None
+    password_changed_at: Optional[datetime] = None
+    
+    # Security fields
+    failed_login_attempts: int = 0
+    locked_until: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
+    last_login_ip: Optional[str] = None
+    
+    # Metadata fields
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
+    created: Optional[datetime] = None
+    updated: Optional[datetime] = None
+    metadata: Optional[Dict[str, Any]] = None
+    
+    # Soft delete fields
+    deleted: bool = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
+    
+    @field_serializer('created', 'updated', 'deleted_at', 'password_changed_at', 'locked_until', 'last_login_at')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
+
+
+class UserCreate(BaseModel):
+    """User creation request"""
+    username: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    password: str
+    is_admin: bool = False
+    created_by: Optional[str] = None
+
+
+class UserUpdate(BaseModel):
+    """User update request"""
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
+    updated_by: Optional[str] = None
+
+
+class UserPasswordChange(BaseModel):
+    """User password change request"""
+    old_password: str
+    new_password: str
+    updated_by: Optional[str] = None
+
+
+class ApiToken(BaseModel):
+    """API token model"""
+    token_id: str
+    user_id: str
+    token_name: str
+    token_type: str  # 'url_token', 'bearer', etc.
+    
+    # Permissions and scope
+    permissions: Optional[List[str]] = None
+    scopes: Optional[List[str]] = None
+    allowed_ips: Optional[List[str]] = None
+    
+    # Token lifecycle
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    last_used_at: Optional[datetime] = None
+    last_used_ip: Optional[str] = None
+    usage_count: int = 0
+    
+    # Security fields
+    revoked_at: Optional[datetime] = None
+    revoked_by: Optional[str] = None
+    revocation_reason: Optional[str] = None
+    
+    # Metadata
+    created_by: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    
+    # Soft delete fields
+    deleted: bool = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
+    
+    @field_serializer('created_at', 'expires_at', 'last_used_at', 'revoked_at', 'deleted_at')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
+
+
+class ApiTokenCreate(BaseModel):
+    """API token creation request"""
+    user_id: str
+    token_name: str
+    token_type: str = "url_token"
+    permissions: Optional[List[str]] = None
+    scopes: Optional[List[str]] = None
+    allowed_ips: Optional[List[str]] = None
+    expires_at: Optional[datetime] = None
+    created_by: Optional[str] = None
+
+
+class AuthLog(BaseModel):
+    """Authentication log entry"""
+    log_id: str
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
+    
+    # Event details
+    event_type: str  # 'login', 'logout', 'token_created', etc.
+    auth_method: str  # 'basic', 'jwt', 'url_token'
+    success: bool
+    
+    # Request details
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    request_path: Optional[str] = None
+    
+    # Error details
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+    
+    # Timestamps
+    timestamp: Optional[datetime] = None
+    
+    # Metadata
+    metadata: Optional[Dict[str, Any]] = None
+    
+    # Soft delete fields
+    deleted: bool = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
+    
+    @field_serializer('timestamp', 'deleted_at')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
+
+
+class UsersResponse(BaseModel):
+    """Users list response"""
+    data: List[User]
+    paging: Optional[PagingInfo] = None
+
+
+class ApiTokensResponse(BaseModel):
+    """API tokens list response"""
+    data: List[ApiToken]
+    paging: Optional[PagingInfo] = None
+
+
+class AuthLogsResponse(BaseModel):
+    """Authentication logs response"""
+    data: List[AuthLog]
+    paging: Optional[PagingInfo] = None 

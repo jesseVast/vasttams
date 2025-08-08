@@ -1,0 +1,24 @@
+{
+  "host": "0.0.0.0",
+  "port": 8000,
+  "debug": false,
+  
+  "vast_endpoint": "http://172.200.204.90",
+  "vast_access_key": "SRSPW0DQT9T70Y787U68",
+  "vast_secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
+  "vast_bucket": "jthaloor-db",
+  "vast_schema": "tams",
+  
+  "s3_endpoint_url": "http://172.200.204.91",
+  "s3_access_key_id": "SRSPW0DQT9T70Y787U68",
+  "s3_secret_access_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
+  "s3_bucket_name": "jthaloor-s3",
+  "s3_use_ssl": false,
+  
+  "log_level": "INFO",
+  "log_format": "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
+  
+  "api_title": "TAMS API",
+  "api_version": "6.0",
+  "api_description": "Time-addressable Media Store API"
+}

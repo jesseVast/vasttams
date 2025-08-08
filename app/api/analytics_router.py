@@ -2,9 +2,9 @@
 Analytics API router for TAMS
 """
 from fastapi import APIRouter, Depends, HTTPException
-from app.dependencies import get_vast_store
-from app.vast_store import VASTStore
-from app.telemetry import telemetry_manager, trace_operation, monitor_operation
+from ..core.dependencies import get_vast_store
+from ..storage.vast_store import VASTStore
+from ..core.telemetry import telemetry_manager, trace_operation, monitor_operation
 import logging
 
 logger = logging.getLogger(__name__)

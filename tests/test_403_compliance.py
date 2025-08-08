@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from app.vast_store import VASTStore
 from app.flows import FlowManager
 from app.models import Source, VideoFlow, Tags
-from app.config import get_settings
+from app.core.config import get_settings
 import logging
 
 logger = logging.getLogger(__name__)

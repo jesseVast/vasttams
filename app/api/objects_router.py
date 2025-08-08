@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
-from app.models import Object
-from app.objects import get_object, create_object, delete_object
-from app.vast_store import VASTStore
-from app.dependencies import get_vast_store
+from ..models.models import Object
+from .objects import get_object, create_object, delete_object
+from ..storage.vast_store import VASTStore
+from ..core.dependencies import get_vast_store
 import logging
 
 logger = logging.getLogger(__name__)

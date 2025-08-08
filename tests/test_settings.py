@@ -1,20 +1,13 @@
-from app.config import Settings
+from app.core.config import Settings, get_settings
 
 def get_test_settings():
     """
     Return test-specific settings for use in all tests.
-    Override with test database, S3, and other config as needed.
+    Uses the main config settings but allows for test-specific overrides.
     """
-    return Settings(
-        vast_endpoint="http://100.100.0.1:9090",
-        vast_access_key="SRSPW0DQT9T70Y787U68",
-        vast_secret_key="WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
-        vast_bucket="tamsdb",
-        vast_schema="tams",
-        s3_endpoint_url="http://100.100.0.2:9090",
-        s3_access_key_id="SRSPW0DQT9T70Y787U68",
-        s3_secret_access_key="WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
-        s3_bucket_name="tamsbucket",
-        s3_use_ssl=False,
-        debug=True
-    ) 
+    # Get the main settings from config
+    settings = get_settings()
+    
+    # Return the settings as-is (using config.py values)
+    # If you need test-specific overrides, you can modify specific values here
+    return settings 

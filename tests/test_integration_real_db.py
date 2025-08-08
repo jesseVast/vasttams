@@ -19,7 +19,7 @@ from typing import Dict, Any, List
 # Add the app directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from app.config import get_settings
+from app.core.config import get_settings
 from app.vast_store import VASTStore
 from app.models import Source, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow, FlowSegment, Object, Tags, CollectionItem
 from app.sources import SourceManager

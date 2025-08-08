@@ -51,11 +51,11 @@ import pyarrow as pa
 from pydantic import UUID4
 
 from .vastdbmanager import VastDBManager
-from .telemetry import telemetry_manager, trace_operation
-from .models import (
+from ..core.telemetry import telemetry_manager, trace_operation
+from ..models.models import (
     Source, Flow, FlowSegment, Object, DeletionRequest, 
     TimeRange, Tags, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow,
-    CollectionItem, GetUrl, Webhook, WebhookPost
+    CollectionItem, GetUrl, Webhook, WebhookPost, User, ApiToken, AuthLog
 )
 from .s3_store import S3Store
 
@@ -329,6 +329,141 @@ class VASTStore:
             ('updated', pa.timestamp('us'))
         ])
         
+        # Authentication table schemas
+        users_schema = pa.schema([
+            # Core user fields
+            ('user_id', pa.string()),
+            ('username', pa.string()),
+            ('email', pa.string()),
+            ('full_name', pa.string()),
+            ('is_active', pa.bool_()),
+            ('is_admin', pa.bool_()),
+            
+            # Authentication fields
+            ('password_hash', pa.string()),
+            ('password_salt', pa.string()),
+            ('password_changed_at', pa.timestamp('us')),
+            
+            # Security fields
+            ('failed_login_attempts', pa.int32()),
+            ('locked_until', pa.timestamp('us')),
+            ('last_login_at', pa.timestamp('us')),
+            ('last_login_ip', pa.string()),
+            
+            # Metadata fields
+            ('created_by', pa.string()),
+            ('updated_by', pa.string()),
+            ('created', pa.timestamp('us')),
+            ('updated', pa.timestamp('us')),
+            ('metadata', pa.string()),
+            
+            # Soft delete fields
+            ('deleted', pa.bool_()),
+            ('deleted_at', pa.timestamp('us')),
+            ('deleted_by', pa.string())
+        ])
+        
+        api_tokens_schema = pa.schema([
+            # Core token fields
+            ('token_id', pa.string()),
+            ('user_id', pa.string()),
+            ('token_hash', pa.string()),
+            ('token_name', pa.string()),
+            ('token_type', pa.string()),
+            
+            # Permissions and scope
+            ('permissions', pa.string()),
+            ('scopes', pa.string()),
+            ('allowed_ips', pa.string()),
+            
+            # Token lifecycle
+            ('is_active', pa.bool_()),
+            ('created_at', pa.timestamp('us')),
+            ('expires_at', pa.timestamp('us')),
+            ('last_used_at', pa.timestamp('us')),
+            ('last_used_ip', pa.string()),
+            ('usage_count', pa.int64()),
+            
+            # Security fields
+            ('revoked_at', pa.timestamp('us')),
+            ('revoked_by', pa.string()),
+            ('revocation_reason', pa.string()),
+            
+            # Metadata
+            ('created_by', pa.string()),
+            ('metadata', pa.string()),
+            
+            # Soft delete fields
+            ('deleted', pa.bool_()),
+            ('deleted_at', pa.timestamp('us')),
+            ('deleted_by', pa.string())
+        ])
+        
+        refresh_tokens_schema = pa.schema([
+            # Core token fields
+            ('refresh_token_id', pa.string()),
+            ('user_id', pa.string()),
+            ('jwt_id', pa.string()),
+            ('refresh_token_hash', pa.string()),
+            
+            # Token lifecycle
+            ('is_active', pa.bool_()),
+            ('created_at', pa.timestamp('us')),
+            ('expires_at', pa.timestamp('us')),
+            ('used_at', pa.timestamp('us')),
+            
+            # Security fields
+            ('revoked_at', pa.timestamp('us')),
+            ('revoked_by', pa.string()),
+            ('revocation_reason', pa.string()),
+            
+            # Device/context information
+            ('device_id', pa.string()),
+            ('user_agent', pa.string()),
+            ('ip_address', pa.string()),
+            
+            # Metadata
+            ('created_by', pa.string()),
+            ('metadata', pa.string()),
+            
+            # Soft delete fields
+            ('deleted', pa.bool_()),
+            ('deleted_at', pa.timestamp('us')),
+            ('deleted_by', pa.string())
+        ])
+        
+        auth_logs_schema = pa.schema([
+            # Core log fields
+            ('log_id', pa.string()),
+            ('user_id', pa.string()),
+            ('session_id', pa.string()),
+            
+            # Event details
+            ('event_type', pa.string()),
+            ('auth_method', pa.string()),
+            ('success', pa.bool_()),
+            
+            # Request details
+            ('ip_address', pa.string()),
+            ('user_agent', pa.string()),
+            ('request_path', pa.string()),
+            
+            # Error details
+            ('error_code', pa.string()),
+            ('error_message', pa.string()),
+            
+            # Timestamps
+            ('timestamp', pa.timestamp('us')),
+            
+            # Metadata
+            ('metadata', pa.string()),
+            
+            # Soft delete fields
+            ('deleted', pa.bool_()),
+            ('deleted_at', pa.timestamp('us')),
+            ('deleted_by', pa.string())
+        ])
+        
         # Create tables
         tables_config = {
             'sources': source_schema,
@@ -336,7 +471,11 @@ class VASTStore:
             'segments': segment_schema,
             'objects': object_schema,
             'webhooks': webhook_schema,
-            'deletion_requests': deletion_request_schema
+            'deletion_requests': deletion_request_schema,
+            'users': users_schema,
+            'api_tokens': api_tokens_schema,
+            'refresh_tokens': refresh_tokens_schema,
+            'auth_logs': auth_logs_schema
         }
         
         for table_name, schema in tables_config.items():
@@ -1633,4 +1772,399 @@ class VASTStore:
                     return False
         except Exception as e:
             logger.error(f"Failed to delete object {object_id}: {e}")
+            return False 
+
+    # Authentication methods
+    async def create_user(self, user: User) -> bool:
+        """Create a new user in VAST store"""
+        try:
+            user_data = {
+                'user_id': user.user_id,
+                'username': user.username,
+                'email': user.email or "",
+                'full_name': user.full_name or "",
+                'is_active': user.is_active,
+                'is_admin': user.is_admin,
+                'password_hash': user.password_hash or "",
+                'password_salt': user.password_salt or "",
+                'password_changed_at': user.password_changed_at or datetime.now(timezone.utc),
+                'failed_login_attempts': user.failed_login_attempts,
+                'locked_until': user.locked_until,
+                'last_login_at': user.last_login_at,
+                'last_login_ip': user.last_login_ip or "",
+                'created_by': user.created_by or "system",
+                'updated_by': user.updated_by or "system",
+                'created': user.created or datetime.now(timezone.utc),
+                'updated': user.updated or datetime.now(timezone.utc),
+                'metadata': self._dict_to_json(user.metadata or {}),
+                'deleted': False,
+                'deleted_at': None,
+                'deleted_by': None
+            }
+            self.db_manager.insert('users', {k: [v] for k, v in user_data.items()})
+            logger.info(f"Created user {user.username} in VAST store")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to create user {user.username}: {e}")
+            return False
+
+    async def get_user(self, user_id: str) -> Optional[User]:
+        """Get user by ID"""
+        try:
+            predicate = (ibis_.user_id == user_id)
+            predicate = self._add_soft_delete_predicate(predicate)
+            results = self.db_manager.select('users', predicate=predicate, output_by_row=True)
+            
+            if not results:
+                return None
+            
+            if isinstance(results, list) and results:
+                row = results[0]
+            elif isinstance(results, dict):
+                row = results
+            else:
+                return None
+            
+            user_data = {
+                'user_id': row['user_id'],
+                'username': row['username'],
+                'email': row['email'] if row['email'] else None,
+                'full_name': row['full_name'] if row['full_name'] else None,
+                'is_active': row['is_active'],
+                'is_admin': row['is_admin'],
+                'password_hash': row['password_hash'] if row['password_hash'] else None,
+                'password_salt': row['password_salt'] if row['password_salt'] else None,
+                'password_changed_at': row['password_changed_at'],
+                'failed_login_attempts': row['failed_login_attempts'],
+                'locked_until': row['locked_until'],
+                'last_login_at': row['last_login_at'],
+                'last_login_ip': row['last_login_ip'] if row['last_login_ip'] else None,
+                'created_by': row['created_by'] if row['created_by'] else None,
+                'updated_by': row['updated_by'] if row['updated_by'] else None,
+                'created': row['created'],
+                'updated': row['updated'],
+                'metadata': self._json_to_dict(row['metadata']),
+                'deleted': row.get('deleted', False),
+                'deleted_at': row.get('deleted_at'),
+                'deleted_by': row.get('deleted_by')
+            }
+            
+            return User(**user_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to get user {user_id}: {e}")
+            return None
+
+    async def get_user_by_username(self, username: str) -> Optional[User]:
+        """Get user by username"""
+        try:
+            predicate = (ibis_.username == username)
+            predicate = self._add_soft_delete_predicate(predicate)
+            results = self.db_manager.select('users', predicate=predicate, output_by_row=True)
+            
+            if not results:
+                return None
+            
+            if isinstance(results, list) and results:
+                row = results[0]
+            elif isinstance(results, dict):
+                row = results
+            else:
+                return None
+            
+            user_data = {
+                'user_id': row['user_id'],
+                'username': row['username'],
+                'email': row['email'] if row['email'] else None,
+                'full_name': row['full_name'] if row['full_name'] else None,
+                'is_active': row['is_active'],
+                'is_admin': row['is_admin'],
+                'password_hash': row['password_hash'] if row['password_hash'] else None,
+                'password_salt': row['password_salt'] if row['password_salt'] else None,
+                'password_changed_at': row['password_changed_at'],
+                'failed_login_attempts': row['failed_login_attempts'],
+                'locked_until': row['locked_until'],
+                'last_login_at': row['last_login_at'],
+                'last_login_ip': row['last_login_ip'] if row['last_login_ip'] else None,
+                'created_by': row['created_by'] if row['created_by'] else None,
+                'updated_by': row['updated_by'] if row['updated_by'] else None,
+                'created': row['created'],
+                'updated': row['updated'],
+                'metadata': self._json_to_dict(row['metadata']),
+                'deleted': row.get('deleted', False),
+                'deleted_at': row.get('deleted_at'),
+                'deleted_by': row.get('deleted_by')
+            }
+            
+            return User(**user_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to get user by username {username}: {e}")
+            return None
+
+    async def list_users(self, filters: Optional[Dict[str, Any]] = None, limit: Optional[int] = None) -> List[User]:
+        """List users with optional filtering"""
+        try:
+            predicate = None
+            if filters:
+                conditions = []
+                if 'is_active' in filters:
+                    conditions.append((ibis_.is_active == filters['is_active']))
+                if 'is_admin' in filters:
+                    conditions.append((ibis_.is_admin == filters['is_admin']))
+                if conditions:
+                    predicate = conditions[0] if len(conditions) == 1 else conditions[0] & conditions[1]
+            
+            predicate = self._add_soft_delete_predicate(predicate)
+            results = self.db_manager.select('users', predicate=predicate, output_by_row=True)
+            
+            if limit and isinstance(results, list):
+                results = results[:limit]
+            
+            users = []
+            if isinstance(results, list):
+                for row in results:
+                    user_data = {
+                        'user_id': row['user_id'],
+                        'username': row['username'],
+                        'email': row['email'] if row['email'] else None,
+                        'full_name': row['full_name'] if row['full_name'] else None,
+                        'is_active': row['is_active'],
+                        'is_admin': row['is_admin'],
+                        'password_hash': row['password_hash'] if row['password_hash'] else None,
+                        'password_salt': row['password_salt'] if row['password_salt'] else None,
+                        'password_changed_at': row['password_changed_at'],
+                        'failed_login_attempts': row['failed_login_attempts'],
+                        'locked_until': row['locked_until'],
+                        'last_login_at': row['last_login_at'],
+                        'last_login_ip': row['last_login_ip'] if row['last_login_ip'] else None,
+                        'created_by': row['created_by'] if row['created_by'] else None,
+                        'updated_by': row['updated_by'] if row['updated_by'] else None,
+                        'created': row['created'],
+                        'updated': row['updated'],
+                        'metadata': self._json_to_dict(row['metadata']),
+                        'deleted': row.get('deleted', False),
+                        'deleted_at': row.get('deleted_at'),
+                        'deleted_by': row.get('deleted_by')
+                    }
+                    users.append(User(**user_data))
+            
+            return users
+            
+        except Exception as e:
+            logger.error(f"Failed to list users: {e}")
+            return []
+
+    async def update_user(self, user_id: str, user: User) -> bool:
+        """Update a user"""
+        try:
+            update_data = {
+                'email': user.email or "",
+                'full_name': user.full_name or "",
+                'is_active': user.is_active,
+                'is_admin': user.is_admin,
+                'password_hash': user.password_hash or "",
+                'password_salt': user.password_salt or "",
+                'password_changed_at': user.password_changed_at or datetime.now(timezone.utc),
+                'failed_login_attempts': user.failed_login_attempts,
+                'locked_until': user.locked_until,
+                'last_login_at': user.last_login_at,
+                'last_login_ip': user.last_login_ip or "",
+                'updated_by': user.updated_by or "system",
+                'updated': datetime.now(timezone.utc),
+                'metadata': self._dict_to_json(user.metadata or {})
+            }
+            
+            predicate = (ibis_.user_id == user_id)
+            predicate = self._add_soft_delete_predicate(predicate)
+            
+            self.db_manager.update('users', update_data, predicate)
+            logger.info(f"Updated user {user_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to update user {user_id}: {e}")
+            return False
+
+    async def delete_user(self, user_id: str, soft_delete: bool = True, deleted_by: str = "system") -> bool:
+        """Delete a user"""
+        try:
+            if soft_delete:
+                success = await self.soft_delete_record('users', user_id, deleted_by)
+            else:
+                success = await self.hard_delete_record('users', user_id)
+            
+            if success:
+                logger.info(f"Deleted user {user_id}")
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to delete user {user_id}: {e}")
+            return False
+
+    async def create_api_token(self, token: ApiToken) -> bool:
+        """Create a new API token in VAST store"""
+        try:
+            token_data = {
+                'token_id': token.token_id,
+                'user_id': token.user_id,
+                'token_hash': token.token_hash or "",
+                'token_name': token.token_name,
+                'token_type': token.token_type,
+                'permissions': self._dict_to_json(token.permissions or []),
+                'scopes': self._dict_to_json(token.scopes or []),
+                'allowed_ips': self._dict_to_json(token.allowed_ips or []),
+                'is_active': token.is_active,
+                'created_at': token.created_at or datetime.now(timezone.utc),
+                'expires_at': token.expires_at,
+                'last_used_at': token.last_used_at,
+                'last_used_ip': token.last_used_ip or "",
+                'usage_count': token.usage_count,
+                'revoked_at': token.revoked_at,
+                'revoked_by': token.revoked_by or "",
+                'revocation_reason': token.revocation_reason or "",
+                'created_by': token.created_by or "system",
+                'metadata': self._dict_to_json(token.metadata or {}),
+                'deleted': False,
+                'deleted_at': None,
+                'deleted_by': None
+            }
+            self.db_manager.insert('api_tokens', {k: [v] for k, v in token_data.items()})
+            logger.info(f"Created API token {token.token_name} for user {token.user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to create API token: {e}")
+            return False
+
+    async def get_api_token(self, token_id: str) -> Optional[ApiToken]:
+        """Get API token by ID"""
+        try:
+            predicate = (ibis_.token_id == token_id)
+            predicate = self._add_soft_delete_predicate(predicate)
+            results = self.db_manager.select('api_tokens', predicate=predicate, output_by_row=True)
+            
+            if not results:
+                return None
+            
+            if isinstance(results, list) and results:
+                row = results[0]
+            elif isinstance(results, dict):
+                row = results
+            else:
+                return None
+            
+            token_data = {
+                'token_id': row['token_id'],
+                'user_id': row['user_id'],
+                'token_name': row['token_name'],
+                'token_type': row['token_type'],
+                'permissions': self._json_to_dict(row['permissions']),
+                'scopes': self._json_to_dict(row['scopes']),
+                'allowed_ips': self._json_to_dict(row['allowed_ips']),
+                'is_active': row['is_active'],
+                'created_at': row['created_at'],
+                'expires_at': row['expires_at'],
+                'last_used_at': row['last_used_at'],
+                'last_used_ip': row['last_used_ip'] if row['last_used_ip'] else None,
+                'usage_count': row['usage_count'],
+                'revoked_at': row['revoked_at'],
+                'revoked_by': row['revoked_by'] if row['revoked_by'] else None,
+                'revocation_reason': row['revocation_reason'] if row['revocation_reason'] else None,
+                'created_by': row['created_by'] if row['created_by'] else None,
+                'metadata': self._json_to_dict(row['metadata']),
+                'deleted': row.get('deleted', False),
+                'deleted_at': row.get('deleted_at'),
+                'deleted_by': row.get('deleted_by')
+            }
+            
+            return ApiToken(**token_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to get API token {token_id}: {e}")
+            return None
+
+    async def list_api_tokens(self, user_id: Optional[str] = None, filters: Optional[Dict[str, Any]] = None, limit: Optional[int] = None) -> List[ApiToken]:
+        """List API tokens with optional filtering"""
+        try:
+            predicate = None
+            if user_id:
+                predicate = (ibis_.user_id == user_id)
+            
+            if filters:
+                conditions = []
+                if 'is_active' in filters:
+                    conditions.append((ibis_.is_active == filters['is_active']))
+                if 'token_type' in filters:
+                    conditions.append((ibis_.token_type == filters['token_type']))
+                if conditions:
+                    if predicate:
+                        predicate = predicate & conditions[0] if len(conditions) == 1 else predicate & conditions[0] & conditions[1]
+                    else:
+                        predicate = conditions[0] if len(conditions) == 1 else conditions[0] & conditions[1]
+            
+            predicate = self._add_soft_delete_predicate(predicate)
+            results = self.db_manager.select('api_tokens', predicate=predicate, output_by_row=True)
+            
+            if limit and isinstance(results, list):
+                results = results[:limit]
+            
+            tokens = []
+            if isinstance(results, list):
+                for row in results:
+                    token_data = {
+                        'token_id': row['token_id'],
+                        'user_id': row['user_id'],
+                        'token_name': row['token_name'],
+                        'token_type': row['token_type'],
+                        'permissions': self._json_to_dict(row['permissions']),
+                        'scopes': self._json_to_dict(row['scopes']),
+                        'allowed_ips': self._json_to_dict(row['allowed_ips']),
+                        'is_active': row['is_active'],
+                        'created_at': row['created_at'],
+                        'expires_at': row['expires_at'],
+                        'last_used_at': row['last_used_at'],
+                        'last_used_ip': row['last_used_ip'] if row['last_used_ip'] else None,
+                        'usage_count': row['usage_count'],
+                        'revoked_at': row['revoked_at'],
+                        'revoked_by': row['revoked_by'] if row['revoked_by'] else None,
+                        'revocation_reason': row['revocation_reason'] if row['revocation_reason'] else None,
+                        'created_by': row['created_by'] if row['created_by'] else None,
+                        'metadata': self._json_to_dict(row['metadata']),
+                        'deleted': row.get('deleted', False),
+                        'deleted_at': row.get('deleted_at'),
+                        'deleted_by': row.get('deleted_by')
+                    }
+                    tokens.append(ApiToken(**token_data))
+            
+            return tokens
+            
+        except Exception as e:
+            logger.error(f"Failed to list API tokens: {e}")
+            return []
+
+    async def create_auth_log(self, log: AuthLog) -> bool:
+        """Create an authentication log entry"""
+        try:
+            log_data = {
+                'log_id': log.log_id,
+                'user_id': log.user_id or "",
+                'session_id': log.session_id or "",
+                'event_type': log.event_type,
+                'auth_method': log.auth_method,
+                'success': log.success,
+                'ip_address': log.ip_address or "",
+                'user_agent': log.user_agent or "",
+                'request_path': log.request_path or "",
+                'error_code': log.error_code or "",
+                'error_message': log.error_message or "",
+                'timestamp': log.timestamp or datetime.now(timezone.utc),
+                'metadata': self._dict_to_json(log.metadata or {}),
+                'deleted': False,
+                'deleted_at': None,
+                'deleted_by': None
+            }
+            self.db_manager.insert('auth_logs', {k: [v] for k, v in log_data.items()})
+            return True
+        except Exception as e:
+            logger.error(f"Failed to create auth log: {e}")
             return False 

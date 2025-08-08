@@ -3,7 +3,7 @@ Dependencies module for TAMS API.
 Contains dependency injection functions to avoid circular imports.
 """
 from fastapi import HTTPException
-from .vast_store import VASTStore
+from ..storage.vast_store import VASTStore
 
 # Global VAST store instance
 vast_store = None

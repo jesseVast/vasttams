@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from app.models import Source, VideoFlow, FlowSegment, Object, Tags
 from app.vast_store import VASTStore
-from app.config import get_settings
+from app.core.config import get_settings
 
 
 def should_use_real_vast():

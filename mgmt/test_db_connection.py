@@ -12,8 +12,8 @@ from pathlib import Path
 # Add the parent directory to the path so we can import app modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.vastdbmanager import VastDBManager
-from app.config import get_settings
+from app.storage.vastdbmanager import VastDBManager
+from app.core.config import get_settings
 
 # Configure logging
 logging.basicConfig(
@@ -111,8 +111,8 @@ def test_s3_connection():
     """Test S3 connection for flow segment storage."""
     
     try:
-        from app.s3_store import S3Store
-        from app.config import get_settings
+        from app.storage.s3_store import S3Store
+        from app.core.config import get_settings
         
         settings = get_settings()
         

@@ -101,7 +101,7 @@ async def main():
     # Import settings to check configuration
     try:
         sys.path.insert(0, 'app')
-        from config import get_settings
+        from core.config import get_settings
         settings = get_settings()
         
         logger.info(f"VAST Endpoint: {settings.vast_endpoint}")

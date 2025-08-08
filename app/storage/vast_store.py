@@ -1521,11 +1521,11 @@ class VASTStore:
         """Update source tags"""
         try:
             from ibis import _ as ibis_
-            predicate = (ibis_.source_id == source_id)
+            predicate = (ibis_.id == source_id)
             predicate = self._add_soft_delete_predicate(predicate)
             
             update_data = {
-                'tags': self._dict_to_json(tags.model_dump()) if tags else "{}",
+                'tags': self._dict_to_json(tags.root if tags else {}),
                 'updated': datetime.now(timezone.utc)
             }
             
@@ -1540,6 +1540,31 @@ class VASTStore:
                 
         except Exception as e:
             logger.error(f"Failed to update source {source_id} tags: {e}")
+            return False
+
+    async def update_flow_read_only(self, flow_id: str, read_only: bool) -> bool:
+        """Update flow read-only status"""
+        try:
+            from ibis import _ as ibis_
+            predicate = (ibis_.id == flow_id)
+            predicate = self._add_soft_delete_predicate(predicate)
+            
+            update_data = {
+                'read_only': read_only,
+                'updated': datetime.now(timezone.utc)
+            }
+            
+            updated_count = self.db_manager.update('flows', update_data, predicate)
+            
+            if updated_count > 0:
+                logger.info(f"Updated flow {flow_id} read_only to {read_only}")
+                return True
+            else:
+                logger.warning(f"Flow {flow_id} not found for read_only update")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to update flow {flow_id} read_only: {e}")
             return False
 
     async def update_flow(self, flow_id: str, flow: Flow) -> bool:

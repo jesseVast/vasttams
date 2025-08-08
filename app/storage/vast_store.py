@@ -582,6 +582,21 @@ class VASTStore:
         else:
             return {}
     
+    def _json_to_list(self, json_str: Union[str, List[Any], Any]) -> List[Any]:
+        """Convert JSON string or any data to list"""
+        if isinstance(json_str, str):
+            try:
+                parsed = json.loads(json_str) if json_str else []
+                return parsed if isinstance(parsed, list) else []
+            except json.JSONDecodeError:
+                return []
+        elif isinstance(json_str, list):
+            return json_str
+        elif isinstance(json_str, dict):
+            return []  # Empty list for dict
+        else:
+            return []
+    
     async def create_source(self, source: Source) -> bool:
         """Create a new source in VAST store"""
         try:
@@ -1354,7 +1369,25 @@ class VASTStore:
             
             # Create predicate to find the record
             from ibis import _ as ibis_
-            predicate = (ibis_.id == record_id) if table_name != 'objects' else (ibis_.object_id == record_id)
+            if table_name == 'objects':
+                predicate = (ibis_.object_id == record_id)
+            elif table_name == 'users':
+                predicate = (ibis_.user_id == record_id)
+            elif table_name == 'api_tokens':
+                predicate = (ibis_.token_id == record_id)
+            elif table_name == 'sources':
+                predicate = (ibis_.source_id == record_id)
+            elif table_name == 'flows':
+                predicate = (ibis_.flow_id == record_id)
+            elif table_name == 'segments':
+                predicate = (ibis_.segment_id == record_id)
+            elif table_name == 'webhooks':
+                predicate = (ibis_.webhook_id == record_id)
+            elif table_name == 'deletion_requests':
+                predicate = (ibis_.request_id == record_id)
+            else:
+                # Default fallback for other tables
+                predicate = (ibis_.id == record_id)
             
             # Update the record
             updated_count = self.db_manager.update(table_name, update_data, predicate)
@@ -1375,7 +1408,25 @@ class VASTStore:
         try:
             # Create predicate to find the record
             from ibis import _ as ibis_
-            predicate = (ibis_.id == record_id) if table_name != 'objects' else (ibis_.object_id == record_id)
+            if table_name == 'objects':
+                predicate = (ibis_.object_id == record_id)
+            elif table_name == 'users':
+                predicate = (ibis_.user_id == record_id)
+            elif table_name == 'api_tokens':
+                predicate = (ibis_.token_id == record_id)
+            elif table_name == 'sources':
+                predicate = (ibis_.source_id == record_id)
+            elif table_name == 'flows':
+                predicate = (ibis_.flow_id == record_id)
+            elif table_name == 'segments':
+                predicate = (ibis_.segment_id == record_id)
+            elif table_name == 'webhooks':
+                predicate = (ibis_.webhook_id == record_id)
+            elif table_name == 'deletion_requests':
+                predicate = (ibis_.request_id == record_id)
+            else:
+                # Default fallback for other tables
+                predicate = (ibis_.id == record_id)
             
             # Delete the record
             deleted_count = self.db_manager.delete(table_name, predicate)
@@ -1403,7 +1454,25 @@ class VASTStore:
             
             # Create predicate to find the record
             from ibis import _ as ibis_
-            predicate = (ibis_.id == record_id) if table_name != 'objects' else (ibis_.object_id == record_id)
+            if table_name == 'objects':
+                predicate = (ibis_.object_id == record_id)
+            elif table_name == 'users':
+                predicate = (ibis_.user_id == record_id)
+            elif table_name == 'api_tokens':
+                predicate = (ibis_.token_id == record_id)
+            elif table_name == 'sources':
+                predicate = (ibis_.source_id == record_id)
+            elif table_name == 'flows':
+                predicate = (ibis_.flow_id == record_id)
+            elif table_name == 'segments':
+                predicate = (ibis_.segment_id == record_id)
+            elif table_name == 'webhooks':
+                predicate = (ibis_.webhook_id == record_id)
+            elif table_name == 'deletion_requests':
+                predicate = (ibis_.request_id == record_id)
+            else:
+                # Default fallback for other tables
+                predicate = (ibis_.id == record_id)
             
             # Update the record
             updated_count = self.db_manager.update(table_name, update_data, predicate)
@@ -2058,9 +2127,10 @@ class VASTStore:
                 'user_id': row['user_id'],
                 'token_name': row['token_name'],
                 'token_type': row['token_type'],
-                'permissions': self._json_to_dict(row['permissions']),
-                'scopes': self._json_to_dict(row['scopes']),
-                'allowed_ips': self._json_to_dict(row['allowed_ips']),
+                'token_hash': row.get('token_hash'),
+                'permissions': self._json_to_list(row['permissions']),
+                'scopes': self._json_to_list(row['scopes']),
+                'allowed_ips': self._json_to_list(row['allowed_ips']),
                 'is_active': row['is_active'],
                 'created_at': row['created_at'],
                 'expires_at': row['expires_at'],
@@ -2082,6 +2152,30 @@ class VASTStore:
         except Exception as e:
             logger.error(f"Failed to get API token {token_id}: {e}")
             return None
+
+    async def delete_api_token(self, token_id: str) -> bool:
+        """Delete an API token (soft delete)"""
+        try:
+            # Use soft delete to preserve audit trail
+            predicate = (ibis_.token_id == token_id)
+            predicate = self._add_soft_delete_predicate(predicate)
+            
+            # Get the token first to get the token_id for soft delete
+            token = await self.get_api_token(token_id)
+            if not token:
+                return False
+                
+            success = await self.soft_delete_record('api_tokens', token_id, 'system')
+            if success:
+                logger.info(f"API token {token_id} soft deleted successfully")
+                return True
+            else:
+                logger.warning(f"API token {token_id} not found for deletion")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to delete API token {token_id}: {e}")
+            return False
 
     async def list_api_tokens(self, user_id: Optional[str] = None, filters: Optional[Dict[str, Any]] = None, limit: Optional[int] = None) -> List[ApiToken]:
         """List API tokens with optional filtering"""

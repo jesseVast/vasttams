@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
-from ..models.models import Flow, FlowsResponse, FlowFilters, FlowDetailFilters, Tags
+import uuid
+from ..models.models import Flow, FlowsResponse, FlowFilters, FlowDetailFilters, Tags, FlowStoragePost, FlowStorage, HttpRequest, MediaObject
 from .flows import get_flows, get_flow, create_flow, update_flow, delete_flow
 from ..storage.vast_store import VASTStore
 from ..core.dependencies import get_vast_store
+from ..core.config import get_settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -632,4 +634,117 @@ async def update_flow_avg_bit_rate(
         raise
     except Exception as e:
         logger.error(f"Failed to update flow average bit rate for {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Flow storage allocation endpoint
+@router.post("/flows/{flow_id}/storage", response_model=FlowStorage, status_code=201)
+async def allocate_flow_storage(
+    flow_id: str,
+    request: FlowStoragePost,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Allocate storage locations for writing media objects"""
+    try:
+        # Check if flow exists
+        flow = await get_flow(store, flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        # Check if flow is read-only
+        await check_flow_read_only(store, flow_id)
+        
+        # Get settings for S3 configuration
+        settings = get_settings()
+        
+        # Generate object IDs if not provided
+        if request.object_ids:
+            object_ids = request.object_ids
+        else:
+            # Generate the requested number of object IDs
+            limit = request.limit or 10
+            object_ids = [str(uuid.uuid4()) for _ in range(limit)]
+        
+        # Validate that object IDs don't already exist
+        for object_id in object_ids:
+            existing_object = await store.get_object(object_id)
+            if existing_object:
+                raise HTTPException(status_code=400, detail=f"Object ID {object_id} already exists")
+        
+        # Generate storage locations with pre-signed URLs
+        media_objects = []
+        for object_id in object_ids:
+            # Generate S3 presigned PUT URL
+            put_url = f"{settings.s3_endpoint_url}/{settings.s3_bucket_name}/{object_id}"
+            
+            media_objects.append(MediaObject(
+                object_id=object_id,
+                put_url=HttpRequest(
+                    url=put_url,
+                    headers={
+                        "Content-Type": "application/octet-stream",
+                        "x-amz-acl": "private"
+                    }
+                )
+            ))
+        
+        return FlowStorage(media_objects=media_objects)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to allocate storage for flow {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Flow read-only endpoints
+@router.head("/flows/{flow_id}/read_only")
+async def head_flow_read_only(flow_id: str):
+    """Return flow read_only path headers"""
+    return {}
+
+@router.get("/flows/{flow_id}/read_only", response_model=bool)
+async def get_flow_read_only(
+    flow_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Returns the flow read_only property"""
+    try:
+        flow = await get_flow(store, flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        # Check if flow has read_only field, default to False
+        if hasattr(flow, 'read_only'):
+            return flow.read_only
+        else:
+            return False
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get flow read-only status for {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.put("/flows/{flow_id}/read_only", status_code=204)
+async def set_flow_read_only(
+    flow_id: str,
+    read_only: bool = Body(...),
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Set the read-only property"""
+    try:
+        flow = await get_flow(store, flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        # Update flow read_only status
+        success = await store.update_flow_read_only(flow_id, read_only)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update flow read-only status")
+        
+        return  # 204 No Content
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to set flow read-only status for {flow_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error") 

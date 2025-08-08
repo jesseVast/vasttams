@@ -334,6 +334,123 @@ class VastDBManager:
             logger.error(f"Failed to get columns for table '{table_name}': {e}")
             raise
     
+    def add_columns(self, table_name: str, new_columns: Schema) -> bool:
+        """
+        Add new columns to an existing table.
+        
+        This is a transactional metadata operation that does not result in any data updates
+        or allocations in main storage. Since VAST-DB is a columnar data store, there is
+        no impact on subsequent inserts or updates but there is also no provision for
+        default values during column addition.
+        
+        Args:
+            table_name: Name of the table to add columns to
+            new_columns: PyArrow schema containing the new columns to add
+            
+        Returns:
+            True if successful, False otherwise
+            
+        Raises:
+            Exception: If table doesn't exist or column addition fails
+        """
+        try:
+            with self._transaction() as tx:
+                table = self._get_table(tx, table_name)
+                table.add_column(new_column=new_columns)
+                
+                # Update cached schema
+                self.table_schemas[table_name] = table.columns()
+                
+                logger.info(f"Added columns to table '{table_name}': {[field.name for field in new_columns]}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to add columns to table '{table_name}': {e}")
+            return False
+    
+    def rename_column(self, table_name: str, current_column_name: str, new_column_name: str) -> bool:
+        """
+        Rename a column in a table.
+        
+        Args:
+            table_name: Name of the table containing the column
+            current_column_name: Current name of the column to rename
+            new_column_name: New name for the column
+            
+        Returns:
+            True if successful, False otherwise
+            
+        Raises:
+            Exception: If table doesn't exist or column rename fails
+        """
+        try:
+            with self._transaction() as tx:
+                table = self._get_table(tx, table_name)
+                table.rename_column(
+                    current_column_name=current_column_name,
+                    new_column_name=new_column_name
+                )
+                
+                # Update cached schema
+                self.table_schemas[table_name] = table.columns()
+                
+                logger.info(f"Renamed column '{current_column_name}' to '{new_column_name}' in table '{table_name}'")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to rename column '{current_column_name}' in table '{table_name}': {e}")
+            return False
+    
+    def drop_column(self, table_name: str, column_to_drop: Schema) -> bool:
+        """
+        Remove columns from a table.
+        
+        Column removals are transactional and will operate similarly to data delete operations.
+        The column is tombstoned and becomes immediately inaccessible. Async tasks then take
+        over and rewrite/unlink data chunks as necessary in main storage. A column removal
+        can imply a lot of background activity, similar to a large delete, relative to the
+        amount of data in that column (sparsity, data size, etc).
+        
+        Args:
+            table_name: Name of the table to remove columns from
+            column_to_drop: PyArrow schema containing the columns to remove
+            
+        Returns:
+            True if successful, False otherwise
+            
+        Raises:
+            Exception: If table doesn't exist or column removal fails
+        """
+        try:
+            with self._transaction() as tx:
+                table = self._get_table(tx, table_name)
+                table.drop_column(column_to_drop=column_to_drop)
+                
+                # Update cached schema
+                self.table_schemas[table_name] = table.columns()
+                
+                logger.info(f"Dropped columns from table '{table_name}': {[field.name for field in column_to_drop]}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to drop columns from table '{table_name}': {e}")
+            return False
+    
+    def column_exists(self, table_name: str, column_name: str) -> bool:
+        """
+        Check if a column exists in a table.
+        
+        Args:
+            table_name: Name of the table to check
+            column_name: Name of the column to check for
+            
+        Returns:
+            True if column exists, False otherwise
+        """
+        try:
+            schema = self.get_table_columns(table_name)
+            return any(field.name == column_name for field in schema)
+        except Exception as e:
+            logger.error(f"Failed to check if column '{column_name}' exists in table '{table_name}': {e}")
+            return False
+    
     def _get_smallest_column(self, table_name: str) -> str:
         """
         Get the name of the column with the smallest byte width for optimization.

@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     vast_endpoint: str = "http://100.100.0.1:9090"
     vast_access_key: str = "SRSPW0DQT9T70Y787U68"
     vast_secret_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
-    vast_bucket: str = "tamsdb"
+    vast_bucket: str = "jthaloor-db"
     vast_schema: str = "tams"
     
     # Logging settings
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     s3_endpoint_url: str = "http://100.100.0.2:9090"
     s3_access_key_id: str = "SRSPW0DQT9T70Y787U68"
     s3_secret_access_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
-    s3_bucket_name: str = "tamsbucket"
+    s3_bucket_name: str = "jthaloor-s3"
     s3_use_ssl: bool = False
     
     class Config:

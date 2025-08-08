@@ -14,8 +14,8 @@ from typing import List, Optional, Dict, Any, Union, BinaryIO
 import boto3
 from botocore.exceptions import ClientError
 
-from .models import FlowSegment, GetUrl
-from .config import get_settings
+from ..models.models import FlowSegment, GetUrl
+from ..core.config import get_settings
 
 logger = logging.getLogger(__name__)
 

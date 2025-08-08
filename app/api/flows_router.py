@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
-from app.models import Flow, FlowsResponse, FlowFilters, FlowDetailFilters, Tags
-from app.flows import get_flows, get_flow, create_flow, update_flow, delete_flow
-from app.vast_store import VASTStore
-from app.dependencies import get_vast_store
+from ..models.models import Flow, FlowsResponse, FlowFilters, FlowDetailFilters, Tags
+from .flows import get_flows, get_flow, create_flow, update_flow, delete_flow
+from ..storage.vast_store import VASTStore
+from ..core.dependencies import get_vast_store
 import logging
 
 logger = logging.getLogger(__name__)

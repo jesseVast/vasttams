@@ -23,26 +23,26 @@ from fastapi.openapi.utils import get_openapi
 import uvicorn
 from uuid import UUID
 
-from .models import (
+from .models.models import (
     Service, ServiceResponse, Source, SourcesResponse, Flow, FlowsResponse,
     FlowSegment, Object, Webhook, WebhookPost, WebhooksResponse,
     FlowStoragePost, FlowStorage, DeletionRequest, DeletionRequestsResponse,
     SourceFilters, FlowFilters, FlowDetailFilters, PagingInfo, Tags, MediaStore, EventStreamMechanism, StorageLocation,
     DeletionRequestsList
 )
-from .vast_store import VASTStore
-from .config import get_settings
-from app.segments import SegmentManager
-from app.flows import FlowManager
-from app.sources import SourceManager
-from app.objects import ObjectManager
-from app.flows_router import router as flows_router
-from app.segments_router import router as segments_router
-from app.sources_router import router as sources_router
-from app.objects_router import router as objects_router
-from app.analytics_router import router as analytics_router
-from .dependencies import get_vast_store, set_vast_store
-from .telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
+from .storage.vast_store import VASTStore
+from .core.config import get_settings
+from .api.segments import SegmentManager
+from .api.flows import FlowManager
+from .api.sources import SourceManager
+from .api.objects import ObjectManager
+from .api.flows_router import router as flows_router
+from .api.segments_router import router as segments_router
+from .api.sources_router import router as sources_router
+from .api.objects_router import router as objects_router
+from .api.analytics_router import router as analytics_router
+from .core.dependencies import get_vast_store, set_vast_store
+from .core.telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

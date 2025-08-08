@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from typing import List, Optional
-from app.models import FlowSegment, FlowStorage, FlowStoragePost
-from app.segments import get_flow_segments, create_flow_segment, delete_flow_segments, create_flow_storage, SegmentManager
-from app.vast_store import VASTStore
-from app.dependencies import get_vast_store
+from ..models.models import FlowSegment, FlowStorage, FlowStoragePost
+from .segments import get_flow_segments, create_flow_segment, delete_flow_segments, create_flow_storage, SegmentManager
+from ..storage.vast_store import VASTStore
+from ..core.dependencies import get_vast_store
 import logging
 import json
 

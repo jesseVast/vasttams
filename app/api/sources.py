@@ -5,8 +5,8 @@ Handles source-related operations and business logic.
 from typing import List, Optional, Dict
 from fastapi import HTTPException
 from datetime import datetime, timezone
-from .models import Source, SourcesResponse, PagingInfo, Tags, SourceFilters
-from .vast_store import VASTStore
+from ..models.models import Source, SourcesResponse, PagingInfo, Tags, SourceFilters
+from ..storage.vast_store import VASTStore
 import logging
 import uuid
 

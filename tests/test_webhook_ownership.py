@@ -10,7 +10,7 @@ import asyncio
 from datetime import datetime, timezone
 from app.vast_store import VASTStore
 from app.models import WebhookPost, Webhook
-from app.config import get_settings
+from app.core.config import get_settings
 import logging
 
 logger = logging.getLogger(__name__)

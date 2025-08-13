@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from app.s3_store import S3Store
-from app.models import FlowSegment
+from app.storage.s3_store import S3Store
+from app.models.models import FlowSegment
 import uuid
 from tests.test_settings import get_test_settings
 

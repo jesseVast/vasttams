@@ -19,6 +19,6 @@
   "log_format": "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
   
   "api_title": "TAMS API",
-  "api_version": "6.0",
+      "api_version": "7.0",
   "api_description": "Time-addressable Media Store API"
 }

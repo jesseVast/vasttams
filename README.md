@@ -4,7 +4,7 @@ A comprehensive FastAPI implementation of the BBC TAMS API specification with VA
 
 ## 🚀 Features
 
-- **Full TAMS API Compliance**: Implements the complete BBC TAMS API specification v6.0
+- **Full TAMS API Compliance**: Implements the complete BBC TAMS API specification v7.0
 - **VAST Database Integration**: High-performance columnar storage using vastdbmanager with Apache Arrow
 - **S3-Compatible Storage**: Hybrid storage with metadata in VAST DB and media segments in S3
 - **Time-Series Analytics**: Optimized for media flow segments with time ranges

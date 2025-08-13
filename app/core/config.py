@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     
     # API settings
     api_title: str = "TAMS API"
-    api_version: str = "6.0"
+    api_version: str = "7.0"
     api_description: str = "Time-addressable Media Store API"
     
     # Server settings

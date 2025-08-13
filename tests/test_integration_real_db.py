@@ -20,12 +20,12 @@ from typing import Dict, Any, List
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from app.core.config import get_settings
-from app.vast_store import VASTStore
-from app.models import Source, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow, FlowSegment, Object, Tags, CollectionItem
-from app.sources import SourceManager
-from app.flows import FlowManager
-from app.segments import SegmentManager
-from app.objects import ObjectManager
+from app.storage.vast_store import VASTStore
+from app.models.models import Source, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow, FlowSegment, Object, Tags, CollectionItem
+from app.api.sources import SourceManager
+from app.api.flows import FlowManager
+from app.api.segments import SegmentManager
+from app.api.objects import ObjectManager
 from fastapi import HTTPException
 
 # Configure logging

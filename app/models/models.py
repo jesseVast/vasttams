@@ -298,7 +298,7 @@ class Service(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     type: str = "urn:x-tams:service:api"
-    api_version: str = "6.0"
+    api_version: str = "7.0"
     service_version: Optional[str] = None
     media_store: MediaStore
     event_stream_mechanisms: Optional[List[EventStreamMechanism]] = None
@@ -310,7 +310,7 @@ class Webhook(BaseModel):
     api_key_name: str
     api_key_value: Optional[str] = None
     events: List[str]
-    # Ownership fields for TAMS API v6.0 compliance
+    # Ownership fields for TAMS API v7.0 compliance
     owner_id: Optional[str] = None
     created_by: Optional[str] = None
     created: Optional[datetime] = None
@@ -322,7 +322,7 @@ class WebhookPost(BaseModel):
     api_key_name: str
     api_key_value: str
     events: List[str]
-    # Ownership fields for TAMS API v6.0 compliance
+    # Ownership fields for TAMS API v7.0 compliance
     owner_id: Optional[str] = None
     created_by: Optional[str] = None
 

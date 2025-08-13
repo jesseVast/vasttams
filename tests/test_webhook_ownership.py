@@ -1,15 +1,15 @@
 """
-Test webhook ownership implementation (TAMS API v6.0 compliance)
+Test webhook ownership implementation (TAMS API v7.0 compliance)
 
 This test suite verifies that webhooks correctly support ownership fields
-as required by the TAMS API v6.0 specification.
+as required by the TAMS API v7.0 specification.
 """
 
 import pytest
 import asyncio
 from datetime import datetime, timezone
-from app.vast_store import VASTStore
-from app.models import WebhookPost, Webhook
+from app.storage.vast_store import VASTStore
+from app.models.models import WebhookPost, Webhook
 from app.core.config import get_settings
 import logging
 
@@ -206,8 +206,8 @@ class TestWebhookOwnership:
 
     @pytest.mark.asyncio
     async def test_webhook_ownership_compliance(self):
-        """Test that webhook ownership implementation complies with TAMS API v6.0"""
-        logger.info("🧪 Testing webhook ownership TAMS API v6.0 compliance...")
+        """Test that webhook ownership implementation complies with TAMS API v7.0"""
+        logger.info("🧪 Testing webhook ownership TAMS API v7.0 compliance...")
         
         # Test that webhooks support ownership as implied by the specification
         # The spec mentions "suitable permissions (e.g. the owning user)" for webhooks
@@ -236,4 +236,4 @@ class TestWebhookOwnership:
         assert compliance_webhook.owner_id == "compliance-user", "Owner ID should be tracked"
         assert compliance_webhook.created_by == "compliance-admin", "Creator should be tracked"
         
-        logger.info("✅ Webhook ownership implementation complies with TAMS API v6.0") 
+        logger.info("✅ Webhook ownership implementation complies with TAMS API v7.0") 

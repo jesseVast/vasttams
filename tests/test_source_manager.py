@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from app.sources import SourceManager
-from app.models import Source, Tags
+from app.api.sources import SourceManager
+from app.models.models import Source, Tags
 import uuid
 from datetime import datetime
 from tests.test_settings import get_test_settings

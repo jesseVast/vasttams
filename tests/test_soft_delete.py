@@ -7,12 +7,12 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
-from app.models import Source, VideoFlow, FlowSegment, Object, Tags, CollectionItem
-from app.vast_store import VASTStore
-from app.sources import SourceManager
-from app.flows import FlowManager
-from app.segments import SegmentManager
-from app.objects import ObjectManager
+from app.models.models import Source, VideoFlow, FlowSegment, Object, Tags, CollectionItem
+from app.storage.vast_store import VASTStore
+from app.api.sources import SourceManager
+from app.api.flows import FlowManager
+from app.api.segments import SegmentManager
+from app.api.objects import ObjectManager
 from app.core.config import get_settings
 
 # Configure logging

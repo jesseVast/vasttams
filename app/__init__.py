@@ -13,6 +13,6 @@ This package is organized into the following modules:
 - analytics: Analytics and reporting functionality
 """
 
-__version__ = "6.0"
+__version__ = "7.0"
 __author__ = "TAMS Team"
 __description__ = "Time-addressable Media Store API" 

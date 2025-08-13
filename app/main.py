@@ -60,8 +60,11 @@ async def lifespan(app: FastAPI):
     """Lifespan event handler for startup and shutdown"""
     # Startup
     settings = get_settings()
+    # Convert single endpoint to list for multi-endpoint support
+    vast_endpoints = [settings.vast_endpoint]  # For now, use single endpoint as list
+    
     vast_store = VASTStore(
-        endpoint=settings.vast_endpoint,
+        endpoints=vast_endpoints,  # Use the endpoints list
         access_key=settings.vast_access_key,
         secret_key=settings.vast_secret_key,
         bucket=settings.vast_bucket,
@@ -90,7 +93,7 @@ def custom_openapi() -> Dict[str, Any]:
     try:
         app.openapi_schema = get_openapi(
             title="TAMS API",
-            version="6.0",
+            version="7.0",
             description="Time-addressable Media Store API",
             routes=app.routes,
         )
@@ -103,14 +106,14 @@ def custom_openapi() -> Dict[str, Any]:
 app = FastAPI(
     title="TAMS API",
     description="Time-addressable Media Store API",
-    version="6.0",
+    version="7.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
 )
 
 # Initialize telemetry
-telemetry_manager.initialize("tams-api", "6.0")
+telemetry_manager.initialize("tams-api", "7.0")
 telemetry_manager.instrument_fastapi(app)
 
 # Add telemetry middleware
@@ -155,7 +158,7 @@ async def get_service():
         name="TAMS API",
         description="Time-addressable Media Store API",
         type="urn:x-tams:service:api",
-        api_version="6.0",
+        api_version="7.0",
         service_version="1.0.0",
         media_store=MediaStore(type="http_object_store"),
         event_stream_mechanisms=[
@@ -226,7 +229,7 @@ async def create_webhook(
             url=webhook.url,
             api_key_name=webhook.api_key_name,
             events=webhook.events,
-            # Ownership fields for TAMS API v6.0 compliance
+            # Ownership fields for TAMS API v7.0 compliance
             owner_id=webhook.owner_id,
             created_by=webhook.created_by,
             created=datetime.now(timezone.utc)

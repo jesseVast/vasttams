@@ -45,7 +45,7 @@ botocore==1.34.162
 python-dateutil==2.9.0.post0
 pytz==2025.2
 deprecated==1.2.14
-six==1.16.0
+six==1.17.0
 
 # Telemetry and Observability
 prometheus-client==0.22.1

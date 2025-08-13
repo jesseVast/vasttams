@@ -10,8 +10,8 @@ from datetime import datetime, timezone
 from typing import Optional
 from unittest.mock import AsyncMock, MagicMock
 
-from app.models import Source, VideoFlow, FlowSegment, Object, Tags
-from app.vast_store import VASTStore
+from app.models.models import Source, VideoFlow, FlowSegment, Object, Tags
+from app.storage.vast_store import VASTStore
 from app.core.config import get_settings
 
 

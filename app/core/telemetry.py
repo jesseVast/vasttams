@@ -140,7 +140,7 @@ class TelemetryManager:
         self.tracer = None
         self.is_initialized = False
         
-    def initialize(self, service_name: str = "tams-api", service_version: str = "6.0"):
+    def initialize(self, service_name: str = "tams-api", service_version: str = "7.0"):
         """Initialize telemetry components"""
         if self.is_initialized:
             return
@@ -411,7 +411,7 @@ def enhanced_health_check():
     health_status = {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "version": "6.0",
+                    "version": "7.0",
         "system": {
             "memory_usage_bytes": memory_info.used,
             "memory_total_bytes": memory_info.total,

@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from app.flows import FlowManager
-from app.models import VideoFlow, Tags
+from app.api.flows import FlowManager
+from app.models.models import VideoFlow, Tags
 import uuid
 from datetime import datetime
 from tests.test_settings import get_test_settings

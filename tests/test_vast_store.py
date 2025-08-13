@@ -7,8 +7,8 @@ import pytest
 import pytest_asyncio
 import uuid
 from datetime import datetime
-from app.vast_store import VASTStore
-from app.models import Source, Flow, FlowSegment, Object, Tags, VideoFlow
+from app.storage.vast_store import VASTStore
+from app.models.models import Source, Flow, FlowSegment, Object, Tags, VideoFlow
 from app.core.config import get_settings
 from tests.test_settings import get_test_settings
 

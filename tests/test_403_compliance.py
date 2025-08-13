@@ -1,5 +1,5 @@
 """
-Test 403 Forbidden responses for read-only flows (TAMS API v6.0 compliance)
+Test 403 Forbidden responses for read-only flows (TAMS API v7.0 compliance)
 
 This test suite verifies that the application correctly returns 403 Forbidden
 responses when attempting to modify flows that are marked as read-only.
@@ -9,9 +9,9 @@ import pytest
 import asyncio
 import uuid
 from datetime import datetime, timezone
-from app.vast_store import VASTStore
-from app.flows import FlowManager
-from app.models import Source, VideoFlow, Tags
+from app.storage.vast_store import VASTStore
+from app.api.flows import FlowManager
+from app.models.models import Source, VideoFlow, Tags
 from app.core.config import get_settings
 import logging
 

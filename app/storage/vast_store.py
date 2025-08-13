@@ -49,6 +49,7 @@ from typing import List, Optional, Dict, Any, Union, Tuple
 import pandas as pd
 import pyarrow as pa
 from pydantic import UUID4
+from pyarrow import Table, Schema, RecordBatch
 
 from .vastdbmanager import VastDBManager
 from ..core.telemetry import telemetry_manager, trace_operation
@@ -130,7 +131,7 @@ class VASTStore:
     """
     
     def __init__(self, 
-                 endpoint: str = "http://main.vast.acme.com",
+                 endpoints: Union[str, List[str]] = "http://main.vast.acme.com",
                  access_key: str = "test-access-key",
                  secret_key: str = "test-secret-key", 
                  bucket: str = "tams-bucket",
@@ -147,7 +148,8 @@ class VASTStore:
         schemas and tables, and prepares the store for TAMS operations.
         
         Args:
-            endpoint: VAST Database endpoint URL (default: "http://main.vast.acme.com")
+            endpoints: VAST Database endpoint URL(s) - can be single string or list
+                     (default: "http://main.vast.acme.com")
             access_key: VAST access key for authentication (default: "test-access-key")
             secret_key: VAST secret key for authentication (default: "test-secret-key")
             bucket: VAST bucket name for TAMS data (default: "tams-bucket")
@@ -164,7 +166,7 @@ class VASTStore:
             
         Note:
             The initialization process:
-            1. Establishes VAST Database connection
+            1. Establishes VAST Database connection with multiple endpoints
             2. Creates schema if it doesn't exist
             3. Sets up TAMS tables with optimized schemas
             4. Initializes S3 storage connection
@@ -172,7 +174,7 @@ class VASTStore:
             
         Example:
             >>> store = VASTStore(
-            ...     endpoint="http://vast.example.com",
+            ...     endpoints=["http://vast1.example.com", "http://vast2.example.com"],
             ...     access_key="your_vast_key",
             ...     secret_key="your_vast_secret",
             ...     bucket="tams-data",
@@ -184,22 +186,29 @@ class VASTStore:
             ...     s3_use_ssl=True
             ... )
         """
-        self.endpoint = endpoint
+        # Handle both single endpoint and list of endpoints
+        if isinstance(endpoints, str):
+            self.endpoints = [endpoints]
+            self.endpoint = endpoints  # Keep for backward compatibility
+        else:
+            self.endpoints = endpoints
+            self.endpoint = endpoints[0]  # Use first endpoint as primary
+            
         self.access_key = access_key
         self.secret_key = secret_key
         self.bucket = bucket
         self.schema = schema
         
-        # Initialize VAST database manager
+        # Initialize VAST database manager with multiple endpoints
         try:
             self.db_manager = VastDBManager(
-                endpoint=endpoint,
+                endpoints=self.endpoints,  # Pass the full endpoints list
                 access_key=access_key,
                 secret_key=secret_key,
                 bucket=bucket,
                 schema=schema
             )
-            logger.info(f"VAST Store initialized with endpoint: {endpoint}, bucket: {bucket}, schema: {schema}")
+            logger.info(f"VAST Store initialized with {len(self.endpoints)} endpoint(s): {self.endpoints}, bucket: {bucket}, schema: {schema}")
             
             # Setup TAMS tables with schemas
             self._setup_tams_tables()
@@ -299,7 +308,7 @@ class VASTStore:
             ('created', pa.timestamp('us')),
             ('last_accessed', pa.timestamp('us')),
             ('access_count', pa.int32()),
-            # Soft delete fields
+            # Soft delete fields with default values
             ('deleted', pa.bool_()),
             ('deleted_at', pa.timestamp('us')),
             ('deleted_by', pa.string())
@@ -312,7 +321,7 @@ class VASTStore:
             ('api_key_name', pa.string()),
             ('api_key_value', pa.string()),
             ('events', pa.string()),  # JSON string
-            # Ownership fields for TAMS API v6.0 compliance
+            # Ownership fields for TAMS API v7.0 compliance
             ('owner_id', pa.string()),
             ('created_by', pa.string()),
             ('created', pa.timestamp('us')),
@@ -1695,7 +1704,7 @@ class VASTStore:
                         api_key_name=row['api_key_name'],
                         api_key_value=row.get('api_key_value'),
                         events=events,
-                        # Ownership fields for TAMS API v6.0 compliance
+                        # Ownership fields for TAMS API v7.0 compliance
                         owner_id=row.get('owner_id'),
                         created_by=row.get('created_by'),
                         created=row.get('created')
@@ -1717,7 +1726,7 @@ class VASTStore:
                 'api_key_name': webhook.api_key_name,
                 'api_key_value': webhook.api_key_value,
                 'events': self._dict_to_json(webhook.events),
-                # Ownership fields for TAMS API v6.0 compliance
+                # Ownership fields for TAMS API v7.0 compliance
                 'owner_id': webhook.owner_id or "system",
                 'created_by': webhook.created_by or "system",
                 'created': datetime.now(timezone.utc),

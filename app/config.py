@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     
     # API settings
     api_title: str = "TAMS API"
-    api_version: str = "6.0"
+    api_version: str = "7.0"
     api_description: str = "Time-addressable Media Store API"
     
     # Server settings
@@ -22,7 +22,27 @@ class Settings(BaseSettings):
     debug: bool = True
     
     # VAST Database settings
-    vast_endpoint: str = "http://172.200.204.90"
+    vast_endpoints: list[str] = [
+        "http://172.200.204.90",
+        "http://172.200.204.91", 
+        "http://172.200.204.93",
+        "http://172.200.204.92"
+    ]
+    vast_endpoint: str = "http://172.200.204.90"  # Keep for backward compatibility
+    
+    # Handle .env file override for vast_endpoints
+    @property
+    def vast_endpoints_resolved(self) -> list[str]:
+        """Get vast_endpoints with fallback to vast_endpoint if needed"""
+        # If vast_endpoints is loaded from .env as a string, parse it
+        if isinstance(self.vast_endpoints, str):
+            try:
+                import ast
+                return ast.literal_eval(self.vast_endpoints)
+            except (ValueError, SyntaxError):
+                # Fallback to single endpoint
+                return [self.vast_endpoint]
+        return self.vast_endpoints
     vast_access_key: str = "SRSPW0DQT9T70Y787U68"
     vast_secret_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
     vast_bucket: str = "jthaloor-db"

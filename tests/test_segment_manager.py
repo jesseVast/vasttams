@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from app.segments import SegmentManager
-from app.models import FlowSegment, FlowStoragePost
+from app.api.segments import SegmentManager
+from app.models.models import FlowSegment, FlowStoragePost
 import uuid
 from fastapi import Request, UploadFile
 from tests.test_settings import get_test_settings

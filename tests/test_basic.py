@@ -61,7 +61,7 @@ async def test_service_info():
         assert response.status_code == 200
         data = response.json()
         assert data["type"] == "urn:x-tams:service:api"
-        assert data["api_version"] == "6.0"
+        assert data["api_version"] == "7.0"
         assert data["name"] == "TAMS API"
         print("✓ Service info passed")
 

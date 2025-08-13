@@ -3,7 +3,7 @@ name: tams-api
 description: TAMS (Time-addressable Media Store) API - A comprehensive FastAPI implementation with VAST database integration
 type: application
 version: 1.0.0
-appVersion: "6.0"
+appVersion: "7.0"
 keywords:
   - tams
   - media

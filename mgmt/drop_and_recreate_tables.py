@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script to drop all existing tables and recreate them with the updated schema.
-This is needed to add the new webhook ownership fields for TAMS API v6.0 compliance.
+This is needed to add the new webhook ownership fields for TAMS API v7.0 compliance.
 """
 
 import asyncio

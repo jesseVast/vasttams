@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from app.objects import ObjectManager
-from app.models import Object
+from app.api.objects import ObjectManager
+from app.models.models import Object
 import uuid
 from datetime import datetime
 from tests.test_settings import get_test_settings

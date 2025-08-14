@@ -196,3 +196,4 @@ def test_transactional_batch_insertion():
 
 if __name__ == "__main__":
     test_transactional_batch_insertion()
+

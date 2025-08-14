@@ -577,11 +577,15 @@ class VASTStore:
         if not data:
             return ""
         
-        # Custom JSON encoder to handle UUIDs and other non-serializable types
+        # Custom JSON encoder to handle UUIDs, datetime objects, and other non-serializable types
         class UUIDEncoder(json.JSONEncoder):
             def default(self, obj):
                 if isinstance(obj, uuid.UUID):
                     return str(obj)
+                elif isinstance(obj, datetime):
+                    return obj.isoformat()
+                elif hasattr(obj, 'isoformat'):  # Handle any object with isoformat method
+                    return obj.isoformat()
                 return super().default(obj)
         
         return json.dumps(data, cls=UUIDEncoder)
@@ -982,6 +986,9 @@ class VASTStore:
             
             # Update access count and last accessed time
             access_count = row['access_count'][0] if isinstance(row['access_count'], list) else row['access_count']
+            # Safely handle None values for access_count
+            if access_count is None:
+                access_count = DEFAULT_ACCESS_COUNT_BASE
             update_data = {
                 'access_count': access_count + 1,
                 'last_accessed': datetime.now(timezone.utc)
@@ -1068,16 +1075,18 @@ class VASTStore:
             for _, row in df.iterrows():
                 try:
                     if row['format'] == "urn:x-nmos:format:video":
-                        # Convert numpy types to native Python types
+                        # Convert numpy types to native Python types and handle None values
                         frame_width = int(row['frame_width']) if hasattr(row['frame_width'], 'item') else row['frame_width']
                         frame_height = int(row['frame_height']) if hasattr(row['frame_height'], 'item') else row['frame_height']
-                        pixels = frame_width * frame_height
-                        total_storage += pixels
+                        if frame_width is not None and frame_height is not None:
+                            pixels = frame_width * frame_height
+                            total_storage += pixels
                     elif row['format'] == "urn:x-nmos:format:audio":
-                        # Convert numpy types to native Python types
+                        # Convert numpy types to native Python types and handle None values
                         sample_rate = int(row['sample_rate']) if hasattr(row['sample_rate'], 'item') else row['sample_rate']
                         channels = int(row['channels']) if hasattr(row['channels'], 'item') else row['channels']
-                        total_storage += sample_rate * channels * 2
+                        if sample_rate is not None and channels is not None:
+                            total_storage += sample_rate * channels * 2
                 except (KeyError, TypeError) as e:
                     logger.warning(f"Could not calculate storage for flow: {e}")
                     continue
@@ -1124,9 +1133,9 @@ class VASTStore:
                         "average_access_count": 0
                     }
                 
-                # Convert numpy types to native Python types
-                sizes = [int(x) if hasattr(x, 'item') else x for x in results['size']] if results['size'] else []
-                access_counts = [int(x) if hasattr(x, 'item') else x for x in results['access_count']] if results['access_count'] else []
+                # Convert numpy types to native Python types and filter out None values
+                sizes = [int(x) if hasattr(x, 'item') else x for x in results['size'] if x is not None] if results['size'] else []
+                access_counts = [int(x) if hasattr(x, 'item') else x for x in results['access_count'] if x is not None] if results['access_count'] else []
                 total_size = sum(sizes) if sizes else 0
                 total_objects = len(sizes) if sizes else 0
             else:
@@ -1144,10 +1153,10 @@ class VASTStore:
                             "average_access_count": 0
                         }
                     
-                    # Convert numpy types to native Python types
-                    sizes = [int(x) if hasattr(x, 'item') else x for x in df['size'].tolist()]
-                    access_counts = [int(x) if hasattr(x, 'item') else x for x in df['access_count'].tolist()]
-                    total_size = sum(sizes)
+                    # Convert numpy types to native Python types and filter out None values
+                    sizes = [int(x) if hasattr(x, 'item') else x for x in df['size'].tolist() if x is not None]
+                    access_counts = [int(x) if hasattr(x, 'item') else x for x in df['access_count'].tolist() if x is not None]
+                    total_size = sum(sizes) if sizes else 0
                     total_objects = len(df)
                 except Exception as e:
                     logger.error(f"Failed to process objects data: {e}")
@@ -1214,8 +1223,8 @@ class VASTStore:
                 return {"total_segments": 0, "average_duration": 0}
             
             df = pd.DataFrame(results)
-            # Convert numpy types to native Python types
-            durations = [float(x) if hasattr(x, 'item') else x for x in df['duration_seconds'].tolist()]
+            # Convert numpy types to native Python types and filter out None values
+            durations = [float(x) if hasattr(x, 'item') else x for x in df['duration_seconds'].tolist() if x is not None]
             
             if not durations:
                 return {"total_segments": len(df), "average_duration": 0}
@@ -1396,7 +1405,7 @@ class VASTStore:
             elif table_name == 'api_tokens':
                 predicate = (ibis_.token_id == record_id)
             elif table_name == 'sources':
-                predicate = (ibis_.source_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'flows':
                 predicate = (ibis_.flow_id == record_id)
             elif table_name == 'segments':
@@ -1435,7 +1444,7 @@ class VASTStore:
             elif table_name == 'api_tokens':
                 predicate = (ibis_.token_id == record_id)
             elif table_name == 'sources':
-                predicate = (ibis_.source_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'flows':
                 predicate = (ibis_.flow_id == record_id)
             elif table_name == 'segments':
@@ -1475,13 +1484,13 @@ class VASTStore:
             # Create predicate to find the record
             from ibis import _ as ibis_
             if table_name == 'objects':
-                predicate = (ibis_.object_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'users':
                 predicate = (ibis_.user_id == record_id)
             elif table_name == 'api_tokens':
                 predicate = (ibis_.token_id == record_id)
             elif table_name == 'sources':
-                predicate = (ibis_.source_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'flows':
                 predicate = (ibis_.flow_id == record_id)
             elif table_name == 'segments':
@@ -1528,7 +1537,14 @@ class VASTStore:
             
             # Update in VAST database
             predicate = (ibis_.id == source_id)
-            self.db_manager.update('sources', source_data, predicate)
+            
+            # Convert to column-oriented format expected by db_manager.update
+            # Each field needs to be a list with one value
+            column_data = {}
+            for key, value in source_data.items():
+                column_data[key] = [value]
+            
+            self.db_manager.update('sources', column_data, predicate)
             
             logger.info(f"Updated source {source_id} in VAST store")
             return True
@@ -1544,19 +1560,22 @@ class VASTStore:
             predicate = (ibis_.id == source_id)
             predicate = self._add_soft_delete_predicate(predicate)
             
+            # Use the same pattern as update_source - simpler and working
             update_data = {
                 'tags': self._dict_to_json(tags.root if tags else {}),
                 'updated': datetime.now(timezone.utc)
             }
             
-            updated_count = self.db_manager.update('sources', update_data, predicate)
+            # Convert to column-oriented format expected by db_manager.update
+            column_data = {}
+            for key, value in update_data.items():
+                column_data[key] = [value]
             
-            if updated_count > 0:
-                logger.info(f"Updated source {source_id} tags")
-                return True
-            else:
-                logger.warning(f"Source {source_id} not found for tags update")
-                return False
+            # Use the same update call pattern as update_source
+            self.db_manager.update('sources', column_data, predicate)
+            
+            logger.info(f"Updated source {source_id} tags")
+            return True
                 
         except Exception as e:
             logger.error(f"Failed to update source {source_id} tags: {e}")
@@ -1569,19 +1588,22 @@ class VASTStore:
             predicate = (ibis_.id == flow_id)
             predicate = self._add_soft_delete_predicate(predicate)
             
+            # Use the same pattern as update_source - simpler and working
             update_data = {
                 'read_only': read_only,
                 'updated': datetime.now(timezone.utc)
             }
             
-            updated_count = self.db_manager.update('flows', update_data, predicate)
+            # Convert to column-oriented format expected by db_manager.update
+            column_data = {}
+            for key, value in update_data.items():
+                column_data[key] = [value]
             
-            if updated_count > 0:
-                logger.info(f"Updated flow {flow_id} read_only to {read_only}")
-                return True
-            else:
-                logger.warning(f"Flow {flow_id} not found for read_only update")
-                return False
+            # Use the same update call pattern as update_source
+            self.db_manager.update('flows', column_data, predicate)
+            
+            logger.info(f"Updated flow {flow_id} read_only to {read_only}")
+            return True
                 
         except Exception as e:
             logger.error(f"Failed to update flow {flow_id} read_only: {e}")

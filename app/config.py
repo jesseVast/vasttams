@@ -1,6 +1,7 @@
 """Configuration management for TAMS application"""
 
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 from typing import Optional, List
 import os
 

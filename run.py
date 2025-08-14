@@ -27,7 +27,7 @@ def main():
         "app.main:app",
         host=settings.host,
         port=settings.port,
-        reload=settings.debug,
+        reload=False,  # Disable auto-reload for production-like testing
         log_level=settings.log_level.lower()
     )
 

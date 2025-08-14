@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from app.config import get_settings
-from app.vastdbmanager import VastDBManager
+from app.storage.vastdbmanager.core import VastDBManager
 
 # Configure logging
 logging.basicConfig(
@@ -30,13 +30,9 @@ async def cleanup_database():
     
     settings = get_settings()
     
-    # Use VastDBManager directly to avoid table recreation
+    # Use VastDBManager with correct constructor parameters
     db_manager = VastDBManager(
-        endpoint=settings.vast_endpoint,
-        access_key=settings.vast_access_key,
-        secret_key=settings.vast_secret_key,
-        bucket=settings.vast_bucket,
-        schema=settings.vast_schema
+        endpoints=settings.vast_endpoint
     )
     
     try:
@@ -66,8 +62,12 @@ async def cleanup_database():
                 try:
                     logger.info(f"🗑️ Deleting table '{table_name}'...")
                     
-                    # Delete the table
-                    db_manager.drop_table(table_name)
+                    # Delete the table using VAST connection directly
+                    with db_manager.connection.transaction() as tx:
+                        bucket = tx.bucket(db_manager.bucket)
+                        schema = bucket.schema(db_manager.schema)
+                        table = schema.table(table_name)
+                        table.drop()
                     
                     logger.info(f"✅ Successfully deleted table '{table_name}'")
                     deleted_tables.append(table_name)

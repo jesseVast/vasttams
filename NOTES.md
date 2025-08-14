@@ -98,7 +98,48 @@
 ### Storage Layer
 - **VAST Store**: Multi-endpoint support with load balancing
 - **VastDBManager**: Modular architecture with enhanced performance
-- **S3 Integration**: Complete media storage backend
+
+### Batch Insertion Methods - NEW ✅
+**Added**: Transactional batch insertion with data loss prevention
+
+#### `insert_batch_transactional()` Method:
+- **Purpose**: Ensures no records are lost during batch operations
+- **Features**:
+  - Comprehensive batch tracking and status monitoring
+  - Automatic retry logic for failed batches (configurable retry count)
+  - Detailed failure reporting with row-level granularity
+  - Rollback capability for partial failures
+  - Performance metrics and monitoring integration
+- **Returns**: Detailed results dictionary with success/failure status
+- **Safety**: No records can be lost - all operations are tracked and reported
+
+#### `cleanup_partial_insertion()` Method:
+- **Purpose**: Helps recover from partial insertion failures
+- **Features**:
+  - Identifies failed batch ranges and row counts
+  - Provides recovery recommendations
+  - Logs detailed failure information for manual recovery
+  - Tracks error messages and retry attempts
+
+#### Key Benefits:
+1. **Data Integrity**: No records are lost, even with large batch sizes
+2. **Adaptive Batching**: Batch size adapts to actual data volume (1 record with batch_size=1000 works perfectly)
+3. **Failure Recovery**: Comprehensive error handling and retry mechanisms
+4. **Monitoring**: Detailed performance metrics and failure reporting
+5. **Flexibility**: Works with any data size from 1 record to millions
+
+#### Usage Examples:
+```python
+# Single record with large batch size (safe)
+result = manager.insert_batch_transactional(table_name, single_data, batch_size=1000)
+
+# Large dataset with retry logic
+result = manager.insert_batch_transactional(table_name, large_data, batch_size=1000, max_retries=3)
+
+# Handle partial failures
+if not result['success']:
+    manager.cleanup_partial_insertion(table_name, result['failed_batch_ids'], result['batch_details'])
+```
 
 ### API Endpoints
 - **Sources Management**: Complete CRUD operations

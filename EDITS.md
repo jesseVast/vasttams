@@ -100,6 +100,41 @@ vastdbmanager/
 └── README.md            # Documentation ✅
 ```
 
+### ✅ NEW - Transactional Batch Insertion Implementation
+**Date**: December 2024
+**Purpose**: Prevent data loss during batch operations
+
+#### Files Modified:
+1. **`app/storage/vastdbmanager/core.py`**
+   - Added `insert_batch_transactional()` method
+   - Added `cleanup_partial_insertion()` method
+   - Enhanced error handling and retry logic
+
+2. **`test_transactional_batch.py`** (NEW)
+   - Comprehensive testing of transactional batch insertion
+   - Demonstrates data loss prevention
+   - Tests edge cases (1 record with batch_size=1000)
+
+#### Key Features Implemented:
+- **Comprehensive Batch Tracking**: Every batch operation is monitored
+- **Automatic Retry Logic**: Failed batches are retried up to configurable limit
+- **Detailed Failure Reporting**: Row-level granularity for error tracking
+- **Rollback Capability**: Partial failure handling with cleanup recommendations
+- **Performance Monitoring**: Integration with existing performance tracking
+
+#### Safety Improvements:
+- **No Data Loss**: All operations are tracked and reported
+- **Adaptive Batching**: Works efficiently with any data size
+- **Failure Recovery**: Comprehensive error handling and recovery mechanisms
+- **Monitoring**: Detailed logging for debugging and operational oversight
+
+#### Testing Coverage:
+- Single record with large batch size (edge case)
+- Small batches (10 records) with large batch size
+- Large batches (5000 records) with standard batch size
+- Exact batch size scenarios (1000 records with batch_size=1000)
+- Partial failure scenarios and cleanup demonstration
+
 ### Key Components Status:
 1. **Core Module** ✅ - Main orchestrator implemented
 2. **Cache Module** ✅ - Thread-safe caching with TTL

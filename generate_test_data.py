@@ -85,7 +85,7 @@ NUM_SOURCES = 100
 NUM_FLOWS = 100
 NUM_SEGMENTS = 1000
 OBJECTS_PER_SEGMENT = 5
-BATCH_SIZE = 100  # Use batch size of 100
+BATCH_SIZE = 25  # Reduced batch size to prevent server disconnections
 
 class TestDataGenerator:
     def __init__(self):
@@ -334,24 +334,31 @@ class TestDataGenerator:
         # Generate all sources first
         all_sources = [self.generate_source(i) for i in range(NUM_SOURCES)]
         
-        # Use batch insert for all sources at once
-        try:
-            logger.info("Using batch insert endpoint for sources...")
+        # Process in smaller batches to prevent server disconnections
+        for i in range(0, len(all_sources), BATCH_SIZE):
+            batch = all_sources[i:i + BATCH_SIZE]
+            logger.info(f"Processing sources batch {i//BATCH_SIZE + 1}/{(len(all_sources) + BATCH_SIZE - 1)//BATCH_SIZE} ({len(batch)} sources)")
             
-            # Send all sources in a single batch request
-            async with self.session.post(SOURCES_BATCH_ENDPOINT, json=all_sources) as response:
-                if response.status == 201:
-                    created_sources = await response.json()
-                    self.sources = created_sources
-                    logger.info(f"✅ Successfully created {len(self.sources)} sources in batch")
-                    return True
-                else:
-                    logger.error(f"Failed to create sources batch: {response.status}")
-                    return False
-            
-        except Exception as e:
-            logger.error(f"Error in batch source creation: {e}")
-            return False
+            try:
+                # Send batch in a single request
+                async with self.session.post(SOURCES_BATCH_ENDPOINT, json=batch) as response:
+                    if response.status == 201:
+                        created_sources = await response.json()
+                        self.sources.extend(created_sources)
+                        logger.info(f"✅ Created batch {i//BATCH_SIZE + 1}: {len(created_sources)} sources")
+                    else:
+                        logger.error(f"Failed to create sources batch {i//BATCH_SIZE + 1}: {response.status}")
+                        return False
+                
+                # Small delay between batches to prevent overwhelming the server
+                await asyncio.sleep(0.1)
+                
+            except Exception as e:
+                logger.error(f"Error in batch {i//BATCH_SIZE + 1}: {e}")
+                return False
+        
+        logger.info(f"✅ Successfully created {len(self.sources)} sources in {BATCH_SIZE}-sized batches")
+        return True
     
     async def create_single_source(self, source: Dict[str, Any]) -> bool:
         """Create a single source"""
@@ -366,36 +373,40 @@ class TestDataGenerator:
         """Create all flows using batch operations"""
         logger.info(f"Creating {NUM_FLOWS} flows using batch operations...")
         
-        # Generate all flows first
+        # Generate all flows first - each flow references a source
         all_flows = []
         for i in range(NUM_FLOWS):
-            # Assign source (some flows share sources, some have unique sources)
-            if i < len(self.sources):
-                source_id = self.sources[i]["id"]
-            else:
-                source_id = random.choice(self.sources)["id"]
+            # Each flow gets a source from the sources we created
+            source_id = self.sources[i % len(self.sources)]["id"]
             
             flow = self.generate_flow(i, source_id)
             all_flows.append(flow)
         
-        # Use batch insert for all flows at once
-        try:
-            logger.info("Using batch insert endpoint for flows...")
+        # Process in smaller batches to prevent server disconnections
+        for i in range(0, len(all_flows), BATCH_SIZE):
+            batch = all_flows[i:i + BATCH_SIZE]
+            logger.info(f"Processing flows batch {i//BATCH_SIZE + 1}/{(len(all_flows) + BATCH_SIZE - 1)//BATCH_SIZE} ({len(batch)} flows)")
             
-            # Send all flows in a single batch request
-            async with self.session.post(FLOWS_BATCH_ENDPOINT, json=all_flows) as response:
-                if response.status == 201:
-                    created_flows = await response.json()
-                    self.flows = created_flows
-                    logger.info(f"✅ Successfully created {len(self.flows)} flows in batch")
-                    return True
-                else:
-                    logger.error(f"Failed to create flows batch: {response.status}")
-                    return False
-            
-        except Exception as e:
-            logger.error(f"Error in batch flows creation: {e}")
-            return False
+            try:
+                # Send batch in a single request
+                async with self.session.post(FLOWS_BATCH_ENDPOINT, json=batch) as response:
+                    if response.status == 201:
+                        created_flows = await response.json()
+                        self.flows.extend(created_flows)
+                        logger.info(f"✅ Created batch {i//BATCH_SIZE + 1}: {len(created_flows)} flows")
+                    else:
+                        logger.error(f"Failed to create flows batch {i//BATCH_SIZE + 1}: {response.status}")
+                        return False
+                
+                # Small delay between batches to prevent overwhelming the server
+                await asyncio.sleep(0.1)
+                
+            except Exception as e:
+                logger.error(f"Error in batch {i//BATCH_SIZE + 1}: {e}")
+                return False
+        
+        logger.info(f"✅ Successfully created {len(self.flows)} flows in {BATCH_SIZE}-sized batches")
+        return True
     
     async def create_single_flow(self, flow: Dict[str, Any]) -> bool:
         """Create a single flow"""
@@ -415,13 +426,13 @@ class TestDataGenerator:
         all_objects = []
         
         for i in range(NUM_SEGMENTS):
-            # Assign flow (distribute segments across flows)
-            flow_id = random.choice(self.flows)["id"]
+            # Each segment references a flow from the flows we created
+            flow_id = self.flows[i % len(self.flows)]["id"]
             
             segment = self.generate_segment(i, flow_id)
             all_segments.append(segment)
             
-            # Generate objects for this segment
+            # Generate objects for this segment - each object references both segment and flow
             for j in range(OBJECTS_PER_SEGMENT):
                 obj = self.generate_object(i * OBJECTS_PER_SEGMENT + j, segment, flow_id)
                 all_objects.append(obj)
@@ -430,24 +441,31 @@ class TestDataGenerator:
         self.segments = all_segments
         logger.info(f"✅ Generated {len(self.segments)} segments")
         
-        # Use batch insert for all objects at once
-        try:
-            logger.info("Using batch insert endpoint for objects...")
+        # Process objects in smaller batches to prevent server disconnections
+        for i in range(0, len(all_objects), BATCH_SIZE):
+            batch = all_objects[i:i + BATCH_SIZE]
+            logger.info(f"Processing objects batch {i//BATCH_SIZE + 1}/{(len(all_objects) + BATCH_SIZE - 1)//BATCH_SIZE} ({len(batch)} objects)")
             
-            # Send all objects in a single batch request
-            async with self.session.post(OBJECTS_BATCH_ENDPOINT, json=all_objects) as response:
-                if response.status == 201:
-                    created_objects = await response.json()
-                    self.objects = created_objects
-                    logger.info(f"✅ Successfully created {len(self.objects)} objects in batch")
-                    return True
-                else:
-                    logger.error(f"Failed to create objects batch: {response.status}")
-                    return False
-            
-        except Exception as e:
-            logger.error(f"Error in batch objects creation: {e}")
-            return False
+            try:
+                # Send batch in a single request
+                async with self.session.post(OBJECTS_BATCH_ENDPOINT, json=batch) as response:
+                    if response.status == 201:
+                        created_objects = await response.json()
+                        self.objects.extend(created_objects)
+                        logger.info(f"✅ Created batch {i//BATCH_SIZE + 1}: {len(created_objects)} objects")
+                    else:
+                        logger.error(f"Failed to create objects batch {i//BATCH_SIZE + 1}: {response.status}")
+                        return False
+                
+                # Small delay between batches to prevent overwhelming the server
+                await asyncio.sleep(0.1)
+                
+            except Exception as e:
+                logger.error(f"Error in batch {i//BATCH_SIZE + 1}: {e}")
+                return False
+        
+        logger.info(f"✅ Successfully created {len(self.segments)} segments and {len(self.objects)} objects in {BATCH_SIZE}-sized batches")
+        return True
     
     async def create_single_object(self, obj: Dict[str, Any]) -> bool:
         """Create a single object"""
@@ -530,10 +548,18 @@ class TestDataGenerator:
         
         logger.info("🎉 Test data generation completed successfully!")
         logger.info(f"📊 Summary:")
-        logger.info(f"   Sources: {len(self.sources)}")
-        logger.info(f"   Flows: {len(self.flows)}")
-        logger.info(f"   Segments: {len(self.segments)}")
-        logger.info(f"   Objects: {len(self.objects)}")
+        logger.info(f"   Sources: {len(self.sources)} (created first)")
+        logger.info(f"   Flows: {len(self.flows)} (each references a source)")
+        logger.info(f"   Segments: {len(self.segments)} (each references a flow)")
+        logger.info(f"   Objects: {len(self.objects)} (each references a segment and flow)")
+        logger.info(f"   Total records: {len(self.sources) + len(self.flows) + len(self.segments) + len(self.objects)}")
+        
+        # Show some relationship examples
+        if self.sources and self.flows and self.segments and self.objects:
+            logger.info(f"🔗 Relationship Examples:")
+            logger.info(f"   Source '{self.sources[0]['label']}' -> Flow '{self.flows[0]['label']}' -> Segment {self.segments[0]['object_id'][:8]}... -> Object {self.objects[0]['object_id'][:8]}...")
+            if len(self.sources) > 1:
+                logger.info(f"   Source '{self.sources[1]['label']}' -> Flow '{self.flows[1]['label']}' -> Segment {self.segments[1]['object_id'][:8]}... -> Object {self.objects[1]['object_id'][:8]}...")
         
         return True
 

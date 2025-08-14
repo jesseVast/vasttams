@@ -15,7 +15,25 @@
    - Advanced analytics capabilities
    - Multi-endpoint support with load balancing
 
-2. **Stress Testing Implementation** 🔄 IN PROGRESS
+2. **Ibis Predicate Conversion Warnings** ✅ RESOLVED
+   - WARNING: Could not convert Ibis predicate (_.deleted.isnull() | (_.deleted == False)): unhashable type: 'Deferred'
+   - Issue: Ibis predicates with Deferred types causing conversion failures
+   - Location: `_add_soft_delete_predicate` method in vast_store.py
+   - Impact: Soft delete filtering not working properly, potential data leakage
+   - Solution: ✅ Implemented robust predicate converter in PredicateBuilder that handles Deferred types by parsing string representations
+   - Status: All tests passing, predicate conversion working correctly
+
+3. **Proper Update/Delete Implementation** ✅ COMPLETED
+   - Issue: Update method was doing insert instead of update, delete method was a no-op
+   - Root Cause: Incorrect assumption that VAST doesn't support native UPDATE/DELETE operations
+   - Solution: ✅ Implemented proper VAST-native UPDATE and DELETE using $row_id field as documented in VAST Data documentation
+   - Features: 
+     - UPDATE: Fetches $row_id first, then uses VAST's native update capability
+     - DELETE: Fetches $row_id first, then uses VAST's native delete capability
+     - query_with_predicates: Enhanced to support include_row_ids parameter
+   - Status: All tests passing, proper CRUD operations now working
+
+4. **Stress Testing Implementation** 🔄 IN PROGRESS
    - New test file: `tests/test_vastdbmanager_stress.py` (untracked)
    - Need to implement comprehensive stress testing
    - Performance validation under load

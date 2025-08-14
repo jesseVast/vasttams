@@ -51,7 +51,7 @@ class TestTAMSIntegration:
         """Async setup method."""
         self.settings = get_settings()
         self.store = VASTStore(
-            endpoint=self.settings.vast_endpoint,
+            endpoints=[self.settings.vast_endpoint],
             access_key=self.settings.vast_access_key,
             secret_key=self.settings.vast_secret_key,
             bucket=self.settings.vast_bucket,

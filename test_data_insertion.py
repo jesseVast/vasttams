@@ -107,13 +107,13 @@ def test_data_insertion():
             large_batch_time = 0
         
         # Verify data
+        print("\n🔍 Verifying data...")
+        all_data = manager.query_with_predicates(test_table_name, {}, ['id'])
+        print(f"Total rows: {len(all_data) if all_data else 0}")
+        
+        # Check table stats
         print("\n🔍 Verifying inserted data...")
         try:
-            all_data = manager.query_with_predicates(test_table_name, ['id'], {})
-            total_rows = len(all_data) if all_data else 0
-            print(f"✅ Total rows in table: {total_rows}")
-            
-            # Check table stats
             stats = manager.get_table_stats(test_table_name)
             print(f"✅ Table stats: {stats}")
             

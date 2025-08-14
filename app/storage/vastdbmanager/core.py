@@ -1040,7 +1040,7 @@ class VastDBManager:
             raise
     
     def insert_batch_efficient(self, table_name: str, data: Dict[str, List[Any]], 
-                              batch_size: int = 1000, max_workers: int = 4):
+                              batch_size: int = 100, max_workers: int = 4):
         """Insert large datasets efficiently using row pooling and parallel processing"""
         try:
             import concurrent.futures

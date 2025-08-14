@@ -79,6 +79,34 @@ async def create_new_source(
         logger.error(f"Failed to create source: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# Batch POST endpoint
+@router.post("/sources/batch", response_model=List[Source], status_code=201)
+async def create_sources_batch(
+    sources: List[Source],
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Create multiple sources in a single batch operation"""
+    try:
+        created_sources = []
+        for source in sources:
+            success = await create_source(store, source)
+            if success:
+                created_sources.append(source)
+            else:
+                logger.warning(f"Failed to create source {source.id}")
+        
+        if not created_sources:
+            raise HTTPException(status_code=500, detail="Failed to create any sources")
+        
+        logger.info(f"Successfully created {len(created_sources)}/{len(sources)} sources in batch")
+        return created_sources
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create sources batch: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # DELETE endpoint
 @router.delete("/sources/{source_id}")
 async def delete_source_by_id(

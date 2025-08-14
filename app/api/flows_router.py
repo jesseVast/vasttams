@@ -169,6 +169,34 @@ async def create_new_flow(
         logger.error(f"Failed to create flow: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# Batch POST endpoint
+@router.post("/flows/batch", response_model=List[Flow], status_code=201)
+async def create_flows_batch(
+    flows: List[Flow],
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Create multiple flows in a single batch operation"""
+    try:
+        created_flows = []
+        for flow in flows:
+            success = await create_flow(store, flow)
+            if success:
+                created_flows.append(flow)
+            else:
+                logger.warning(f"Failed to create flow {flow.id}")
+        
+        if not created_flows:
+            raise HTTPException(status_code=500, detail="Failed to create any flows")
+        
+        logger.info(f"Successfully created {len(created_flows)}/{len(flows)} flows in batch")
+        return created_flows
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create flows batch: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # Individual field endpoints
 @router.head("/flows/{flow_id}/tags")
 async def head_flow_tags(flow_id: str):

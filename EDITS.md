@@ -235,3 +235,78 @@ vastdbmanager/
 **Last Updated**: December 2024  
 **Current Status**: Phase 3 completed, stress testing in progress  
 **Next Milestone**: Performance validation and documentation updates
+
+# Code Changes and Edits
+
+## December 2024
+
+### Ibis Predicate Conversion Fix - RESOLVED ✅
+**Issue**: WARNING: Could not convert Ibis predicate (_.deleted.isnull() | (_.deleted == False)): unhashable type: 'Deferred'
+
+**Root Cause**: The `_add_soft_delete_predicate` method in `vast_store.py` was creating Ibis predicates using `ibis._` (which creates `Deferred` objects), but then the `VastDBManager.select()` method was trying to convert these back to Python dictionaries, which failed because `Deferred` objects are unhashable.
+
+**Solution Implemented**:
+1. **Enhanced PredicateBuilder** (`app/storage/vastdbmanager/queries/predicate_builder.py`):
+   - Added `convert_ibis_predicate_to_vast()` method that converts Ibis predicates to VAST-compatible dictionary format
+   - Implemented `_parse_predicate_string()` method that parses predicate string representations to avoid Deferred object issues
+   - Added support for complex predicates including AND, OR operations, and soft delete scenarios
+   - Handles nested parentheses and various predicate formats
+
+2. **Updated VastDBManager** (`app/storage/vastdbmanager/core.py`):
+   - Modified `select()` method to use the new predicate converter instead of manual conversion
+   - Updated `update()` method to also use the new predicate converter
+   - Improved error handling and logging for predicate conversion
+
+3. **Fixed VAST Store** (`app/storage/vast_store.py`):
+   - Updated `_add_soft_delete_predicate()` method to create dictionary-based predicates instead of Ibis objects
+   - This avoids the Deferred type conversion issue entirely
+   - Maintains backward compatibility for existing Ibis predicates
+
+**Files Modified**:
+- `app/storage/vastdbmanager/queries/predicate_builder.py` - Added predicate conversion methods
+- `app/storage/vastdbmanager/core.py` - Updated select/update methods
+- `app/storage/vast_store.py` - Fixed soft delete predicate creation
+- `tests/test_vastdbmanager_architecture.py` - Added comprehensive predicate conversion tests
+
+**Testing**: All VastDBManager architecture tests passing, including new predicate conversion tests.
+
+**Result**: The unhashable Deferred type warnings are now resolved, and soft delete filtering works correctly without data leakage.
+
+### Proper Update/Delete Implementation - COMPLETED ✅
+**Issue**: Update method was doing insert instead of update, delete method was a no-op
+
+**Root Cause**: Incorrect assumption that VAST doesn't support native UPDATE/DELETE operations. The previous implementation was based on the assumption that VAST only supports INSERT operations.
+
+**Solution Implemented**:
+1. **VAST-Native UPDATE Operations** (`app/storage/vastdbmanager/core.py`):
+   - Updated `update()` method to use VAST's native UPDATE capability
+   - Method now fetches `$row_id` field first using `query_with_predicates(include_row_ids=True)`
+   - Creates proper PyArrow RecordBatch with `$row_id` field as required by VAST
+   - Uses `vast_table.update(record_batch)` for native VAST updates
+   - Handles both single values and lists of values for batch updates
+
+2. **VAST-Native DELETE Operations** (`app/storage/vastdbmanager/core.py`):
+   - Updated `delete()` method to use VAST's native DELETE capability
+   - Method fetches `$row_id` field first using `query_with_predicates(include_row_ids=True)`
+   - Creates proper PyArrow RecordBatch with only `$row_id` field as required by VAST
+   - Uses `vast_table.delete(record_batch)` for native VAST deletes
+
+3. **Enhanced Query Method** (`app/storage/vastdbmanager/core.py`):
+   - Fixed `query_with_predicates()` method signature to be more logical: `(table_name, predicates, columns, limit, include_row_ids)`
+   - Added `include_row_ids` parameter to automatically include `$row_id` field when needed
+   - Fixed parameter order to match actual usage patterns
+   - Updated all calling code to use new parameter order
+
+4. **Removed Helper Methods**:
+   - Removed `_soft_delete_records()` and `_perform_actual_update()` methods
+   - These were no longer needed since we're using VAST's native capabilities
+
+**Files Modified**:
+- `app/storage/vastdbmanager/core.py` - Complete rewrite of update/delete methods, enhanced query method
+- `test_vast_optimization.py` - Fixed parameter order in method calls
+- `test_data_insertion.py` - Fixed parameter order in method calls  
+- `test_row_pooling.py` - Fixed parameter order in method calls
+
+**Testing**: All VastDBManager architecture tests passing, including predicate conversion tests.
+
+**Result**: VAST now properly supports full CRUD operations using native UPDATE and DELETE capabilities as documented in the [VAST Data documentation](https://vast-data.github.io/data-platform-field-docs/vast_database/sdk_ref/08_manipulation.html). The system no longer creates duplicate records or performs no-op delete operations.

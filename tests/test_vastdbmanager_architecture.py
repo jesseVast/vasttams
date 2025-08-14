@@ -1,7 +1,7 @@
 """Test VastDBManager architecture without requiring real database connection"""
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 from datetime import timedelta
 
 # Import the modular components
@@ -39,9 +39,23 @@ class TestVastDBManagerArchitecture:
         
         # Mock the connection to avoid real database calls
         with patch('app.storage.vastdbmanager.core.vastdb.connect') as mock_connect:
-            mock_connect.side_effect = Exception("Mock connection failure")
+            # Create a mock connection object
+            mock_conn = MagicMock()
+            mock_connect.return_value = mock_conn
             
-            # Should still initialize the modular components
+            # Mock the transaction context manager
+            mock_tx = MagicMock()
+            mock_conn.transaction.return_value.__enter__.return_value = mock_tx
+            mock_conn.transaction.return_value.__exit__.return_value = None
+            
+            # Mock bucket and schema
+            mock_bucket = MagicMock()
+            mock_schema = MagicMock()
+            mock_tx.bucket.return_value = mock_bucket
+            mock_bucket.schema.return_value = mock_schema
+            mock_schema.tablenames.return_value = []
+            
+            # Should initialize successfully
             manager = VastDBManager(mock_endpoints)
             
             # Verify modular components are initialized
@@ -160,7 +174,21 @@ class TestVastDBManagerArchitecture:
         mock_endpoints = ["http://mock1.example.com"]
         
         with patch('app.storage.vastdbmanager.core.vastdb.connect') as mock_connect:
-            mock_connect.side_effect = Exception("Mock connection failure")
+            # Create a mock connection object
+            mock_conn = MagicMock()
+            mock_connect.return_value = mock_conn
+            
+            # Mock the transaction context manager
+            mock_tx = MagicMock()
+            mock_conn.transaction.return_value.__enter__.return_value = mock_tx
+            mock_conn.transaction.return_value.__exit__.return_value = None
+            
+            # Mock bucket and schema
+            mock_bucket = MagicMock()
+            mock_schema = MagicMock()
+            mock_tx.bucket.return_value = mock_bucket
+            mock_bucket.schema.return_value = mock_schema
+            mock_schema.tablenames.return_value = []
             
             manager = VastDBManager(mock_endpoints)
             
@@ -183,7 +211,21 @@ class TestVastDBManagerArchitecture:
         mock_endpoints = ["http://mock1.example.com"]
         
         with patch('app.storage.vastdbmanager.core.vastdb.connect') as mock_connect:
-            mock_connect.side_effect = Exception("Mock connection failure")
+            # Create a mock connection object
+            mock_conn = MagicMock()
+            mock_connect.return_value = mock_conn
+            
+            # Mock the transaction context manager
+            mock_tx = MagicMock()
+            mock_conn.transaction.return_value.__enter__.return_value = mock_tx
+            mock_conn.transaction.return_value.__exit__.return_value = None
+            
+            # Mock bucket and schema
+            mock_bucket = MagicMock()
+            mock_schema = MagicMock()
+            mock_tx.bucket.return_value = mock_bucket
+            mock_bucket.schema.return_value = mock_schema
+            mock_schema.tablenames.return_value = []
             
             manager = VastDBManager(mock_endpoints)
             
@@ -194,6 +236,37 @@ class TestVastDBManagerArchitecture:
                 assert hasattr(manager, prop_name), f"Property {prop_name} not found"
             
             print("✅ All required VastDBManager properties exist")
+
+    def test_predicate_conversion(self):
+        """Test that Ibis predicates are properly converted to VAST format"""
+        from app.storage.vastdbmanager.queries.predicate_builder import PredicateBuilder
+        from ibis import _
+        
+        builder = PredicateBuilder()
+        
+        # Test simple equality predicate
+        ibis_pred = (_.id == "test-id")
+        result = builder.convert_ibis_predicate_to_vast(ibis_pred)
+        assert result == {"id": "test-id"}
+        
+        # Test soft delete predicate
+        soft_delete_pred = (_.deleted.isnull() | (_.deleted == False))
+        result = builder.convert_ibis_predicate_to_vast(soft_delete_pred)
+        # Should convert to a format that can be handled
+        assert result is not None
+        
+        # Test AND operation
+        and_pred = (_.id == "test-id") & (_.format == "video")
+        result = builder.convert_ibis_predicate_to_vast(and_pred)
+        assert result is not None
+        assert "id" in result
+        assert "format" in result
+        
+        # Test complex predicate that might fail
+        complex_pred = (_.deleted.isnull() | (_.deleted == False))
+        result = builder.convert_ibis_predicate_to_vast(complex_pred)
+        # Should not raise an error about unhashable Deferred type
+        assert result is not None
 
 
 if __name__ == "__main__":

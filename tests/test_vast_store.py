@@ -18,7 +18,7 @@ pytestmark = pytest.mark.asyncio
 async def store():
     settings = get_test_settings()
     store = VASTStore(
-        endpoint=settings.vast_endpoint,
+        endpoints=[settings.vast_endpoint],
         access_key=settings.vast_access_key,
         secret_key=settings.vast_secret_key,
         bucket=settings.vast_bucket,
@@ -36,7 +36,7 @@ async def test_source_crud(store):
     assert retrieved is not None
     assert retrieved.id == source_id
     retrieved.label = "Updated Label"
-    assert await store.update_source(retrieved)
+    assert await store.update_source(str(source_id), retrieved)
     updated = await store.get_source(str(source_id))
     assert updated.label == "Updated Label"
     assert await store.delete_source(str(source_id))
@@ -55,7 +55,7 @@ async def test_flow_crud(store):
     assert retrieved is not None
     assert retrieved.id == flow_id
     retrieved.label = "Updated Flow"
-    assert await store.update_flow(retrieved)
+    assert await store.update_flow(str(flow_id), retrieved)
     updated = await store.get_flow(str(flow_id))
     assert updated.label == "Updated Flow"
     assert await store.delete_flow(str(flow_id))

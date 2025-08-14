@@ -106,25 +106,19 @@ def test_row_pooling():
             print(f"❌ Large dataset insertion failed: {e}")
             large_time = 0
         
-        # Verify data and cache
-        print("\n🔍 Verifying data and cache...")
-        try:
-            # Check total rows
-            all_data = manager.query_with_predicates(test_table_name, ['id'], {})
-            total_rows = len(all_data) if all_data else 0
-            print(f"✅ Total rows in table: {total_rows}")
-            
-            # Check table stats (should now be updated)
-            stats = manager.get_table_stats(test_table_name)
-            print(f"✅ Table stats: {stats}")
-            
-            # Check cache stats
-            cache_stats = manager.get_cache_stats()
-            print(f"✅ Cache stats: {cache_stats}")
-            
-        except Exception as e:
-            print(f"❌ Data verification failed: {e}")
-            total_rows = 0
+        # Verify data
+        print("\n🔍 Verifying data...")
+        all_data = manager.query_with_predicates(test_table_name, {}, ['id'])
+        print(f"Total rows: {len(all_data) if all_data else 0}")
+        
+        # Test time-series query
+        print("\n⏰ Testing time-series query...")
+        start_time = time.time()
+        time_query = manager.query_with_predicates(
+            test_table_name, 
+            {'timestamp': {'between': [datetime.now() - timedelta(hours=2), datetime.now()]}}, 
+            ['id', 'timestamp']
+        )
         
         # Performance analysis
         print("\n" + "=" * 60)

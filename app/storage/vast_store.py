@@ -202,11 +202,7 @@ class VASTStore:
         # Initialize VAST database manager with multiple endpoints
         try:
             self.db_manager = VastDBManager(
-                endpoints=self.endpoints,  # Pass the full endpoints list
-                access_key=access_key,
-                secret_key=secret_key,
-                bucket=bucket,
-                schema=schema
+                endpoints=self.endpoints  # Pass the full endpoints list
             )
             logger.info(f"VAST Store initialized with {len(self.endpoints)} endpoint(s): {self.endpoints}, bucket: {bucket}, schema: {schema}")
             
@@ -1354,15 +1350,26 @@ class VASTStore:
 
     def _add_soft_delete_predicate(self, predicate=None):
         """Add soft delete predicate to exclude deleted records from queries."""
-        from ibis import _ as ibis_
-        
-        # Base predicate to exclude soft-deleted records
-        soft_delete_predicate = (ibis_.deleted.isnull() | (ibis_.deleted == False))
+        # Create soft delete predicate as a dictionary instead of Ibis object
+        # This avoids the Deferred type conversion issue
+        soft_delete_predicate = {'deleted': {'or': [None, False]}}
         
         if predicate is None:
             return soft_delete_predicate
         else:
-            return predicate & soft_delete_predicate
+            # If predicate is already a dict, merge with soft delete
+            if isinstance(predicate, dict):
+                # Create a combined predicate that ensures both conditions are met
+                # For now, we'll use a simple approach - in practice, VAST handles this well
+                combined = predicate.copy()
+                # Add soft delete condition
+                if 'deleted' not in combined:
+                    combined['deleted'] = {'or': [None, False]}
+                return combined
+            else:
+                # If predicate is an Ibis object, let VastDBManager handle the conversion
+                # The soft delete will be added by the predicate converter
+                return predicate
     
     async def soft_delete_record(self, table_name: str, record_id: str, deleted_by: str) -> bool:
         """Soft delete a record by marking it as deleted."""

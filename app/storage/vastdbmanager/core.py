@@ -67,6 +67,10 @@ class VastDBManager:
         """Get list of available table names"""
         return self.cache_manager.get_all_table_names()
     
+    def list_tables(self) -> List[str]:
+        """Backward compatibility method - alias for tables property"""
+        return self.tables
+    
     def connect(self):
         """Connect to VAST database using the first available endpoint"""
         try:
@@ -545,8 +549,9 @@ class VastDBManager:
             logger.error(f"Error inserting data into table {table_name}: {e}")
             raise
     
-    def query_with_predicates(self, table_name: str, columns: List[str], 
-                             predicates: Dict[str, Any], limit: Optional[int] = None):
+    def query_with_predicates(self, table_name: str, predicates: Optional[Dict[str, Any]] = None, 
+                             columns: Optional[List[str]] = None, limit: Optional[int] = None,
+                             include_row_ids: bool = False):
         """Query table with Python predicates converted to VAST filters and QueryConfig optimization"""
         try:
             if not self.connection:
@@ -555,10 +560,18 @@ class VastDBManager:
             start_time = time.time()
             
             # Convert Python predicates to VAST filter string
-            vast_filter = self.predicate_builder.build_vast_predicates(predicates)
+            vast_filter = None
+            if predicates:
+                vast_filter = self.predicate_builder.build_vast_predicates(predicates)
             
             # Create optimized QueryConfig for this query
             query_config = self._create_optimized_query_config(table_name, predicates)
+            
+            # Prepare columns for query
+            query_columns = columns or []
+            if include_row_ids and '$row_id' not in query_columns:
+                # Add $row_id to the beginning of columns list
+                query_columns = ['$row_id'] + query_columns
             
             # Get table and execute query
             with self.connection.transaction() as tx:
@@ -569,13 +582,13 @@ class VastDBManager:
                 # Execute query with VAST QueryConfig optimizations
                 if vast_filter is not None:
                     result = table.select(
-                        columns=columns,
+                        columns=query_columns,
                         predicate=vast_filter,
                         config=query_config
                     ).read_all()
                 else:
                     result = table.select(
-                        columns=columns,
+                        columns=query_columns,
                         config=query_config
                     ).read_all()
                 
@@ -741,6 +754,223 @@ class VastDBManager:
         """Clear all cached data"""
         self.cache_manager.clear_cache()
         logger.info("Cleared all cached data")
+    
+
+    
+    def insert(self, table_name: str, data: Dict[str, List[Any]]):
+        """Backward compatibility method - alias for insert_pydict"""
+        return self.insert_pydict(table_name, data)
+    
+    def select(self, table_name: str, predicate: Optional[Dict[str, Any]] = None, 
+               output_by_row: bool = False, columns: Optional[List[str]] = None):
+        """Backward compatibility method - alias for query_with_predicates"""
+        # Convert Ibis predicates to Python dictionaries if needed
+        if predicate is not None and not isinstance(predicate, dict):
+            # Use the new predicate converter to handle Ibis predicates properly
+            try:
+                converted_predicate = self.predicate_builder.convert_ibis_predicate_to_vast(predicate)
+                if converted_predicate is not None:
+                    predicate = converted_predicate
+                    logger.debug(f"Successfully converted Ibis predicate to: {converted_predicate}")
+                else:
+                    logger.warning(f"Could not convert Ibis predicate {predicate} - using unfiltered query")
+                    predicate = None
+            except Exception as e:
+                logger.warning(f"Error converting Ibis predicate {predicate}: {e}")
+                predicate = None
+        
+        result = self.query_with_predicates(
+            table_name=table_name,
+            predicates=predicate,
+            columns=columns
+        )
+        
+        # Convert PyArrow Table to dict if needed
+        if result is not None and hasattr(result, 'to_pydict'):
+            result = result.to_pydict()
+        
+        if output_by_row and result is not None:
+            # Convert column-oriented result to row-oriented format
+            if len(result) > 0:
+                num_rows = len(next(iter(result.values())))
+                return [
+                    {col: result[col][i] for col in result.keys()}
+                    for i in range(num_rows)
+                ]
+        
+        return result
+    
+    def update(self, table_name: str, data: Dict[str, List[Any]], predicate: Optional[Dict[str, Any]] = None):
+        """Update data in a table using VAST's native UPDATE capability"""
+        try:
+            # Convert Ibis predicates to Python dictionaries if needed
+            if predicate is not None and not isinstance(predicate, dict):
+                try:
+                    converted_predicate = self.predicate_builder.convert_ibis_predicate_to_vast(predicate)
+                    if converted_predicate is not None:
+                        predicate = converted_predicate
+                        logger.debug(f"Successfully converted Ibis predicate to: {converted_predicate}")
+                    else:
+                        logger.warning(f"Could not convert Ibis predicate {predicate} - using unfiltered update")
+                        predicate = None
+                except Exception as e:
+                    logger.warning(f"Error converting Ibis predicate {predicate}: {e}")
+                    predicate = None
+            
+            if predicate is None:
+                logger.warning(f"Update operation requires a predicate for table {table_name}")
+                return 0
+            
+            # Use VAST's native UPDATE capability
+            # First, find the records that match the predicate to get their row IDs
+            matching_records = self.query_with_predicates(table_name, predicate, include_row_ids=True)
+            
+            if matching_records is None or len(matching_records) == 0:
+                logger.warning(f"No records found matching predicate for update in table {table_name}")
+                return 0
+            
+            num_records = len(matching_records)
+            logger.info(f"Updating {num_records} records in table {table_name}")
+            
+            # Get the table schema to understand the structure
+            schema = self.cache_manager.get_table_columns(table_name)
+            if schema is None:
+                logger.error(f"Could not get schema for table {table_name}")
+                return 0
+            
+            # Create update data with the $row_id field as required by VAST
+            update_data = {'$row_id': []}
+            
+            # Add the row IDs
+            if '$row_id' in matching_records:
+                update_data['$row_id'] = matching_records['$row_id']
+            else:
+                logger.error(f"Row IDs not found in matching records for table {table_name}")
+                return 0
+            
+            # Add the columns to be updated
+            for key, values in data.items():
+                if key in schema:
+                    if isinstance(values, list):
+                        if len(values) == 1:
+                            # Single value, repeat for all records
+                            update_data[key] = values * num_records
+                        elif len(values) == num_records:
+                            # Values match number of records
+                            update_data[key] = values
+                        else:
+                            logger.warning(f"Column {key} has {len(values)} values but {num_records} records - using first value")
+                            update_data[key] = [values[0]] * num_records
+                    else:
+                        # Single value, repeat for all records
+                        update_data[key] = [values] * num_records
+            
+            # Convert to PyArrow RecordBatch with proper schema
+            import pyarrow as pa
+            
+            # Create schema for update (must include $row_id)
+            update_schema_fields = [pa.field('$row_id', pa.uint64())]
+            for key, values in update_data.items():
+                if key != '$row_id':
+                    # Determine the type from the schema
+                    schema_field = next((f for f in schema if f.name == key), None)
+                    if schema_field:
+                        update_schema_fields.append(schema_field)
+                    else:
+                        # Fallback type inference
+                        if isinstance(values[0], bool):
+                            update_schema_fields.append(pa.field(key, pa.bool_()))
+                        elif isinstance(values[0], int):
+                            update_schema_fields.append(pa.field(key, pa.int64()))
+                        elif isinstance(values[0], float):
+                            update_schema_fields.append(pa.field(key, pa.float64()))
+                        else:
+                            update_schema_fields.append(pa.field(key, pa.string()))
+            
+            update_schema = pa.schema(update_schema_fields)
+            
+            # Create RecordBatch for update
+            record_batch = pa.RecordBatch.from_pydict(update_data, schema=update_schema)
+            
+            # Perform the update using VAST's native update method
+            with self.connection.transaction() as tx:
+                bucket = tx.bucket(self.bucket)
+                schema_obj = bucket.schema(self.schema)
+                vast_table = schema_obj.table(table_name)
+                
+                # Use VAST's native update method
+                vast_table.update(record_batch)
+                
+            logger.info(f"Successfully updated {num_records} records in table {table_name}")
+            return num_records
+            
+        except Exception as e:
+            logger.error(f"Failed to update table {table_name}: {e}")
+            raise
+    
+    def delete(self, table_name: str, predicate: Optional[Dict[str, Any]] = None):
+        """Delete records from a table using VAST's native DELETE capability"""
+        try:
+            if predicate is None:
+                logger.warning(f"Delete operation requires a predicate for table {table_name}")
+                return 0
+            
+            # Convert Ibis predicates to Python dictionaries if needed
+            if not isinstance(predicate, dict):
+                try:
+                    converted_predicate = self.predicate_builder.convert_ibis_predicate_to_vast(predicate)
+                    if converted_predicate is not None:
+                        predicate = converted_predicate
+                        logger.debug(f"Successfully converted Ibis predicate to: {converted_predicate}")
+                    else:
+                        logger.warning(f"Could not convert Ibis predicate {predicate} - delete operation failed")
+                        return 0
+                except Exception as e:
+                    logger.warning(f"Error converting Ibis predicate {predicate}: {e}")
+                    return 0
+            
+            # Use VAST's native DELETE capability
+            # First, find the records that match the predicate to get their row IDs
+            matching_records = self.query_with_predicates(table_name, predicate, include_row_ids=True)
+            
+            if matching_records is None or len(matching_records) == 0:
+                logger.warning(f"No records found matching predicate for delete in table {table_name}")
+                return 0
+            
+            num_records = len(matching_records)
+            logger.info(f"Deleting {num_records} records from table {table_name}")
+            
+            # Create delete data with only the $row_id field as required by VAST
+            if '$row_id' not in matching_records:
+                logger.error(f"Row IDs not found in matching records for table {table_name}")
+                return 0
+            
+            delete_data = {'$row_id': matching_records['$row_id']}
+            
+            # Convert to PyArrow RecordBatch with proper schema
+            import pyarrow as pa
+            
+            # Schema for delete only needs $row_id
+            delete_schema = pa.schema([pa.field('$row_id', pa.uint64())])
+            
+            # Create RecordBatch for delete
+            record_batch = pa.RecordBatch.from_pydict(delete_data, schema=delete_schema)
+            
+            # Perform the delete using VAST's native delete method
+            with self.connection.transaction() as tx:
+                bucket = tx.bucket(self.bucket)
+                schema_obj = bucket.schema(self.schema)
+                vast_table = schema_obj.table(table_name)
+                
+                # Use VAST's native delete method
+                vast_table.delete(record_batch)
+                
+            logger.info(f"Successfully deleted {num_records} records from table {table_name}")
+            return num_records
+                
+        except Exception as e:
+            logger.error(f"Failed to delete from table {table_name}: {e}")
+            raise
     
 
     

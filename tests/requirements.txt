@@ -1,0 +1,41 @@
+# Testing Requirements for TAMS API
+# Dependencies needed for running tests
+
+# Include main requirements
+-r ../requirements.txt
+
+# Testing framework
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+pytest-xdist==3.5.0
+pytest-html==4.1.1
+pytest-json-report==1.5.0
+
+# Coverage and reporting
+coverage==7.4.3
+coverage-badge==1.1.0
+
+# Test utilities
+factory-boy==3.3.0
+faker==24.2.0
+responses==0.24.1
+httpx==0.28.1
+
+# Performance testing
+locust==2.24.0
+pytest-benchmark==4.0.0
+
+# Mocking and stubbing
+freezegun==1.4.0
+time-machine==2.13.0
+
+# Database testing
+pytest-postgresql==5.1.0
+pytest-mysql==4.1.1
+pytest-mongodb==2.2.0
+
+# API testing
+pytest-asgi==0.0.1
+pytest-fastapi==0.0.12

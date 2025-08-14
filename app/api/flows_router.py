@@ -260,6 +260,35 @@ async def get_flow_tag(
         logger.error(f"Failed to get flow tag {name} for {flow_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@router.put("/flows/{flow_id}/tags", response_model=Tags)
+async def update_flow_tags(
+    flow_id: str,
+    tags: Tags,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update all flow tags"""
+    try:
+        await check_flow_read_only(store, flow_id)
+        flow = await get_flow(store, flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        # Update all tags
+        flow.tags = tags
+        
+        # Save the updated flow
+        success = await store.update_flow(flow_id, flow)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update flow tags")
+        
+        return tags
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update flow tags for {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 @router.put("/flows/{flow_id}/tags/{name}")
 async def update_flow_tag(
     flow_id: str,

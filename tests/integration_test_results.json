@@ -1,0 +1,909 @@
+{
+  "test_results": {
+    "passed": 55,
+    "failed": 44,
+    "skipped": 0,
+    "details": [
+      {
+        "method": "GET",
+        "endpoint": "/health",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Health check",
+        "response": "{\"status\":\"healthy\",\"timestamp\":\"2025-08-14T19:15:05.844404+00:00\",\"version\":\"7.0\",\"system\":{\"memory_usage_bytes\":6311591936,\"memory_total_bytes\":17179869184,\"cpu_percent\":30.2,\"uptime_seconds\":580665"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/metrics",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Metrics endpoint",
+        "response": "# HELP python_gc_objects_collected_total Objects collected during gc\n# TYPE python_gc_objects_collected_total counter\npython_gc_objects_collected_total{generation=\"0\"} 4896.0\npython_gc_objects_collect"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Root endpoint",
+        "response": "[\"service\",\"flows\",\"sources\",\"flow-delete-requests\",\"openapi.json\"]"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/openapi.json",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "OpenAPI specification",
+        "response": "{\"openapi\":\"3.1.0\",\"info\":{\"title\":\"TAMS API\",\"description\":\"Time-addressable Media Store API\",\"version\":\"7.0\"},\"paths\":{\"/flows\":{\"head\":{\"summary\":\"Head Flows\",\"description\":\"Return flows path heade"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/service",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Service info",
+        "response": "{\"name\":\"TAMS API\",\"description\":\"Time-addressable Media Store API\",\"type\":\"urn:x-tams:service:api\",\"api_version\":\"7.0\",\"service_version\":\"1.0.0\",\"media_store\":{\"type\":\"http_object_store\"},\"event_stre"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/service/storage-backends",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Storage backends",
+        "response": "[{\"id\":\"550e8400-e29b-41d4-a716-446655440000\",\"store_type\":\"http_object_store\",\"provider\":\"VAST Data\",\"store_product\":\"VAST S3 Compatible Store\",\"region\":\"us-west-1\",\"availability_zone\":null,\"label\":\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/service/webhooks",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Webhooks info",
+        "response": "{\"data\":[]}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Get sources (empty)",
+        "response": "{\"data\":[],\"paging\":null}"
+      },
+      {
+        "method": "POST",
+        "endpoint": "/sources/batch",
+        "expected_status": 201,
+        "actual_status": 201,
+        "success": true,
+        "description": "Create sources batch",
+        "response": "[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\":null,\"u"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources/c66e134d-ada9-4128-bb53-a0fe83342fb5",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Get source c66e134d-ada9-4128-bb53-a0fe83342fb5",
+        "response": "{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\":null,\"up"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources/9645c58c-c77e-4807-ad34-9878dde601d5",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Get source 9645c58c-c77e-4807-ad34-9878dde601d5",
+        "response": "{\"id\":\"9645c58c-c77e-4807-ad34-9878dde601d5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 2\",\"description\":\"Integration test source 2\",\"created_by\":null,\"updated_by\":null,\"created\":null,\"up"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources/51b28ea2-53d6-481c-82c5-684a7a0986fb",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Get source 51b28ea2-53d6-481c-82c5-684a7a0986fb",
+        "response": "{\"id\":\"51b28ea2-53d6-481c-82c5-684a7a0986fb\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 3\",\"description\":\"Integration test source 3\",\"created_by\":null,\"updated_by\":null,\"created\":null,\"up"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Get sources (with data)",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/sources/c66e134d-ada9-4128-bb53-a0fe83342fb5/label?label=Updated%20Label%20c66e134d",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update source c66e134d label",
+        "response": "{\"detail\":\"Failed to update source label\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/sources/c66e134d-ada9-4128-bb53-a0fe83342fb5/description?description=Updated%20Description%20c66e134d",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update source c66e134d description",
+        "response": "{\"detail\":\"Failed to update source description\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/sources/c66e134d-ada9-4128-bb53-a0fe83342fb5/tags",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update source c66e134d tags",
+        "response": "{\"detail\":\"Failed to update source tags\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/sources/9645c58c-c77e-4807-ad34-9878dde601d5/label?label=Updated%20Label%209645c58c",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update source 9645c58c label",
+        "response": "{\"detail\":\"Failed to update source label\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/sources/9645c58c-c77e-4807-ad34-9878dde601d5/description?description=Updated%20Description%209645c58c",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update source 9645c58c description",
+        "response": "{\"detail\":\"Failed to update source description\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/sources/9645c58c-c77e-4807-ad34-9878dde601d5/tags",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update source 9645c58c tags",
+        "response": "{\"detail\":\"Failed to update source tags\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Get flows (empty)",
+        "response": "{\"data\":[],\"paging\":null}"
+      },
+      {
+        "method": "POST",
+        "endpoint": "/flows/batch",
+        "expected_status": 201,
+        "actual_status": 201,
+        "success": true,
+        "description": "Create flows batch",
+        "response": "[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integration tes"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows/2a482d79-6203-4e2c-9021-a83840919ec3",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Get flow 2a482d79-6203-4e2c-9021-a83840919ec3",
+        "response": "{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integration test"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows/dc924714-04b1-4d16-a7ee-50bc7b8cb234",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Get flow dc924714-04b1-4d16-a7ee-50bc7b8cb234",
+        "response": "{\"id\":\"dc924714-04b1-4d16-a7ee-50bc7b8cb234\",\"source_id\":\"9645c58c-c77e-4807-ad34-9878dde601d5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 2\",\"description\":\"Integration test"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows/800f3894-0704-4cbd-b4ed-e59eff1e0b0d",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Get flow 800f3894-0704-4cbd-b4ed-e59eff1e0b0d",
+        "response": "{\"id\":\"800f3894-0704-4cbd-b4ed-e59eff1e0b0d\",\"source_id\":\"51b28ea2-53d6-481c-82c5-684a7a0986fb\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 3\",\"description\":\"Integration test"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Get flows (with data)",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/2a482d79-6203-4e2c-9021-a83840919ec3/label?label=Updated%20Flow%20Label%202a482d79",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update flow 2a482d79 label",
+        "response": "{\"detail\":\"Failed to update flow label\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/2a482d79-6203-4e2c-9021-a83840919ec3/description?description=Updated%20Flow%20Description%202a482d79",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update flow 2a482d79 description",
+        "response": "{\"detail\":\"Failed to update flow description\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/2a482d79-6203-4e2c-9021-a83840919ec3/tags",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update flow 2a482d79 tags",
+        "response": "{\"detail\":\"Failed to update flow tags\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/2a482d79-6203-4e2c-9021-a83840919ec3/flow_collection",
+        "expected_status": 200,
+        "actual_status": 400,
+        "success": false,
+        "description": "Update flow 2a482d79 flow_collection",
+        "response": "{\"detail\":\"Flow type does not support flow collection\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/2a482d79-6203-4e2c-9021-a83840919ec3/read_only",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update flow 2a482d79 read_only",
+        "response": "{\"detail\":\"Failed to update flow read-only status\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/2a482d79-6203-4e2c-9021-a83840919ec3/max_bit_rate?max_bit_rate=5000000",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update flow 2a482d79 max_bit_rate",
+        "response": "{\"detail\":\"Failed to update flow max bit rate\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/2a482d79-6203-4e2c-9021-a83840919ec3/avg_bit_rate?avg_bit_rate=2500000",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update flow 2a482d79 avg_bit_rate",
+        "response": "{\"detail\":\"Failed to update flow average bit rate\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/dc924714-04b1-4d16-a7ee-50bc7b8cb234/label?label=Updated%20Flow%20Label%20dc924714",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update flow dc924714 label",
+        "response": "{\"detail\":\"Failed to update flow label\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/dc924714-04b1-4d16-a7ee-50bc7b8cb234/description?description=Updated%20Flow%20Description%20dc924714",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update flow dc924714 description",
+        "response": "{\"detail\":\"Failed to update flow description\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/dc924714-04b1-4d16-a7ee-50bc7b8cb234/tags",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update flow dc924714 tags",
+        "response": "{\"detail\":\"Failed to update flow tags\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/dc924714-04b1-4d16-a7ee-50bc7b8cb234/flow_collection",
+        "expected_status": 200,
+        "actual_status": 400,
+        "success": false,
+        "description": "Update flow dc924714 flow_collection",
+        "response": "{\"detail\":\"Flow type does not support flow collection\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/dc924714-04b1-4d16-a7ee-50bc7b8cb234/read_only",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update flow dc924714 read_only",
+        "response": "{\"detail\":\"Failed to update flow read-only status\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/dc924714-04b1-4d16-a7ee-50bc7b8cb234/max_bit_rate?max_bit_rate=5000000",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update flow dc924714 max_bit_rate",
+        "response": "{\"detail\":\"Failed to update flow max bit rate\"}"
+      },
+      {
+        "method": "PUT",
+        "endpoint": "/flows/dc924714-04b1-4d16-a7ee-50bc7b8cb234/avg_bit_rate?avg_bit_rate=2500000",
+        "expected_status": 200,
+        "actual_status": 500,
+        "success": false,
+        "description": "Update flow dc924714 avg_bit_rate",
+        "response": "{\"detail\":\"Failed to update flow average bit rate\"}"
+      },
+      {
+        "method": "POST",
+        "endpoint": "/objects/batch",
+        "expected_status": 201,
+        "actual_status": 201,
+        "success": true,
+        "description": "Create objects batch",
+        "response": "[{\"object_id\":\"bab4fe3b-9089-43b0-9462-5582bae95df0\",\"flow_references\":[{\"id\":\"aea46b8f-6fcc-4b35-93b9-ebf280e744d4\",\"label\":\"Flow Ref 1\"}],\"size\":null,\"created\":null,\"deleted\":false,\"deleted_at\":null"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects/bab4fe3b-9089-43b0-9462-5582bae95df0",
+        "expected_status": 200,
+        "actual_status": 404,
+        "success": false,
+        "description": "Get object bab4fe3b-9089-43b0-9462-5582bae95df0",
+        "response": "{\"detail\":\"Object not found\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects/404f0b44-9107-4f0c-a607-750be7060328",
+        "expected_status": 200,
+        "actual_status": 404,
+        "success": false,
+        "description": "Get object 404f0b44-9107-4f0c-a607-750be7060328",
+        "response": "{\"detail\":\"Object not found\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects/1d9998cd-5c90-41dc-a8d0-877dba85322d",
+        "expected_status": 200,
+        "actual_status": 404,
+        "success": false,
+        "description": "Get object 1d9998cd-5c90-41dc-a8d0-877dba85322d",
+        "response": "{\"detail\":\"Object not found\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/analytics/flow-usage",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Flow usage analytics",
+        "response": "{\"total_flows\":20,\"format_distribution\":{\"urn:x-nmos:format:video\":20},\"estimated_storage_bytes\":41472000,\"average_flow_size\":2073600.0}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/analytics/storage-usage",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Storage usage analytics",
+        "response": "{\"total_objects\":0,\"total_size_bytes\":0,\"average_size_bytes\":0,\"most_accessed\":0,\"least_accessed\":0,\"average_access_count\":0}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/analytics/time-range-analysis",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Time range analysis",
+        "response": "{\"total_segments\":0,\"average_duration\":0}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flow-delete-requests",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Get flow delete requests (empty)",
+        "response": "{\"data\":{\"requests\":[]}}"
+      },
+      {
+        "method": "POST",
+        "endpoint": "/flow-delete-requests",
+        "expected_status": 201,
+        "actual_status": 201,
+        "success": true,
+        "description": "Create flow delete request",
+        "response": "{\"request_id\":\"c1b1ddf9-1d20-4f8f-8431-3c26fbd48964\",\"flow_id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"timerange\":\"2024-01-01T00:00:00Z/2024-12-31T23:59:59Z\",\"status\":\"pending\",\"created\":\"2025-08-14T1"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flow-delete-requests",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Get flow delete requests (with data)",
+        "response": "{\"data\":{\"requests\":[{\"request_id\":\"c1b1ddf9-1d20-4f8f-8431-3c26fbd48964\",\"flow_id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"timerange\":\"2024-01-01T00:00:00Z/2024-12-31T23:59:59Z\",\"status\":\"pending\",\"c"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 0",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 35",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 8",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 22",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 37",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 26",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 10",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 24",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 39",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 12",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 14",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 29",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 2",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 27",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 42",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 32",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 30",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 3",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 5",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 31",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 4",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 33",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 6",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 34",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 7",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 23",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 38",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 21",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 11",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 36",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 9",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 41",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 25",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 40",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 13",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 44",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 28",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 43",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 17",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 15",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 16",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test sources 45",
+        "response": "{\"data\":[{\"id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"label\":\"Test Source 1\",\"description\":\"Integration test source 1\",\"created_by\":null,\"updated_by\":null,\"created\""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": 405,
+        "success": false,
+        "description": "Stress test objects 47",
+        "response": "{\"detail\":\"Method Not Allowed\"}"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": 200,
+        "success": true,
+        "description": "Stress test flows 46",
+        "response": "{\"data\":[{\"id\":\"2a482d79-6203-4e2c-9021-a83840919ec3\",\"source_id\":\"c66e134d-ada9-4128-bb53-a0fe83342fb5\",\"format\":\"urn:x-nmos:format:video\",\"codec\":\"H.264\",\"label\":\"Test Flow 1\",\"description\":\"Integra"
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": null,
+        "success": false,
+        "description": "Stress test flows 1",
+        "response": ""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": null,
+        "success": false,
+        "description": "Stress test sources 18",
+        "response": ""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": null,
+        "success": false,
+        "description": "Stress test flows 19",
+        "response": ""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/sources",
+        "expected_status": 200,
+        "actual_status": null,
+        "success": false,
+        "description": "Stress test sources 48",
+        "response": ""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/objects",
+        "expected_status": 200,
+        "actual_status": null,
+        "success": false,
+        "description": "Stress test objects 20",
+        "response": ""
+      },
+      {
+        "method": "GET",
+        "endpoint": "/flows",
+        "expected_status": 200,
+        "actual_status": null,
+        "success": false,
+        "description": "Stress test flows 49",
+        "response": ""
+      }
+    ]
+  },
+  "stress_results": {
+    "concurrent_requests": 50,
+    "total_requests": 50,
+    "successful_requests": 29,
+    "failed_requests": 21,
+    "total_time": 30.597113132476807,
+    "avg_response_time": 0.6119422626495361
+  },
+  "timestamp": "2025-08-14T15:16:57.968719"
+}

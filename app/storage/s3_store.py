@@ -2,7 +2,7 @@
 
 import boto3
 import logging
-from typing import Optional, Dict, Any, List, BinaryIO
+from typing import Optional, Dict, Any, List, BinaryIO, Union
 from botocore.exceptions import ClientError, NoCredentialsError
 import json
 import uuid

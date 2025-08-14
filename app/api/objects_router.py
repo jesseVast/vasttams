@@ -16,6 +16,11 @@ async def head_object(object_id: str):
     """Return object path headers"""
     return {}
 
+@router.options("/objects")
+async def options_objects():
+    """Objects endpoint OPTIONS method for CORS preflight"""
+    return {}
+
 # GET endpoint
 @router.get("/objects/{object_id}", response_model=Object)
 async def get_object_by_id(

@@ -323,6 +323,16 @@ async def process_deletion_request(deletion_request: DeletionRequest):
         logger.error(f"Failed to process deletion request {deletion_request.request_id}: {e}")
 
 # Health check endpoint
+@app.head("/health")
+async def health_check_head():
+    """Health check endpoint HEAD method"""
+    return {}
+
+@app.options("/health")
+async def health_check_options():
+    """Health check endpoint OPTIONS method for CORS preflight"""
+    return {}
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""

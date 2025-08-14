@@ -46,6 +46,11 @@ async def head_flows():
     """Return flows path headers"""
     return {}
 
+@router.options("/flows")
+async def options_flows():
+    """Flows endpoint OPTIONS method for CORS preflight"""
+    return {}
+
 @router.head("/flows/{flow_id}")
 async def head_flow(flow_id: str):
     """Return flow path headers"""

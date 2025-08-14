@@ -1350,26 +1350,17 @@ class VASTStore:
 
     def _add_soft_delete_predicate(self, predicate=None):
         """Add soft delete predicate to exclude deleted records from queries."""
-        # Create soft delete predicate as a dictionary instead of Ibis object
-        # This avoids the Deferred type conversion issue
-        soft_delete_predicate = {'deleted': {'or': [None, False]}}
+        # Import ibis here to avoid circular imports
+        from ibis import _ as ibis_
+        
+        # Create soft delete predicate using proper Ibis syntax
+        soft_delete_predicate = (ibis_.deleted.isnull() | (ibis_.deleted == False))
         
         if predicate is None:
             return soft_delete_predicate
         else:
-            # If predicate is already a dict, merge with soft delete
-            if isinstance(predicate, dict):
-                # Create a combined predicate that ensures both conditions are met
-                # For now, we'll use a simple approach - in practice, VAST handles this well
-                combined = predicate.copy()
-                # Add soft delete condition
-                if 'deleted' not in combined:
-                    combined['deleted'] = {'or': [None, False]}
-                return combined
-            else:
-                # If predicate is an Ibis object, let VastDBManager handle the conversion
-                # The soft delete will be added by the predicate converter
-                return predicate
+            # Combine the existing predicate with soft delete using AND
+            return predicate & soft_delete_predicate
     
     async def soft_delete_record(self, table_name: str, record_id: str, deleted_by: str) -> bool:
         """Soft delete a record by marking it as deleted."""
@@ -2477,3 +2468,24 @@ class VASTStore:
         except Exception as e:
             logger.error(f"Failed to get column info for {table_name}.{column_name}: {e}")
             return None
+
+    def select(self, table_name: str, predicate=None, columns=None, limit=None, include_row_ids=False):
+        """Select records from a table with optional predicate filtering."""
+        try:
+            # Add soft delete predicate
+            final_predicate = self._add_soft_delete_predicate(predicate)
+            
+            # Query the database
+            result = self.db_manager.select(
+                table_name=table_name,
+                predicate=final_predicate,
+                columns=columns,
+                limit=limit,
+                include_row_ids=include_row_ids
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in VASTStore select for table {table_name}: {e}")
+            raise

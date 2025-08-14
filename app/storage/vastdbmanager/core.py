@@ -549,89 +549,78 @@ class VastDBManager:
             logger.error(f"Error inserting data into table {table_name}: {e}")
             raise
     
-    def query_with_predicates(self, table_name: str, predicates: Optional[Dict[str, Any]] = None, 
+    def query_with_predicates(self, table_name: str, predicates: Optional[Any] = None, 
                              columns: Optional[List[str]] = None, limit: Optional[int] = None,
                              include_row_ids: bool = False):
-        """Query table with Python predicates converted to VAST filters and QueryConfig optimization"""
+        """Query data from a table with optional predicates using VAST's query capabilities"""
         try:
-            if not self.connection:
-                raise RuntimeError("Not connected to VAST database")
-            
             start_time = time.time()
             
-            # Convert Python predicates to VAST filter string
+            # Handle predicates - can be either Ibis predicates or Python dictionaries
             vast_filter = None
-            if predicates:
-                vast_filter = self.predicate_builder.build_vast_predicates(predicates)
+            if predicates is not None:
+                if hasattr(predicates, 'op'):  # This is an Ibis predicate
+                    # Use the predicate directly with VAST
+                    vast_filter = predicates
+                    logger.debug(f"Using Ibis predicate directly: {predicates}")
+                elif isinstance(predicates, dict):
+                    # Convert Python dictionary predicates to VAST filter string
+                    vast_filter = self.predicate_builder.build_vast_predicates(predicates)
+                    logger.debug(f"Converted dictionary predicates to VAST filter: {vast_filter}")
+                else:
+                    logger.warning(f"Unknown predicate type {type(predicates)}: {predicates}")
             
-            # Create optimized QueryConfig for this query
+            # Get table info and create query config
+            table_info = self.cache_manager.get_table_stats(table_name)
+            if not table_info:
+                logger.error(f"Table {table_name} not found in cache")
+                return None
+            
+            # Create optimized query configuration
             query_config = self._create_optimized_query_config(table_name, predicates)
             
-            # Prepare columns for query
-            query_columns = columns or []
-            if include_row_ids and '$row_id' not in query_columns:
-                # Add $row_id to the beginning of columns list
-                query_columns = ['$row_id'] + query_columns
-            
-            # Get table and execute query
+            # Execute query with VAST
             with self.connection.transaction() as tx:
                 bucket = tx.bucket(self.bucket)
-                schema = bucket.schema(self.schema)
-                table = schema.table(table_name)
+                schema_obj = bucket.schema(self.schema)
+                vast_table = schema_obj.table(table_name)
                 
-                # Execute query with VAST QueryConfig optimizations
+                # Execute the query using the correct VAST API
                 if vast_filter is not None:
-                    result = table.select(
-                        columns=query_columns,
-                        predicate=vast_filter,
-                        config=query_config
-                    ).read_all()
+                    # For filtered queries, we need to use the predicate parameter
+                    result = vast_table.select(columns=columns, predicate=vast_filter, config=query_config)
                 else:
-                    result = table.select(
-                        columns=query_columns,
-                        config=query_config
-                    ).read_all()
+                    # For unfiltered queries
+                    result = vast_table.select(columns=columns, config=query_config)
                 
                 # Apply limit if specified
-                if limit and len(result) > limit:
-                    result = result.slice(0, limit)
-            
-            execution_time = time.time() - start_time
-            rows_returned = len(result) if result else 0
-            
-            # Record performance metrics
-            self.performance_monitor.record_query(
-                query_type="query_with_predicates",
-                table_name=table_name,
-                execution_time=execution_time,
-                rows_returned=rows_returned,
-                splits_used=query_config.num_splits or 1,
-                subsplits_used=query_config.num_sub_splits,
-                success=True
-            )
-            
-            logger.debug(f"Query with predicates on {table_name} returned {rows_returned} rows in {execution_time:.3f}s")
-            return result
-            
+                if limit:
+                    result = result.limit(limit)
+                
+                # Execute the query to get the actual data
+                result = result.read_all()
+                
+                # Convert to dictionary format
+                if hasattr(result, 'to_pydict'):
+                    data = result.to_pydict()
+                else:
+                    logger.warning(f"Result does not have to_pydict method: {result}")
+                    data = {}
+                
+                # Handle row IDs if requested
+                if include_row_ids and data and '$row_id' in data:
+                    logger.debug(f"Row IDs found: {data['$row_id']}")
+                
+                execution_time = time.time() - start_time
+                logger.debug(f"Query execution time: {execution_time:.3f}s")
+                
+                return data
+                
         except Exception as e:
-            execution_time = time.time() - start_time if 'start_time' in locals() else 0
-            
-            # Record failed query
-            self.performance_monitor.record_query(
-                query_type="query_with_predicates",
-                table_name=table_name,
-                execution_time=execution_time,
-                rows_returned=0,
-                splits_used=1,
-                subsplits_used=1,
-                success=False,
-                error_message=str(e)
-            )
-            
-            logger.error(f"Error querying table {table_name} with predicates: {e}")
+            logger.error(f"Error in query_with_predicates for table {table_name}: {e}")
             raise
     
-    def _create_optimized_query_config(self, table_name: str, predicates: Optional[Dict[str, Any]] = None) -> 'vastdb.config.QueryConfig':
+    def _create_optimized_query_config(self, table_name: str, predicates: Optional[Any] = None) -> 'vastdb.config.QueryConfig':
         """Create optimized QueryConfig for VAST query execution with aggressive optimization"""
         try:
             from vastdb.config import QueryConfig
@@ -655,24 +644,38 @@ class VastDBManager:
             )
             
             # Aggressive optimization based on query type and table size
-            if predicates:
-                # Time-series queries - use maximum parallelism
-                if any('time' in key.lower() or 'timestamp' in key.lower() for key in predicates.keys()):
-                    config.num_sub_splits = 12  # Maximum splits for time queries
-                    config.limit_rows_per_sub_split = 32768  # Smaller subsplits for time queries
-                    config.num_row_groups_per_sub_split = 2  # Minimal row groups for time queries
+            if predicates is not None:
+                # Handle different predicate types
+                if isinstance(predicates, dict):
+                    # Dictionary predicates - can analyze keys and structure
+                    if any('time' in key.lower() or 'timestamp' in key.lower() for key in predicates.keys()):
+                        config.num_sub_splits = 12  # Maximum splits for time queries
+                        config.limit_rows_per_sub_split = 32768  # Smaller subsplits for time queries
+                        config.num_row_groups_per_sub_split = 2  # Minimal row groups for time queries
+                    
+                    # Large result set queries - aggressive splitting
+                    if total_rows > 5000:  # Lowered threshold for more aggressive optimization
+                        config.num_splits = min(32, total_rows // 100000)  # More splits for smaller tables
+                        config.num_sub_splits = 10  # More subsplits for better parallelism
+                        config.limit_rows_per_sub_split = 32768  # Smaller subsplits for large tables
+                    
+                    # Complex queries - optimize for predicate evaluation
+                    if len(predicates) > 1:  # Lowered threshold for optimization
+                        config.limit_rows_per_sub_split = 32768  # Smaller subsplits for complex queries
+                        config.num_row_groups_per_sub_split = 2  # Fewer row groups for complex queries
+                        config.num_sub_splits = 10  # More splits for complex queries
                 
-                # Large result set queries - aggressive splitting
-                if total_rows > 5000:  # Lowered threshold for more aggressive optimization
-                    config.num_splits = min(32, total_rows // 100000)  # More splits for smaller tables
-                    config.num_sub_splits = 10  # More subsplits for better parallelism
-                    config.limit_rows_per_sub_split = 32768  # Smaller subsplits for large tables
-                
-                # Complex queries - optimize for predicate evaluation
-                if len(predicates) > 1:  # Lowered threshold for optimization
-                    config.limit_rows_per_sub_split = 32768  # Smaller subsplits for complex queries
-                    config.num_row_groups_per_sub_split = 2  # Fewer row groups for complex queries
-                    config.num_sub_splits = 10  # More splits for complex queries
+                elif hasattr(predicates, 'op'):
+                    # Ibis predicates - use conservative optimization since we can't analyze structure
+                    config.num_sub_splits = 8  # Default subsplits for Ibis predicates
+                    config.limit_rows_per_sub_split = 65536  # Default subsplit limit
+                    config.num_row_groups_per_sub_split = 4  # Default row groups
+                    
+                    # Large result set queries - aggressive splitting
+                    if total_rows > 5000:
+                        config.num_splits = min(32, total_rows // 100000)
+                        config.num_sub_splits = 10
+                        config.limit_rows_per_sub_split = 32768
             
             # Use available endpoints for load balancing
             if hasattr(self, 'endpoints') and self.endpoints:
@@ -761,23 +764,11 @@ class VastDBManager:
         """Backward compatibility method - alias for insert_pydict"""
         return self.insert_pydict(table_name, data)
     
-    def select(self, table_name: str, predicate: Optional[Dict[str, Any]] = None, 
+    def select(self, table_name: str, predicate: Optional[Any] = None, 
                output_by_row: bool = False, columns: Optional[List[str]] = None):
         """Backward compatibility method - alias for query_with_predicates"""
-        # Convert Ibis predicates to Python dictionaries if needed
-        if predicate is not None and not isinstance(predicate, dict):
-            # Use the new predicate converter to handle Ibis predicates properly
-            try:
-                converted_predicate = self.predicate_builder.convert_ibis_predicate_to_vast(predicate)
-                if converted_predicate is not None:
-                    predicate = converted_predicate
-                    logger.debug(f"Successfully converted Ibis predicate to: {converted_predicate}")
-                else:
-                    logger.warning(f"Could not convert Ibis predicate {predicate} - using unfiltered query")
-                    predicate = None
-            except Exception as e:
-                logger.warning(f"Error converting Ibis predicate {predicate}: {e}")
-                predicate = None
+        # Pass predicates directly - let query_with_predicates handle the type
+        # Ibis predicates will be used directly, dictionaries will be converted
         
         result = self.query_with_predicates(
             table_name=table_name,
@@ -800,23 +791,9 @@ class VastDBManager:
         
         return result
     
-    def update(self, table_name: str, data: Dict[str, List[Any]], predicate: Optional[Dict[str, Any]] = None):
+    def update(self, table_name: str, data: Dict[str, List[Any]], predicate: Optional[Any] = None):
         """Update data in a table using VAST's native UPDATE capability"""
         try:
-            # Convert Ibis predicates to Python dictionaries if needed
-            if predicate is not None and not isinstance(predicate, dict):
-                try:
-                    converted_predicate = self.predicate_builder.convert_ibis_predicate_to_vast(predicate)
-                    if converted_predicate is not None:
-                        predicate = converted_predicate
-                        logger.debug(f"Successfully converted Ibis predicate to: {converted_predicate}")
-                    else:
-                        logger.warning(f"Could not convert Ibis predicate {predicate} - using unfiltered update")
-                        predicate = None
-                except Exception as e:
-                    logger.warning(f"Error converting Ibis predicate {predicate}: {e}")
-                    predicate = None
-            
             if predicate is None:
                 logger.warning(f"Update operation requires a predicate for table {table_name}")
                 return 0
@@ -908,26 +885,12 @@ class VastDBManager:
             logger.error(f"Failed to update table {table_name}: {e}")
             raise
     
-    def delete(self, table_name: str, predicate: Optional[Dict[str, Any]] = None):
-        """Delete records from a table using VAST's native DELETE capability"""
+    def delete(self, table_name: str, predicate: Optional[Any] = None):
+        """Delete data from a table using VAST's native DELETE capability"""
         try:
             if predicate is None:
                 logger.warning(f"Delete operation requires a predicate for table {table_name}")
                 return 0
-            
-            # Convert Ibis predicates to Python dictionaries if needed
-            if not isinstance(predicate, dict):
-                try:
-                    converted_predicate = self.predicate_builder.convert_ibis_predicate_to_vast(predicate)
-                    if converted_predicate is not None:
-                        predicate = converted_predicate
-                        logger.debug(f"Successfully converted Ibis predicate to: {converted_predicate}")
-                    else:
-                        logger.warning(f"Could not convert Ibis predicate {predicate} - delete operation failed")
-                        return 0
-                except Exception as e:
-                    logger.warning(f"Error converting Ibis predicate {predicate}: {e}")
-                    return 0
             
             # Use VAST's native DELETE capability
             # First, find the records that match the predicate to get their row IDs
@@ -940,36 +903,46 @@ class VastDBManager:
             num_records = len(matching_records)
             logger.info(f"Deleting {num_records} records from table {table_name}")
             
+            # Get the table schema to understand the structure
+            schema = self.cache_manager.get_table_columns(table_name)
+            if schema is None:
+                logger.error(f"Could not get schema for table {table_name}")
+                return 0
+            
             # Create delete data with only the $row_id field as required by VAST
-            if '$row_id' not in matching_records:
+            delete_data = {'$row_id': []}
+            
+            # Add the row IDs
+            if '$row_id' in matching_records:
+                delete_data['$row_id'] = matching_records['$row_id']
+            else:
                 logger.error(f"Row IDs not found in matching records for table {table_name}")
                 return 0
             
-            delete_data = {'$row_id': matching_records['$row_id']}
-            
-            # Convert to PyArrow RecordBatch with proper schema
-            import pyarrow as pa
-            
-            # Schema for delete only needs $row_id
-            delete_schema = pa.schema([pa.field('$row_id', pa.uint64())])
-            
-            # Create RecordBatch for delete
-            record_batch = pa.RecordBatch.from_pydict(delete_data, schema=delete_schema)
-            
-            # Perform the delete using VAST's native delete method
+            # Execute the delete operation
             with self.connection.transaction() as tx:
                 bucket = tx.bucket(self.bucket)
-                schema_obj = bucket.schema(self.schema)
-                vast_table = schema_obj.table(table_name)
+                schema = bucket.schema(self.schema)
+                table = schema.table(table_name)
                 
-                # Use VAST's native delete method
-                vast_table.delete(record_batch)
+                # Create PyArrow RecordBatch with just the row IDs
+                import pyarrow as pa
+                record_batch = pa.RecordBatch.from_pydict(delete_data)
                 
-            logger.info(f"Successfully deleted {num_records} records from table {table_name}")
-            return num_records
+                # Delete the records
+                deleted_count = table.delete(record_batch)
                 
+                if deleted_count > 0:
+                    logger.info(f"Successfully deleted {deleted_count} records from table {table_name}")
+                    # Update cache to reflect the deletion
+                    self.cache_manager.update_table_cache(table_name, schema, -deleted_count)
+                    return deleted_count
+                else:
+                    logger.warning(f"No records were deleted from table {table_name}")
+                    return 0
+                    
         except Exception as e:
-            logger.error(f"Failed to delete from table {table_name}: {e}")
+            logger.error(f"Error deleting from table {table_name}: {e}")
             raise
     
 

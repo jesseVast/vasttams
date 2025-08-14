@@ -65,17 +65,28 @@ async def create_objects_batch(
 ):
     """Create multiple objects in a single batch operation using VAST's native batch insert"""
     try:
-        # Convert Pydantic models to dictionaries for batch insert
-        object_data = []
-        for obj in objects:
-            obj_dict = obj.model_dump()
-            object_data.append(obj_dict)
+        # Convert Pydantic models to the format expected by insert_batch_efficient
+        # The method expects Dict[str, List[Any]] where keys are column names
+        if not objects:
+            raise HTTPException(status_code=400, detail="No objects provided")
+        
+        # Get the first object to determine column names
+        first_object = objects[0].model_dump()
+        column_names = list(first_object.keys())
+        
+        # Transform data to column-oriented format
+        batch_data = {}
+        for col in column_names:
+            batch_data[col] = []
+            for obj in objects:
+                obj_dict = obj.model_dump()
+                batch_data[col].append(obj_dict.get(col))
         
         # Use VAST's native batch insert functionality
         success = await store.db_manager.insert_batch_efficient(
             table_name="objects",
-            data=object_data,
-            batch_size=len(object_data)
+            data=batch_data,
+            batch_size=len(objects)
         )
         
         if not success:

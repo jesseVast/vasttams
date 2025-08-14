@@ -1,22 +1,37 @@
 #!/usr/bin/env python3
 """
-TAMS Test Data Generation Script
+Comprehensive Test Data Generator for TAMS API
 
-This script generates comprehensive test data for the TAMS API:
-- 100 sources (video, audio, image, data, multi)
-- 100 flows (video, audio, data, image, multi)
-- 1000 segments (distributed across flows)
-- 5000 objects (5 per segment, with proper content types)
+This script generates realistic test data for the TAMS API including:
+- Sources with various content types (video, audio, image, data, multi)
+- Flows with appropriate codecs and metadata
+- Segments with time ranges
+- Objects with flow references
 
-Usage:
-    python generate_test_data.py
+SAFETY FEATURES:
+- Table deletion is DISABLED by default
+- Use --delete-tables flag to enable table deletion (WARNING: destructive)
+- 5-second confirmation delay when table deletion is enabled
+- Configurable data generation parameters
+- Command-line argument support for all options
 
-The script will:
-1. Drop the existing schema
-2. Restart the app
-3. Wait for it to come online
-4. Generate all test data using actual batch operations
-5. Verify the data was created
+Usage Examples:
+  # Safe mode (default) - no table deletion
+  python generate_test_data.py
+  
+  # Generate more data
+  python generate_test_data.py --sources 100 --flows 1000 --segments 10000
+  
+  # Enable table deletion (WARNING: destructive)
+  python generate_test_data.py --delete-tables
+  
+  # Custom batch size
+  python generate_test_data.py --batch-size 50
+  
+  # Disable verification and analytics
+  python generate_test_data.py --no-verification --no-analytics
+
+For help: python generate_test_data.py --help
 """
 
 import asyncio
@@ -28,10 +43,31 @@ import random
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any
 import logging
+import argparse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Generate comprehensive test data for TAMS API')
+parser.add_argument('--delete-tables', action='store_true', 
+                   help='Enable table deletion (WARNING: This will delete ALL data)')
+parser.add_argument('--no-verification', action='store_true',
+                   help='Disable data verification after creation')
+parser.add_argument('--no-analytics', action='store_true',
+                   help='Disable analytics endpoint testing')
+parser.add_argument('--sources', type=int, default=10,
+                   help='Number of sources to create (default: 10)')
+parser.add_argument('--flows', type=int, default=10,
+                   help='Number of flows to create (default: 10)')
+parser.add_argument('--segments', type=int, default=100,
+                   help='Number of segments to create (default: 100)')
+parser.add_argument('--objects-per-segment', type=int, default=5,
+                   help='Number of objects per segment (default: 5)')
+parser.add_argument('--batch-size', type=int, default=25,
+                   help='Batch size for API calls (default: 25)')
+args = parser.parse_args()
 
 # API Configuration
 API_BASE_URL = "http://localhost:8000"
@@ -80,12 +116,17 @@ DATA_CODECS = [
     "urn:x-nmos:codec:data:binary"
 ]
 
-# Test Data Configuration
-NUM_SOURCES = 10
-NUM_FLOWS = 10
-NUM_SEGMENTS = 100
-OBJECTS_PER_SEGMENT = 5
-BATCH_SIZE = 25  # Reduced batch size to prevent server disconnections
+# Test Data Configuration (can be overridden by command-line arguments)
+NUM_SOURCES = args.sources
+NUM_FLOWS = args.flows
+NUM_SEGMENTS = args.segments
+OBJECTS_PER_SEGMENT = args.objects_per_segment
+BATCH_SIZE = args.batch_size
+
+# Safety Configuration Constants - Easy to adjust for troubleshooting
+ENABLE_TABLE_DELETION = args.delete_tables  # WARNING: Set to True only if you want to delete all tables
+ENABLE_DATA_VERIFICATION = not args.no_verification  # Enable verification of created data
+ENABLE_ANALYTICS_TESTING = not args.no_analytics  # Enable testing of analytics endpoints
 
 # API Configuration Constants - Easy to adjust for troubleshooting
 DEFAULT_API_WAIT_TIMEOUT = 60  # Default timeout for waiting for API to come online
@@ -133,8 +174,15 @@ class TestDataGenerator:
         return False
     
     async def drop_all_tables(self) -> bool:
-        """Drop all tables to start fresh"""
-        logger.info("🗑️ Dropping all tables to start fresh...")
+        """Drop all tables to start fresh (only if enabled)"""
+        if not ENABLE_TABLE_DELETION:
+            logger.info("⚠️  Table deletion is DISABLED by default for safety")
+            logger.info("   Set ENABLE_TABLE_DELETION = True in the script to enable")
+            logger.info("   Tables will NOT be deleted - using existing data")
+            return True
+        
+        logger.warning("🗑️  WARNING: Table deletion is ENABLED - this will delete ALL data!")
+        logger.warning("   This action cannot be undone!")
         
         # This would require a direct database connection or admin endpoint
         # For now, we'll rely on the app startup to recreate tables
@@ -573,6 +621,30 @@ class TestDataGenerator:
 
 async def main():
     """Main function"""
+    # Safety check and configuration display
+    logger.info("🔒 SAFETY CONFIGURATION:")
+    logger.info(f"   Table Deletion: {'❌ DISABLED (Safe)' if not ENABLE_TABLE_DELETION else '⚠️  ENABLED (DANGEROUS!)'}")
+    logger.info(f"   Data Verification: {'✅ Enabled' if ENABLE_DATA_VERIFICATION else '❌ Disabled'}")
+    logger.info(f"   Analytics Testing: {'✅ Enabled' if ENABLE_ANALYTICS_TESTING else '❌ Disabled'}")
+    logger.info(f"   Sources: {NUM_SOURCES}")
+    logger.info(f"   Flows: {NUM_FLOWS}")
+    logger.info(f"   Segments: {NUM_SEGMENTS}")
+    logger.info(f"   Objects per segment: {OBJECTS_PER_SEGMENT}")
+    logger.info(f"   Batch size: {BATCH_SIZE}")
+    
+    if ENABLE_TABLE_DELETION:
+        logger.warning("⚠️  WARNING: Table deletion is ENABLED!")
+        logger.warning("   This will delete ALL existing data!")
+        logger.warning("   Press Ctrl+C within 5 seconds to abort...")
+        try:
+            await asyncio.sleep(5)
+        except asyncio.CancelledError:
+            logger.info("✅ Operation cancelled by user")
+            return
+        logger.info("   Proceeding with table deletion...")
+    
+    logger.info("🚀 Starting test data generation...")
+    
     async with TestDataGenerator() as generator:
         success = await generator.run()
         if success:

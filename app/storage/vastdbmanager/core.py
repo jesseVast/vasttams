@@ -453,8 +453,8 @@ class VastDBManager:
             logger.error(f"Failed to add projection {projection_name} to table {table_name}: {e}")
             raise
     
-    def insert_pydict(self, table_name: str, data: Dict[str, Any]):
-        """Insert a Python dictionary into a table"""
+    def insert_single_record(self, table_name: str, data: Dict[str, Any]):
+        """Insert a single Python dictionary record into a table"""
         try:
             if not self.connection:
                 raise RuntimeError("Not connected to VAST database")
@@ -501,8 +501,8 @@ class VastDBManager:
             logger.error(f"Error inserting data into table {table_name}: {e}")
             raise
     
-    def insert_pylist(self, table_name: str, data: List[Dict[str, Any]]):
-        """Insert a list of Python dictionaries into a table"""
+    def insert_record_list(self, table_name: str, data: List[Dict[str, Any]]):
+        """Insert a list of Python dictionary records into a table"""
         try:
             if not self.connection:
                 raise RuntimeError("Not connected to VAST database")
@@ -947,7 +947,7 @@ class VastDBManager:
     
 
     
-    def insert_pydict(self, table_name: str, data: Dict[str, List[Any]]):
+    def _insert_column_batch(self, table_name: str, data: Dict[str, List[Any]]):
         """Insert data from a Python dictionary with row pooling and cache updates"""
         try:
             import pyarrow as pa
@@ -1059,7 +1059,9 @@ class VastDBManager:
             def insert_batch(batch_data: Dict[str, List[Any]]) -> int:
                 """Insert a single batch of data"""
                 try:
-                    return self.insert_pydict(table_name, batch_data)
+                    # Call the column-oriented insert_pydict method (line 949) directly
+                    # instead of the single-record one (line 455)
+                    return self._insert_column_batch(table_name, batch_data)
                 except Exception as e:
                     logger.error(f"Batch insertion failed: {e}")
                     return 0

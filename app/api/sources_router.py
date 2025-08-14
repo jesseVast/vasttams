@@ -87,17 +87,28 @@ async def create_sources_batch(
 ):
     """Create multiple sources in a single batch operation using VAST's native batch insert"""
     try:
-        # Convert Pydantic models to dictionaries for batch insert
-        source_data = []
-        for source in sources:
-            source_dict = source.model_dump()
-            source_data.append(source_dict)
+        # Convert Pydantic models to the format expected by insert_batch_efficient
+        # The method expects Dict[str, List[Any]] where keys are column names
+        if not sources:
+            raise HTTPException(status_code=400, detail="No sources provided")
+        
+        # Get the first source to determine column names
+        first_source = sources[0].model_dump()
+        column_names = list(first_source.keys())
+        
+        # Transform data to column-oriented format
+        batch_data = {}
+        for col in column_names:
+            batch_data[col] = []
+            for source in sources:
+                source_dict = source.model_dump()
+                batch_data[col].append(source_dict.get(col))
         
         # Use VAST's native batch insert functionality
         success = await store.db_manager.insert_batch_efficient(
             table_name="sources",
-            data=source_data,
-            batch_size=len(source_data)
+            data=batch_data,
+            batch_size=len(sources)
         )
         
         if not success:

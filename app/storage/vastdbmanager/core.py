@@ -762,8 +762,8 @@ class VastDBManager:
 
     
     def insert(self, table_name: str, data: Dict[str, List[Any]]):
-        """Backward compatibility method - alias for insert_pydict"""
-        return self.insert_pydict(table_name, data)
+        """Backward compatibility method - alias for _insert_column_batch"""
+        return self._insert_column_batch(table_name, data)
     
     def select(self, table_name: str, predicate: Optional[Any] = None, 
                output_by_row: bool = False, columns: Optional[List[str]] = None):
@@ -1254,7 +1254,7 @@ class VastDBManager:
                 batch_info['attempts'] += 1
                 
                 try:
-                    rows_inserted = self.insert_pydict(table_name, batch_data)
+                    rows_inserted = self._insert_column_batch(table_name, batch_data)
                     batch_info['status'] = 'success'
                     batch_info['rows_inserted'] = rows_inserted
                     logger.debug(f"Batch {batch_id} completed successfully: {rows_inserted} rows")

@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
-from vastdb import Table
+from pyarrow import Table
 
 logger = logging.getLogger(__name__)
 

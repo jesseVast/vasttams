@@ -105,7 +105,7 @@ async def create_sources_batch(
                 batch_data[col].append(source_dict.get(col))
         
         # Use VAST's native batch insert functionality
-        success = await store.db_manager.insert_batch_efficient(
+        success = store.db_manager.insert_batch_efficient(
             table_name="sources",
             data=batch_data,
             batch_size=len(sources)

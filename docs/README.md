@@ -53,7 +53,7 @@ Welcome to the consolidated TAMS (Time-addressable Media Store) API documentatio
 - **`../EDITS.md`**: Recent code changes and modifications
 
 ### **Configuration Files**
-- **`../docker-compose.yml`**: Development environment setup
+- **`../docker/`**: Docker configuration and guides
 - **`../config/`**: Configuration templates and examples
 - **`../helm/`**: Kubernetes deployment charts
 

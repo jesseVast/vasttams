@@ -238,9 +238,9 @@ if not result['success']:
 ## 🚀 DEPLOYMENT STATUS
 
 ### Docker Configuration
-- **Production**: `docker-compose.prod.yml`
-- **Observability**: `docker-compose.observability.yml`
-- **Development**: `docker-compose.yml`
+- **Production**: `docker/docker-compose.prod.yml`
+- **Observability**: `docker/docker-compose.observability.yml`
+- **Development**: `docker/docker-compose.yml`
 
 ### Kubernetes
 - **Helm Charts**: Complete deployment configuration

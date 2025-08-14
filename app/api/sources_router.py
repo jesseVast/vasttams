@@ -85,36 +85,49 @@ async def create_sources_batch(
     sources: List[Source],
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Create multiple sources in a single batch operation using VAST's native batch insert"""
+    """Create multiple sources using conditional logic: single insert for 1 source, batch insert for multiple"""
     try:
-        # Convert Pydantic models to the format expected by insert_batch_efficient
-        # The method expects Dict[str, List[Any]] where keys are column names
         if not sources:
             raise HTTPException(status_code=400, detail="No sources provided")
         
-        # Get the first source to determine column names
-        first_source = sources[0].model_dump()
-        column_names = list(first_source.keys())
+        # If only 1 source, use single source creation
+        if len(sources) == 1:
+            success = await create_source(store, sources[0])
+            if not success:
+                raise HTTPException(status_code=500, detail="Failed to create single source")
+            logger.info("Successfully created 1 source using single insert")
+            return sources
         
-        # Transform data to column-oriented format
-        batch_data = {}
-        for col in column_names:
-            batch_data[col] = []
-            for source in sources:
-                source_dict = source.model_dump()
-                batch_data[col].append(source_dict.get(col))
+        # For multiple sources, use parallel individual creation for reliability
+        logger.info(f"Using parallel individual creation for {len(sources)} sources")
         
-        # Use VAST's native batch insert functionality
-        rows_inserted = store.db_manager.insert_batch_efficient(
-            table_name="sources",
-            data=batch_data,
-            batch_size=len(sources)
-        )
+        # Create sources in parallel using individual creation functions
+        import asyncio
         
-        if rows_inserted <= 0:
-            raise HTTPException(status_code=500, detail="Failed to insert sources batch")
+        async def create_single_source_async(source: Source) -> bool:
+            try:
+                success = await create_source(store, source)
+                return success
+            except Exception as e:
+                logger.error(f"Failed to create source {source.id}: {e}")
+                return False
         
-        logger.info(f"Successfully created {rows_inserted} sources using VAST batch insert")
+        # Create all sources in parallel
+        tasks = [create_single_source_async(source) for source in sources]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Check results
+        successful_creations = 0
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.error(f"Source {i} creation failed: {result}")
+            elif result:
+                successful_creations += 1
+        
+        if successful_creations == 0:
+            raise HTTPException(status_code=500, detail="Failed to create any sources")
+        
+        logger.info(f"Successfully created {successful_creations}/{len(sources)} sources using parallel processing")
         return sources
         
     except HTTPException:

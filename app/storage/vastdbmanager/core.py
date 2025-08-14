@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Union
 import vastdb
 from pyarrow import Schema
+import uuid
 
 from .cache import CacheManager
 from .queries import PredicateBuilder, QueryOptimizer, QueryExecutor
@@ -976,7 +977,18 @@ class VastDBManager:
             ]
             
             # Create record batch (VAST expects RecordBatch, not Table)
-            record_batch = pa.RecordBatch.from_pydict(data, schema=pa.schema(schema_fields))
+            # Convert UUID objects to strings for PyArrow compatibility
+            converted_data = {}
+            for col, values in data.items():
+                converted_values = []
+                for value in values:
+                    if isinstance(value, uuid.UUID):
+                        converted_values.append(str(value))
+                    else:
+                        converted_values.append(value)
+                converted_data[col] = converted_values
+            
+            record_batch = pa.RecordBatch.from_pydict(converted_data, schema=pa.schema(schema_fields))
             
             num_records = len(record_batch)
             logger.info(f"Inserting {num_records} rows into '{table_name}'")

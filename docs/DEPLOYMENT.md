@@ -10,7 +10,7 @@ This document consolidates all deployment-related information for the TAMS (Time
 
 **Use Case**: Development, testing, simple deployments
 
-**Files**: `docker-compose.yml` (updated)
+**Files**: `docker/docker-compose.yml` (updated)
 
 ```bash
 # Run with environment variables
@@ -30,7 +30,7 @@ docker-compose up
 
 **Use Case**: Production deployments, CI/CD pipelines
 
-**Files**: `docker.env`, `docker-compose.prod.yml`
+**Files**: `docker/docker.env`, `docker/docker-compose.prod.yml`
 
 ```bash
 # Copy and customize the environment file
@@ -55,7 +55,7 @@ docker-compose -f docker-compose.prod.yml up
 
 **Use Case**: Enterprise deployments, Kubernetes, secure environments
 
-**Files**: `config/production.json`, `docker-compose.config.yml`
+**Files**: `config/production.json`, `docker/docker-compose.config.yml`
 
 ```bash
 # Customize the config file
@@ -79,21 +79,22 @@ docker-compose -f docker-compose.config.yml up
 
 #### **For Development**
 ```bash
-# Use the updated docker-compose.yml
+# Use the updated docker/docker-compose.yml
+cd docker
 docker-compose up
 ```
 
 #### **For Production with Environment File**
 ```bash
-cp docker.env .env
+cp docker/docker.env .env
 # Edit .env with your production settings
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose -f docker/docker-compose.prod.yml up -d
 ```
 
 #### **For Production with Mounted Config**
 ```bash
 # Edit config/production.json with your settings
-docker-compose -f docker-compose.config.yml up -d
+docker-compose -f docker/docker-compose.config.yml up -d
 ```
 
 ### **Security Best Practices**

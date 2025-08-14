@@ -111,10 +111,11 @@ bbctams/
 │   ├── prometheus/             # Prometheus configuration
 │   ├── grafana/                # Grafana dashboards and config
 │   └── alertmanager/           # Alertmanager configuration
-├── docker-compose.yml
-├── docker-compose.observability.yml  # Observability stack
-├── start-observability.sh      # Observability startup script
-├── Dockerfile
+├── docker/                           # Docker configuration and guides
+│   ├── docker-compose.yml
+│   ├── docker-compose.observability.yml
+│   └── README.md
+├── docker/start-observability.sh  # Observability startup script
 ├── requirements.txt
 ├── OBSERVABILITY.md            # Detailed observability documentation
 ├── SOFT_DELETE_EXTENSION.md    # Soft delete extension documentation
@@ -337,10 +338,11 @@ For comprehensive information about the soft delete extension, including impleme
 
 ### Docker Deployment
 
-1. **Build and run with docker-compose**
-   ```bash
-   docker-compose up --build
-   ```
+1. **Build and run with Docker**
+```bash
+cd docker
+docker-compose up --build
+```
 
 2. **Or build manually**
    ```bash
@@ -614,8 +616,7 @@ bbctams/
 │   └── TimeAddressableMediaStore.yaml
 ├── tests/                      # Test suite
 ├── k8s/                        # Kubernetes manifests
-├── docker-compose.yml
-├── Dockerfile
+├── docker/                           # Docker configuration
 ├── requirements.txt
 └── README.md
 ```

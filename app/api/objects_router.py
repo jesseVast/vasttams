@@ -63,21 +63,26 @@ async def create_objects_batch(
     objects: List[Object],
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Create multiple objects in a single batch operation"""
+    """Create multiple objects in a single batch operation using VAST's native batch insert"""
     try:
-        created_objects = []
+        # Convert Pydantic models to dictionaries for batch insert
+        object_data = []
         for obj in objects:
-            success = await create_object(store, obj)
-            if success:
-                created_objects.append(obj)
-            else:
-                logger.warning(f"Failed to create object {obj.object_id}")
+            obj_dict = obj.model_dump()
+            object_data.append(obj_dict)
         
-        if not created_objects:
-            raise HTTPException(status_code=500, detail="Failed to create any objects")
+        # Use VAST's native batch insert functionality
+        success = await store.db_manager.insert_batch_efficient(
+            table_name="objects",
+            data=object_data,
+            batch_size=len(object_data)
+        )
         
-        logger.info(f"Successfully created {len(created_objects)}/{len(objects)} objects in batch")
-        return created_objects
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to insert objects batch")
+        
+        logger.info(f"Successfully created {len(objects)} objects using VAST batch insert")
+        return objects
         
     except HTTPException:
         raise

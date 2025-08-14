@@ -1,13 +1,25 @@
-"""Scalability tests for VastDBManager to find optimal dataset size for <5s performance"""
+"""Scalability testing for VastDBManager"""
+
+import unittest
+import time
+import random
+import pandas as pd
+from datetime import datetime, timedelta, timezone
+from unittest.mock import Mock, patch
+import numpy as np
+
+# Configuration Constants - Easy to adjust for troubleshooting
+DEFAULT_BATCH_SIZE_BASE = 1000  # Base batch size for scalability testing
+DEFAULT_WORKER_DIVISOR = 4  # Divisor for calculating adaptive workers
+DEFAULT_RECORD_DIVISOR = 1000  # Divisor for calculating adaptive batch sizes
+DEFAULT_MIN_BATCH_SIZE = 100  # Minimum batch size for adaptive batching
+DEFAULT_MAX_WORKERS = 4  # Maximum number of parallel workers
 
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import time
-import random
 import concurrent.futures
-from datetime import datetime, timedelta
 from typing import List, Dict, Any
 import logging
 
@@ -149,7 +161,7 @@ class TestVastDBManagerScalability:
                     batch_dict[key] = [record[key] for record in data]
             
             # Use our efficient batch insertion method
-            batch_size = min(1000, len(data) // 4)  # Adaptive batch size
+            batch_size = min(DEFAULT_BATCH_SIZE_BASE, len(data) // DEFAULT_WORKER_DIVISOR)  # Adaptive batch size
             max_workers = min(4, len(data) // 1000)  # Adaptive workers
             
             self.manager.insert_batch_efficient(self.test_table_name, batch_dict, 

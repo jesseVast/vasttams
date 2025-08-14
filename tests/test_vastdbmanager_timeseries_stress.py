@@ -1,17 +1,29 @@
-"""Specialized time-series stress tests for VastDBManager"""
+"""Time-series stress testing for VastDBManager"""
 
-import pytest
+import unittest
 import time
 import random
-import concurrent.futures
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
-import logging
+import pandas as pd
+from datetime import datetime, timedelta, timezone
+from unittest.mock import Mock, patch
+import numpy as np
+
+# Configuration Constants - Easy to adjust for troubleshooting
+DEFAULT_NUM_RECORDS = 50000  # Default number of records for time-series stress testing
+DEFAULT_TIME_RANGE_DAYS = 90  # Default time range in days for time-series data
+DEFAULT_SAMPLING_INTERVAL_MINUTES = 15  # Default sampling interval in minutes
+DEFAULT_BASE_BITRATE = 20000000  # Default base bitrate (20 Mbps)
+DEFAULT_DAILY_PATTERN_PEAK = 0.3  # Default daily pattern peak factor
+DEFAULT_WEEKLY_PATTERN_PEAK = 0.2  # Default weekly pattern peak factor
+DEFAULT_BATCH_SIZE = 2000  # Default batch size for time-series data
+DEFAULT_BATCH_LOG_INTERVAL = 10000  # Default interval for batch logging
+DEFAULT_CONCURRENT_QUERIES = 30  # Default number of concurrent queries
 
 # Import the new modular components
 from app.storage.vastdbmanager import VastDBManager
 
 # Configure logging for time-series tests
+import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -33,9 +45,9 @@ class TestVastDBManagerTimeSeriesStress:
         self.test_table_name = f"timeseries_stress_{int(time.time())}"
         
         # Time-series specific parameters
-        self.num_records = 50000  # 50K records for time-series stress testing
-        self.time_range_days = 90  # 90 days of time-series data
-        self.sampling_interval_minutes = 15  # 15-minute sampling interval
+        self.num_records = DEFAULT_NUM_RECORDS  # Default number of records for time-series stress testing
+        self.time_range_days = DEFAULT_TIME_RANGE_DAYS  # Default time range in days for time-series data
+        self.sampling_interval_minutes = DEFAULT_SAMPLING_INTERVAL_MINUTES  # Default sampling interval in minutes
         
         logger.info(f"Setting up time-series stress test with {self.num_records} records over {self.time_range_days} days")
         logger.info(f"Sampling interval: {self.sampling_interval_minutes} minutes")
@@ -76,9 +88,9 @@ class TestVastDBManagerTimeSeriesStress:
             day_of_week = timestamp.weekday()
             
             # Base values with daily patterns
-            base_bitrate = 20000000  # 20 Mbps base
-            daily_pattern = 1.0 + 0.3 * (hour_of_day - 12) / 12  # Peak at noon
-            weekly_pattern = 1.0 + 0.2 * (5 - day_of_week) / 5  # Peak on Friday
+                    base_bitrate = DEFAULT_BASE_BITRATE  # Default base bitrate
+        daily_pattern = 1.0 + DEFAULT_DAILY_PATTERN_PEAK * (hour_of_day - 12) / 12  # Peak at noon
+        weekly_pattern = 1.0 + DEFAULT_WEEKLY_PATTERN_PEAK * (5 - day_of_week) / 5  # Peak on Friday
             
             # Add some random variation
             random_factor = random.uniform(0.8, 1.2)
@@ -176,7 +188,7 @@ class TestVastDBManagerTimeSeriesStress:
             start_time = time.time()
             
             # Insert data in batches optimized for time-series
-            batch_size = 2000  # Larger batches for time-series data
+            batch_size = DEFAULT_BATCH_SIZE  # Default batch size for time-series data
             for i in range(0, len(data), batch_size):
                 batch = data[i:i + batch_size]
                 
@@ -190,7 +202,7 @@ class TestVastDBManagerTimeSeriesStress:
                 
                 self.manager.insert_pydict(self.test_table_name, batch_dict)
                 
-                if (i + batch_size) % 10000 == 0:
+                if (i + batch_size) % DEFAULT_BATCH_LOG_INTERVAL == 0:
                     logger.info(f"Inserted {i + batch_size}/{len(data)} time-series records...")
             
             insertion_time = time.time() - start_time
@@ -244,7 +256,7 @@ class TestVastDBManagerTimeSeriesStress:
         ]
         
         # Test concurrent temporal query execution
-        num_concurrent_queries = 30
+        num_concurrent_queries = DEFAULT_CONCURRENT_QUERIES
         query_results = []
         
         def execute_temporal_query(query_id: int, predicates: Dict[str, Any]):

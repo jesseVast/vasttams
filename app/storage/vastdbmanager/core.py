@@ -1,9 +1,8 @@
 """Core VastDBManager integrating all modular components"""
 
 import logging
-import threading
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import List, Dict, Any, Optional, Union
 import vastdb
 from pyarrow import Schema
@@ -24,13 +23,11 @@ logger = logging.getLogger(__name__)
 # - If parallel processing isn't working: Decrease PARALLEL_THRESHOLD (e.g., 5)
 # - If you get too many concurrent connections: Decrease DEFAULT_MAX_WORKERS (e.g., 2)
 # - If operations fail intermittently: Increase DEFAULT_MAX_RETRIES (e.g., 5)
-# - If cache is stale: Decrease CACHE_TTL_MINUTES (e.g., 15)
 # - If VAST connections timeout: Increase VAST_TIMEOUT (e.g., 60)
 #
 DEFAULT_BATCH_SIZE = 100  # Default batch size for insert operations
 DEFAULT_MAX_WORKERS = 4   # Default number of parallel workers for batch operations
 PARALLEL_THRESHOLD = 10   # Threshold above which parallel processing is used
-CACHE_TTL_MINUTES = 30    # Cache time-to-live in minutes
 VAST_TIMEOUT = 30         # VAST connection timeout in seconds
 DEFAULT_MAX_RETRIES = 3   # Default maximum retry attempts for failed operations
 
@@ -38,14 +35,12 @@ DEFAULT_MAX_RETRIES = 3   # Default maximum retry attempts for failed operations
 class VastDBManager:
     """Refactored VastDBManager with modular architecture"""
     
-    def __init__(self, endpoints: Union[str, List[str]], 
-                 cache_ttl: timedelta = timedelta(minutes=CACHE_TTL_MINUTES)):
+    def __init__(self, endpoints: Union[str, List[str]]):
         """
         Initialize VastDBManager with modular components
         
         Args:
             endpoints: Single endpoint string or list of endpoints
-            cache_ttl: Cache time-to-live for table data
         """
         # Convert single endpoint to list for consistency
         if isinstance(endpoints, str):
@@ -54,7 +49,7 @@ class VastDBManager:
             self.endpoints = endpoints
         
         # Initialize modular components
-        self.cache_manager = CacheManager(cache_ttl)
+        self.cache_manager = CacheManager()
         self.predicate_builder = PredicateBuilder()
         self.query_optimizer = QueryOptimizer(self.cache_manager)
         self.query_executor = QueryExecutor(self.cache_manager)
@@ -70,11 +65,6 @@ class VastDBManager:
         # VAST connection and configuration
         self.connection = None
         self.default_query_config = None  # No QueryConfig needed - VAST handles optimization internally
-        
-        # Background thread for cache updates
-        self._stats_update_thread = None
-        self._stop_stats_update = threading.Event()
-        self._start_stats_update_thread()
         
         # Initialize connection to first endpoint
         self.connect()
@@ -139,7 +129,7 @@ class VastDBManager:
             raise
     
     def _discover_tables(self):
-        """Discover and cache existing table schemas"""
+        """Discover and cache existing table schemas at startup"""
         try:
             with self.connection.transaction() as tx:
                 bucket = tx.bucket(self.bucket)
@@ -147,71 +137,17 @@ class VastDBManager:
                 
                 for table in schema.tables():
                     table_name = table.name
-                    self.cache_manager.update_table_cache(table_name, table.columns(), table.get_stats())
-                    logger.debug(f"Discovered table: {table_name}")
+                    # Cache only essential metadata: schema and initial row count
+                    table_stats = table.get_stats()
+                    total_rows = getattr(table_stats, 'total_rows', 0) or 0
+                    self.cache_manager.update_table_cache(table_name, table.columns(), total_rows)
+                    logger.debug(f"Discovered and cached table: {table_name} ({total_rows} rows)")
+                    
+            logger.info(f"Discovered and cached {len(self.cache_manager.get_all_table_names())} tables")
                     
         except Exception as e:
             logger.error(f"Failed to discover tables: {e}")
             raise
-    
-    def _start_stats_update_thread(self):
-        """Start background thread for periodic cache updates"""
-        if self._stats_update_thread is None or not self._stats_update_thread.is_alive():
-            self._stop_stats_update.clear()
-            self._stats_update_thread = threading.Thread(
-                target=self._stats_update_worker,
-                daemon=True,
-                name="VastDBManager-StatsUpdate"
-            )
-            self._stats_update_thread.start()
-            logger.info("Started background stats update thread")
-    
-    def _stats_update_worker(self):
-        """Background worker for updating table statistics"""
-        while not self._stop_stats_update.is_set():
-            try:
-                time.sleep(300)  # Update every 5 minutes
-                if not self._stop_stats_update.is_set():
-                    self._update_all_table_stats()
-            except Exception as e:
-                logger.error(f"Error in stats update worker: {e}")
-    
-    def _update_all_table_stats(self):
-        """Update statistics for all cached tables"""
-        try:
-            table_names = self.cache_manager.get_all_table_names()
-            if not table_names:
-                return
-            
-            logger.debug(f"Updating stats for {len(table_names)} tables")
-            
-            for table_name in table_names:
-                try:
-                    self._update_table_stats(table_name)
-                except Exception as e:
-                    logger.warning(f"Failed to update stats for table {table_name}: {e}")
-                    
-        except Exception as e:
-            logger.error(f"Error updating all table stats: {e}")
-    
-    def _update_table_stats(self, table_name: str):
-        """Update statistics for a specific table"""
-        try:
-            if not self.connection:
-                return
-            
-            with self.connection.transaction() as tx:
-                table = tx.schema.table(table_name)
-                stats = table.get_stats()
-                
-                # Update cache with new statistics
-                total_rows = getattr(stats, 'total_rows', 0) or 0
-                schema = table.columns()
-                
-                self.cache_manager.update_table_cache(table_name, schema, total_rows)
-                
-        except Exception as e:
-            logger.warning(f"Failed to update stats for table {table_name}: {e}")
     
     def connect_to_endpoint(self, endpoint: Optional[str] = None):
         """Connect to a specific VAST database endpoint"""
@@ -253,49 +189,12 @@ class VastDBManager:
     
     @property
     def tables(self) -> List[str]:
-        """Get list of available tables"""
+        """Get list of available tables from cache"""
         try:
-            if not self.connection:
-                return []
-            
-            # Check cache first
-            cached_tables = self.cache_manager.get_all_table_names()
-            if cached_tables:
-                return cached_tables
-            
-            # Discover tables if not cached
-            self._discover_tables()
             return self.cache_manager.get_all_table_names()
-            
         except Exception as e:
             logger.error(f"Error getting tables: {e}")
             return []
-    
-    def _discover_tables(self):
-        """Discover available tables and cache their metadata"""
-        try:
-            if not self.connection:
-                return
-            
-            with self.connection.transaction() as tx:
-                bucket = tx.bucket(self.bucket)
-                schema = bucket.schema(self.schema)
-                for table_name in schema.tablenames():
-                    try:
-                        table = schema.table(table_name)
-                        stats = table.get_stats()
-                        schema_info = table.columns()
-                        
-                        total_rows = getattr(stats, 'total_rows', 0) or 0
-                        self.cache_manager.update_table_cache(table_name, schema_info, total_rows)
-                        
-                    except Exception as e:
-                        logger.warning(f"Failed to discover table {table_name}: {e}")
-            
-            logger.info(f"Discovered {len(self.cache_manager.get_all_table_names())} tables")
-            
-        except Exception as e:
-            logger.error(f"Error discovering tables: {e}")
     
     def get_table_columns(self, table_name: str) -> Optional[Schema]:
         """Get column definitions for a table"""
@@ -497,8 +396,7 @@ class VastDBManager:
                 success=True
             )
             
-            # Invalidate cache for this table
-            self.cache_manager.invalidate_table_cache(table_name)
+            # Cache is simplified - no need to invalidate on every insert
             
             logger.debug(f"Inserted data into table {table_name} in {execution_time:.3f}s")
             
@@ -545,8 +443,7 @@ class VastDBManager:
                 success=True
             )
             
-            # Invalidate cache for this table
-            self.cache_manager.invalidate_table_cache(table_name)
+            # Cache is simplified - no need to invalidate on every insert
             
             logger.debug(f"Inserted {len(data)} rows into table {table_name} in {execution_time:.3f}s")
             
@@ -607,10 +504,18 @@ class VastDBManager:
                 # Execute the query using the correct VAST API
                 if vast_filter is not None:
                     # For filtered queries, we need to use the predicate parameter
-                    result = vast_table.select(columns=columns, predicate=vast_filter, config=query_config)
+                    if include_row_ids:
+                        # Use internal_row_id parameter directly - this is the correct method
+                        result = vast_table.select(columns=columns, predicate=vast_filter, internal_row_id=True)
+                    else:
+                        result = vast_table.select(columns=columns, predicate=vast_filter, config=query_config)
                 else:
                     # For unfiltered queries
-                    result = vast_table.select(columns=columns, config=query_config)
+                    if include_row_ids:
+                        # Use internal_row_id parameter directly - this is the correct method
+                        result = vast_table.select(columns=columns, internal_row_id=True)
+                    else:
+                        result = vast_table.select(columns=columns, config=query_config)
                 
                 # Apply limit if specified
                 if limit:
@@ -630,6 +535,24 @@ class VastDBManager:
                 if include_row_ids and data and '$row_id' in data:
                     logger.debug(f"Row IDs found: {data['$row_id']}")
                 
+                # Log raw output for debugging
+                if include_row_ids:
+                    print(f"🔍 RAW QUERY RESULT for {table_name} with include_row_ids=True:")
+                    print(f"Result type: {type(result)}")
+                    print(f"Result attributes: {[attr for attr in dir(result) if not attr.startswith('_')]}")
+                    print(f"Data type: {type(data)}")
+                    print(f"Data keys: {list(data.keys()) if isinstance(data, dict) else 'Not a dict'}")
+                    if isinstance(data, dict):
+                        for key, value in data.items():
+                            if key == '$row_id':
+                                print(f"$row_id field: {value} (type: {type(value)})")
+                            else:
+                                print(f"Field {key}: {len(value) if isinstance(value, list) else value} (type: {type(value)})")
+                    print(f"🔍 END RAW QUERY RESULT")
+                    
+                    # Also log to logger for consistency
+                    logger.info(f"RAW QUERY RESULT for {table_name}: Result type: {type(result)}, Data keys: {list(data.keys()) if isinstance(data, dict) else 'Not a dict'}")
+                
                 execution_time = time.time() - start_time
                 logger.debug(f"Query execution time: {execution_time:.3f}s")
                 
@@ -638,6 +561,32 @@ class VastDBManager:
         except Exception as e:
             logger.error(f"Error in query_with_predicates for table {table_name}: {e}")
             raise
+    
+    def refresh_table_metadata(self, table_name: str):
+        """Refresh table metadata in cache (useful when columns change)"""
+        try:
+            if not self.connection:
+                logger.warning(f"Cannot refresh metadata for {table_name}: not connected")
+                return
+            
+            with self.connection.transaction() as tx:
+                bucket = tx.bucket(self.bucket)
+                schema = tx.schema(self.schema)
+                table = schema.table(table_name)
+                
+                # Get fresh metadata
+                table_stats = table.get_stats()
+                total_rows = getattr(table_stats, 'total_rows', 0) or 0
+                columns = table.columns()
+                
+                # Update cache with fresh metadata
+                self.cache_manager.update_table_cache(table_name, columns, total_rows)
+                logger.info(f"Refreshed metadata for table {table_name}: {total_rows} rows, {len(columns)} columns")
+                
+        except Exception as e:
+            logger.error(f"Error refreshing metadata for table {table_name}: {e}")
+            # Invalidate cache on error to force fresh fetch next time
+            self.cache_manager.invalidate_table_cache(table_name)
     
     def _create_optimized_query_config(self, table_name: str, predicates: Optional[Any] = None) -> 'vastdb.config.QueryConfig':
         """Create optimized QueryConfig for VAST query execution with aggressive optimization"""
@@ -817,89 +766,88 @@ class VastDBManager:
                 logger.warning(f"Update operation requires a predicate for table {table_name}")
                 return 0
             
-            # Use VAST's native UPDATE capability
-            # First, find the records that match the predicate to get their row IDs
-            matching_records = self.query_with_predicates(table_name, predicate, include_row_ids=True)
-            
-            if matching_records is None or len(matching_records) == 0:
-                logger.warning(f"No records found matching predicate for update in table {table_name}")
-                return 0
-            
-            num_records = len(matching_records)
-            logger.info(f"Updating {num_records} records in table {table_name}")
-            
-            # Get the table schema to understand the structure
-            schema = self.cache_manager.get_table_columns(table_name)
-            if schema is None:
+            # Get the table schema upfront for validation
+            table_schema = self.cache_manager.get_table_columns(table_name)
+            if table_schema is None:
                 logger.error(f"Could not get schema for table {table_name}")
                 return 0
             
-            # Create update data with the $row_id field as required by VAST
-            update_data = {'$row_id': []}
+            # Validate column names upfront before doing any expensive operations
+            columns = list(data.keys())
+            available_columns = [f.name for f in table_schema]
+            invalid_columns = [col for col in columns if col not in available_columns]
             
-            # Add the row IDs
-            if '$row_id' in matching_records:
-                update_data['$row_id'] = matching_records['$row_id']
-            else:
-                logger.error(f"Row IDs not found in matching records for table {table_name}")
+            if invalid_columns:
+                logger.error(f"Invalid columns for table {table_name}: {invalid_columns}")
+                logger.error(f"Available columns: {available_columns}")
                 return 0
             
-            # Add the columns to be updated
-            for key, values in data.items():
-                if key in schema:
-                    if isinstance(values, list):
-                        if len(values) == 1:
-                            # Single value, repeat for all records
-                            update_data[key] = values * num_records
-                        elif len(values) == num_records:
-                            # Values match number of records
-                            update_data[key] = values
-                        else:
-                            logger.warning(f"Column {key} has {len(values)} values but {num_records} records - using first value")
-                            update_data[key] = [values[0]] * num_records
-                    else:
-                        # Single value, repeat for all records
-                        update_data[key] = [values] * num_records
+            logger.info(f"Updating {len(columns)} columns in table {table_name}")
             
-            # Convert to PyArrow RecordBatch with proper schema
+            # Query with predicate to get rows to update (with row IDs)
+            matching_rows = self.query_with_predicates(table_name, predicate, include_row_ids=True)
+            
+            if not matching_rows:
+                logger.warning(f"No rows found matching predicate for update in table {table_name}")
+                return 0
+            
+            # Extract row IDs from the result
+            if hasattr(matching_rows, 'to_pydict'):
+                row_data = matching_rows.to_pydict()
+            else:
+                row_data = matching_rows
+            
+            # Debug: log what we actually got
+            logger.debug(f"Query result keys: {list(row_data.keys()) if isinstance(row_data, dict) else 'Not a dict'}")
+            logger.debug(f"Query result sample: {dict(list(row_data.items())[:3]) if isinstance(row_data, dict) and row_data else 'Empty or not dict'}")
+            
+            if '$row_id' not in row_data:
+                logger.error(f"Row IDs not found in query result")
+                logger.error(f"Available keys: {list(row_data.keys()) if isinstance(row_data, dict) else 'Not a dict'}")
+                return 0
+            
+            row_ids = row_data['$row_id']
+            num_rows = len(row_ids)
+            logger.info(f"Found {num_rows} rows to update")
+            
+            # Build update schema with $row_id + columns being updated
             import pyarrow as pa
+            update_schema = [pa.field('$row_id', pa.uint64())]
             
-            # Create schema for update (must include $row_id)
-            update_schema_fields = [pa.field('$row_id', pa.uint64())]
-            for key, values in update_data.items():
-                if key != '$row_id':
-                    # Determine the type from the schema
-                    schema_field = next((f for f in schema if f.name == key), None)
-                    if schema_field:
-                        update_schema_fields.append(schema_field)
+            for field in table_schema:
+                if field.name in columns:
+                    update_schema.append(field)
+            
+            # Create update data with new values + row IDs
+            update_data = {}
+            for column in columns:
+                update_data[column] = []
+            
+            # Repeat the update values for each row
+            for _ in range(num_rows):
+                for column in columns:
+                    if isinstance(data[column], list):
+                        # Use first value if it's a list
+                        update_data[column].append(data[column][0] if data[column] else None)
                     else:
-                        # Fallback type inference
-                        if isinstance(values[0], bool):
-                            update_schema_fields.append(pa.field(key, pa.bool_()))
-                        elif isinstance(values[0], int):
-                            update_schema_fields.append(pa.field(key, pa.int64()))
-                        elif isinstance(values[0], float):
-                            update_schema_fields.append(pa.field(key, pa.float64()))
-                        else:
-                            update_schema_fields.append(pa.field(key, pa.string()))
+                        # Use the value directly
+                        update_data[column].append(data[column])
             
-            update_schema = pa.schema(update_schema_fields)
+            # Add row IDs
+            update_data['$row_id'] = row_ids
             
-            # Create RecordBatch for update
-            record_batch = pa.RecordBatch.from_pydict(update_data, schema=update_schema)
+            # Create RecordBatch and update the table
+            records = pa.RecordBatch.from_pydict(update_data, schema=pa.schema(update_schema))
             
-            # Perform the update using VAST's native update method
             with self.connection.transaction() as tx:
                 bucket = tx.bucket(self.bucket)
                 schema_obj = bucket.schema(self.schema)
                 vast_table = schema_obj.table(table_name)
                 
-                # Use VAST's native update method
-                vast_table.update(record_batch)
+                vast_table.update(records)
+                logger.info(f"Successfully updated {num_rows} rows in table {table_name}")
+                return num_rows
                 
-            logger.info(f"Successfully updated {num_records} records in table {table_name}")
-            return num_records
-            
         except Exception as e:
             logger.error(f"Failed to update table {table_name}: {e}")
             raise
@@ -911,54 +859,45 @@ class VastDBManager:
                 logger.warning(f"Delete operation requires a predicate for table {table_name}")
                 return 0
             
-            # Use VAST's native DELETE capability
-            # First, find the records that match the predicate to get their row IDs
-            matching_records = self.query_with_predicates(table_name, predicate, include_row_ids=True)
+            # Query with predicate to get rows to delete (with row IDs)
+            matching_rows = self.query_with_predicates(table_name, predicate, include_row_ids=True)
             
-            if matching_records is None or len(matching_records) == 0:
-                logger.warning(f"No records found matching predicate for delete in table {table_name}")
+            if not matching_rows:
+                logger.warning(f"No rows found matching predicate for delete in table {table_name}")
                 return 0
             
-            num_records = len(matching_records)
-            logger.info(f"Deleting {num_records} records from table {table_name}")
-            
-            # Get the table schema to understand the structure
-            schema = self.cache_manager.get_table_columns(table_name)
-            if schema is None:
-                logger.error(f"Could not get schema for table {table_name}")
-                return 0
-            
-            # Create delete data with only the $row_id field as required by VAST
-            delete_data = {'$row_id': []}
-            
-            # Add the row IDs
-            if '$row_id' in matching_records:
-                delete_data['$row_id'] = matching_records['$row_id']
+            # Extract row IDs from the result
+            if hasattr(matching_rows, 'to_pydict'):
+                row_data = matching_rows.to_pydict()
             else:
-                logger.error(f"Row IDs not found in matching records for table {table_name}")
+                row_data = matching_rows
+            
+            if '$row_id' not in row_data:
+                logger.error(f"Row IDs not found in query result")
                 return 0
             
-            # Execute the delete operation
+            row_ids = row_data['$row_id']
+            num_rows = len(row_ids)
+            logger.info(f"Found {num_rows} rows to delete")
+            
+            # Create delete data with only the $row_id field
+            import pyarrow as pa
+            delete_data = {'$row_id': row_ids}
+            
+            # Create RecordBatch and delete the rows
+            records = pa.RecordBatch.from_pydict(delete_data, schema=pa.schema([pa.field('$row_id', pa.uint64())]))
+            
             with self.connection.transaction() as tx:
                 bucket = tx.bucket(self.bucket)
-                schema = bucket.schema(self.schema)
-                table = schema.table(table_name)
+                schema_obj = bucket.schema(self.schema)
+                vast_table = schema_obj.table(table_name)
                 
-                # Create PyArrow RecordBatch with just the row IDs
-                import pyarrow as pa
-                record_batch = pa.RecordBatch.from_pydict(delete_data)
+                vast_table.delete(records)
+                logger.info(f"Successfully deleted {num_rows} rows from table {table_name}")
                 
-                # Delete the records
-                deleted_count = table.delete(record_batch)
-                
-                if deleted_count > 0:
-                    logger.info(f"Successfully deleted {deleted_count} records from table {table_name}")
-                    # Update cache to reflect the deletion
-                    self.cache_manager.update_table_cache(table_name, schema, -deleted_count)
-                    return deleted_count
-                else:
-                    logger.warning(f"No records were deleted from table {table_name}")
-                    return 0
+                # Update cache to reflect the deletion
+                self.cache_manager.update_table_cache(table_name, None, -num_rows)
+                return num_rows
                     
         except Exception as e:
             logger.error(f"Error deleting from table {table_name}: {e}")
@@ -1200,10 +1139,7 @@ class VastDBManager:
     def close(self):
         """Cleanup resources"""
         try:
-            # Stop background thread
-            self._stop_stats_update.set()
-            if self._stats_update_thread and self._stats_update_thread.is_alive():
-                self._stats_update_thread.join(timeout=5)
+            # No background threads to stop or join
             
             # Close connections
             self.disconnect()

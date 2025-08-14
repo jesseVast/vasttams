@@ -1,18 +1,17 @@
-"""Table cache data structures for VastDBManager"""
+"""Simplified table cache for VastDBManager - only stores essential metadata"""
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from pyarrow import Schema
 
 
 @dataclass
 class TableCacheEntry:
-    """Enhanced cache entry containing both schema and stats"""
+    """Simple cache entry containing only essential table metadata"""
     schema: Schema
-    total_rows: int
-    last_updated: datetime
-    cache_ttl: timedelta = timedelta(minutes=30)  # 30 minute cache
+    total_rows: int = 0
     
-    def is_expired(self) -> bool:
-        """Check if cache has expired"""
-        return datetime.now() - self.last_updated > self.cache_ttl
+    def __post_init__(self):
+        """Ensure total_rows is always an integer"""
+        if self.total_rows is None:
+            self.total_rows = 0
+        self.total_rows = int(self.total_rows)

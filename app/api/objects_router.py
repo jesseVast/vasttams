@@ -65,12 +65,11 @@ async def create_objects_batch(
 ):
     """Create multiple objects in a single batch operation using VAST's native batch insert"""
     try:
+        # For multiple objects, use VAST's native batch insert
+        logger.info(f"Using VAST batch insert for {len(objects)} objects")
+        
         # Convert Pydantic models to the format expected by insert_batch_efficient
         # The method expects Dict[str, List[Any]] where keys are column names
-        if not objects:
-            raise HTTPException(status_code=400, detail="No objects provided")
-        
-        # Get the first object to determine column names
         first_object = objects[0].model_dump()
         column_names = list(first_object.keys())
         

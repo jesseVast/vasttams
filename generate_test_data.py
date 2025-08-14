@@ -87,6 +87,14 @@ NUM_SEGMENTS = 100
 OBJECTS_PER_SEGMENT = 5
 BATCH_SIZE = 25  # Reduced batch size to prevent server disconnections
 
+# API Configuration Constants - Easy to adjust for troubleshooting
+DEFAULT_API_WAIT_TIMEOUT = 60  # Default timeout for waiting for API to come online
+DEFAULT_BATCH_DELAY = 0.1  # Default delay between batches to prevent overwhelming server
+DEFAULT_HTTP_SUCCESS_STATUS = 200  # HTTP status code for successful GET requests
+DEFAULT_HTTP_CREATED_STATUS = 201  # HTTP status code for successful POST requests
+DEFAULT_HTTP_ERROR_STATUS = 500  # HTTP status code for server errors
+EXPECTED_TIME_PARTS_LENGTH = 2  # Expected number of parts when parsing time strings
+
 class TestDataGenerator:
     def __init__(self):
         self.session = None
@@ -103,7 +111,7 @@ class TestDataGenerator:
         if self.session:
             await self.session.close()
     
-    async def wait_for_api(self, max_wait: int = 60) -> bool:
+    async def wait_for_api(self, max_wait: int = DEFAULT_API_WAIT_TIMEOUT) -> bool:
         """Wait for the API to come online"""
         logger.info("Waiting for API to come online...")
         start_time = time.time()
@@ -111,7 +119,7 @@ class TestDataGenerator:
         while time.time() - start_time < max_wait:
             try:
                 async with self.session.get(HEALTH_ENDPOINT) as response:
-                    if response.status == 200:
+                    if response.status == DEFAULT_HTTP_SUCCESS_STATUS:
                         data = await response.json()
                         if data.get('status') == 'healthy':
                             logger.info("✅ API is online and healthy")
@@ -294,7 +302,7 @@ class TestDataGenerator:
         # Extract start and end from timerange format [start_end]
         if timerange.startswith('[') and timerange.endswith(']'):
             time_parts = timerange[1:-1].split('_')
-            if len(time_parts) == 2:
+            if len(time_parts) == EXPECTED_TIME_PARTS_LENGTH:
                 start_time = time_parts[0]
                 end_time = time_parts[1]
             else:
@@ -342,7 +350,7 @@ class TestDataGenerator:
             try:
                 # Send batch in a single request
                 async with self.session.post(SOURCES_BATCH_ENDPOINT, json=batch) as response:
-                    if response.status == 201:
+                    if response.status == DEFAULT_HTTP_CREATED_STATUS:
                         created_sources = await response.json()
                         self.sources.extend(created_sources)
                         logger.info(f"✅ Created batch {i//BATCH_SIZE + 1}: {len(created_sources)} sources")
@@ -351,7 +359,7 @@ class TestDataGenerator:
                         return False
                 
                 # Small delay between batches to prevent overwhelming the server
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(DEFAULT_BATCH_DELAY)
                 
             except Exception as e:
                 logger.error(f"Error in batch {i//BATCH_SIZE + 1}: {e}")

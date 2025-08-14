@@ -62,6 +62,19 @@ from .s3_store import S3Store
 
 logger = logging.getLogger(__name__)
 
+# Configuration Constants - Easy to adjust for troubleshooting
+DEFAULT_QUERY_TIMEOUT = 30  # Default query timeout in seconds
+DEFAULT_CACHE_TTL_MINUTES = 30  # Default cache time-to-live in minutes
+DEFAULT_MAX_RETRIES = 3  # Default maximum retry attempts
+DEFAULT_BATCH_SIZE = 1000  # Default batch size for operations
+DEFAULT_MAX_WORKERS = 4  # Default maximum parallel workers
+DEFAULT_ANALYTICS_TIMEOUT = 60  # Default analytics query timeout
+DEFAULT_STORAGE_CALCULATION_BASE = 0  # Base value for storage calculations
+DEFAULT_ACCESS_COUNT_BASE = 0  # Base value for access count calculations
+EXPECTED_PARTS_LENGTH = 2  # Expected number of parts for parsing
+EXPECTED_CONDITIONS_LENGTH = 2  # Expected number of conditions for predicate building
+SINGLE_CONDITION_LENGTH = 1  # Length indicating single condition
+
 
 class VASTStore:
     """
@@ -512,7 +525,7 @@ class VASTStore:
                 if start_str:
                     start_seconds = self._parse_timestamp(start_str)
                 else:
-                    start_seconds = 0
+                    start_seconds = DEFAULT_STORAGE_CALCULATION_BASE
                 
                 # Parse end time
                 if end_str:
@@ -531,7 +544,7 @@ class VASTStore:
                 start_seconds = self._parse_timestamp(clean_range)
                 start_time = datetime.fromtimestamp(start_seconds, timezone.utc)
                 end_time = start_time
-                duration = 0
+                duration = DEFAULT_STORAGE_CALCULATION_BASE
             
             return start_time, end_time, duration
             
@@ -553,7 +566,7 @@ class VASTStore:
         """
         if ':' in timestamp_str:
             parts = timestamp_str.split(':')
-            if len(parts) == 2:
+            if len(parts) == EXPECTED_PARTS_LENGTH:
                 seconds = int(parts[0])
                 subseconds = int(parts[1]) if parts[1] else 0
                 return seconds + (subseconds / 1000000000)  # Assuming nanoseconds
@@ -686,7 +699,7 @@ class VASTStore:
                 if 'format' in filters:
                     conditions.append((ibis_.format == filters['format']))
                 if conditions:
-                    predicate = conditions[0] if len(conditions) == 1 else conditions[0] & conditions[1]
+                    predicate = conditions[0] if len(conditions) == SINGLE_CONDITION_LENGTH else conditions[0] & conditions[1]
             
             # Add soft delete filtering
             predicate = self._add_soft_delete_predicate(predicate)
@@ -1051,7 +1064,7 @@ class VASTStore:
             format_counts = {str(k): int(v) if hasattr(v, 'item') else v for k, v in format_counts.items()}
             
             # Calculate storage estimates
-            total_storage = 0
+            total_storage = DEFAULT_STORAGE_CALCULATION_BASE
             for _, row in df.iterrows():
                 try:
                     if row['format'] == "urn:x-nmos:format:video":
@@ -1147,7 +1160,7 @@ class VASTStore:
                         "average_access_count": 0
                     }
             
-            if total_objects == 0:
+            if total_objects == DEFAULT_STORAGE_CALCULATION_BASE:
                 return {
                     "total_objects": 0, 
                     "total_size_bytes": 0, 
@@ -1165,9 +1178,9 @@ class VASTStore:
                 least_accessed = min(access_counts)
                 average_access_count = sum(access_counts) / len(access_counts)
             else:
-                most_accessed = 0
-                least_accessed = 0
-                average_access_count = 0
+                most_accessed = DEFAULT_ACCESS_COUNT_BASE
+                least_accessed = DEFAULT_ACCESS_COUNT_BASE
+                average_access_count = DEFAULT_ACCESS_COUNT_BASE
             
             return {
                 "total_objects": total_objects,

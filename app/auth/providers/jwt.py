@@ -1,20 +1,24 @@
-"""
-JWT Bearer token authentication provider
-"""
+"""JWT authentication provider for TAMS application"""
 
-import jwt
+from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
-from typing import Optional
+import jwt
 from fastapi import Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from .base import AuthProvider
-from ..models import AuthResult, AuthMethod
+from ..models import AuthResult, AuthMethod, User, AuthConfig
+
+# Configuration Constants - Easy to adjust for troubleshooting
+DEFAULT_JWT_SECRET = "your-secret-key"  # Default JWT secret (should be overridden)
+DEFAULT_JWT_ALGORITHM = "HS256"  # Default JWT algorithm
+DEFAULT_JWT_EXPIRE_MINUTES = 30  # Default JWT expiration time
+DEFAULT_REFRESH_TOKEN_EXPIRE_DAYS = 7  # Default refresh token expiration time
 
 class JWTProvider(AuthProvider):
     """JWT Bearer token authentication provider"""
     
-    def __init__(self, jwt_secret: str = "your-secret-key", jwt_algorithm: str = "HS256", jwt_expire_minutes: int = 30):
+    def __init__(self, jwt_secret: str = DEFAULT_JWT_SECRET, jwt_algorithm: str = DEFAULT_JWT_ALGORITHM, jwt_expire_minutes: int = DEFAULT_JWT_EXPIRE_MINUTES):
         self.jwt_secret = jwt_secret
         self.jwt_algorithm = jwt_algorithm
         self.jwt_expire_minutes = jwt_expire_minutes

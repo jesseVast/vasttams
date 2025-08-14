@@ -1,6 +1,16 @@
-"""
-Utility functions for the TAMS FastAPI service
-"""
+"""Core utility functions for TAMS application"""
+
+import asyncio
+import aiohttp
+import logging
+from typing import Optional, Dict, Any, List
+from datetime import datetime, timedelta
+
+# Configuration Constants - Easy to adjust for troubleshooting
+DEFAULT_TIMEOUT = 30  # Default timeout for HTTP requests
+DEFAULT_MAX_RETRIES = 3  # Default maximum retry attempts
+DEFAULT_RETRY_DELAY = 1  # Default delay between retries in seconds
+DEFAULT_MAX_CONCURRENT_REQUESTS = 10  # Default maximum concurrent requests
 
 import uuid
 import re
@@ -257,3 +267,38 @@ def build_paging_response(
         }
     
     return response
+
+
+async def make_request(url: str, method: str = "GET", data: Optional[Dict[str, Any]] = None, 
+                       headers: Optional[Dict[str, str]] = None, 
+                       timeout: int = DEFAULT_TIMEOUT) -> Optional[Dict[str, Any]]:
+    """
+    Make an HTTP request with configurable timeout
+    
+    Args:
+        url: Target URL
+        method: HTTP method
+        data: Request data
+        headers: Request headers
+        timeout: Request timeout in seconds
+    
+    Returns:
+        Dict: Response data or None if failed
+    """
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.request(
+                method=method,
+                url=url,
+                json=data,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=timeout)
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    logging.warning(f"Request failed with status {response.status}")
+                    return None
+    except Exception as e:
+        logging.error(f"Request error: {e}")
+        return None

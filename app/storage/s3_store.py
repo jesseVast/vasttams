@@ -1,18 +1,20 @@
-"""
-S3 Store for TAMS Flow Segments
+"""S3 storage backend for TAMS application"""
 
-This module handles S3 operations for storing and retrieving flow segment data.
-Flow segments contain the actual media data and are stored in S3 buckets,
-while metadata is stored in the VAST database.
-"""
-
+import boto3
 import logging
+from typing import Optional, Dict, Any, List, BinaryIO
+from botocore.exceptions import ClientError, NoCredentialsError
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Dict, Any, Union, BinaryIO
-import boto3
-from botocore.exceptions import ClientError
+from datetime import datetime, timedelta
+
+# Configuration Constants - Easy to adjust for troubleshooting
+DEFAULT_S3_TIMEOUT = 30  # Default S3 operation timeout in seconds
+DEFAULT_PRESIGNED_URL_EXPIRES = 3600  # Default presigned URL expiration time in seconds
+DEFAULT_MAX_RETRIES = 3  # Default maximum retry attempts for S3 operations
+DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024  # Default chunk size for multipart uploads (8MB)
+DEFAULT_MAX_CONCURRENT_PARTS = 10  # Default maximum concurrent parts for multipart uploads
+EXPECTED_PARTS_LENGTH = 2  # Expected number of parts for key parsing
 
 from ..models.models import FlowSegment, GetUrl
 from ..core.config import get_settings
@@ -103,7 +105,7 @@ class S3Store:
         try:
             if ':' in start_str:
                 parts = start_str.split(':')
-                if len(parts) == 2:
+                if len(parts) == EXPECTED_PARTS_LENGTH:
                     seconds = int(parts[0])
                     subseconds = int(parts[1]) if parts[1] else 0
                     start_time = datetime.fromtimestamp(seconds + (subseconds / 1000000000), timezone.utc)
@@ -335,7 +337,7 @@ class S3Store:
                                     segment_id: str, 
                                     timerange: str,
                                     operation: str = 'get_object',
-                                    expires_in: int = 3600) -> Optional[str]:
+                                    expires_in: int = DEFAULT_PRESIGNED_URL_EXPIRES) -> Optional[str]:
         """
         Generate presigned URL for S3 operations
         

@@ -1,11 +1,16 @@
-"""
-Configuration management for TAMS API
-"""
+"""Configuration management for TAMS application"""
 
+from pydantic import BaseSettings, Field
+from typing import Optional, List
 import os
-import json
-from typing import Optional
-from pydantic_settings import BaseSettings
+
+# Configuration Constants - Easy to adjust for troubleshooting
+DEFAULT_PORT = 8000  # Default application port
+DEFAULT_HOST = "0.0.0.0"  # Default host binding
+DEFAULT_LOG_LEVEL = "INFO"  # Default logging level
+DEFAULT_CORS_ORIGINS = ["*"]  # Default CORS origins
+DEFAULT_CORS_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"]  # Default CORS methods
+DEFAULT_CORS_HEADERS = ["*"]  # Default CORS headers
 
 
 class Settings(BaseSettings):
@@ -18,7 +23,7 @@ class Settings(BaseSettings):
     
     # Server settings
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = Field(default=DEFAULT_PORT, description="Application port")
     debug: bool = True
     
     # VAST Database settings

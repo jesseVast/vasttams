@@ -5,7 +5,7 @@ import time
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 import duckdb
-from vastdb import Table
+from pyarrow import Table
 
 logger = logging.getLogger(__name__)
 

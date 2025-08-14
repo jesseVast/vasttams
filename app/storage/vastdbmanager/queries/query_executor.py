@@ -2,7 +2,7 @@
 
 import logging
 from typing import List, Dict, Any, Optional
-from vastdb import Table
+from pyarrow import Table
 
 logger = logging.getLogger(__name__)
 

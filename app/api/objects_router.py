@@ -57,6 +57,34 @@ async def create_new_object(
         logger.error(f"Failed to create object: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# Batch POST endpoint
+@router.post("/objects/batch", response_model=List[Object], status_code=201)
+async def create_objects_batch(
+    objects: List[Object],
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Create multiple objects in a single batch operation"""
+    try:
+        created_objects = []
+        for obj in objects:
+            success = await create_object(store, obj)
+            if success:
+                created_objects.append(obj)
+            else:
+                logger.warning(f"Failed to create object {obj.object_id}")
+        
+        if not created_objects:
+            raise HTTPException(status_code=500, detail="Failed to create any objects")
+        
+        logger.info(f"Successfully created {len(created_objects)}/{len(objects)} objects in batch")
+        return created_objects
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create objects batch: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # DELETE endpoint
 @router.delete("/objects/{object_id}")
 async def delete_object_by_id(

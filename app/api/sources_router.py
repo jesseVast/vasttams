@@ -98,36 +98,33 @@ async def create_sources_batch(
             logger.info("Successfully created 1 source using single insert")
             return sources
         
-        # For multiple sources, use parallel individual creation for reliability
-        logger.info(f"Using parallel individual creation for {len(sources)} sources")
+        # For multiple sources, use VAST's native batch insert
+        logger.info(f"Using VAST batch insert for {len(sources)} sources")
         
-        # Create sources in parallel using individual creation functions
-        import asyncio
+        # Convert Pydantic models to the format expected by insert_batch_efficient
+        # The method expects Dict[str, List[Any]] where keys are column names
+        first_source = sources[0].model_dump()
+        column_names = list(first_source.keys())
         
-        async def create_single_source_async(source: Source) -> bool:
-            try:
-                success = await create_source(store, source)
-                return success
-            except Exception as e:
-                logger.error(f"Failed to create source {source.id}: {e}")
-                return False
+        # Transform data to column-oriented format
+        batch_data = {}
+        for col in column_names:
+            batch_data[col] = []
+            for source in sources:
+                source_dict = source.model_dump()
+                batch_data[col].append(source_dict.get(col))
         
-        # Create all sources in parallel
-        tasks = [create_single_source_async(source) for source in sources]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Use VAST's native batch insert functionality
+        rows_inserted = store.db_manager.insert_batch_efficient(
+            table_name="sources",
+            data=batch_data,
+            batch_size=len(sources)
+        )
         
-        # Check results
-        successful_creations = 0
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                logger.error(f"Source {i} creation failed: {result}")
-            elif result:
-                successful_creations += 1
+        if rows_inserted <= 0:
+            raise HTTPException(status_code=500, detail="Failed to insert sources batch")
         
-        if successful_creations == 0:
-            raise HTTPException(status_code=500, detail="Failed to create any sources")
-        
-        logger.info(f"Successfully created {successful_creations}/{len(sources)} sources using parallel processing")
+        logger.info(f"Successfully created {rows_inserted} sources using VAST batch insert")
         return sources
         
     except HTTPException:

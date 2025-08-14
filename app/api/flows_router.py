@@ -177,12 +177,11 @@ async def create_flows_batch(
 ):
     """Create multiple flows in a single batch operation using VAST's native batch insert"""
     try:
+        # For multiple flows, use VAST's native batch insert
+        logger.info(f"Using VAST batch insert for {len(flows)} flows")
+        
         # Convert Pydantic models to the format expected by insert_batch_efficient
         # The method expects Dict[str, List[Any]] where keys are column names
-        if not flows:
-            raise HTTPException(status_code=400, detail="No flows provided")
-        
-        # Get the first flow to determine column names
         first_flow = flows[0].model_dump()
         column_names = list(first_flow.keys())
         

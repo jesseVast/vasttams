@@ -1,11 +1,16 @@
-"""
-Authentication utilities for TAMS API 7.0
-"""
+"""Authentication utility functions for TAMS application"""
 
 import hashlib
 import secrets
-from typing import Optional
+import string
 from datetime import datetime, timedelta
+from typing import Optional
+
+# Configuration Constants - Easy to adjust for troubleshooting
+DEFAULT_TOKEN_EXPIRE_MINUTES = 30  # Default token expiration time
+DEFAULT_PASSWORD_MIN_LENGTH = 8  # Minimum password length
+DEFAULT_SALT_LENGTH = 16  # Length of salt for password hashing
+DEFAULT_TOKEN_LENGTH = 32  # Length of generated tokens
 
 def generate_user_id() -> str:
     """Generate a unique user ID"""
@@ -29,6 +34,6 @@ def is_token_expired(expires_at: Optional[datetime]) -> bool:
         return False
     return datetime.utcnow() > expires_at
 
-def calculate_token_expiry(minutes: int = 30) -> datetime:
+def calculate_token_expiry(minutes: int = DEFAULT_TOKEN_EXPIRE_MINUTES) -> datetime:
     """Calculate token expiry time"""
     return datetime.utcnow() + timedelta(minutes=minutes) 

@@ -1,16 +1,20 @@
-"""
-Telemetry and Observability Module for TAMS API
-
-This module provides comprehensive telemetry capabilities including:
-- Prometheus metrics for monitoring and alerting
-- OpenTelemetry tracing for distributed tracing
-- Structured logging with correlation IDs
-- Performance monitoring and business metrics
-- Health check enhancements
-"""
+"""Telemetry and monitoring for TAMS application"""
 
 import logging
 import time
+import asyncio
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional, List
+import aiohttp
+import json
+
+# Configuration Constants - Easy to adjust for troubleshooting
+DEFAULT_TELEMETRY_INTERVAL = 60  # Default telemetry collection interval in seconds
+DEFAULT_METRICS_RETENTION_DAYS = 30  # Default metrics retention period
+DEFAULT_HEALTH_CHECK_INTERVAL = 30  # Default health check interval in seconds
+DEFAULT_ERROR_THRESHOLD = 400  # HTTP status code threshold for error classification
+DEFAULT_SUCCESS_THRESHOLD = 200  # HTTP status code threshold for success classification
+
 import uuid
 from contextlib import asynccontextmanager
 from typing import Dict, Any, Optional, Callable
@@ -238,7 +242,7 @@ class TelemetryManager:
         ).observe(duration)
         
         # Record errors
-        if status_code >= 400:
+        if status_code >= DEFAULT_ERROR_THRESHOLD:
             metrics.errors_total.labels(
                 type="http_error",
                 endpoint=endpoint

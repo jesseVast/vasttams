@@ -6,6 +6,7 @@ import os
 import json
 from typing import Optional
 from pydantic_settings import BaseSettings
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -18,7 +19,7 @@ class Settings(BaseSettings):
     
     # Server settings
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = Field(default=DEFAULT_PORT, description="Application port")
     debug: bool = True
     
     # VAST Database settings

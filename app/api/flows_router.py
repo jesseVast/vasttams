@@ -195,7 +195,7 @@ async def create_flows_batch(
                 batch_data[col].append(flow_dict.get(col))
         
         # Use VAST's native batch insert functionality
-        success = await store.db_manager.insert_batch_efficient(
+        success = store.db_manager.insert_batch_efficient(
             table_name="flows",
             data=batch_data,
             batch_size=len(flows)

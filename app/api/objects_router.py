@@ -83,16 +83,16 @@ async def create_objects_batch(
                 batch_data[col].append(obj_dict.get(col))
         
         # Use VAST's native batch insert functionality
-        success = store.db_manager.insert_batch_efficient(
+        rows_inserted = store.db_manager.insert_batch_efficient(
             table_name="objects",
             data=batch_data,
             batch_size=len(objects)
         )
         
-        if not success:
+        if rows_inserted <= 0:
             raise HTTPException(status_code=500, detail="Failed to insert objects batch")
         
-        logger.info(f"Successfully created {len(objects)} objects using VAST batch insert")
+        logger.info(f"Successfully created {rows_inserted} objects using VAST batch insert")
         return objects
         
     except HTTPException:

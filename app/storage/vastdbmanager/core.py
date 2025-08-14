@@ -977,15 +977,15 @@ class VastDBManager:
             ]
             
             # Create record batch (VAST expects RecordBatch, not Table)
-            # Convert UUID objects and nested dictionaries to strings for PyArrow compatibility
+            # Convert UUID objects and complex types to strings for PyArrow compatibility
             converted_data = {}
             for col, values in data.items():
                 converted_values = []
                 for value in values:
                     if isinstance(value, uuid.UUID):
                         converted_values.append(str(value))
-                    elif isinstance(value, dict):
-                        # Convert nested dictionaries to JSON strings
+                    elif isinstance(value, (dict, list)):
+                        # Convert nested dictionaries and lists to JSON strings
                         import json
                         converted_values.append(json.dumps(value))
                     else:

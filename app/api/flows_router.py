@@ -175,21 +175,26 @@ async def create_flows_batch(
     flows: List[Flow],
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Create multiple flows in a single batch operation"""
+    """Create multiple flows in a single batch operation using VAST's native batch insert"""
     try:
-        created_flows = []
+        # Convert Pydantic models to dictionaries for batch insert
+        flow_data = []
         for flow in flows:
-            success = await create_flow(store, flow)
-            if success:
-                created_flows.append(flow)
-            else:
-                logger.warning(f"Failed to create flow {flow.id}")
+            flow_dict = flow.model_dump()
+            flow_data.append(flow_dict)
         
-        if not created_flows:
-            raise HTTPException(status_code=500, detail="Failed to create any flows")
+        # Use VAST's native batch insert functionality
+        success = await store.db_manager.insert_batch_efficient(
+            table_name="flows",
+            data=flow_data,
+            batch_size=len(flow_data)
+        )
         
-        logger.info(f"Successfully created {len(created_flows)}/{len(flows)} flows in batch")
-        return created_flows
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to insert flows batch")
+        
+        logger.info(f"Successfully created {len(flows)} flows using VAST batch insert")
+        return flows
         
     except HTTPException:
         raise

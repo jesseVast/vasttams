@@ -85,21 +85,26 @@ async def create_sources_batch(
     sources: List[Source],
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Create multiple sources in a single batch operation"""
+    """Create multiple sources in a single batch operation using VAST's native batch insert"""
     try:
-        created_sources = []
+        # Convert Pydantic models to dictionaries for batch insert
+        source_data = []
         for source in sources:
-            success = await create_source(store, source)
-            if success:
-                created_sources.append(source)
-            else:
-                logger.warning(f"Failed to create source {source.id}")
+            source_dict = source.model_dump()
+            source_data.append(source_dict)
         
-        if not created_sources:
-            raise HTTPException(status_code=500, detail="Failed to create any sources")
+        # Use VAST's native batch insert functionality
+        success = await store.db_manager.insert_batch_efficient(
+            table_name="sources",
+            data=source_data,
+            batch_size=len(source_data)
+        )
         
-        logger.info(f"Successfully created {len(created_sources)}/{len(sources)} sources in batch")
-        return created_sources
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to insert sources batch")
+        
+        logger.info(f"Successfully created {len(sources)} sources using VAST batch insert")
+        return sources
         
     except HTTPException:
         raise

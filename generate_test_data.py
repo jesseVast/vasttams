@@ -81,9 +81,9 @@ DATA_CODECS = [
 ]
 
 # Test Data Configuration
-NUM_SOURCES = 100
-NUM_FLOWS = 100
-NUM_SEGMENTS = 1000
+NUM_SOURCES = 10
+NUM_FLOWS = 10
+NUM_SEGMENTS = 100
 OBJECTS_PER_SEGMENT = 5
 BATCH_SIZE = 25  # Reduced batch size to prevent server disconnections
 

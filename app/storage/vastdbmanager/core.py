@@ -948,6 +948,17 @@ class VastDBManager:
     
 
     
+    def _convert_uuids_to_strings(self, obj):
+        """Recursively convert UUID objects to strings in any data structure"""
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        elif isinstance(obj, dict):
+            return {key: self._convert_uuids_to_strings(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._convert_uuids_to_strings(item) for item in obj]
+        else:
+            return obj
+
     def _insert_column_batch(self, table_name: str, data: Dict[str, List[Any]]):
         """Insert data from a Python dictionary with row pooling and cache updates"""
         try:
@@ -982,9 +993,10 @@ class VastDBManager:
             for col, values in data.items():
                 converted_values = []
                 for value in values:
-                    if isinstance(value, uuid.UUID):
-                        converted_values.append(str(value))
-                    elif isinstance(value, (dict, list)):
+                    # First convert any UUIDs to strings recursively
+                    value = self._convert_uuids_to_strings(value)
+                    
+                    if isinstance(value, (dict, list)):
                         # Convert nested dictionaries and lists to JSON strings
                         import json
                         converted_values.append(json.dumps(value))

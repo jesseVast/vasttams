@@ -16,6 +16,11 @@ async def head_sources():
     """Return sources path headers"""
     return {}
 
+@router.options("/sources")
+async def options_sources():
+    """Sources endpoint OPTIONS method for CORS preflight"""
+    return {}
+
 @router.head("/sources/{source_id}")
 async def head_source(source_id: str):
     """Return source path headers"""

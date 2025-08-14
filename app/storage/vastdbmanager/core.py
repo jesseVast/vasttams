@@ -16,12 +16,30 @@ from .endpoints import EndpointManager, LoadBalancer
 
 logger = logging.getLogger(__name__)
 
+# Configuration Constants - Easy to adjust for troubleshooting
+# 
+# TROUBLESHOOTING GUIDE:
+# - If batch operations are too slow: Increase DEFAULT_BATCH_SIZE (e.g., 200, 500)
+# - If you get memory errors: Decrease DEFAULT_BATCH_SIZE (e.g., 50, 25)
+# - If parallel processing isn't working: Decrease PARALLEL_THRESHOLD (e.g., 5)
+# - If you get too many concurrent connections: Decrease DEFAULT_MAX_WORKERS (e.g., 2)
+# - If operations fail intermittently: Increase DEFAULT_MAX_RETRIES (e.g., 5)
+# - If cache is stale: Decrease CACHE_TTL_MINUTES (e.g., 15)
+# - If VAST connections timeout: Increase VAST_TIMEOUT (e.g., 60)
+#
+DEFAULT_BATCH_SIZE = 100  # Default batch size for insert operations
+DEFAULT_MAX_WORKERS = 4   # Default number of parallel workers for batch operations
+PARALLEL_THRESHOLD = 10   # Threshold above which parallel processing is used
+CACHE_TTL_MINUTES = 30    # Cache time-to-live in minutes
+VAST_TIMEOUT = 30         # VAST connection timeout in seconds
+DEFAULT_MAX_RETRIES = 3   # Default maximum retry attempts for failed operations
+
 
 class VastDBManager:
     """Refactored VastDBManager with modular architecture"""
     
     def __init__(self, endpoints: Union[str, List[str]], 
-                 cache_ttl: timedelta = timedelta(minutes=30)):
+                 cache_ttl: timedelta = timedelta(minutes=CACHE_TTL_MINUTES)):
         """
         Initialize VastDBManager with modular components
         
@@ -84,7 +102,7 @@ class VastDBManager:
                 endpoint=endpoint,
                 access=settings.vast_access_key,
                 secret=settings.vast_secret_key,
-                timeout=30
+                timeout=VAST_TIMEOUT
             )
             
             # Store bucket and schema names
@@ -1068,7 +1086,7 @@ class VastDBManager:
             raise
     
     def insert_batch_efficient(self, table_name: str, data: Dict[str, List[Any]], 
-                              batch_size: int = 100, max_workers: int = 4):
+                              batch_size: int = DEFAULT_BATCH_SIZE, max_workers: int = DEFAULT_MAX_WORKERS):
         """Insert large datasets efficiently using row pooling and parallel processing"""
         try:
             import concurrent.futures
@@ -1102,7 +1120,7 @@ class VastDBManager:
                 batches.append(batch)
             
             # Insert batches with parallel processing for large datasets
-            if num_batches > 10 and max_workers > 1:
+            if num_batches > PARALLEL_THRESHOLD and max_workers > 1:
                 logger.info(f"Using parallel processing with {max_workers} workers")
                 with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     future_to_batch = {executor.submit(insert_batch, batch): i for i, batch in enumerate(batches)}
@@ -1205,8 +1223,8 @@ class VastDBManager:
         self.close()
 
     def insert_batch_transactional(self, table_name: str, data: Dict[str, List[Any]], 
-                                  batch_size: int = 100, max_workers: int = 4, 
-                                  max_retries: int = 3, enable_rollback: bool = True):
+                                  batch_size: int = DEFAULT_BATCH_SIZE, max_workers: int = DEFAULT_MAX_WORKERS, 
+                                  max_retries: int = DEFAULT_MAX_RETRIES, enable_rollback: bool = True):
         """
         Insert data with transactional safety - no records are lost on failure
         
@@ -1290,7 +1308,7 @@ class VastDBManager:
                         return 'failed', 0, error_msg
             
             # Process batches with comprehensive tracking
-            if num_batches > 10 and max_workers > 1:
+            if num_batches > PARALLEL_THRESHOLD and max_workers > 1:
                 logger.info(f"Using parallel processing with {max_workers} workers")
                 
                 # Process in phases to handle retries

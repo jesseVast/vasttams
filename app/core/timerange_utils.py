@@ -6,8 +6,11 @@ to replace hardcoded timeranges throughout the codebase.
 """
 
 import re
+import logging
 from typing import Optional, Tuple
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 
 class TimerangeGenerator:
@@ -187,3 +190,170 @@ def get_medium_timerange() -> str:
 def get_long_timerange() -> str:
     """Get long timerange (15 minutes) for extended operations"""
     return TimerangeGenerator.generate_default_timerange(900)
+
+
+def parse_tams_timerange(timerange: str) -> Tuple[float, float]:
+    """
+    Parse TAMS timerange format to extract start and end times in seconds
+    
+    Args:
+        timerange: TAMS timerange string (e.g., "[0:0_10:0)", "[00:00:00.000,05:00.000)")
+        
+    Returns:
+        Tuple of (start_seconds, end_seconds)
+        
+    Examples:
+        >>> parse_tams_timerange("[0:0_10:0)")
+        (0.0, 10.0)
+        >>> parse_tams_timerange("[00:00:00.000,05:00.000)")
+        (0.0, 300.0)
+    """
+    try:
+        # Remove brackets/parentheses
+        clean_range = timerange.strip('[]()')
+        
+        if '_' in clean_range:
+            # TAMS format: [start_end)
+            start_str, end_str = clean_range.split('_', 1)
+            
+            # Parse start time
+            start_seconds = _parse_tams_timestamp(start_str) if start_str else 0.0
+            
+            # Parse end time
+            end_seconds = _parse_tams_timestamp(end_str) if end_str else float('inf')
+            
+        elif ',' in clean_range:
+            # Standard format: [start,end)
+            start_str, end_str = clean_range.split(',', 1)
+            
+            # Parse start time
+            start_seconds = _parse_standard_timestamp(start_str) if start_str else 0.0
+            
+            # Parse end time
+            end_seconds = _parse_standard_timestamp(end_str) if end_str else float('inf')
+            
+        else:
+            # Single timestamp
+            start_seconds = _parse_tams_timestamp(clean_range)
+            end_seconds = start_seconds
+            
+        return start_seconds, end_seconds
+        
+    except Exception as e:
+        logger.warning(f"Failed to parse TAMS timerange '{timerange}': {e}")
+        # Return default values
+        return 0.0, 0.0
+
+
+def _parse_tams_timestamp(timestamp_str: str) -> float:
+    """
+    Parse TAMS timestamp format to seconds
+    
+    Args:
+        timestamp_str: TAMS timestamp string (e.g., "0:0", "10:5")
+        
+    Returns:
+        Seconds as float
+    """
+    if not timestamp_str:
+        return 0.0
+        
+    if ':' in timestamp_str:
+        parts = timestamp_str.split(':')
+        if len(parts) == 2:
+            try:
+                seconds = int(parts[0])
+                subseconds = int(parts[1]) if parts[1] else 0
+                return seconds + (subseconds / 1000000000)  # Assuming nanoseconds
+            except ValueError:
+                return 0.0
+    return 0.0
+
+
+def _parse_standard_timestamp(timestamp_str: str) -> float:
+    """
+    Parse standard timestamp format to seconds
+    
+    Args:
+        timestamp_str: Standard timestamp string (e.g., "00:00:00.000", "05:00:00.000")
+        
+    Returns:
+        Seconds as float
+    """
+    if not timestamp_str:
+        return 0.0
+        
+    try:
+        # Handle format: MM:SS.mmm
+        if timestamp_str.count(':') == 1:
+            parts = timestamp_str.split(':')
+            if len(parts) == 2:
+                minutes = int(parts[0])
+                seconds = float(parts[1])
+                return minutes * 60 + seconds
+                
+        # Handle format: HH:MM:SS.mmm
+        elif timestamp_str.count(':') == 2:
+            parts = timestamp_str.split(':')
+            if len(parts) == 3:
+                hours = int(parts[0])
+                minutes = int(parts[1])
+                seconds = float(parts[2])
+                return hours * 3600 + minutes * 60 + seconds
+                
+    except ValueError:
+        pass
+        
+    return 0.0
+
+
+def timeranges_overlap(timerange1: str, timerange2: str) -> bool:
+    """
+    Check if two TAMS timeranges overlap
+    
+    Args:
+        timerange1: First timerange string
+        timerange2: Second timerange string
+        
+    Returns:
+        True if timeranges overlap, False otherwise
+        
+    Examples:
+        >>> timeranges_overlap("[0:0_5:0)", "[3:0_8:0)")
+        True
+        >>> timeranges_overlap("[0:0_5:0)", "[6:0_10:0)")
+        False
+    """
+    try:
+        start1, end1 = parse_tams_timerange(timerange1)
+        start2, end2 = parse_tams_timerange(timerange2)
+        
+        # Check for overlap: (start1 < end2) and (end1 > start2)
+        return start1 < end2 and end1 > start2
+        
+    except Exception as e:
+        logger.warning(f"Failed to check timerange overlap: {e}")
+        return False
+
+
+def timerange_contains(timerange1: str, timerange2: str) -> bool:
+    """
+    Check if timerange1 contains timerange2 (timerange2 is subset of timerange1)
+    
+    Args:
+        timerange1: Outer timerange string
+        timerange2: Inner timerange string
+        
+    Returns:
+        True if timerange1 contains timerange2, False otherwise
+    """
+    try:
+        start1, end1 = parse_tams_timerange(timerange1)
+        start2, end2 = parse_tams_timerange(timerange2)
+        
+        # Check if timerange2 is contained within timerange1
+        return start1 <= start2 and end1 >= end2
+        
+    except Exception as e:
+        logger.warning(f"Failed to check timerange containment: {e}")
+        return False

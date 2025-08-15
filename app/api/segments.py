@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from ..models.models import FlowSegment, FlowStorage, FlowStoragePost, MediaObject, HttpRequest
 from ..storage.vast_store import VASTStore
+from ..core.timerange_utils import get_storage_timerange
 import logging
 
 logger = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ async def create_flow_storage(store: VASTStore, flow_id: str, storage_request: F
         for object_id in object_ids:
             # Generate hierarchical path for storage allocation
             # This ensures consistency between storage and retrieval URLs
-            object_key = store.s3_store._generate_segment_key(flow_id, object_id, "[00:00:00.000,00:05:00.000)")
+            object_key = store.s3_store.generate_segment_key(flow_id, object_id, get_storage_timerange())
             
             logger.info(f"Generated hierarchical path: {object_key} for object {object_id}")
             

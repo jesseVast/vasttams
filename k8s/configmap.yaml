@@ -11,7 +11,7 @@ data:
       "debug": false,
       "vast_endpoint": "http://172.200.204.1",
       "vast_bucket": "jthaloor-db",
-      "vast_schema": "bbctams",
+              "vast_schema": "tams7",
       "s3_endpoint_url": "http://172.200.204.1",
       "s3_bucket_name": "jthaloor-s3",
       "s3_use_ssl": false,

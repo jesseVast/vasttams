@@ -574,6 +574,25 @@ class VASTStore:
                 return seconds + (subseconds / 1000000000)  # Assuming nanoseconds
         return 0.0
     
+    def _timerange_matches(self, stored_timerange: str, query_timerange: str) -> bool:
+        """
+        Check if stored timerange matches query timerange using TAMS overlap logic
+        
+        Args:
+            stored_timerange: Timerange stored in database (e.g., "[0:0_5:0)")
+            query_timerange: Timerange from query parameter (e.g., "[1:0_3:0)")
+            
+        Returns:
+            True if timeranges overlap, False otherwise
+        """
+        try:
+            from ..core.timerange_utils import timeranges_overlap
+            return timeranges_overlap(stored_timerange, query_timerange)
+        except ImportError:
+            # Fallback to basic string comparison if timerange_utils not available
+            logger.warning("timerange_utils not available, using fallback comparison")
+            return stored_timerange == query_timerange
+    
     def _dict_to_json(self, data: Union[Dict[str, Any], List[Any]]) -> str:
         """Convert dictionary or list to JSON string"""
         if not data:
@@ -923,18 +942,21 @@ class VASTStore:
     async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
         """Get flow segment metadata from VAST DB and data from S3"""
         try:
+            # First get all segments for the flow (no timerange filtering at DB level)
             predicate = (ibis_.flow_id == flow_id)
-            if timerange:
-                target_start, target_end, _ = self._parse_timerange(timerange)
-                predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)
             
             # Add soft delete filtering
             predicate = self._add_soft_delete_predicate(predicate)
             
             results = self.db_manager.select('segments', predicate=predicate, output_by_row=True)
             segments = []
+            
             if isinstance(results, list):
                 for row in results:
+                    # Apply timerange filtering in Python using TAMS timerange overlap logic
+                    if timerange and not self._timerange_matches(row['timerange'], timerange):
+                        continue
+                    
                     # get_urls is generated from S3 using stored storage_path
                     get_urls = await self.s3_store.create_get_urls(flow_id, row['object_id'], row['timerange'], row.get('storage_path'))
                     segment = FlowSegment(

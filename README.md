@@ -406,7 +406,7 @@ VAST_ENDPOINT=http://main.vast.acme.com
 VAST_ACCESS_KEY=test-access-key
 VAST_SECRET_KEY=test-secret-key
 VAST_BUCKET=tams-bucket
-VAST_SCHEMA=tams-schema
+VAST_SCHEMA=tams6.0
 
 # S3 Storage settings
 S3_ENDPOINT_URL=http://s3.vast.acme.com
@@ -432,7 +432,7 @@ VAST_ENDPOINT=http://main.vast.acme.com
 VAST_ACCESS_KEY=test-access-key
 VAST_SECRET_KEY=test-secret-key
 VAST_BUCKET=tams-bucket
-VAST_SCHEMA=tams-schema
+VAST_SCHEMA=tams6.0
 ```
 
 ## 📖 API Usage Examples

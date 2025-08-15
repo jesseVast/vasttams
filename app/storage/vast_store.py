@@ -134,7 +134,7 @@ class VASTStore:
                  access_key: str = "test-access-key",
                  secret_key: str = "test-secret-key", 
                  bucket: str = "tams-bucket",
-                 schema: str = "tams-schema",
+                 schema: str = "tams6.0",
                  s3_endpoint_url: str = "http://s3.vast.acme.com",
                  s3_access_key_id: str = "minioadmin",
                  s3_secret_access_key: str = "minioadmin",
@@ -151,7 +151,7 @@ class VASTStore:
             access_key: VAST access key for authentication (default: "test-access-key")
             secret_key: VAST secret key for authentication (default: "test-secret-key")
             bucket: VAST bucket name for TAMS data (default: "tams-bucket")
-            schema: VAST schema name for TAMS tables (default: "tams-schema")
+            schema: VAST schema name for TAMS tables (default: "tams6.0")
             s3_endpoint_url: S3-compatible endpoint URL for media storage
                            (default: "http://s3.vast.acme.com")
             s3_access_key_id: S3 access key ID for media storage (default: "minioadmin")
@@ -176,7 +176,7 @@ class VASTStore:
             ...     access_key="your_vast_key",
             ...     secret_key="your_vast_secret",
             ...     bucket="tams-data",
-            ...     schema="tams-schema",
+            ...     schema="tams6.0",
             ...     s3_endpoint_url="http://s3.example.com",
             ...     s3_access_key_id="your_s3_key",
             ...     s3_secret_access_key="your_s3_secret",

@@ -14,8 +14,8 @@ from pathlib import Path
 # Add the app directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from app.config import get_settings
-from app.vastdbmanager import VastDBManager
+from app.core.config import get_settings
+from app.storage.vastdbmanager import VastDBManager
 
 # Configure logging
 logging.basicConfig(

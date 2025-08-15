@@ -299,6 +299,8 @@ class VASTStore:
             ('get_urls', pa.string()),  # JSON string
             ('key_frame_count', pa.int32()),
             ('created', pa.timestamp('us')),
+            # NEW: Storage path field for hierarchical S3 structure
+            ('storage_path', pa.string()),  # The actual S3 object key where data is stored
             # Time-series optimization fields
             ('start_time', pa.timestamp('us')),
             ('end_time', pa.timestamp('us')),
@@ -882,7 +884,17 @@ class VASTStore:
                 logger.info(f"Skipping S3 storage for empty segment data in flow {flow_id}")
             # Store only segment metadata in VAST DB
             start_time, end_time, duration = self._parse_timerange(segment.timerange)
-            get_urls_objs = await self.s3_store.create_get_urls(flow_id, segment.object_id, segment.timerange)
+            
+            # Generate storage_path if not provided to ensure consistency
+            if not segment.storage_path:
+                # Generate the same hierarchical path that would be used in storage allocation
+                storage_path = self.s3_store._generate_segment_key(flow_id, segment.object_id, segment.timerange)
+                logger.info(f"Generated storage_path for segment {segment.object_id}: {storage_path}")
+            else:
+                storage_path = segment.storage_path
+                logger.info(f"Using provided storage_path for segment {segment.object_id}: {storage_path}")
+            
+            get_urls_objs = await self.s3_store.create_get_urls(flow_id, segment.object_id, segment.timerange, storage_path)
             get_urls_json = self._dict_to_json([url.model_dump() for url in get_urls_objs])
             segment_data = {
                 'id': str(uuid.uuid4()),
@@ -898,7 +910,8 @@ class VASTStore:
                 'created': datetime.now(timezone.utc),
                 'start_time': start_time,
                 'end_time': end_time,
-                'duration_seconds': duration
+                'duration_seconds': duration,
+                'storage_path': storage_path  # Store the generated or provided storage path
             }
             self.db_manager.insert('segments', {k: [v] for k, v in segment_data.items()})
             logger.info(f"Created flow segment metadata for flow {flow_id} in VAST DB")
@@ -922,8 +935,8 @@ class VASTStore:
             segments = []
             if isinstance(results, list):
                 for row in results:
-                    # get_urls is generated from S3
-                    get_urls = await self.s3_store.create_get_urls(flow_id, row['object_id'], row['timerange'])
+                    # get_urls is generated from S3 using stored storage_path
+                    get_urls = await self.s3_store.create_get_urls(flow_id, row['object_id'], row['timerange'], row.get('storage_path'))
                     segment = FlowSegment(
                         object_id=row['object_id'],
                         timerange=row['timerange'],
@@ -932,7 +945,8 @@ class VASTStore:
                         sample_offset=row['sample_offset'],
                         sample_count=row['sample_count'],
                         get_urls=get_urls,
-                        key_frame_count=row['key_frame_count']
+                        key_frame_count=row['key_frame_count'],
+                        storage_path=row.get('storage_path')  # Retrieve the stored storage path
                     )
                     segments.append(segment)
             return segments

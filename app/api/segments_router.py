@@ -78,6 +78,15 @@ async def create_new_flow_segment(
             try:
                 segment_json = json.loads(segment_data)
                 segment_obj = FlowSegment(**segment_json)
+                
+                # Generate storage_path if not provided to ensure consistency
+                if not segment_obj.storage_path:
+                    from ..storage.s3_store import S3Store
+                    s3_store = S3Store()
+                    storage_path = s3_store._generate_segment_key(flow_id, segment_obj.object_id, segment_obj.timerange)
+                    segment_obj.storage_path = storage_path
+                    logger.info(f"Generated storage_path for segment {segment_obj.object_id}: {storage_path}")
+                
             except json.JSONDecodeError as e:
                 raise HTTPException(status_code=400, detail=f"Invalid JSON in segment data: {e}")
             except Exception as e:
@@ -95,6 +104,14 @@ async def create_new_flow_segment(
         
         # Handle JSON data
         elif segment:
+            # Generate storage_path if not provided to ensure consistency
+            if not segment.storage_path:
+                from ..storage.s3_store import S3Store
+                s3_store = S3Store()
+                storage_path = s3_store._generate_segment_key(flow_id, segment.object_id, segment.timerange)
+                segment.storage_path = storage_path
+                logger.info(f"Generated storage_path for segment {segment.object_id}: {storage_path}")
+            
             success = await create_flow_segment(store, flow_id, segment)
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create segment")
@@ -105,6 +122,15 @@ async def create_new_flow_segment(
             try:
                 segment_json = json.loads(segment_data)
                 segment_obj = FlowSegment(**segment_json)
+                
+                # Generate storage_path if not provided to ensure consistency
+                if not segment_obj.storage_path:
+                    from ..storage.s3_store import S3Store
+                    s3_store = S3Store()
+                    storage_path = s3_store._generate_segment_key(flow_id, segment_obj.object_id, segment_obj.timerange)
+                    segment_obj.storage_path = storage_path
+                    logger.info(f"Generated storage_path for segment {segment_obj.object_id}: {storage_path}")
+                
             except json.JSONDecodeError as e:
                 raise HTTPException(status_code=400, detail=f"Invalid JSON in segment data: {e}")
             except Exception as e:

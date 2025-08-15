@@ -727,9 +727,11 @@ async def allocate_flow_storage(
         # Generate storage locations with pre-signed URLs
         media_objects = []
         for object_id in object_ids:
-            # Generate S3 presigned PUT URL using S3Store
-            logger.info(f"Generating presigned URL for object {object_id}")
-            logger.info(f"S3Store instance: {store.s3_store}")
+            # Generate hierarchical path for storage allocation
+            # This ensures consistency between storage and retrieval URLs
+            object_key = store.s3_store._generate_segment_key(flow_id, object_id, "[00:00:00.000,00:05:00.000)")
+            
+            logger.info(f"Generated hierarchical path: {object_key} for object {object_id}")
             
             try:
                 # Check if S3Store has the required method
@@ -742,10 +744,11 @@ async def allocate_flow_storage(
                     logger.error(f"S3Store missing s3_client")
                     raise HTTPException(status_code=500, detail="S3Store s3_client not initialized")
                 
+                # Generate presigned URL for the hierarchical path
                 put_url = store.s3_store.generate_object_presigned_url(
                     object_id=object_id,
-                    operation='put_object'
-                    # expires_in will use the configurable default from settings
+                    operation='put_object',
+                    custom_key=object_key  # Use the hierarchical path
                 )
                 
                 logger.info(f"Generated presigned URL: {put_url}")
@@ -758,16 +761,18 @@ async def allocate_flow_storage(
                 logger.error(f"Error generating presigned URL: {e}")
                 raise HTTPException(status_code=500, detail=f"Error generating presigned URL: {str(e)}")
             
-            media_objects.append(MediaObject(
+            # Create MediaObject with the hierarchical path
+            media_object = MediaObject(
                 object_id=object_id,
                 put_url=HttpRequest(
                     url=put_url,
-                    headers={
-                        # Don't include headers that will break presigned URL signature
-                        # The client should send minimal headers
-                    }
-                )
-            ))
+                    headers={}  # No custom headers for S3 compatibility
+                ),
+                # Store the hierarchical path for later use
+                metadata={"storage_path": object_key}
+            )
+            
+            media_objects.append(media_object)
         
         return FlowStorage(media_objects=media_objects)
         

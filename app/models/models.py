@@ -3,6 +3,68 @@ from typing import List, Optional, Dict, Any, Union, Annotated
 from pydantic import BaseModel, Field, RootModel, UUID4, field_validator, field_serializer
 import uuid
 import re
+from enum import Enum
+
+
+class PathTemplateType(str, Enum):
+    """Path template types for hierarchical organization"""
+    TIME_BASED = "time_based"  # year/month/day/hour
+    SOURCE_BASED = "source_based"  # source_id/flow_id/segment_id
+    HYBRID = "hybrid"  # source_id/year/month/day/flow_id/segment_id
+    CUSTOM = "custom"  # custom template with placeholders
+    FLAT = "flat"  # no hierarchy, just segment_id
+
+
+class HierarchicalPath(BaseModel):
+    """Hierarchical path configuration for media storage"""
+    template_type: PathTemplateType = Field(default=PathTemplateType.HYBRID)
+    custom_template: Optional[str] = Field(None, description="Custom path template with placeholders")
+    include_source: bool = Field(default=True, description="Include source ID in path")
+    include_flow: bool = Field(default=True, description="Include flow ID in path")
+    include_time: bool = Field(default=True, description="Include time-based hierarchy")
+    include_segment: bool = Field(default=True, description="Include segment ID in path")
+    time_granularity: str = Field(default="day", description="Time granularity: hour, day, month, year")
+    max_depth: int = Field(default=6, description="Maximum path depth")
+    separator: str = Field(default="/", description="Path separator character")
+    
+    @field_validator('custom_template')
+    def validate_custom_template(cls, v):
+        if v is not None:
+            # Validate custom template has valid placeholders
+            valid_placeholders = {
+                '{source_id}', '{flow_id}', '{segment_id}', 
+                '{year}', '{month}', '{day}', '{hour}',
+                '{timestamp}', '{format}', '{codec}'
+            }
+            placeholders = re.findall(r'\{[^}]+\}', v)
+            invalid_placeholders = [p for p in placeholders if p not in valid_placeholders]
+            if invalid_placeholders:
+                raise ValueError(f'Invalid placeholders in custom template: {invalid_placeholders}')
+        return v
+    
+    @field_validator('time_granularity')
+    def validate_time_granularity(cls, v):
+        valid_granularities = ['hour', 'day', 'month', 'year']
+        if v not in valid_granularities:
+            raise ValueError(f'Invalid time granularity. Must be one of: {valid_granularities}')
+        return v
+
+
+class PathSegment(BaseModel):
+    """Individual path segment with metadata"""
+    name: str
+    value: str
+    type: str  # 'source', 'flow', 'time', 'segment', 'custom'
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class HierarchicalPathResult(BaseModel):
+    """Result of hierarchical path generation"""
+    full_path: str
+    segments: List[PathSegment]
+    template_used: str
+    normalized: bool = False
+    validation_errors: Optional[List[str]] = None
 
 
 def validate_content_format(v: str) -> str:
@@ -48,10 +110,32 @@ def validate_time_range(v: str) -> str:
     return v
 
 
+def validate_hierarchical_path(v: str) -> str:
+    """Validate hierarchical path format"""
+    if not isinstance(v, str):
+        raise ValueError('Hierarchical path must be a string')
+    
+    # Check for valid characters (alphanumeric, hyphens, underscores, forward slashes)
+    pattern = r'^[a-zA-Z0-9\-_/]+$'
+    if not re.match(pattern, v):
+        raise ValueError('Invalid characters in hierarchical path. Only alphanumeric, hyphens, underscores, and forward slashes allowed')
+    
+    # Check for consecutive separators
+    if '//' in v:
+        raise ValueError('Invalid hierarchical path: consecutive separators not allowed')
+    
+    # Check for leading/trailing separators
+    if v.startswith('/') or v.endswith('/'):
+        raise ValueError('Invalid hierarchical path: leading or trailing separators not allowed')
+    
+    return v
+
+
 # Type aliases with validation
 ContentFormat = Annotated[str, field_validator('*')(validate_content_format)]
 MimeType = Annotated[str, field_validator('*')(validate_mime_type)]
 TimeRange = Annotated[str, field_validator('*')(validate_time_range)]
+HierarchicalPathStr = Annotated[str, field_validator('*')(validate_hierarchical_path)]
 
 
 class Tags(RootModel[Dict[str, str]]):
@@ -127,6 +211,8 @@ class FlowSegment(BaseModel):
     sample_count: Optional[int] = None
     get_urls: Optional[List[GetUrl]] = None
     key_frame_count: Optional[int] = None
+    # Storage path field - stores the actual S3 object key used for storage
+    storage_path: Optional[str] = None  # The actual S3 object key where data is stored
     # Soft delete fields
     deleted: Optional[bool] = False
     deleted_at: Optional[datetime] = None
@@ -353,6 +439,7 @@ class MediaObject(BaseModel):
     object_id: str = Field(..., description="The object store identifier for the media object")
     put_url: HttpRequest = Field(..., description="PUT URL for uploading the media object")
     put_cors_url: Optional[HttpRequest] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata including storage path")
 
 
 class FlowStorage(BaseModel):

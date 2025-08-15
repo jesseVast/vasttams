@@ -382,7 +382,8 @@ class TAMSClient:
     
     def create_flow_segment(self, flow_id: str, object_id: str, 
                            start_time: str = "00:00:00.000", 
-                           end_time: str = "00:05:00.000") -> bool:
+                           end_time: str = "00:05:00.000",
+                           storage_path: Optional[str] = None) -> bool:
         """Create a flow segment referencing the uploaded object"""
         print(f"🔧 Creating flow segment for object: {object_id}")
         
@@ -394,6 +395,11 @@ class TAMSClient:
             "sample_count": 0,
             "key_frame_count": 0
         }
+        
+        # Add storage_path if provided
+        if storage_path:
+            segment_data["storage_path"] = storage_path
+            print(f"📁 Using storage path: {storage_path}")
         
         print(f"📝 Segment data: {json.dumps(segment_data, indent=2)}")
         
@@ -612,11 +618,19 @@ only if you need to specify different values than what's detected.
             put_url = media_object['put_url']['url']
             put_headers = media_object['put_url']['headers']  # Extract the headers
             
+            # Extract storage_path from metadata if available
+            storage_path = None
+            if media_object.get('metadata') and media_object['metadata'].get('storage_path'):
+                storage_path = media_object['metadata']['storage_path']
+                print(f"📁 Storage path from allocation: {storage_path}")
+            
             if args.demo:
                 print("🎭 Demo mode: Skipping S3 upload")
                 print(f"   Would upload to: {put_url}")
                 print(f"   Object ID: {object_id}")
                 print(f"   Headers: {put_headers}")
+                if storage_path:
+                    print(f"   Storage path: {storage_path}")
             else:
                 upload_success = client.upload_video_to_s3(put_url, video_path, args.codec, put_headers)
                 if not upload_success:
@@ -624,9 +638,9 @@ only if you need to specify different values than what's detected.
                     print("💡 Tip: Use --demo flag to test without S3 upload")
                     sys.exit(1)
             
-            # Step 5: Create flow segment
+            # Step 5: Create flow segment with storage_path
             print(f"🔧 Creating flow segment for object: {object_id}")
-            segment_success = client.create_flow_segment(flow_id, object_id)
+            segment_success = client.create_flow_segment(flow_id, object_id, storage_path=storage_path)
             if not segment_success:
                 print("❌ Failed to create flow segment. Aborting.")
                 sys.exit(1)

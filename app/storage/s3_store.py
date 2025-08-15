@@ -398,7 +398,8 @@ class S3Store:
     def generate_object_presigned_url(self, 
                                     object_id: str,
                                     operation: str = 'put_object',
-                                    expires_in: int = None) -> Optional[str]:
+                                    expires_in: int = None,
+                                    custom_key: Optional[str] = None) -> Optional[str]:
         """
         Generate presigned URL for S3 operations on simple object IDs
         
@@ -406,6 +407,7 @@ class S3Store:
             object_id: Object identifier
             operation: S3 operation ('get_object', 'put_object', 'delete_object')
             expires_in: URL expiration time in seconds (uses config if None)
+            custom_key: Optional custom S3 object key to use instead of object_id
             
         Returns:
             Presigned URL, or None if failed
@@ -418,19 +420,20 @@ class S3Store:
             except Exception:
                 expires_in = DEFAULT_PRESIGNED_URL_TIMEOUT  # Fallback to configured default
         
-        logger.info(f"generate_object_presigned_url called with object_id={object_id}, operation={operation}, expires_in={expires_in}")
+        logger.info(f"generate_object_presigned_url called with object_id={object_id}, operation={operation}, expires_in={expires_in}, custom_key={custom_key}")
         logger.info(f"S3Store state - endpoint_url: {self.endpoint_url}, bucket_name: {self.bucket_name}, s3_client: {self.s3_client}")
         
         try:
-            # Generate presigned URL for simple object ID without headers
-            # The client will add the required headers for streaming uploads
-            logger.info(f"Calling s3_client.generate_presigned_url...")
+            # Use custom_key if provided, otherwise use object_id
+            s3_key = custom_key if custom_key else object_id
+            logger.info(f"Using S3 key: {s3_key}")
             
+            # Generate presigned URL for the S3 key
             url = self.s3_client.generate_presigned_url(
                 operation,
                 Params={
                     'Bucket': self.bucket_name,
-                    'Key': object_id
+                    'Key': s3_key
                 },
                 ExpiresIn=expires_in
             )
@@ -447,7 +450,8 @@ class S3Store:
     async def create_get_urls(self, 
                              flow_id: str, 
                              segment_id: str, 
-                             timerange: str) -> List[GetUrl]:
+                             timerange: str,
+                             storage_path: Optional[str] = None) -> List[GetUrl]:
         """
         Create GetUrl objects for flow segment access
         
@@ -455,14 +459,29 @@ class S3Store:
             flow_id: Flow identifier
             segment_id: Segment identifier
             timerange: Time range string
+            storage_path: Optional storage path to use instead of regenerating
             
         Returns:
             List of GetUrl objects
         """
         try:
-            # Generate presigned URL for direct access
-            presigned_url = self.generate_presigned_url(
-                flow_id, segment_id, timerange, 'get_object'
+            # Use provided storage_path if available, otherwise generate from parameters
+            if storage_path:
+                object_key = storage_path
+                logger.info(f"Using provided storage path: {object_key}")
+            else:
+                # Fallback to generating path (for backward compatibility)
+                object_key = self._generate_segment_key(flow_id, segment_id, timerange)
+                logger.info(f"Generated fallback path: {object_key}")
+            
+            # Generate presigned URL for the object key
+            presigned_url = self.s3_client.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': self.bucket_name,
+                    'Key': object_key
+                },
+                ExpiresIn=DEFAULT_PRESIGNED_URL_TIMEOUT
             )
             
             if presigned_url:

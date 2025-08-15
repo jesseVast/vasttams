@@ -256,7 +256,7 @@ class VastDBManager:
             return {'total_rows': 0}
     
     def create_table(self, table_name: str, schema: Schema, projections: Optional[Dict[str, List[str]]] = None):
-        """Create a new table with VAST projections for optimal performance"""
+        """Create a new table with VAST projections for optimal performance, or evolve existing table schema"""
         try:
             if not self.connection:
                 raise RuntimeError("Not connected to VAST database")
@@ -265,11 +265,27 @@ class VastDBManager:
                 bucket = tx.bucket(self.bucket)
                 schema_obj = bucket.schema(self.schema)
                 
-                # Check if table already exists and drop it
+                # Check if table already exists
                 existing_table = schema_obj.table(table_name, fail_if_missing=False)
+                
                 if existing_table is not None:
-                    logger.info(f"Table {table_name} already exists, dropping it first")
-                    existing_table.drop()
+                    # Get current table schema for comparison
+                    current_schema = existing_table.columns()
+                    
+                    # Check if we need to evolve the schema
+                    if self._schemas_match(current_schema, schema):
+                        logger.info(f"Table {table_name} already exists with matching schema, skipping creation")
+                        # Cache the existing table
+                        self.cache_manager.update_table_cache(table_name, current_schema, 0)
+                        return existing_table
+                    else:
+                        # Schema has changed - evolve the table instead of dropping it
+                        logger.info(f"Table {table_name} schema changed, evolving table structure")
+                        evolved_table = self._evolve_table_schema(existing_table, current_schema, schema)
+                        
+                        # Cache the evolved table
+                        self.cache_manager.update_table_cache(table_name, evolved_table.columns(), 0)
+                        return evolved_table
                 
                 # Create new table
                 table = schema_obj.create_table(table_name, schema)
@@ -287,6 +303,94 @@ class VastDBManager:
         except Exception as e:
             logger.error(f"Error creating table {table_name}: {e}")
             raise
+    
+    def _evolve_table_schema(self, existing_table, current_schema: Schema, new_schema: Schema):
+        """Evolve an existing table's schema by adding new columns"""
+        try:
+            logger.info(f"Evolving table schema for {existing_table.name}")
+            
+            # Get current and new field names
+            current_fields = {field.name for field in current_schema}
+            new_fields = {field.name for field in new_schema}
+            
+            # Find fields that need to be added
+            fields_to_add = new_fields - current_fields
+            
+            if not fields_to_add:
+                logger.info("No new fields to add")
+                return existing_table
+            
+            logger.info(f"Adding {len(fields_to_add)} new fields: {fields_to_add}")
+            
+            # Add new columns to the existing table
+            for field_name in fields_to_add:
+                # Find the field definition in the new schema
+                new_field = next(field for field in new_schema if field.name == field_name)
+                
+                try:
+                    # Add the new column with a default value
+                    existing_table.add_column(field_name, new_field.type)
+                    logger.info(f"Added column {field_name} with type {new_field.type}")
+                except Exception as e:
+                    logger.warning(f"Failed to add column {field_name}: {e}")
+                    # Continue with other columns
+            
+            logger.info(f"Successfully evolved table {existing_table.name}")
+            return existing_table
+            
+        except Exception as e:
+            logger.error(f"Error evolving table schema: {e}")
+            # Return the existing table if evolution fails
+            return existing_table
+    
+    def _should_recreate_table(self, table_name: str, current_schema: Schema, new_schema: Schema) -> bool:
+        """Determine if a table should be recreated based on schema changes"""
+        try:
+            # Option 3: Smart recreation - only recreate if schema actually changed
+            if self._schemas_match(current_schema, new_schema):
+                logger.info(f"Schema unchanged for table {table_name}, preserving data")
+                return False
+            
+            logger.info(f"Schema changed for table {table_name}, will recreate")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"Error checking schema compatibility for {table_name}: {e}, defaulting to recreate")
+            return True
+    
+    def _schemas_match(self, current_schema: Schema, new_schema: Schema) -> bool:
+        """Compare two schemas to determine if they're compatible"""
+        try:
+            # Convert schemas to comparable format
+            current_fields = {field.name: field.type for field in current_schema}
+            new_fields = {field.name: field.type for field in new_schema}
+            
+            # Check if all new fields exist in current schema with same type
+            for field_name, field_type in new_fields.items():
+                if field_name not in current_fields:
+                    logger.debug(f"New field {field_name} not in current schema")
+                    return False
+                
+                # Compare field types (allowing for some type compatibility)
+                if not self._types_compatible(current_fields[field_name], field_type):
+                    logger.debug(f"Field {field_name} type changed: {current_fields[field_name]} -> {field_type}")
+                    return False
+            
+            logger.debug("Schemas are compatible")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"Error comparing schemas: {e}")
+            return False
+    
+    def _types_compatible(self, current_type, new_type) -> bool:
+        """Check if two PyArrow types are compatible"""
+        try:
+            # For now, use simple string comparison
+            # In the future, this could be enhanced with type compatibility rules
+            return str(current_type) == str(new_type)
+        except Exception:
+            return False
     
     def _add_vast_projections(self, table, projections: Dict[str, List[str]]):
         """Add VAST projections using the actual SDK methods for optimal performance"""
@@ -600,7 +704,14 @@ class VastDBManager:
                 total_rows = table_stats.get('total_rows', 0)
                 if isinstance(total_rows, dict):
                     total_rows = total_rows.get('total_rows', 0)
-                total_rows = int(total_rows) if total_rows else 0
+                # Ensure we have a valid number before calling int()
+                if total_rows is not None and total_rows != '':
+                    try:
+                        total_rows = int(total_rows)
+                    except (ValueError, TypeError):
+                        total_rows = 0
+                else:
+                    total_rows = 0
             
             # Base configuration - optimized for performance
             config = QueryConfig(
@@ -981,14 +1092,22 @@ class VastDBManager:
             current_rows = 0
             if current_stats and isinstance(current_stats, dict):
                 current_rows = current_stats.get('total_rows', 0)
+                # Handle nested dictionary case (defensive programming)
                 if isinstance(current_rows, dict):
                     current_rows = current_rows.get('total_rows', 0)
-                current_rows = int(current_rows) if current_rows else 0
+                # Ensure we have a valid number before calling int()
+                if current_rows is not None and current_rows != '':
+                    try:
+                        current_rows = int(current_rows)
+                    except (ValueError, TypeError):
+                        current_rows = 0
+                else:
+                    current_rows = 0
             
             new_total_rows = current_rows + num_records
             
             # Update cache with new stats
-            self.cache_manager.update_table_cache(table_name, schema, {'total_rows': new_total_rows})
+            self.cache_manager.update_table_cache(table_name, schema, new_total_rows)
             
             # Record performance metrics
             self.performance_monitor.record_query(

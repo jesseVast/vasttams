@@ -721,8 +721,8 @@ url = await s3_store.generate_presigned_url(
     flow_id="flow-123",
     segment_id="seg-001",
     timerange="[0:0_10:0)",
-    operation="get_object",
-    expires_in=3600
+    operation="get_object"
+    # expires_in will use configurable default from settings
 )
 ```
 

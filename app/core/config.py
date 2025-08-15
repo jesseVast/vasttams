@@ -13,6 +13,7 @@ DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_CORS_ORIGINS = ["*"]
 DEFAULT_CORS_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 DEFAULT_CORS_HEADERS = ["*"]
+DEFAULT_PRESIGNED_URL_TIMEOUT = 3600
 
 
 class Settings(BaseSettings):
@@ -33,7 +34,7 @@ class Settings(BaseSettings):
     vast_endpoint: str = "http://172.200.204.90"
     vast_access_key: str = "SRSPW0DQT9T70Y787U68"
     vast_secret_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
-    vast_bucket: str = "jthaoor-db"
+    vast_bucket: str = "jthaloor-db"
     vast_schema: str = "tams"
     
     # Logging settings
@@ -44,13 +45,15 @@ class Settings(BaseSettings):
     #s3_endpoint_url: str = "http://100.100.0.2:9090"
     s3_endpoint_url: str = "http://172.200.204.91"
     s3_access_key_id: str = "SRSPW0DQT9T70Y787U68"
-    s3_secret_access_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
+    s3_secret_access_key: str = "WkKLxvG7YkAdSMuHjFsZG5Ou7BS1mDQGnr"
     s3_bucket_name: str = "jthaloor-s3"
     s3_use_ssl: bool = False
+    s3_presigned_url_timeout: int = Field(default=DEFAULT_PRESIGNED_URL_TIMEOUT, description="Presigned URL timeout in seconds (default: 1 hour)")
     
     class Config:
         env_file = ".env"
         case_sensitive = False
+        env_prefix = "TAMS_"  # Environment variables will be prefixed with TAMS_
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

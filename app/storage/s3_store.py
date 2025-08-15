@@ -6,11 +6,11 @@ from typing import Optional, Dict, Any, List, BinaryIO, Union
 from botocore.exceptions import ClientError, NoCredentialsError
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Configuration Constants - Easy to adjust for troubleshooting
 DEFAULT_S3_TIMEOUT = 30  # Default S3 operation timeout in seconds
-DEFAULT_PRESIGNED_URL_EXPIRES = 3600  # Default presigned URL expiration time in seconds
+DEFAULT_PRESIGNED_URL_TIMEOUT = 3600  # Default presigned URL expiration time in seconds (matches config.py)
 DEFAULT_MAX_RETRIES = 3  # Default maximum retry attempts for S3 operations
 DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024  # Default chunk size for multipart uploads (8MB)
 DEFAULT_MAX_CONCURRENT_PARTS = 10  # Default maximum concurrent parts for multipart uploads
@@ -46,19 +46,28 @@ class S3Store:
             self.secret_access_key = settings.s3_secret_access_key
             self.bucket_name = settings.s3_bucket_name
             self.use_ssl = settings.s3_use_ssl
+            
+        logger.info(f"S3Store initialization - Endpoint: {self.endpoint_url}, Bucket: {self.bucket_name}, Access Key: {self.access_key_id}")
+        
         # Initialize S3 client using VastS3 approach
         try:
             session = boto3.session.Session()
+            logger.info(f"Created boto3 session: {session}")
+            
             self.s3_client = session.client(
                 service_name='s3',
                 aws_access_key_id=self.access_key_id,
                 aws_secret_access_key=self.secret_access_key,
                 endpoint_url=self.endpoint_url
             )
+            logger.info(f"Created S3 client: {self.s3_client}")
+            
             self._ensure_bucket_exists()
             logger.info(f"S3 Store initialized with endpoint: {self.endpoint_url}, bucket: {self.bucket_name}")
         except Exception as e:
             logger.error(f"Failed to initialize S3 Store: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             raise
     
     def _ensure_bucket_exists(self):
@@ -332,12 +341,12 @@ class S3Store:
             logger.error(f"Failed to delete flow segment {segment_id} for flow {flow_id}: {e}")
             return False
     
-    async def generate_presigned_url(self, 
-                                    flow_id: str, 
-                                    segment_id: str, 
-                                    timerange: str,
-                                    operation: str = 'get_object',
-                                    expires_in: int = DEFAULT_PRESIGNED_URL_EXPIRES) -> Optional[str]:
+    def generate_presigned_url(self, 
+                              flow_id: str,
+                              segment_id: str,
+                              timerange: str,
+                              operation: str = 'get_object',
+                              expires_in: int = None) -> Optional[str]:
         """
         Generate presigned URL for S3 operations
         
@@ -346,16 +355,28 @@ class S3Store:
             segment_id: Segment identifier
             timerange: Time range string
             operation: S3 operation ('get_object', 'put_object', 'delete_object')
-            expires_in: URL expiration time in seconds
+            expires_in: URL expiration time in seconds (uses config if None)
             
         Returns:
             Presigned URL, or None if failed
         """
+        # Use configurable timeout from settings, fallback to configured default
+        if expires_in is None:
+            try:
+                settings = get_settings()
+                expires_in = settings.s3_presigned_url_timeout
+            except Exception:
+                expires_in = DEFAULT_PRESIGNED_URL_TIMEOUT  # Fallback to configured default
+        
+        logger.info(f"generate_presigned_url called with flow_id={flow_id}, segment_id={segment_id}, timerange={timerange}, operation={operation}, expires_in={expires_in}")
+        logger.info(f"S3Store state - endpoint_url: {self.endpoint_url}, bucket_name: {self.bucket_name}, s3_client: {self.s3_client}")
+        
         try:
-            # Generate S3 object key
+            # Generate S3 object key for the flow segment
             object_key = self._generate_segment_key(flow_id, segment_id, timerange)
+            logger.info(f"Generated object key: {object_key}")
             
-            # Generate presigned URL
+            # Generate presigned URL for the object
             url = self.s3_client.generate_presigned_url(
                 operation,
                 Params={
@@ -365,11 +386,62 @@ class S3Store:
                 ExpiresIn=expires_in
             )
             
-            logger.info(f"Generated presigned URL for {operation} on segment {segment_id}")
+            logger.info(f"Generated presigned URL: {url}")
             return url
             
         except Exception as e:
-            logger.error(f"Failed to generate presigned URL for segment {segment_id}: {e}")
+            logger.error(f"Failed to generate presigned URL for flow {flow_id}, segment {segment_id}: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return None
+    
+    def generate_object_presigned_url(self, 
+                                    object_id: str,
+                                    operation: str = 'put_object',
+                                    expires_in: int = None) -> Optional[str]:
+        """
+        Generate presigned URL for S3 operations on simple object IDs
+        
+        Args:
+            object_id: Object identifier
+            operation: S3 operation ('get_object', 'put_object', 'delete_object')
+            expires_in: URL expiration time in seconds (uses config if None)
+            
+        Returns:
+            Presigned URL, or None if failed
+        """
+        # Use configurable timeout from settings, fallback to configured default
+        if expires_in is None:
+            try:
+                settings = get_settings()
+                expires_in = settings.s3_presigned_url_timeout
+            except Exception:
+                expires_in = DEFAULT_PRESIGNED_URL_TIMEOUT  # Fallback to configured default
+        
+        logger.info(f"generate_object_presigned_url called with object_id={object_id}, operation={operation}, expires_in={expires_in}")
+        logger.info(f"S3Store state - endpoint_url: {self.endpoint_url}, bucket_name: {self.bucket_name}, s3_client: {self.s3_client}")
+        
+        try:
+            # Generate presigned URL for simple object ID without headers
+            # The client will add the required headers for streaming uploads
+            logger.info(f"Calling s3_client.generate_presigned_url...")
+            
+            url = self.s3_client.generate_presigned_url(
+                operation,
+                Params={
+                    'Bucket': self.bucket_name,
+                    'Key': object_id
+                },
+                ExpiresIn=expires_in
+            )
+            
+            logger.info(f"Generated presigned URL: {url}")
+            return url
+            
+        except Exception as e:
+            logger.error(f"Failed to generate presigned URL for object {object_id}: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return None
     
     async def create_get_urls(self, 
@@ -389,7 +461,7 @@ class S3Store:
         """
         try:
             # Generate presigned URL for direct access
-            presigned_url = await self.generate_presigned_url(
+            presigned_url = self.generate_presigned_url(
                 flow_id, segment_id, timerange, 'get_object'
             )
             

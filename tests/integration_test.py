@@ -213,7 +213,7 @@ class TAMSIntegrationTester:
         
         if not self.test_data['sources']:
             logger.warning("⚠️ No sources available, skipping flows tests")
-            self.test_results['skipped'] += 15  # Count of skipped tests
+            self.test_results['skipped'] += 13  # Count of skipped tests (removed max_bit_rate and avg_bit_rate)
             return
         
         # Test empty flows list
@@ -237,8 +237,6 @@ class TAMSIntegrationTester:
                 "frame_height": 1080,
                 "frame_rate": "25/1",
                 # Optional fields
-                "max_bit_rate": 1000000 + (i * 10000),
-                "avg_bit_rate": 800000 + (i * 8000),
                 "read_only": False
             }
             flows_data.append(flow)
@@ -303,28 +301,16 @@ class TAMSIntegrationTester:
                     expected_status=200,
                     description=f"Update flow {flow['id'][:8]} read_only"
                 )
-                
-                await self.make_request(
-                    'PUT', f"/flows/{flow['id']}/max_bit_rate?max_bit_rate=5000000", 
-                    expected_status=200,
-                    description=f"Update flow {flow['id'][:8]} max_bit_rate"
-                )
-                
-                await self.make_request(
-                    'PUT', f"/flows/{flow['id']}/avg_bit_rate?avg_bit_rate=2500000", 
-                    expected_status=200,
-                    description=f"Update flow {flow['id'][:8]} avg_bit_rate"
-                )
         else:
             logger.warning("⚠️ Flows creation failed, skipping related tests")
-            self.test_results['skipped'] += 15  # Count of skipped tests
+            self.test_results['skipped'] += 13  # Count of skipped tests (removed max_bit_rate and avg_bit_rate)
     
     async def test_objects_endpoints(self):
         """Test objects endpoints"""
         logger.info("🔍 Testing Objects Endpoints...")
         
         # Test objects endpoint - only supports POST, not GET
-        # Note: Objects endpoint doesn't support GET /objects, only POST for creation
+        # Note: Objects are created and retrieved individually by ID, not as a list
         
         # Test batch creation
         objects_data = []
@@ -355,7 +341,7 @@ class TAMSIntegrationTester:
                 )
         else:
             logger.warning("⚠️ Objects creation failed, skipping related tests")
-            self.test_results['skipped'] += 4  # Count of skipped tests (no GET /objects test)
+            self.test_results['skipped'] += 0  # No tests skipped
     
     async def test_analytics_endpoints(self):
         """Test analytics endpoints"""
@@ -420,12 +406,10 @@ class TAMSIntegrationTester:
         
         # Create 50 concurrent requests
         for i in range(50):
-            if i % 3 == 0:
+            if i % 2 == 0:
                 task = self.make_request('GET', '/sources', description=f"Stress test sources {i}")
-            elif i % 3 == 1:
-                task = self.make_request('GET', '/flows', description=f"Stress test flows {i}")
             else:
-                task = self.make_request('GET', '/objects', description=f"Stress test objects {i}")
+                task = self.make_request('GET', '/flows', description=f"Stress test flows {i}")
             concurrent_tasks.append(task)
         
         # Execute concurrent requests

@@ -5,7 +5,8 @@ Test script to test VASTDBManager directly on a simple table
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add the parent directory to the path to access the app module
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 from app.storage.vastdbmanager.core import VastDBManager
 from app.config import get_settings

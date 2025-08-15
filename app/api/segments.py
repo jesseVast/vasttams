@@ -46,23 +46,54 @@ async def delete_flow_segments(store: VASTStore, flow_id: str, timerange: Option
 async def create_flow_storage(store: VASTStore, flow_id: str, storage_request: FlowStoragePost) -> Optional[FlowStorage]:
     """Create storage allocation for a flow"""
     try:
-        # This would typically involve creating storage locations
-        # For now, return a mock response
-        media_objects = []
+        from ..models.models import MediaObject, HttpRequest
+        
+        # Generate object IDs if not provided
         if storage_request.object_ids:
-            for object_id in storage_request.object_ids:
-                media_objects.append(MediaObject(
-                    object_id=object_id,
-                    put_url=HttpRequest(
-                        url=f"http://example.com/upload/{object_id}",
-                        headers={"Content-Type": "application/octet-stream"}
-                    )
-                ))
+            object_ids = storage_request.object_ids
+        else:
+            # Generate the requested number of object IDs
+            import uuid
+            limit = storage_request.limit or 10
+            object_ids = [str(uuid.uuid4()) for _ in range(limit)]
+        
+        # Validate that object IDs don't already exist
+        for object_id in object_ids:
+            existing_object = await store.get_object(object_id)
+            if existing_object:
+                from fastapi import HTTPException
+                raise HTTPException(status_code=400, detail=f"Object ID {object_id} already exists")
+        
+        # Generate storage locations with presigned URLs using S3Store
+        media_objects = []
+        for object_id in object_ids:
+            # Generate S3 presigned PUT URL using S3Store
+            put_url = store.s3_store.generate_object_presigned_url(
+                object_id=object_id,
+                operation='put_object'
+                # expires_in will use the configurable default from settings
+            )
+            
+            if not put_url:
+                from fastapi import HTTPException
+                raise HTTPException(status_code=500, detail=f"Failed to generate presigned URL for object {object_id}")
+            
+            media_objects.append(MediaObject(
+                object_id=object_id,
+                put_url=HttpRequest(
+                    url=put_url,
+                    headers={
+                        # Don't include headers that will break presigned URL signature
+                        # The client should send minimal headers
+                    }
+                )
+            ))
         
         return FlowStorage(media_objects=media_objects)
+        
     except Exception as e:
         logger.error(f"Failed to create flow storage for {flow_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise
 
 class SegmentManager:
     """Manager for segment operations (create, retrieve, update, delete, etc.)."""

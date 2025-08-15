@@ -199,3 +199,5 @@ cython_debug/
 test_video.mp4
 test_output/
 *.mp4
+integration_test_results.json
+tests/test_simple_table.py

@@ -134,6 +134,26 @@
 
 **Note**: Test scripts were calling incorrect method names (e.g., `analyze_time_patterns` instead of `calculate_moving_average`)
 
+## Table Preservation & Schema Evolution (COMPLETED)
+- **Default Behavior**: Tables are **never deleted** on server startup
+- **Schema Evolution**: New columns are automatically added to existing tables when schemas change
+- **Data Preservation**: All existing data is preserved across server restarts
+- **Management Scripts**: Use `mgmt/cleanup_database.py` for explicit table deletion when needed
+- **Implementation**: Modified `VastDBManager.create_table()` to use `_evolve_table_schema()` instead of dropping tables
+
+### How It Works:
+1. **Startup Check**: Server checks if existing tables have matching schemas
+2. **Schema Match**: If schemas match → tables preserved, data kept
+3. **Schema Mismatch**: If schemas differ → new columns added, existing data preserved
+4. **No Data Loss**: Tables are never dropped unless explicitly requested via management scripts
+
+### Benefits:
+- ✅ **Zero Data Loss**: Test data survives server restarts
+- ✅ **Development Efficiency**: No more losing data during development
+- ✅ **Schema Flexibility**: Easy to add new fields without data migration
+- ✅ **Production Ready**: Safe for production deployments
+- ✅ **Explicit Control**: Table deletion only via management scripts
+
 ### Previous Major Accomplishments ✅
 1. **TAMS API 7.0 Implementation** - 100% spec compliance
 2. **Database-backed Authentication System** - Complete implementation

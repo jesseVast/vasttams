@@ -727,16 +727,44 @@ async def allocate_flow_storage(
         # Generate storage locations with pre-signed URLs
         media_objects = []
         for object_id in object_ids:
-            # Generate S3 presigned PUT URL
-            put_url = f"{settings.s3_endpoint_url}/{settings.s3_bucket_name}/{object_id}"
+            # Generate S3 presigned PUT URL using S3Store
+            logger.info(f"Generating presigned URL for object {object_id}")
+            logger.info(f"S3Store instance: {store.s3_store}")
+            
+            try:
+                # Check if S3Store has the required method
+                if not hasattr(store.s3_store, 'generate_object_presigned_url'):
+                    logger.error(f"S3Store missing generate_object_presigned_url method")
+                    raise HTTPException(status_code=500, detail="S3Store not properly initialized")
+                
+                # Check if S3Store has a working s3_client
+                if not hasattr(store.s3_store, 's3_client') or not store.s3_store.s3_client:
+                    logger.error(f"S3Store missing s3_client")
+                    raise HTTPException(status_code=500, detail="S3Store s3_client not initialized")
+                
+                put_url = store.s3_store.generate_object_presigned_url(
+                    object_id=object_id,
+                    operation='put_object'
+                    # expires_in will use the configurable default from settings
+                )
+                
+                logger.info(f"Generated presigned URL: {put_url}")
+                
+                if not put_url:
+                    logger.error(f"Failed to generate presigned URL for object {object_id}")
+                    raise HTTPException(status_code=500, detail=f"Failed to generate presigned URL for object {object_id}")
+                    
+            except Exception as e:
+                logger.error(f"Error generating presigned URL: {e}")
+                raise HTTPException(status_code=500, detail=f"Error generating presigned URL: {str(e)}")
             
             media_objects.append(MediaObject(
                 object_id=object_id,
                 put_url=HttpRequest(
                     url=put_url,
                     headers={
-                        "Content-Type": "application/octet-stream",
-                        "x-amz-acl": "private"
+                        # Don't include headers that will break presigned URL signature
+                        # The client should send minimal headers
                     }
                 )
             ))

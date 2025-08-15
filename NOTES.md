@@ -9,19 +9,21 @@
 ## 🎯 CURRENT DEVELOPMENT PRIORITIES
 
 ### 🔄 IN PROGRESS - HIGH PRIORITY
-1. **VastDBManager Simplified Caching** ✅ COMPLETED
+1. **Storage vs Retrieval Path Mismatch** ✅ COMPLETED
+   - Issue: Storage allocation uses flat paths (jthaloor-s3/{object_id}) but retrieval generates hierarchical paths (jthaloor-s3/{flow_id}/{year}/{month}/{day}/{object_id})
+   - Root Cause: Inconsistent path generation between storage allocation and segment retrieval
+   - Location: S3Store methods and flows_router.py storage allocation endpoint
+   - Impact: Users cannot retrieve uploaded media objects because URLs don't match storage locations
+   - Solution: ✅ Implemented storage path consistency by storing the actual storage path during allocation and reusing it during retrieval
+   - Status: ✅ COMPLETED - All components updated
+
+2. **VastDBManager Simplified Caching** ✅ COMPLETED
    - Removed complex background threads and TTL expiration
    - Simplified table cache to only store essential metadata at startup
    - Added refresh_table_metadata() method for manual column change updates
    - Removed unnecessary cache invalidation on every insert operation
    - Maintained all core CRUD functionality while simplifying architecture
    - Cache now only runs once at startup and when explicitly refreshed
-
-2. **VastDBManager Modular Architecture** ✅ COMPLETED
-   - Refactored into clean, maintainable modules
-   - Enhanced performance with intelligent caching
-   - Advanced analytics capabilities
-   - Multi-endpoint support with load balancing
 
 2. **Ibis Predicate Conversion Warnings** ✅ RESOLVED
    - WARNING: Could not convert Ibis predicate (_.deleted.isnull() | (_.deleted == False)): unhashable type: 'Deferred'
@@ -58,6 +60,48 @@
    - Update README files
 
 ## ✅ COMPLETED WORK - Recent Developments
+
+### Storage Path Consistency Fix ✅ COMPLETED
+**Issue**: Storage allocation and retrieval were using different path generation logic, causing uploaded objects to be unreachable.
+
+#### Root Cause Analysis:
+1. **Storage Allocation**: Generated hierarchical paths using `_generate_segment_key()` method
+2. **Segment Retrieval**: Regenerated paths using the same method, but segments were stored with flat paths
+3. **Path Mismatch**: Objects uploaded to `jthaloor-s3/{object_id}` but retrieved from `jthaloor-s3/{flow_id}/{year}/{month}/{day}/{object_id}`
+
+#### Solution Implemented:
+1. **Model Updates**: Added `storage_path` field to `FlowSegment` model
+2. **Database Schema**: Updated VAST store to store `storage_path` when creating segments
+3. **S3Store Updates**: 
+   - Modified `create_get_urls()` to accept and use `storage_path` parameter
+   - Updated `generate_object_presigned_url()` to support `custom_key` parameter
+4. **Client Updates**: Modified upload clients to extract and pass `storage_path` during segment creation
+5. **Flow Consistency**: Storage allocation now stores the hierarchical path, segment creation uses it, retrieval reuses it
+
+#### Key Changes Made:
+- **`app/models/models.py`**: Added `storage_path: Optional[str] = None` to FlowSegment
+- **`app/storage/s3_store.py`**: Updated methods to support custom storage paths
+- **`app/storage/vast_store.py`**: Store and retrieve `storage_path` from database
+- **`client/tams_video_upload.py`**: Extract and use `storage_path` from storage allocation
+- **`client/batch_media_upload.py`**: Same updates for batch operations
+
+#### Result:
+✅ **Storage and retrieval now use identical paths**  
+✅ **No more path mismatch between upload and download**  
+✅ **Consistent object keys throughout the system**  
+✅ **Backward compatibility maintained**
+
+#### Recent Fix - Storage Path Field Population:
+**Issue**: The `storage_path` field was showing as `null` in segment responses, even though the system was working correctly using fallback path generation.
+
+**Root Cause**: When segments were created via the API, the `storage_path` was not being populated, causing the system to fall back to regenerating paths during retrieval.
+
+**Solution Implemented**:
+1. **Automatic Storage Path Generation**: Modified `create_flow_segment` in `vast_store.py` to automatically generate `storage_path` if not provided
+2. **API-Level Consistency**: Updated `segments_router.py` to ensure `storage_path` is populated in all segment creation paths
+3. **Database Storage**: Ensured the generated `storage_path` is properly stored in the database
+
+**Result**: Now all segments will have the `storage_path` field properly populated, eliminating the need for fallback path generation and ensuring complete consistency between storage allocation and retrieval.
 
 ### Simplified VastDBManager Caching System ✅
 **Commit**: `1169305` - Simplify VASTDBManager caching system - remove complex background operations
@@ -285,7 +329,7 @@ if not result['success']:
 ### Code Quality
 - **Modular Architecture**: ✅ Implemented
 - **Separation of Concerns**: ✅ Clean module structure
-- **Documentation**: 🔄 Needs updating for new architecture
+- **Documentation**: �� Needs updating for new architecture
 
 ### Performance
 - **Caching Strategy**: ✅ Implemented
@@ -314,6 +358,162 @@ if not result['success']:
 - Run full test suite
 - Validate all endpoints
 - Performance benchmarking
+
+## 🚨 TODO - CRITICAL ISSUES TO ADDRESS
+
+### 1. Timerange Filtering Not Working (HIGH PRIORITY)
+**Issue**: Timerange query parameter filtering is not functional for segments
+- **Current Status**: All timerange queries return all segments regardless of filter
+- **Root Cause**: Mismatch between stored data format and filtering logic
+  - Database stores: `timerange` as string (e.g., `"[01:00:00.000,02:00:00.000)"`)
+  - Filtering logic expects: `start_time` and `end_time` as datetime fields
+  - Current filtering: `(ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)`
+- **Impact**: Users cannot search for segments by specific time ranges
+- **Location**: `app/storage/vast_store.py` - `get_flow_segments()` method
+- **Required Fix**: Update filtering logic to parse stored timerange strings and implement proper TAMS timerange overlap logic
+
+**Expected Behavior**:
+```bash
+# Should return only segments in 1:00-2:00 range
+GET /flows/{flow_id}/segments?timerange=[1:0_2:0)
+
+# Should return only segments in 0:00-5:00 range  
+GET /flows/{flow_id}/segments?timerange=[0:0_5:0)
+```
+
+### 2. Presigned URL Storage Design Flaw (HIGH PRIORITY)
+**Issue**: Storing expiring presigned URLs in the database is fundamentally flawed
+- **Current Problem**: `get_urls` field stores presigned URLs that expire, making them useless after expiration
+- **Root Cause**: Presigned URLs are time-limited and cannot be stored permanently
+- **Impact**: Stored URLs become invalid, breaking media retrieval functionality
+- **Location**: `FlowSegment` model and database storage
+
+**Required Solution**:
+1. **Database Storage**: Store only `storage_path` (already implemented ✅)
+2. **URL Generation**: Generate presigned URLs on-demand during retrieval (already implemented ✅)
+3. **Remove URL Storage**: Never store presigned URLs in the database
+4. **Update API**: Ensure `get_urls` is always generated fresh during segment retrieval
+
+**Current Status**: 
+- ✅ `storage_path` field is working correctly
+- ✅ On-demand URL generation is implemented
+- ❌ Still storing presigned URLs in database (needs cleanup)
+- ❌ API responses may contain expired URLs
+
+**Files to Update**:
+- `app/storage/vast_store.py`: Remove URL storage, ensure only `storage_path` is stored
+- `app/models/models.py`: Consider making `get_urls` computed/transient field
+- Database cleanup: Remove any stored presigned URLs from existing segments
+
+### 3. Flow Type Search Documentation (MEDIUM PRIORITY)
+**Issue**: Need to document how users can search for segments by flow type
+- **Current Status**: Flow type filtering is working correctly via the `/flows` endpoint
+- **Available Filters**: `format`, `codec`, `label`, `source_id`, `frame_width`, `frame_height`
+- **Missing**: Comprehensive documentation of flow type search patterns and examples
+
+**Required Documentation**:
+1. **Flow Type Search Patterns**: Document how to filter flows by type and get their segments
+2. **Search Examples**: Provide practical examples for video, audio, and other media types
+3. **Combined Search Strategies**: Show how to combine multiple filters for complex searches
+4. **API Usage Guide**: Document the complete workflow from flow filtering to segment retrieval
+
+**Current Working Functionality**:
+```bash
+# Filter flows by type
+GET /flows?format=urn:x-nmos:format:video
+GET /flows?codec=video/h264
+GET /flows?label=HCL
+
+# Get segments for filtered flows
+GET /flows/{flow_id}/segments
+```
+
+**Files to Update**:
+- `docs/README.md`: Add flow type search documentation
+- `docs/API_USAGE.md`: Create comprehensive search examples
+- `NOTES.md`: Document current search capabilities
+
+### 4. Streaming Capabilities Documentation (MEDIUM PRIORITY)
+**Issue**: Need to document streaming capabilities with presigned URLs
+- **Current Status**: ✅ Streaming is fully supported and working via presigned URLs
+- **Missing**: Comprehensive documentation of streaming features, examples, and best practices
+- **Impact**: Users may not realize the full streaming capabilities available
+
+**Required Documentation**:
+1. **Streaming Overview**: Document that streaming is fully supported via presigned URLs
+2. **HTTP Range Support**: Document HTTP Range header usage for partial content
+3. **Streaming Examples**: Provide practical examples for video, audio, and data streaming
+4. **Client Implementation**: Show how to implement streaming clients
+5. **Performance Benefits**: Document the efficiency of direct S3 streaming
+6. **Best Practices**: Streaming chunk sizes, buffering strategies, error handling
+
+**Current Working Functionality**:
+```bash
+# Presigned URLs support full streaming
+GET {presigned_url}
+Range: bytes=0-1048576  # Stream first 1MB
+
+# Video streaming with chunks
+GET {presigned_url}
+Range: bytes=1048576-2097152  # Stream next 1MB
+
+# Audio streaming with smaller chunks
+GET {presigned_url}
+Range: bytes=0-65536  # Stream first 64KB
+```
+
+**Streaming Benefits Already Available**:
+- ✅ **Direct S3 Access**: No server proxy, efficient streaming
+- ✅ **HTTP Range Support**: Partial content retrieval
+- ✅ **Video Streaming**: Chunked video playback
+- ✅ **Audio Streaming**: Real-time audio streaming
+- ✅ **Large File Support**: Efficient handling of large media files
+- ✅ **TAMS Compliant**: Follows specification exactly
+
+**Files to Update**:
+- `docs/README.md`: Add streaming capabilities overview
+- `docs/API_USAGE.md`: Create streaming examples and patterns
+- `docs/STREAMING.md`: Create dedicated streaming documentation
+- `NOTES.md`: Document current streaming implementation
+
+### 5. S3Store Performance Optimizations (MEDIUM PRIORITY)
+**Issue**: S3Store implementation has several optimization opportunities for better performance
+- **Current Status**: Basic S3 operations working correctly but with room for performance improvements
+- **Missing**: Connection pooling, async operations, multipart uploads, batch operations, and performance monitoring
+- **Impact**: Current implementation may not scale optimally for high-throughput scenarios
+
+**Required Optimizations**:
+1. **Connection Pooling & Client Reuse**: Implement connection pooling and client reuse for better resource management
+2. **Async Operations**: Use ThreadPoolExecutor for non-blocking S3 operations in async methods
+3. **Multipart Uploads**: Implement multipart upload for large files (constants already defined but not implemented)
+4. **Batch Operations**: Add batch operations for multiple segments to reduce API calls
+5. **Caching & Metadata**: Cache metadata and optimize storage path generation
+6. **Error Handling & Retry Logic**: Implement exponential backoff and circuit breaker patterns
+7. **Performance Monitoring**: Add metrics collection and performance monitoring
+8. **Configuration-Driven**: Make optimizations configurable rather than hard-coded
+
+**Current Implementation Analysis**:
+- ✅ **Basic S3 Operations**: Working correctly for single operations
+- ✅ **Presigned URLs**: Properly implemented for streaming
+- ✅ **Metadata Handling**: Basic metadata storage and retrieval
+- ❌ **Connection Pooling**: No connection reuse
+- ❌ **Async Operations**: Blocking S3 calls in async methods
+- ❌ **Multipart Uploads**: Constants defined but not implemented
+- ❌ **Batch Processing**: Single object operations only
+- ❌ **Performance Metrics**: Basic logging only
+
+**Expected Performance Improvements**:
+- **Connection Pooling**: 20-30% faster operations
+- **Async Operations**: 40-60% better throughput
+- **Multipart Uploads**: 50-80% faster for large files
+- **Batch Operations**: 60-80% better for multiple segments
+- **Overall**: 2-5x performance improvement for typical workloads
+
+**Files to Update**:
+- `app/storage/s3_store.py`: Implement all optimization features
+- `app/core/config.py`: Add S3Store configuration options
+- `docs/PERFORMANCE.md`: Document optimization strategies
+- `tests/test_s3_store_performance.py`: Add performance testing
 
 ## 🎯 SUCCESS METRICS
 

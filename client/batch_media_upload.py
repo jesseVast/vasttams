@@ -171,14 +171,19 @@ def upload_series(
                 put_url = media_object['put_url']['url']
                 put_headers = media_object['put_url'].get('headers', {})
                 
+                # Extract storage_path from metadata if available
+                storage_path = None
+                if media_object.get('metadata') and media_object['metadata'].get('storage_path'):
+                    storage_path = media_object['metadata']['storage_path']
+                
                 upload_success = uploader.upload_video_to_s3(put_url, media_file, codec, put_headers)
                 if not upload_success:
                     print(f"   ❌ Failed to upload {media_file.name} to S3")
                     failure_count += 1
                     continue
                 
-                # Step 5: Create flow segment
-                segment_success = uploader.create_flow_segment(flow_id, object_id)
+                # Step 5: Create flow segment with storage_path
+                segment_success = uploader.create_flow_segment(flow_id, object_id, storage_path=storage_path)
                 if not segment_success:
                     print(f"   ❌ Failed to create segment for {media_file.name}")
                     failure_count += 1

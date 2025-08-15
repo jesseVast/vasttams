@@ -67,27 +67,35 @@ async def create_flow_storage(store: VASTStore, flow_id: str, storage_request: F
         # Generate storage locations with presigned URLs using S3Store
         media_objects = []
         for object_id in object_ids:
+            # Generate hierarchical path for storage allocation
+            # This ensures consistency between storage and retrieval URLs
+            object_key = store.s3_store._generate_segment_key(flow_id, object_id, "[00:00:00.000,00:05:00.000)")
+            
+            logger.info(f"Generated hierarchical path: {object_key} for object {object_id}")
+            
             # Generate S3 presigned PUT URL using S3Store
             put_url = store.s3_store.generate_object_presigned_url(
                 object_id=object_id,
-                operation='put_object'
-                # expires_in will use the configurable default from settings
+                operation='put_object',
+                custom_key=object_key  # Use the hierarchical path
             )
             
             if not put_url:
                 from fastapi import HTTPException
                 raise HTTPException(status_code=500, detail=f"Failed to generate presigned URL for object {object_id}")
             
-            media_objects.append(MediaObject(
+            # Create MediaObject with the hierarchical path
+            media_object = MediaObject(
                 object_id=object_id,
                 put_url=HttpRequest(
                     url=put_url,
-                    headers={
-                        # Don't include headers that will break presigned URL signature
-                        # The client should send minimal headers
-                    }
-                )
-            ))
+                    headers={}  # No custom headers for S3 compatibility
+                ),
+                # Store the hierarchical path for later use
+                metadata={"storage_path": object_key}
+            )
+            
+            media_objects.append(media_object)
         
         return FlowStorage(media_objects=media_objects)
         

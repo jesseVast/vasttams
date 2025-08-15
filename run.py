@@ -7,7 +7,7 @@ This script starts the TAMS (Time-addressable Media Store) API server.
 
 import uvicorn
 import logging
-from app.config import get_settings
+from app.core.config import get_settings
 
 def main():
     """Start the TAMS API server"""

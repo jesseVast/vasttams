@@ -382,7 +382,7 @@ class TAMSClient:
     
     def create_flow_segment(self, flow_id: str, object_id: str, 
                            start_time: str = "00:00:00.000", 
-                           end_time: str = "00:05:00.000",
+                           end_time: str = "00:05:00.000",  # TODO: Use timerange_utils for flexible timeranges
                            storage_path: Optional[str] = None) -> bool:
         """Create a flow segment referencing the uploaded object"""
         print(f"🔧 Creating flow segment for object: {object_id}")

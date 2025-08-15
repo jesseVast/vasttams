@@ -6,6 +6,7 @@ from .flows import get_flows, get_flow, create_flow, update_flow, delete_flow
 from ..storage.vast_store import VASTStore
 from ..core.dependencies import get_vast_store
 from ..core.config import get_settings
+from ..core.timerange_utils import get_storage_timerange
 import logging
 
 logger = logging.getLogger(__name__)
@@ -729,7 +730,7 @@ async def allocate_flow_storage(
         for object_id in object_ids:
             # Generate hierarchical path for storage allocation
             # This ensures consistency between storage and retrieval URLs
-            object_key = store.s3_store._generate_segment_key(flow_id, object_id, "[00:00:00.000,00:05:00.000)")
+            object_key = store.s3_store.generate_segment_key(flow_id, object_id, get_storage_timerange())
             
             logger.info(f"Generated hierarchical path: {object_key} for object {object_id}")
             

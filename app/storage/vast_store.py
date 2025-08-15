@@ -888,7 +888,7 @@ class VASTStore:
             # Generate storage_path if not provided to ensure consistency
             if not segment.storage_path:
                 # Generate the same hierarchical path that would be used in storage allocation
-                storage_path = self.s3_store._generate_segment_key(flow_id, segment.object_id, segment.timerange)
+                storage_path = self.s3_store.generate_segment_key(flow_id, segment.object_id, segment.timerange)
                 logger.info(f"Generated storage_path for segment {segment.object_id}: {storage_path}")
             else:
                 storage_path = segment.storage_path

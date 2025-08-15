@@ -135,6 +135,20 @@ class S3Store:
         
         return key
     
+    def generate_segment_key(self, flow_id: str, segment_id: str, timerange: str) -> str:
+        """
+        Public method to generate S3 object key for flow segment
+        
+        Args:
+            flow_id: Flow identifier
+            segment_id: Segment identifier
+            timerange: Time range string
+            
+        Returns:
+            S3 object key string
+        """
+        return self._generate_segment_key(flow_id, segment_id, timerange)
+    
     async def store_flow_segment(self, 
                                 flow_id: str, 
                                 segment: FlowSegment, 

@@ -7,7 +7,7 @@
   "vast_access_key": "SRSPW0DQT9T70Y787U68",
   "vast_secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
   "vast_bucket": "jthaloor-db",
-  "vast_schema": "tams",
+      "vast_schema": "tams7",
   
   "s3_endpoint_url": "http://172.200.204.91",
   "s3_access_key_id": "SRSPW0DQT9T70Y787U68",

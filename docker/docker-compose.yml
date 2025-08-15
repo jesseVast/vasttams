@@ -16,7 +16,7 @@ services:
       - VAST_ACCESS_KEY=SRSPW0DQT9T70Y787U68
       - VAST_SECRET_KEY=WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr
       - VAST_BUCKET=jthaloor-db
-      - VAST_SCHEMA=tams
+      - VAST_SCHEMA=tams7
       
       # S3 settings
       - S3_ENDPOINT_URL=http://172.200.204.91

@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     vast_access_key: str = "SRSPW0DQT9T70Y787U68"
     vast_secret_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
     vast_bucket: str = "jthaloor-db"
-    vast_schema: str = "tams"
+    vast_schema: str = "tams7"
     
     # Logging settings
     log_level: str = "INFO"

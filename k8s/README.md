@@ -136,7 +136,7 @@ The `config.json` file contains non-sensitive configuration:
   "debug": false,
   "vast_endpoint": "http://vast-service:8080",
   "vast_bucket": "tams-bucket",
-  "vast_schema": "tams-schema",
+          "vast_schema": "tams7",
   "s3_endpoint_url": "http://s3-service:9000",
   "s3_bucket_name": "tams-bucket",
   "s3_use_ssl": false,

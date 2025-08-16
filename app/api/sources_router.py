@@ -154,6 +154,23 @@ async def delete_source_by_id(
         logger.error(f"Failed to delete source {source_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@router.post("/sources/{source_id}/restore")
+async def restore_source_by_id(
+    source_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Restore a soft-deleted source by ID"""
+    try:
+        success = await store.restore_record('sources', source_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Source not found")
+        return {"message": "Source restored successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to restore source {source_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # Source tags endpoints
 @router.head("/sources/{source_id}/tags")
 async def head_source_tags(source_id: str):

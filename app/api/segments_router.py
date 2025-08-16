@@ -109,7 +109,7 @@ async def create_new_flow_segment(
             if not segment.storage_path:
                 from ..storage.s3_store import S3Store
                 s3_store = S3Store()
-                                    storage_path = s3_store.generate_segment_key(flow_id, segment.object_id, segment.timerange)
+                storage_path = s3_store.generate_segment_key(flow_id, segment.object_id, segment.timerange)
                 segment.storage_path = storage_path
                 logger.info(f"Generated storage_path for segment {segment.object_id}: {storage_path}")
             

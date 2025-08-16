@@ -25,7 +25,7 @@ from pathlib import Path
 
 def run_tests(test_paths, options):
     """Run tests with the given options"""
-    cmd = ["python", "-m", "pytest"]
+    cmd = ["/Users/jesse.thaloor/Developer/python/bbctams/bin/python", "-m", "pytest"]
     
     # Add test paths
     cmd.extend(test_paths)

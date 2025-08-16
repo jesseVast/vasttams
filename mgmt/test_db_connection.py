@@ -42,12 +42,8 @@ def test_vast_connection():
         # Initialize connection
         print("📡 Initializing VAST DB Manager...")
         db_manager = VastDBManager(
-            endpoint=settings.vast_endpoint,
-            access_key=settings.vast_access_key,
-            secret_key=settings.vast_secret_key,
-            bucket=settings.vast_bucket,
-            schema=settings.vast_schema,
-            timeout=10  # Shorter timeout for testing
+            endpoints=settings.vast_endpoint,
+            auto_connect=True
         )
         print("✅ VAST DB Manager initialized successfully")
         

@@ -1,3 +1,109 @@
+# TAMS API Code Changes - Resilience Strategy Update
+
+## Overview
+Updated the resilience strategy from application-level resilience mechanisms to VAST Native snapshots for both database and S3 storage. This change provides better performance, native consistency guarantees, and simplified application code.
+
+## Changes Made
+
+### 1. Resilience Code Removal ✅ COMPLETED
+**Status**: ✅ COMPLETED - All application-level resilience code removed
+
+#### Removed Files:
+- `docs/RESILIENCE_IMPLEMENTATION.md` - Old resilience implementation documentation
+- `tests/mock_tests/test_resilience_implementation.py` - Resilience testing code
+
+#### Code Cleanup:
+- **VASTStore**: Removed `_create_source_resilience_object()`, `_create_flow_resilience_object()`, and `_create_flow_segment_resilience_object()` methods
+- **S3Store**: Removed `_store_resilience_object()` and `_create_object_metadata_backup()` methods
+- **Test Files**: Removed resilience-related mocking and testing code
+
+#### Git Reset:
+- Reverted to clean commit `039e465` (before resilience was added)
+- Ensured no resilience code remains in application
+
+### 2. VAST Native Snapshots Documentation ✅ COMPLETED
+**Status**: ✅ COMPLETED - Comprehensive documentation created
+
+#### New Documentation:
+- `docs/VAST_NATIVE_SNAPSHOTS_RESILIENCE.md` - Complete guide to VAST snapshots
+- Covers database and S3 snapshot configuration
+- Includes disaster recovery procedures
+- Provides best practices and monitoring guidance
+
+### 3. Benefits of New Approach
+
+#### Performance Improvements:
+- **No Application Overhead**: Snapshots run at storage layer
+- **Better Scalability**: Handles large datasets without performance impact
+- **Native Optimization**: VAST-optimized snapshot operations
+
+#### Reliability Improvements:
+- **Native Consistency**: Database and S3 consistency guaranteed at storage layer
+- **Point-in-Time Recovery**: Restore to any specific point in time
+- **Atomic Operations**: Snapshots created atomically
+
+#### Maintenance Improvements:
+- **Simplified Code**: No custom backup logic to maintain
+- **Integrated Management**: Unified backup and recovery management
+- **Automated Operations**: Built-in scheduling and retention policies
+
+## Technical Details
+
+### VAST Database Snapshots:
+- Atomic snapshot creation
+- Incremental backup support
+- Configurable retention policies
+- Built-in compression and encryption
+
+### VAST S3 Snapshots:
+- Bucket-level consistency
+- Cross-region replication support
+- Metadata preservation
+- Automated scheduling
+
+### Configuration Examples:
+```bash
+# Database snapshots
+vast snapshot enable --database tams_db
+vast snapshot policy set --database tams_db --retention-daily 7
+
+# S3 snapshots
+vast s3 snapshot enable --bucket tams-media-bucket
+vast s3 replication set --bucket tams-media-bucket --destination-region us-west-2
+```
+
+## Implementation Strategy
+
+### Phase 1: Infrastructure Setup ✅ COMPLETED
+1. ✅ Remove application-level resilience code
+2. ✅ Create VAST snapshots documentation
+3. 🔄 Configure VAST snapshots (pending infrastructure setup)
+
+### Phase 2: Disaster Recovery Procedures
+1. Document snapshot restoration procedures
+2. Test recovery procedures regularly
+3. Maintain recovery runbooks
+
+### Phase 3: Automation and Integration
+1. Automated snapshot validation
+2. Integration with CI/CD pipelines
+3. Disaster recovery drills
+
+## Files Modified
+- `app/storage/vast_store.py` - Removed resilience methods
+- `app/storage/s3_store.py` - Removed resilience methods
+- `tests/mock_tests/test_flow_reference_management.py` - Removed resilience mocking
+- `tests/mock_tests/test_flow_with_multiple_segments.py` - Removed resilience mocking
+- `docs/VAST_NATIVE_SNAPSHOTS_RESILIENCE.md` - New resilience documentation
+- `NOTES.md` - Updated resilience strategy
+
+## Status: 🔄 IN PROGRESS
+- ✅ Application-level resilience code removed
+- ✅ VAST snapshots documentation created
+- 🔄 VAST snapshots configuration (pending infrastructure setup)
+
+---
+
 # TAMS API Code Changes - Storage Path Consistency Fix
 
 ## Overview

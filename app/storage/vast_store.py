@@ -244,10 +244,6 @@ class VASTStore:
             ('tags', pa.string()),  # JSON string
             ('source_collection', pa.string()),  # JSON string
             ('collected_by', pa.string()),  # JSON string
-            # Soft delete fields
-            ('deleted', pa.bool_()),
-            ('deleted_at', pa.timestamp('us')),
-            ('deleted_by', pa.string())
         ])
         
         # Flow table schema
@@ -280,10 +276,6 @@ class VASTStore:
             ('channels', pa.int32()),
             # Multi flow specific
             ('flow_collection', pa.string()),  # JSON string
-            # Soft delete fields
-            ('deleted', pa.bool_()),
-            ('deleted_at', pa.timestamp('us')),
-            ('deleted_by', pa.string())
         ])
         
         # Flow segment table schema (time-series optimized)
@@ -305,10 +297,6 @@ class VASTStore:
             ('start_time', pa.timestamp('us')),
             ('end_time', pa.timestamp('us')),
             ('duration_seconds', pa.float64()),
-            # Soft delete fields
-            ('deleted', pa.bool_()),
-            ('deleted_at', pa.timestamp('us')),
-            ('deleted_by', pa.string())
         ])
         
         # Object table schema
@@ -319,10 +307,6 @@ class VASTStore:
             ('created', pa.timestamp('us')),
             ('last_accessed', pa.timestamp('us')),
             ('access_count', pa.int32()),
-            # Soft delete fields with default values
-            ('deleted', pa.bool_()),
-            ('deleted_at', pa.timestamp('us')),
-            ('deleted_by', pa.string())
         ])
         
         # Webhook table schema
@@ -377,10 +361,6 @@ class VASTStore:
             ('updated', pa.timestamp('us')),
             ('metadata', pa.string()),
             
-            # Soft delete fields
-            ('deleted', pa.bool_()),
-            ('deleted_at', pa.timestamp('us')),
-            ('deleted_by', pa.string())
         ])
         
         api_tokens_schema = pa.schema([
@@ -413,10 +393,6 @@ class VASTStore:
             ('created_by', pa.string()),
             ('metadata', pa.string()),
             
-            # Soft delete fields
-            ('deleted', pa.bool_()),
-            ('deleted_at', pa.timestamp('us')),
-            ('deleted_by', pa.string())
         ])
         
         refresh_tokens_schema = pa.schema([
@@ -446,10 +422,6 @@ class VASTStore:
             ('created_by', pa.string()),
             ('metadata', pa.string()),
             
-            # Soft delete fields
-            ('deleted', pa.bool_()),
-            ('deleted_at', pa.timestamp('us')),
-            ('deleted_by', pa.string())
         ])
         
         auth_logs_schema = pa.schema([
@@ -478,10 +450,6 @@ class VASTStore:
             # Metadata
             ('metadata', pa.string()),
             
-            # Soft delete fields
-            ('deleted', pa.bool_()),
-            ('deleted_at', pa.timestamp('us')),
-            ('deleted_by', pa.string())
         ])
         
         # Create tables
@@ -656,10 +624,6 @@ class VASTStore:
                 'tags': self._dict_to_json(source.tags.root if source.tags else {}),
                 'source_collection': self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else []),
                 'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else []),
-                # Soft delete fields with default values
-                'deleted': False,
-                'deleted_at': None,
-                'deleted_by': None
             }
             # Insert into VAST database as dict of lists
             self.db_manager.insert('sources', {k: [v] for k, v in source_data.items()})
@@ -674,8 +638,6 @@ class VASTStore:
         try:
             # Query for specific source
             predicate = (ibis_.id == source_id)
-            # Add soft delete filtering
-            predicate = self._add_soft_delete_predicate(predicate)
             results = self.db_manager.select('sources', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -701,9 +663,6 @@ class VASTStore:
                 'tags': Tags(self._json_to_dict(row['tags'])),
                 'source_collection': [CollectionItem(id=item.get('id', str(uuid.uuid4())), label=item.get('label', '')) if isinstance(item, dict) else CollectionItem(id=str(uuid.uuid4()), label=str(item)) for item in self._json_to_dict(row['source_collection'])],
                 'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])],
-                'deleted': row.get('deleted', False),
-                'deleted_at': row.get('deleted_at'),
-                'deleted_by': row.get('deleted_by')
             }
             
             return Source(**source_data)
@@ -726,8 +685,6 @@ class VASTStore:
                 if conditions:
                     predicate = conditions[0] if len(conditions) == SINGLE_CONDITION_LENGTH else conditions[0] & conditions[1]
             
-            # Add soft delete filtering
-            predicate = self._add_soft_delete_predicate(predicate)
             # Query sources
             results = self.db_manager.select('sources', predicate=predicate, output_by_row=True)
             
@@ -757,9 +714,6 @@ class VASTStore:
                         'tags': Tags(self._json_to_dict(row['tags'])),
                         'source_collection': [CollectionItem(id=item.get('id', str(uuid.uuid4())), label=item.get('label', '')) if isinstance(item, dict) else CollectionItem(id=str(uuid.uuid4()), label=str(item)) for item in self._json_to_dict(row['source_collection'])],
                         'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])],
-                        'deleted': row.get('deleted', False),
-                        'deleted_at': row.get('deleted_at'),
-                        'deleted_by': row.get('deleted_by')
                     }
                     sources.append(Source(**source_data))
             
@@ -799,10 +753,6 @@ class VASTStore:
                 'bits_per_sample': getattr(flow, 'bits_per_sample', 0),
                 'channels': getattr(flow, 'channels', 0),
                 'flow_collection': self._dict_to_json([str(uuid) for uuid in getattr(flow, 'flow_collection', [])]),
-                # Soft delete fields with default values
-                'deleted': False,
-                'deleted_at': None,
-                'deleted_by': None
             }
             # Insert into VAST database as dict of lists
             self.db_manager.insert('flows', {k: [v] for k, v in flow_data.items()})
@@ -817,8 +767,6 @@ class VASTStore:
         try:
             # Query for specific flow
             predicate = (ibis_.id == flow_id)
-            # Add soft delete filtering
-            predicate = self._add_soft_delete_predicate(predicate)
             results = self.db_manager.select('flows', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -846,9 +794,6 @@ class VASTStore:
                 'tags': Tags(self._json_to_dict(row['tags'])),
                 'container': row['container'] if row['container'] else None,
                 'read_only': row['read_only'],
-                'deleted': row.get('deleted', False),
-                'deleted_at': row.get('deleted_at'),
-                'deleted_by': row.get('deleted_by')
             }
             
             # Add format-specific fields
@@ -945,8 +890,6 @@ class VASTStore:
             # First get all segments for the flow (no timerange filtering at DB level)
             predicate = (ibis_.id == flow_id)
             
-            # Add soft delete filtering
-            predicate = self._add_soft_delete_predicate(predicate)
             
             results = self.db_manager.select('segments', predicate=predicate, output_by_row=True)
             segments = []
@@ -987,10 +930,6 @@ class VASTStore:
                 'created': obj.created or datetime.now(timezone.utc),
                 'last_accessed': datetime.now(timezone.utc),
                 'access_count': 0,
-                # Soft delete fields with default values
-                'deleted': False,
-                'deleted_at': None,
-                'deleted_by': None
             }
             # Insert into VAST database as dict of lists
             self.db_manager.insert('objects', {k: [v] for k, v in object_data.items()})
@@ -1005,8 +944,6 @@ class VASTStore:
         try:
             # Query for specific object
             predicate = (ibis_.object_id == object_id)
-            # Add soft delete filtering
-            predicate = self._add_soft_delete_predicate(predicate)
             results = self.db_manager.select('objects', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -1321,8 +1258,6 @@ class VASTStore:
                 if conditions:
                     predicate = conditions[0] if len(conditions) == 1 else (conditions[0] & conditions[1])
             
-            # Add soft delete filtering
-            predicate = self._add_soft_delete_predicate(predicate)
             
             # Query flows
             results = self.db_manager.select('flows', predicate=predicate, output_by_row=True)
@@ -1406,1007 +1341,7 @@ class VASTStore:
         logger.info("Closing VAST store")
         # The vastdbmanager handles its own connection cleanup 
 
-    def _add_soft_delete_predicate(self, predicate=None):
-        """Add soft delete predicate to exclude deleted records from queries."""
-        # Import ibis here to avoid circular imports
-        from ibis import _ as ibis_
-        
-        # Create soft delete predicate using proper Ibis syntax
-        soft_delete_predicate = (ibis_.deleted.isnull() | (ibis_.deleted == False))
-        
-        if predicate is None:
-            return soft_delete_predicate
-        else:
-            # Combine the existing predicate with soft delete using AND
-            return predicate & soft_delete_predicate
-    
-    async def soft_delete_record(self, table_name: str, record_id: str, deleted_by: str) -> bool:
-        """Soft delete a record by marking it as deleted."""
-        try:
-            from datetime import datetime, timezone
-            
-            # Update the record to mark it as soft deleted
-            update_data = {
-                'deleted': True,
-                'deleted_at': datetime.now(timezone.utc),
-                'deleted_by': deleted_by
-            }
-            
-            # Create predicate to find the record
-            from ibis import _ as ibis_
-            if table_name == 'objects':
-                predicate = (ibis_.object_id == record_id)
-            elif table_name == 'users':
-                predicate = (ibis_.user_id == record_id)
-            elif table_name == 'api_tokens':
-                predicate = (ibis_.token_id == record_id)
-            elif table_name == 'sources':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'flows':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'segments':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'webhooks':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'deletion_requests':
-                predicate = (ibis_.id == record_id)
-            else:
-                # Default fallback for other tables
-                predicate = (ibis_.id == record_id)
-            
-            # Update the record
-            updated_count = self.db_manager.update(table_name, update_data, predicate)
-            
-            if updated_count > 0:
-                logger.info(f"Soft deleted record {record_id} from table {table_name}")
-                return True
-            else:
-                logger.warning(f"Record {record_id} not found in table {table_name} for soft delete")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Failed to soft delete record {record_id} from table {table_name}: {e}")
-            return False
-    
-    async def hard_delete_record(self, table_name: str, record_id: str) -> bool:
-        """Hard delete a record by removing it from the database."""
-        try:
-            # Create predicate to find the record
-            from ibis import _ as ibis_
-            if table_name == 'objects':
-                predicate = (ibis_.object_id == record_id)
-            elif table_name == 'users':
-                predicate = (ibis_.user_id == record_id)
-            elif table_name == 'api_tokens':
-                predicate = (ibis_.token_id == record_id)
-            elif table_name == 'sources':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'flows':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'segments':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'webhooks':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'deletion_requests':
-                predicate = (ibis_.id == record_id)
-            else:
-                # Default fallback for other tables
-                predicate = (ibis_.id == record_id)
-            
-            # Delete the record
-            deleted_count = self.db_manager.delete(table_name, predicate)
-            
-            if deleted_count > 0:
-                logger.info(f"Hard deleted record {record_id} from table {table_name}")
-                return True
-            else:
-                logger.warning(f"Record {record_id} not found in table {table_name} for hard delete")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Failed to hard delete record {record_id} from table {table_name}: {e}")
-            return False
-    
-    async def restore_record(self, table_name: str, record_id: str) -> bool:
-        """Restore a soft-deleted record by unmarking it as deleted."""
-        try:
-            # Update the record to unmark it as soft deleted
-            update_data = {
-                'deleted': False,
-                'deleted_at': None,
-                'deleted_by': None
-            }
-            
-            # Create predicate to find the record
-            from ibis import _ as ibis_
-            if table_name == 'objects':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'users':
-                predicate = (ibis_.user_id == record_id)
-            elif table_name == 'api_tokens':
-                predicate = (ibis_.token_id == record_id)
-            elif table_name == 'sources':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'flows':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'segments':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'webhooks':
-                predicate = (ibis_.id == record_id)
-            elif table_name == 'deletion_requests':
-                predicate = (ibis_.id == record_id)
-            else:
-                # Default fallback for other tables
-                predicate = (ibis_.id == record_id)
-            
-            # Update the record
-            updated_count = self.db_manager.update(table_name, update_data, predicate)
-            
-            if updated_count > 0:
-                logger.info(f"Restored record {record_id} from table {table_name}")
-                return True
-            else:
-                logger.warning(f"Record {record_id} not found in table {table_name} for restore")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Failed to restore record {record_id} from table {table_name}: {e}")
-            return False
 
-    async def update_source(self, source_id: str, source: Source) -> bool:
-        """Update an existing source in VAST store"""
-        try:
-            # Convert source to dictionary
-            source_data = {
-                'id': str(source.id),
-                'format': str(source.format),
-                'label': source.label or "",
-                'description': source.description or "",
-                'created_by': source.created_by or "",
-                'updated_by': source.updated_by or "",
-                'created': source.created or datetime.now(timezone.utc),
-                'updated': source.updated or datetime.now(timezone.utc),
-                'tags': self._dict_to_json(source.tags.root if source.tags else {}),
-                'source_collection': self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else []),
-                'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else [])
-            }
-            
-            # Update in VAST database
-            predicate = (ibis_.id == source_id)
-            
-            # Convert to column-oriented format expected by db_manager.update
-            # Each field needs to be a list with one value
-            column_data = {}
-            for key, value in source_data.items():
-                column_data[key] = [value]
-            
-            self.db_manager.update('sources', column_data, predicate)
-            
-            logger.info(f"Updated source {source_id} in VAST store")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to update source {source_id}: {e}")
-            return False
-
-    async def update_source_tags(self, source_id: str, tags) -> bool:
-        """Update source tags"""
-        try:
-            from ibis import _ as ibis_
-            predicate = (ibis_.id == source_id)
-            predicate = self._add_soft_delete_predicate(predicate)
-            
-            # Use the same pattern as update_source - simpler and working
-            update_data = {
-                'tags': self._dict_to_json(tags.root if tags else {}),
-                'updated': datetime.now(timezone.utc)
-            }
-            
-            # Convert to column-oriented format expected by db_manager.update
-            column_data = {}
-            for key, value in update_data.items():
-                column_data[key] = [value]
-            
-            # Use the same update call pattern as update_source
-            self.db_manager.update('sources', column_data, predicate)
-            
-            logger.info(f"Updated source {source_id} tags")
-            return True
-                
-        except Exception as e:
-            logger.error(f"Failed to update source {source_id} tags: {e}")
-            return False
-
-    async def update_flow_read_only(self, flow_id: str, read_only: bool) -> bool:
-        """Update flow read-only status"""
-        try:
-            from ibis import _ as ibis_
-            predicate = (ibis_.id == flow_id)
-            predicate = self._add_soft_delete_predicate(predicate)
-            
-            # Use the same pattern as update_source - simpler and working
-            update_data = {
-                'read_only': read_only,
-                'updated': datetime.now(timezone.utc)
-            }
-            
-            # Convert to column-oriented format expected by db_manager.update
-            column_data = {}
-            for key, value in update_data.items():
-                column_data[key] = [value]
-            
-            # Use the same update call pattern as update_source
-            self.db_manager.update('flows', column_data, predicate)
-            
-            logger.info(f"Updated flow {flow_id} read_only to {read_only}")
-            return True
-                
-        except Exception as e:
-            logger.error(f"Failed to update flow {flow_id} read_only: {e}")
-            return False
-
-    async def update_flow(self, flow_id: str, flow: Flow) -> bool:
-        """Update an existing flow in VAST store"""
-        try:
-            # Convert flow to dictionary
-            flow_data = {
-                'id': str(flow.id),
-                'source_id': str(flow.source_id),
-                'format': str(flow.format),
-                'codec': str(flow.codec),
-                'label': flow.label or "",
-                'description': flow.description or "",
-                'created_by': flow.created_by or "",
-                'updated_by': flow.updated_by or "",
-                'created': flow.created or datetime.now(timezone.utc),
-                'updated': flow.updated or datetime.now(timezone.utc),
-                'tags': self._dict_to_json(flow.tags.root if flow.tags else {}),
-                'container': flow.container or "",
-                'read_only': flow.read_only or False,
-                'frame_width': getattr(flow, 'frame_width', 0),
-                'frame_height': getattr(flow, 'frame_height', 0),
-                'frame_rate': getattr(flow, 'frame_rate', ""),
-                'interlace_mode': getattr(flow, 'interlace_mode', ""),
-                'color_sampling': getattr(flow, 'color_sampling', ""),
-                'color_space': getattr(flow, 'color_space', ""),
-                'transfer_characteristics': getattr(flow, 'transfer_characteristics', ""),
-                'color_primaries': getattr(flow, 'color_primaries', ""),
-                'sample_rate': getattr(flow, 'sample_rate', 0),
-                'bits_per_sample': getattr(flow, 'bits_per_sample', 0),
-                'channels': getattr(flow, 'channels', 0),
-                'max_bit_rate': getattr(flow, 'max_bit_rate', None),
-                'avg_bit_rate': getattr(flow, 'avg_bit_rate', None),
-                'flow_collection': self._dict_to_json([str(uuid) for uuid in getattr(flow, 'flow_collection', [])])
-            }
-            
-            # Update in VAST database
-            predicate = (ibis_.id == flow_id)
-            self.db_manager.update('flows', flow_data, predicate)
-            
-            logger.info(f"Updated flow {flow_id} in VAST store")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to update flow {flow_id}: {e}")
-            return False
-
-    async def delete_flow(self, flow_id: str, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system") -> bool:
-        """Delete a flow from VAST store"""
-        try:
-            if soft_delete:
-                # Soft delete - mark as deleted
-                success = await self.soft_delete_record('flows', flow_id, deleted_by)
-                if success and cascade:
-                    # Also soft delete associated segments
-                    await self.delete_flow_segments(flow_id, soft_delete=True, deleted_by=deleted_by)
-                return success
-            else:
-                # Hard delete - physically remove
-                if cascade:
-                    # Also hard delete associated segments
-                    await self.delete_flow_segments(flow_id, soft_delete=False, deleted_by=deleted_by)
-                
-                # Delete from VAST database
-                predicate = (ibis_.id == flow_id)
-                deleted_count = self.db_manager.delete('flows', predicate)
-                
-                if deleted_count > 0:
-                    logger.info(f"Hard deleted flow {flow_id} from VAST store")
-                    return True
-                else:
-                    logger.warning(f"Flow {flow_id} not found for deletion")
-                    return False
-            
-        except Exception as e:
-            logger.error(f"Failed to delete flow {flow_id}: {e}")
-            return False
-
-    async def delete_flow_segments(self, flow_id: str, timerange: Optional[str] = None, soft_delete: bool = True, deleted_by: str = "system") -> bool:
-        """Delete flow segments from VAST store and S3"""
-        try:
-            # Get segments to delete
-            segments = await self.get_flow_segments(flow_id, timerange=timerange)
-            
-            if soft_delete:
-                # Soft delete - mark segments as deleted
-                for segment in segments:
-                    await self.soft_delete_record('segments', segment.object_id, deleted_by)
-                
-                logger.info(f"Soft deleted {len(segments)} flow segments for flow {flow_id}")
-                return True
-            else:
-                # Hard delete - physically remove segments and S3 data
-                for segment in segments:
-                    # Delete from S3
-                    await self.s3_store.delete_flow_segment(flow_id, segment.object_id, segment.timerange)
-                
-                # Delete from VAST database
-                predicate = (ibis_.id == flow_id)
-                if timerange:
-                    target_start, target_end, _ = self._parse_timerange(timerange)
-                    predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)
-                
-                deleted_count = self.db_manager.delete('segments', predicate)
-                
-                logger.info(f"Hard deleted {deleted_count} flow segments for flow {flow_id}")
-                return True
-            
-        except Exception as e:
-            logger.error(f"Failed to delete flow segments for flow {flow_id}: {e}")
-            return False
-
-    async def list_webhooks(self) -> List[Webhook]:
-        """List webhooks from VAST store"""
-        try:
-            results = self.db_manager.select('webhooks', output_by_row=True)
-            webhooks = []
-            
-            if isinstance(results, list):
-                for row in results:
-                    events = self._json_to_dict(row['events'])
-                    if isinstance(events, dict):
-                        events = list(events.values())
-                    elif not isinstance(events, list):
-                        events = []
-                    webhook = Webhook(
-                        url=row['url'],
-                        api_key_name=row['api_key_name'],
-                        api_key_value=row.get('api_key_value'),
-                        events=events,
-                        # Ownership fields for TAMS API v7.0 compliance
-                        owner_id=row.get('owner_id'),
-                        created_by=row.get('created_by'),
-                        created=row.get('created')
-                    )
-                    webhooks.append(webhook)
-            
-            return webhooks
-            
-        except Exception as e:
-            logger.error(f"Failed to list webhooks: {e}")
-            return []
-
-    async def create_webhook(self, webhook: WebhookPost) -> bool:
-        """Create a new webhook in VAST store"""
-        try:
-            webhook_data = {
-                'id': str(uuid.uuid4()),
-                'url': webhook.url,
-                'api_key_name': webhook.api_key_name,
-                'api_key_value': webhook.api_key_value,
-                'events': self._dict_to_json(webhook.events),
-                # Ownership fields for TAMS API v7.0 compliance
-                'owner_id': webhook.owner_id or "system",
-                'created_by': webhook.created_by or "system",
-                'created': datetime.now(timezone.utc),
-                'updated': datetime.now(timezone.utc)
-            }
-            self.db_manager.insert('webhooks', {k: [v] for k, v in webhook_data.items()})
-            logger.info(f"Created webhook for URL {webhook.url}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to create webhook: {e}")
-            return False
-
-    async def list_deletion_requests(self) -> List[DeletionRequest]:
-        """List deletion requests from VAST store"""
-        try:
-            results = self.db_manager.select('deletion_requests', output_by_row=True)
-            requests = []
-            
-            if isinstance(results, list):
-                for row in results:
-                    request = DeletionRequest(
-                        request_id=str(row['id']),
-                        flow_id=uuid.UUID(row['flow_id']) if not isinstance(row['flow_id'], uuid.UUID) else row['flow_id'],
-                        timerange=row['timerange'],
-                        status=str(row['status']),
-                        created=row['created'] if isinstance(row['created'], datetime) else datetime.fromisoformat(str(row['created'])),
-                        updated=row['updated'] if not row['updated'] or isinstance(row['updated'], datetime) else datetime.fromisoformat(str(row['updated']))
-                    )
-                    requests.append(request)
-            
-            return requests
-            
-        except Exception as e:
-            logger.error(f"Failed to list deletion requests: {e}")
-            return []
-
-    async def create_deletion_request(self, deletion_request: DeletionRequest) -> bool:
-        """Create a new deletion request in VAST store"""
-        try:
-            request_data = {
-                'id': deletion_request.request_id,
-                'flow_id': str(deletion_request.flow_id),
-                'timerange': deletion_request.timerange,
-                'status': deletion_request.status,
-                'created': deletion_request.created,
-                'updated': deletion_request.updated
-            }
-            self.db_manager.insert('deletion_requests', {k: [v] for k, v in request_data.items()})
-            logger.info(f"Created deletion request {deletion_request.request_id}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to create deletion request: {e}")
-            return False
-
-    async def get_deletion_request(self, request_id: str) -> Optional[DeletionRequest]:
-        """Get deletion request by ID"""
-        try:
-            predicate = (ibis_.id == request_id)
-            results = self.db_manager.select('deletion_requests', predicate=predicate, output_by_row=True)
-            
-            if not results:
-                return None
-            
-            if isinstance(results, list) and results:
-                row = results[0]
-            elif isinstance(results, dict):
-                row = results
-            else:
-                return None
-            
-            # Defensive extraction for possible list values
-            def extract_first(val):
-                if isinstance(val, list):
-                    return val[0] if val else None
-                return val
-            req_id = extract_first(row['id'])
-            flow_id_val = extract_first(row['flow_id'])
-            timerange_val = extract_first(row['timerange'])
-            status_val = extract_first(row['status'])
-            created_val = extract_first(row['created'])
-            updated_val = extract_first(row['updated'])
-            if not (req_id and flow_id_val and timerange_val and status_val and created_val):
-                return None
-            request = DeletionRequest(
-                request_id=str(req_id),
-                flow_id=uuid.UUID(flow_id_val) if not isinstance(flow_id_val, uuid.UUID) else flow_id_val,
-                timerange=timerange_val,
-                status=str(status_val),
-                created=created_val if isinstance(created_val, datetime) else datetime.fromisoformat(str(created_val)),
-                updated=None if not updated_val else (updated_val if isinstance(updated_val, datetime) else datetime.fromisoformat(str(updated_val)))
-            )
-            
-            return request
-            
-        except Exception as e:
-            logger.error(f"Failed to get deletion request {request_id}: {e}")
-            return None 
-
-    async def delete_source(self, source_id: str, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system") -> bool:
-        """
-        Delete a source from the VAST store by its unique identifier.
-
-        Args:
-            source_id (str): The unique identifier of the source to delete.
-            soft_delete (bool): If True, mark as deleted instead of physically removing.
-            cascade (bool): If True, also delete associated flows.
-            deleted_by (str): User or system performing the deletion.
-
-        Returns:
-            bool: True if the source was deleted, False if not found or deletion failed.
-        """
-        try:
-            if soft_delete:
-                # Soft delete - mark as deleted
-                success = await self.soft_delete_record('sources', source_id, deleted_by)
-                if success and cascade:
-                    # Also soft delete associated flows
-                    flows = await self.list_flows({'source_id': source_id})
-                    for flow in flows:
-                        await self.delete_flow(str(flow.id), soft_delete=True, cascade=True, deleted_by=deleted_by)
-                return success
-            else:
-                # Hard delete - physically remove
-                if cascade:
-                    # Also hard delete associated flows
-                    flows = await self.list_flows({'source_id': source_id})
-                    for flow in flows:
-                        await self.delete_flow(str(flow.id), soft_delete=False, cascade=True, deleted_by=deleted_by)
-                
-                # Delete from VAST database
-                from ibis import _ as ibis_
-                predicate = (ibis_.id == source_id)
-                deleted_count = self.db_manager.delete('sources', predicate)
-                if deleted_count > 0:
-                    logger.info(f"Hard deleted source {source_id} from VAST store")
-                    return True
-                else:
-                    logger.warning(f"Source {source_id} not found for hard deletion")
-                    return False
-        except Exception as e:
-            logger.error(f"Failed to delete source {source_id}: {e}")
-            return False 
-
-    async def delete_object(self, object_id: str, soft_delete: bool = True, deleted_by: str = "system") -> bool:
-        """
-        Delete an object from the VAST store by its unique identifier.
-
-        Args:
-            object_id (str): The unique identifier of the object to delete.
-            soft_delete (bool): If True, mark as deleted instead of physically removing.
-            deleted_by (str): User or system performing the deletion.
-
-        Returns:
-            bool: True if the object was deleted, False if not found or deletion failed.
-        """
-        try:
-            if soft_delete:
-                # Soft delete - mark as deleted
-                success = await self.soft_delete_record('objects', object_id, deleted_by)
-                return success
-            else:
-                # Hard delete - physically remove
-                from ibis import _ as ibis_
-                predicate = (ibis_.object_id == object_id)
-                deleted_count = self.db_manager.delete('objects', predicate)
-                if deleted_count > 0:
-                    logger.info(f"Hard deleted object {object_id} from VAST store")
-                    return True
-                else:
-                    logger.warning(f"Object {object_id} not found for hard deletion")
-                    return False
-        except Exception as e:
-            logger.error(f"Failed to delete object {object_id}: {e}")
-            return False 
-
-    # Authentication methods
-    async def create_user(self, user: User) -> bool:
-        """Create a new user in VAST store"""
-        try:
-            user_data = {
-                'user_id': user.user_id,
-                'username': user.username,
-                'email': user.email or "",
-                'full_name': user.full_name or "",
-                'is_active': user.is_active,
-                'is_admin': user.is_admin,
-                'password_hash': user.password_hash or "",
-                'password_salt': user.password_salt or "",
-                'password_changed_at': user.password_changed_at or datetime.now(timezone.utc),
-                'failed_login_attempts': user.failed_login_attempts,
-                'locked_until': user.locked_until,
-                'last_login_at': user.last_login_at,
-                'last_login_ip': user.last_login_ip or "",
-                'created_by': user.created_by or "system",
-                'updated_by': user.updated_by or "system",
-                'created': user.created or datetime.now(timezone.utc),
-                'updated': user.updated or datetime.now(timezone.utc),
-                'metadata': self._dict_to_json(user.metadata or {}),
-                'deleted': False,
-                'deleted_at': None,
-                'deleted_by': None
-            }
-            self.db_manager.insert('users', {k: [v] for k, v in user_data.items()})
-            logger.info(f"Created user {user.username} in VAST store")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to create user {user.username}: {e}")
-            return False
-
-    async def get_user(self, user_id: str) -> Optional[User]:
-        """Get user by ID"""
-        try:
-            predicate = (ibis_.user_id == user_id)
-            predicate = self._add_soft_delete_predicate(predicate)
-            results = self.db_manager.select('users', predicate=predicate, output_by_row=True)
-            
-            if not results:
-                return None
-            
-            if isinstance(results, list) and results:
-                row = results[0]
-            elif isinstance(results, dict):
-                row = results
-            else:
-                return None
-            
-            user_data = {
-                'user_id': row['user_id'],
-                'username': row['username'],
-                'email': row['email'] if row['email'] else None,
-                'full_name': row['full_name'] if row['full_name'] else None,
-                'is_active': row['is_active'],
-                'is_admin': row['is_admin'],
-                'password_hash': row['password_hash'] if row['password_hash'] else None,
-                'password_salt': row['password_salt'] if row['password_salt'] else None,
-                'password_changed_at': row['password_changed_at'],
-                'failed_login_attempts': row['failed_login_attempts'],
-                'locked_until': row['locked_until'],
-                'last_login_at': row['last_login_at'],
-                'last_login_ip': row['last_login_ip'] if row['last_login_ip'] else None,
-                'created_by': row['created_by'] if row['created_by'] else None,
-                'updated_by': row['updated_by'] if row['updated_by'] else None,
-                'created': row['created'],
-                'updated': row['updated'],
-                'metadata': self._json_to_dict(row['metadata']),
-                'deleted': row.get('deleted', False),
-                'deleted_at': row.get('deleted_at'),
-                'deleted_by': row.get('deleted_by')
-            }
-            
-            return User(**user_data)
-            
-        except Exception as e:
-            logger.error(f"Failed to get user {user_id}: {e}")
-            return None
-
-    async def get_user_by_username(self, username: str) -> Optional[User]:
-        """Get user by username"""
-        try:
-            predicate = (ibis_.username == username)
-            predicate = self._add_soft_delete_predicate(predicate)
-            results = self.db_manager.select('users', predicate=predicate, output_by_row=True)
-            
-            if not results:
-                return None
-            
-            if isinstance(results, list) and results:
-                row = results[0]
-            elif isinstance(results, dict):
-                row = results
-            else:
-                return None
-            
-            user_data = {
-                'user_id': row['user_id'],
-                'username': row['username'],
-                'email': row['email'] if row['email'] else None,
-                'full_name': row['full_name'] if row['full_name'] else None,
-                'is_active': row['is_active'],
-                'is_admin': row['is_admin'],
-                'password_hash': row['password_hash'] if row['password_hash'] else None,
-                'password_salt': row['password_salt'] if row['password_salt'] else None,
-                'password_changed_at': row['password_changed_at'],
-                'failed_login_attempts': row['failed_login_attempts'],
-                'locked_until': row['locked_until'],
-                'last_login_at': row['last_login_at'],
-                'last_login_ip': row['last_login_ip'] if row['last_login_ip'] else None,
-                'created_by': row['created_by'] if row['created_by'] else None,
-                'updated_by': row['updated_by'] if row['updated_by'] else None,
-                'created': row['created'],
-                'updated': row['updated'],
-                'metadata': self._json_to_dict(row['metadata']),
-                'deleted': row.get('deleted', False),
-                'deleted_at': row.get('deleted_at'),
-                'deleted_by': row.get('deleted_by')
-            }
-            
-            return User(**user_data)
-            
-        except Exception as e:
-            logger.error(f"Failed to get user by username {username}: {e}")
-            return None
-
-    async def list_users(self, filters: Optional[Dict[str, Any]] = None, limit: Optional[int] = None) -> List[User]:
-        """List users with optional filtering"""
-        try:
-            predicate = None
-            if filters:
-                conditions = []
-                if 'is_active' in filters:
-                    conditions.append((ibis_.is_active == filters['is_active']))
-                if 'is_admin' in filters:
-                    conditions.append((ibis_.is_admin == filters['is_admin']))
-                if conditions:
-                    predicate = conditions[0] if len(conditions) == 1 else conditions[0] & conditions[1]
-            
-            predicate = self._add_soft_delete_predicate(predicate)
-            results = self.db_manager.select('users', predicate=predicate, output_by_row=True)
-            
-            if limit and isinstance(results, list):
-                results = results[:limit]
-            
-            users = []
-            if isinstance(results, list):
-                for row in results:
-                    user_data = {
-                        'user_id': row['user_id'],
-                        'username': row['username'],
-                        'email': row['email'] if row['email'] else None,
-                        'full_name': row['full_name'] if row['full_name'] else None,
-                        'is_active': row['is_active'],
-                        'is_admin': row['is_admin'],
-                        'password_hash': row['password_hash'] if row['password_hash'] else None,
-                        'password_salt': row['password_salt'] if row['password_salt'] else None,
-                        'password_changed_at': row['password_changed_at'],
-                        'failed_login_attempts': row['failed_login_attempts'],
-                        'locked_until': row['locked_until'],
-                        'last_login_at': row['last_login_at'],
-                        'last_login_ip': row['last_login_ip'] if row['last_login_ip'] else None,
-                        'created_by': row['created_by'] if row['created_by'] else None,
-                        'updated_by': row['updated_by'] if row['updated_by'] else None,
-                        'created': row['created'],
-                        'updated': row['updated'],
-                        'metadata': self._json_to_dict(row['metadata']),
-                        'deleted': row.get('deleted', False),
-                        'deleted_at': row.get('deleted_at'),
-                        'deleted_by': row.get('deleted_by')
-                    }
-                    users.append(User(**user_data))
-            
-            return users
-            
-        except Exception as e:
-            logger.error(f"Failed to list users: {e}")
-            return []
-
-    async def update_user(self, user_id: str, user: User) -> bool:
-        """Update a user"""
-        try:
-            update_data = {
-                'email': user.email or "",
-                'full_name': user.full_name or "",
-                'is_active': user.is_active,
-                'is_admin': user.is_admin,
-                'password_hash': user.password_hash or "",
-                'password_salt': user.password_salt or "",
-                'password_changed_at': user.password_changed_at or datetime.now(timezone.utc),
-                'failed_login_attempts': user.failed_login_attempts,
-                'locked_until': user.locked_until,
-                'last_login_at': user.last_login_at,
-                'last_login_ip': user.last_login_ip or "",
-                'updated_by': user.updated_by or "system",
-                'updated': datetime.now(timezone.utc),
-                'metadata': self._dict_to_json(user.metadata or {})
-            }
-            
-            predicate = (ibis_.user_id == user_id)
-            predicate = self._add_soft_delete_predicate(predicate)
-            
-            self.db_manager.update('users', update_data, predicate)
-            logger.info(f"Updated user {user_id}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to update user {user_id}: {e}")
-            return False
-
-    async def delete_user(self, user_id: str, soft_delete: bool = True, deleted_by: str = "system") -> bool:
-        """Delete a user"""
-        try:
-            if soft_delete:
-                success = await self.soft_delete_record('users', user_id, deleted_by)
-            else:
-                success = await self.hard_delete_record('users', user_id)
-            
-            if success:
-                logger.info(f"Deleted user {user_id}")
-            return success
-            
-        except Exception as e:
-            logger.error(f"Failed to delete user {user_id}: {e}")
-            return False
-
-    async def create_api_token(self, token: ApiToken) -> bool:
-        """Create a new API token in VAST store"""
-        try:
-            token_data = {
-                'token_id': token.token_id,
-                'user_id': token.user_id,
-                'token_hash': token.token_hash or "",
-                'token_name': token.token_name,
-                'token_type': token.token_type,
-                'permissions': self._dict_to_json(token.permissions or []),
-                'scopes': self._dict_to_json(token.scopes or []),
-                'allowed_ips': self._dict_to_json(token.allowed_ips or []),
-                'is_active': token.is_active,
-                'created_at': token.created_at or datetime.now(timezone.utc),
-                'expires_at': token.expires_at,
-                'last_used_at': token.last_used_at,
-                'last_used_ip': token.last_used_ip or "",
-                'usage_count': token.usage_count,
-                'revoked_at': token.revoked_at,
-                'revoked_by': token.revoked_by or "",
-                'revocation_reason': token.revocation_reason or "",
-                'created_by': token.created_by or "system",
-                'metadata': self._dict_to_json(token.metadata or {}),
-                'deleted': False,
-                'deleted_at': None,
-                'deleted_by': None
-            }
-            self.db_manager.insert('api_tokens', {k: [v] for k, v in token_data.items()})
-            logger.info(f"Created API token {token.token_name} for user {token.user_id}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to create API token: {e}")
-            return False
-
-    async def get_api_token(self, token_id: str) -> Optional[ApiToken]:
-        """Get API token by ID"""
-        try:
-            predicate = (ibis_.token_id == token_id)
-            predicate = self._add_soft_delete_predicate(predicate)
-            results = self.db_manager.select('api_tokens', predicate=predicate, output_by_row=True)
-            
-            if not results:
-                return None
-            
-            if isinstance(results, list) and results:
-                row = results[0]
-            elif isinstance(results, dict):
-                row = results
-            else:
-                return None
-            
-            token_data = {
-                'token_id': row['token_id'],
-                'user_id': row['user_id'],
-                'token_name': row['token_name'],
-                'token_type': row['token_type'],
-                'token_hash': row.get('token_hash'),
-                'permissions': self._json_to_list(row['permissions']),
-                'scopes': self._json_to_list(row['scopes']),
-                'allowed_ips': self._json_to_list(row['allowed_ips']),
-                'is_active': row['is_active'],
-                'created_at': row['created_at'],
-                'expires_at': row['expires_at'],
-                'last_used_at': row['last_used_at'],
-                'last_used_ip': row['last_used_ip'] if row['last_used_ip'] else None,
-                'usage_count': row['usage_count'],
-                'revoked_at': row['revoked_at'],
-                'revoked_by': row['revoked_by'] if row['revoked_by'] else None,
-                'revocation_reason': row['revocation_reason'] if row['revocation_reason'] else None,
-                'created_by': row['created_by'] if row['created_by'] else None,
-                'metadata': self._json_to_dict(row['metadata']),
-                'deleted': row.get('deleted', False),
-                'deleted_at': row.get('deleted_at'),
-                'deleted_by': row.get('deleted_by')
-            }
-            
-            return ApiToken(**token_data)
-            
-        except Exception as e:
-            logger.error(f"Failed to get API token {token_id}: {e}")
-            return None
-
-    async def delete_api_token(self, token_id: str) -> bool:
-        """Delete an API token (soft delete)"""
-        try:
-            # Use soft delete to preserve audit trail
-            predicate = (ibis_.token_id == token_id)
-            predicate = self._add_soft_delete_predicate(predicate)
-            
-            # Get the token first to get the token_id for soft delete
-            token = await self.get_api_token(token_id)
-            if not token:
-                return False
-                
-            success = await self.soft_delete_record('api_tokens', token_id, 'system')
-            if success:
-                logger.info(f"API token {token_id} soft deleted successfully")
-                return True
-            else:
-                logger.warning(f"API token {token_id} not found for deletion")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Failed to delete API token {token_id}: {e}")
-            return False
-
-    async def list_api_tokens(self, user_id: Optional[str] = None, filters: Optional[Dict[str, Any]] = None, limit: Optional[int] = None) -> List[ApiToken]:
-        """List API tokens with optional filtering"""
-        try:
-            predicate = None
-            if user_id:
-                predicate = (ibis_.user_id == user_id)
-            
-            if filters:
-                conditions = []
-                if 'is_active' in filters:
-                    conditions.append((ibis_.is_active == filters['is_active']))
-                if 'token_type' in filters:
-                    conditions.append((ibis_.token_type == filters['token_type']))
-                if conditions:
-                    if predicate:
-                        predicate = predicate & conditions[0] if len(conditions) == 1 else predicate & conditions[0] & conditions[1]
-                    else:
-                        predicate = conditions[0] if len(conditions) == 1 else conditions[0] & conditions[1]
-            
-            predicate = self._add_soft_delete_predicate(predicate)
-            results = self.db_manager.select('api_tokens', predicate=predicate, output_by_row=True)
-            
-            if limit and isinstance(results, list):
-                results = results[:limit]
-            
-            tokens = []
-            if isinstance(results, list):
-                for row in results:
-                    token_data = {
-                        'token_id': row['token_id'],
-                        'user_id': row['user_id'],
-                        'token_name': row['token_name'],
-                        'token_type': row['token_type'],
-                        'permissions': self._json_to_dict(row['permissions']),
-                        'scopes': self._json_to_dict(row['scopes']),
-                        'allowed_ips': self._json_to_dict(row['allowed_ips']),
-                        'is_active': row['is_active'],
-                        'created_at': row['created_at'],
-                        'expires_at': row['expires_at'],
-                        'last_used_at': row['last_used_at'],
-                        'last_used_ip': row['last_used_ip'] if row['last_used_ip'] else None,
-                        'usage_count': row['usage_count'],
-                        'revoked_at': row['revoked_at'],
-                        'revoked_by': row['revoked_by'] if row['revoked_by'] else None,
-                        'revocation_reason': row['revocation_reason'] if row['revocation_reason'] else None,
-                        'created_by': row['created_by'] if row['created_by'] else None,
-                        'metadata': self._json_to_dict(row['metadata']),
-                        'deleted': row.get('deleted', False),
-                        'deleted_at': row.get('deleted_at'),
-                        'deleted_by': row.get('deleted_by')
-                    }
-                    tokens.append(ApiToken(**token_data))
-            
-            return tokens
-            
-        except Exception as e:
-            logger.error(f"Failed to list API tokens: {e}")
-            return []
-
-    async def create_auth_log(self, log: AuthLog) -> bool:
-        """Create an authentication log entry"""
-        try:
-            log_data = {
-                'log_id': log.log_id,
-                'user_id': log.user_id or "",
-                'session_id': log.session_id or "",
-                'event_type': log.event_type,
-                'auth_method': log.auth_method,
-                'success': log.success,
-                'ip_address': log.ip_address or "",
-                'user_agent': log.user_agent or "",
-                'request_path': log.request_path or "",
-                'error_code': log.error_code or "",
-                'error_message': log.error_message or "",
-                'timestamp': log.timestamp or datetime.now(timezone.utc),
-                'metadata': self._dict_to_json(log.metadata or {}),
-                'deleted': False,
-                'deleted_at': None,
-                'deleted_by': None
-            }
-            self.db_manager.insert('auth_logs', {k: [v] for k, v in log_data.items()})
-            return True
-        except Exception as e:
-            logger.error(f"Failed to create auth log: {e}")
-            return False 
-
-    # Column Management Methods
-    def get_table_columns(self, table_name: str) -> pa.Schema:
-        """
-        Get column definitions for a specific table.
-        
-        Args:
-            table_name: Name of the table to get columns for
-            
-        Returns:
-            PyArrow schema containing column definitions
-        """
-        try:
-            return self.db_manager.get_table_columns(table_name)
-        except Exception as e:
-            logger.error(f"Failed to get columns for table {table_name}: {e}")
-            raise
     
     def column_exists(self, table_name: str, column_name: str) -> bool:
         """
@@ -2540,23 +1475,3 @@ class VASTStore:
             logger.error(f"Failed to get column info for {table_name}.{column_name}: {e}")
             return None
 
-    def select(self, table_name: str, predicate=None, columns=None, limit=None, include_row_ids=False):
-        """Select records from a table with optional predicate filtering."""
-        try:
-            # Add soft delete predicate
-            final_predicate = self._add_soft_delete_predicate(predicate)
-            
-            # Query the database
-            result = self.db_manager.select(
-                table_name=table_name,
-                predicate=final_predicate,
-                columns=columns,
-                limit=limit,
-                include_row_ids=include_row_ids
-            )
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error in VASTStore select for table {table_name}: {e}")
-            raise

@@ -48,7 +48,20 @@
    - Need to implement comprehensive stress testing
    - Performance validation under load
 
-### 📋 NEXT PRIORITIES
+5. **Resilience Strategy Update - VAST Native Snapshots** ✅ COMPLETED
+   - **Goal**: Remove app-level resilience code and implement VAST Native snapshots for database and S3
+   - **Previous Approach**: App-level resilience with S3 backup objects (.tams files) ❌ REMOVED
+   - **New Approach**: VAST Native snapshots for both database and S3 storage
+   - **Benefits**: 
+     - Native database consistency guarantees
+     - Point-in-time recovery capabilities
+     - Integrated backup and restore
+     - Better performance (no app-level overhead)
+     - Simplified application code
+   - **Status**: ✅ COMPLETED - Resilience code removed, VAST snapshots documentation created
+   - **Next Steps**: Configure VAST snapshots in infrastructure (pending infrastructure setup)
+
+### �� NEXT PRIORITIES
 1. **Code Review and Testing**
    - Review recent VastDBManager refactoring
    - Validate modular architecture
@@ -102,6 +115,40 @@
 3. **Database Storage**: Ensured the generated `storage_path` is properly stored in the database
 
 **Result**: Now all segments will have the `storage_path` field properly populated, eliminating the need for fallback path generation and ensuring complete consistency between storage allocation and retrieval.
+
+### Resilience Strategy Update - VAST Native Snapshots ✅ COMPLETED
+**Date**: December 2024  
+**Goal**: Replace application-level resilience mechanisms with VAST Native snapshots for better performance and reliability.
+
+#### Previous Approach Limitations:
+- **Performance Impact**: Additional S3 operations during normal workflows
+- **Complexity**: Application code complexity for backup management
+- **Inconsistency Risk**: Potential for database and S3 state mismatches
+- **Maintenance Overhead**: Custom backup logic requiring ongoing maintenance
+
+#### New Approach Benefits:
+- **Native Consistency**: VAST snapshots ensure database and S3 consistency at storage layer
+- **Point-in-Time Recovery**: Ability to restore to any specific point in time
+- **Performance**: No application overhead during normal operations
+- **Integration**: Seamless integration with VAST's distributed architecture
+- **Scalability**: Handles large datasets without performance degradation
+- **Automation**: Can be automated and integrated with backup policies
+
+#### Implementation Completed:
+1. **Code Removal**: ✅ Removed all application-level resilience code
+   - Removed `_create_source_resilience_object()`, `_create_flow_resilience_object()`, and `_create_flow_segment_resilience_object()` methods from VASTStore
+   - Removed `_store_resilience_object()` and `_create_object_metadata_backup()` methods from S3Store
+   - Cleaned up test files and removed resilience-related mocking
+2. **Documentation**: ✅ Created comprehensive VAST Native snapshots guide
+   - `docs/VAST_NATIVE_SNAPSHOTS_RESILIENCE.md` with complete configuration examples
+   - Disaster recovery procedures and best practices
+   - Monitoring and maintenance guidance
+3. **Git Reset**: ✅ Reverted to clean commit `039e465` (before resilience was added)
+
+#### Next Steps:
+- Configure VAST snapshots in infrastructure (pending infrastructure setup)
+- Implement disaster recovery procedures
+- Set up monitoring and alerting for snapshot health
 
 ### Simplified VastDBManager Caching System ✅
 **Commit**: `1169305` - Simplify VASTDBManager caching system - remove complex background operations

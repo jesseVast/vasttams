@@ -159,17 +159,15 @@ async def create_new_flow_segment(
 async def delete_flow_segments_by_id(
     flow_id: str,
     timerange: Optional[str] = Query(None, description="Time range to delete"),
-    soft_delete: bool = Query(True, description="Use soft delete"),
-    deleted_by: str = Query("system", description="User performing the deletion"),
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Delete segments for a flow"""
+    """Delete segments for a flow (hard delete only - TAMS compliant)"""
     try:
         await check_flow_read_only(store, flow_id)
-        success = await delete_flow_segments(store, flow_id, timerange, soft_delete, deleted_by)
+        success = await delete_flow_segments(store, flow_id, timerange)
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")
-        return {"message": "Segments deleted successfully"}
+        return {"message": "Segments hard deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:

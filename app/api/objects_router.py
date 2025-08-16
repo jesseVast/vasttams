@@ -104,16 +104,14 @@ async def create_objects_batch(
 @router.delete("/objects/{object_id}")
 async def delete_object_by_id(
     object_id: str,
-    soft_delete: bool = Query(True, description="Use soft delete"),
-    deleted_by: str = Query("system", description="User performing the deletion"),
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Delete an object"""
+    """Delete an object (hard delete only - TAMS compliant)"""
     try:
-        success = await delete_object(store, object_id, soft_delete, deleted_by)
+        success = await delete_object(store, object_id)
         if not success:
             raise HTTPException(status_code=404, detail="Object not found")
-        return {"message": "Object deleted successfully"}
+        return {"message": "Object hard deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:

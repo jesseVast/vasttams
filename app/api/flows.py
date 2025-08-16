@@ -71,10 +71,10 @@ async def update_flow(store: VASTStore, flow_id: str, flow: Flow) -> Optional[Fl
         logger.error(f"Failed to update flow {flow_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def delete_flow(store: VASTStore, flow_id: str, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system") -> bool:
-    """Delete a flow"""
+async def delete_flow(store: VASTStore, flow_id: str, cascade: bool = True) -> bool:
+    """Delete a flow (hard delete only - TAMS compliant)"""
     try:
-        success = await store.delete_flow(flow_id, soft_delete=soft_delete, cascade=cascade, deleted_by=deleted_by)
+        success = await store.delete_flow(flow_id, cascade=cascade)
         return success
     except Exception as e:
         logger.error(f"Failed to delete flow {flow_id}: {e}")
@@ -183,7 +183,7 @@ class FlowManager:
             logger.error(f"Failed to update flow {flow_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def delete_flow(self, flow_id: str, store: Optional[VASTStore] = None, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system"):
+    async def delete_flow(self, flow_id: str, store: Optional[VASTStore] = None, cascade: bool = True):
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
@@ -191,13 +191,12 @@ class FlowManager:
             # Check if flow is read-only before deleting
             await self._check_flow_read_only(flow_id, store)
             
-            success = await store.delete_flow(flow_id, soft_delete=soft_delete, cascade=cascade, deleted_by=deleted_by)
+            success = await store.delete_flow(flow_id, cascade=cascade)
             if not success:
                 raise HTTPException(status_code=404, detail="Flow not found")
             
-            delete_type = "soft deleted" if soft_delete else "hard deleted"
             cascade_msg = " with cascade" if cascade else ""
-            return {"message": f"Flow {delete_type}{cascade_msg}"}
+            return {"message": f"Flow hard deleted{cascade_msg}"}
         except HTTPException:
             raise
         except Exception as e:

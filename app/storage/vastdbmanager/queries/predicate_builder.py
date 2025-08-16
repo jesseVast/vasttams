@@ -127,17 +127,13 @@ class PredicateBuilder:
                 elif operator == 'is_not_null':
                     return column_ref.notnull()
                 elif operator == 'or':
-                    # Handle OR operations for soft delete scenarios
+                    # Handle OR operations
                     if isinstance(value, (list, tuple)):
                         # Convert to Ibis OR expression
-                        if len(value) == 2:
-                            # Special case for soft delete: (deleted.isnull() | (deleted == False))
-                            if value[0] is None and value[1] is False:
-                                return column_ref.isnull() | (column_ref == False)
-                            else:
-                                # Generic OR for other values
-                                converted_values = [self._convert_timestamp_value(v) for v in value]
-                                return column_ref.isin(converted_values)
+                        if len(value) >= 2:
+                            # Generic OR for multiple values
+                            converted_values = [self._convert_timestamp_value(v) for v in value]
+                            return column_ref.isin(converted_values)
                         else:
                             logger.warning(f"Invalid 'or' value for column {column}: {value}")
                             return None
@@ -239,11 +235,7 @@ class PredicateBuilder:
             
             # Handle OR operations: (left | right) - check this second
             elif ' | ' in predicate_str:
-                # For soft delete: (_.deleted.isnull() | (_.deleted == False))
-                if 'deleted.isnull()' in predicate_str and 'deleted == False' in predicate_str:
-                    return {'deleted': {'or': [None, False]}}
-                
-                # For other OR operations, extract the first valid predicate
+                # For OR operations, extract the first valid predicate
                 left_part = predicate_str.split(' | ')[0]
                 right_part = predicate_str.split(' | ')[1]
                 

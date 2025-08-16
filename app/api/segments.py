@@ -35,10 +35,10 @@ async def create_flow_segment(store: VASTStore, flow_id: str, segment: FlowSegme
         logger.error(f"Failed to create flow segment for {flow_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def delete_flow_segments(store: VASTStore, flow_id: str, timerange: Optional[str] = None, soft_delete: bool = True, deleted_by: str = "system") -> bool:
-    """Delete flow segments"""
+async def delete_flow_segments(store: VASTStore, flow_id: str, timerange: Optional[str] = None) -> bool:
+    """Delete flow segments (hard delete only - TAMS compliant)"""
     try:
-        success = await store.delete_flow_segments(flow_id, timerange=timerange, soft_delete=soft_delete, deleted_by=deleted_by)
+        success = await store.delete_flow_segments(flow_id, timerange=timerange)
         return success
     except Exception as e:
         logger.error(f"Failed to delete flow segments for {flow_id}: {e}")
@@ -143,18 +143,17 @@ class SegmentManager:
             logger.error(f"Failed to create segment for flow {flow_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def delete_segments(self, flow_id: str, timerange: Optional[str], store: Optional[VASTStore] = None, soft_delete: bool = True, deleted_by: str = "system"):
+    async def delete_segments(self, flow_id: str, timerange: Optional[str], store: Optional[VASTStore] = None):
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
         try:
-            success = await store.delete_flow_segments(flow_id, timerange=timerange, soft_delete=soft_delete, deleted_by=deleted_by)
+            success = await store.delete_flow_segments(flow_id, timerange=timerange)
             if not success:
                 raise HTTPException(status_code=404, detail="Flow not found")
             
-            delete_type = "soft deleted" if soft_delete else "hard deleted"
             timerange_msg = f" in timerange {timerange}" if timerange else ""
-            return {"message": f"Segments {delete_type}{timerange_msg}"}
+            return {"message": f"Segments hard deleted{timerange_msg}"}
         except HTTPException:
             raise
         except Exception as e:

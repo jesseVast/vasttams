@@ -943,7 +943,7 @@ class VASTStore:
         """Get flow segment metadata from VAST DB and data from S3"""
         try:
             # First get all segments for the flow (no timerange filtering at DB level)
-            predicate = (ibis_.flow_id == flow_id)
+            predicate = (ibis_.id == flow_id)
             
             # Add soft delete filtering
             predicate = self._add_soft_delete_predicate(predicate)
@@ -1443,13 +1443,13 @@ class VASTStore:
             elif table_name == 'sources':
                 predicate = (ibis_.id == record_id)
             elif table_name == 'flows':
-                predicate = (ibis_.flow_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'segments':
-                predicate = (ibis_.segment_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'webhooks':
-                predicate = (ibis_.webhook_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'deletion_requests':
-                predicate = (ibis_.request_id == record_id)
+                predicate = (ibis_.id == record_id)
             else:
                 # Default fallback for other tables
                 predicate = (ibis_.id == record_id)
@@ -1482,13 +1482,13 @@ class VASTStore:
             elif table_name == 'sources':
                 predicate = (ibis_.id == record_id)
             elif table_name == 'flows':
-                predicate = (ibis_.flow_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'segments':
-                predicate = (ibis_.segment_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'webhooks':
-                predicate = (ibis_.webhook_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'deletion_requests':
-                predicate = (ibis_.request_id == record_id)
+                predicate = (ibis_.id == record_id)
             else:
                 # Default fallback for other tables
                 predicate = (ibis_.id == record_id)
@@ -1528,13 +1528,13 @@ class VASTStore:
             elif table_name == 'sources':
                 predicate = (ibis_.id == record_id)
             elif table_name == 'flows':
-                predicate = (ibis_.flow_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'segments':
-                predicate = (ibis_.segment_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'webhooks':
-                predicate = (ibis_.webhook_id == record_id)
+                predicate = (ibis_.id == record_id)
             elif table_name == 'deletion_requests':
-                predicate = (ibis_.request_id == record_id)
+                predicate = (ibis_.id == record_id)
             else:
                 # Default fallback for other tables
                 predicate = (ibis_.id == record_id)
@@ -1741,7 +1741,7 @@ class VASTStore:
                     await self.s3_store.delete_flow_segment(flow_id, segment.object_id, segment.timerange)
                 
                 # Delete from VAST database
-                predicate = (ibis_.flow_id == flow_id)
+                predicate = (ibis_.id == flow_id)
                 if timerange:
                     target_start, target_end, _ = self._parse_timerange(timerange)
                     predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)

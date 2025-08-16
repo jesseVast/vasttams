@@ -8,37 +8,12 @@ automatically available to all tests in the test suite.
 import pytest
 import os
 import sys
-from unittest.mock import patch
-from tests.test_config import TestEnvironment, setup_test_environment, cleanup_test_environment
-
 
 # Add the app directory to the Python path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_session():
-    """Set up test session environment"""
-    # Set up test environment for the entire test session
-    patches, env_file_path = setup_test_environment()
-    
-    # Start all patches
-    for patch_obj in patches:
-        patch_obj.start()
-    
-    yield
-    
-    # Stop all patches and cleanup
-    for patch_obj in patches:
-        patch_obj.stop()
-    cleanup_test_environment(env_file_path)
-
-
-@pytest.fixture(autouse=True)
-def setup_test_environment_fixture():
-    """Set up test environment for each test"""
-    with TestEnvironment():
-        yield
+# Import the centralized test harness
+from tests.real_tests.test_harness import test_harness
 
 
 # Global test configuration
@@ -75,21 +50,22 @@ def pytest_collection_modifyitems(config, items):
 def override_env_vars():
     """Override environment variables for testing"""
     env_overrides = {
-        'VAST_ENDPOINTS': '["http://localhost:8080"]',
-        'VAST_ENDPOINT': 'http://localhost:8080',
-        'VAST_ACCESS_KEY': 'test-access-key',
-        'VAST_SECRET_KEY': 'test-secret-key',
-        'VAST_BUCKET': 'test-bucket',
-        'VAST_SCHEMA': 'test-schema',
-        'S3_ENDPOINT_URL': 'http://localhost:9000',
-        'S3_ACCESS_KEY_ID': 'test-s3-access-key',
-        'S3_SECRET_ACCESS_KEY': 'test-s3-secret-key',
-        'S3_BUCKET_NAME': 'test-s3-bucket',
+        'VAST_ENDPOINT': 'http://172.200.204.90',
+        'VAST_ACCESS_KEY': 'SRSPW0DQT9T70Y787U68',
+        'VAST_SECRET_KEY': 'WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr',
+        'VAST_BUCKET': 'jthaloor-db',
+        'VAST_SCHEMA': 'tams7',
+        'S3_ENDPOINT_URL': 'http://172.200.204.91',
+        'S3_ACCESS_KEY_ID': 'SRSPW0DQT9T70Y787U68',
+        'S3_SECRET_ACCESS_KEY': 'WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr',
+        'S3_BUCKET_NAME': 'jthaloor-s3',
         'S3_USE_SSL': 'false',
+        'HOST': '0.0.0.0',
+        'PORT': '8000',
         'DEBUG': 'true',
         'LOG_LEVEL': 'DEBUG',
     }
     
-    # Apply overrides
-    with patch.dict(os.environ, env_overrides):
-        yield
+    # The test harness already sets up the environment with TAMS_ prefix
+    # This fixture is kept for backward compatibility but uses the harness
+    return test_harness.get_test_config()

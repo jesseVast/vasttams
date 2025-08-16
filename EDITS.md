@@ -61,16 +61,11 @@ Updated the resilience strategy from application-level resilience mechanisms to 
 - Metadata preservation
 - Automated scheduling
 
-### Configuration Examples:
-```bash
-# Database snapshots
-vast snapshot enable --database tams_db
-vast snapshot policy set --database tams_db --retention-daily 7
-
-# S3 snapshots
-vast s3 snapshot enable --bucket tams-media-bucket
-vast s3 replication set --bucket tams-media-bucket --destination-region us-west-2
-```
+### Configuration Approach:
+- **Database Snapshots**: Configure through VAST management interface or API
+- **S3 Snapshots**: Configure through VAST S3 management interface
+- **Retention Policies**: Set appropriate retention based on business requirements
+- **Scheduling**: Configure during low-usage periods to minimize impact
 
 ## Implementation Strategy
 

@@ -120,39 +120,24 @@ s3_snapshots:
 
 ### VAST Database Snapshot Configuration
 
-```bash
-# Enable database snapshots
-vast snapshot enable --database tams_db
+VAST provides native database snapshot capabilities that should be configured through the VAST management interface or API. The specific configuration will depend on your VAST deployment and requirements.
 
-# Configure retention policy
-vast snapshot policy set --database tams_db \
-  --retention-daily 7 \
-  --retention-weekly 4 \
-  --retention-monthly 12
-
-# Schedule automated snapshots
-vast snapshot schedule set --database tams_db \
-  --daily "02:00" \
-  --weekly "Sunday 03:00" \
-  --monthly "1st 04:00"
-```
+#### Recommended Configuration:
+- **Retention Policy**: Daily snapshots for 7 days, weekly for 4 weeks, monthly for 12 months
+- **Scheduling**: During low-usage periods (e.g., 2 AM daily, Sunday 3 AM weekly, 1st of month 4 AM monthly)
+- **Compression**: Enable for storage efficiency
+- **Encryption**: Enable for security compliance
 
 ### VAST S3 Snapshot Configuration
 
-```bash
-# Enable S3 bucket snapshots
-vast s3 snapshot enable --bucket tams-media-bucket
+VAST's S3-compatible storage supports native snapshots that should be configured through the VAST management interface.
 
-# Configure cross-region replication
-vast s3 replication set --bucket tams-media-bucket \
-  --destination-region us-west-2 \
-  --encryption AES256
-
-# Set snapshot retention
-vast s3 snapshot policy set --bucket tams-media-bucket \
-  --retention 30 \
-  --compression true
-```
+#### Recommended Configuration:
+- **Bucket Snapshots**: Enable for all TAMS media buckets
+- **Retention**: 30 days with compression enabled
+- **Cross-Region Replication**: Enable for disaster recovery across regions
+- **Scheduling**: Every 6 hours starting at midnight
+- **Encryption**: Use AES256 encryption for security compliance
 
 ## Monitoring and Maintenance
 

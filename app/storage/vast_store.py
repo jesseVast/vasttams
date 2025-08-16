@@ -1336,6 +1336,171 @@ class VASTStore:
         """List all schemas in the bucket"""
         return self.db_manager.list_schemas()
     
+    async def delete_source(self, source_id: str, cascade: bool = True) -> bool:
+        """
+        Delete a source from the VAST store by its unique identifier.
+        
+        Args:
+            source_id (str): The unique identifier of the source to delete.
+            cascade (bool): If True, also delete associated flows and segments.
+            
+        Returns:
+            bool: True if the source was deleted, False if not found or deletion failed.
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            # First check if source exists
+            predicate = (ibis_.id == source_id)
+            results = self.db_manager.select('sources', predicate=predicate, output_by_row=True)
+            
+            if not results:
+                logger.warning(f"Source {source_id} not found for deletion")
+                return False
+            
+            if cascade:
+                # Get associated flows first
+                flows = await self.list_flows({'source_id': source_id})
+                for flow in flows:
+                    await self.delete_flow(str(flow.id), cascade=True)
+            
+            # Delete the source
+            deleted_count = self.db_manager.delete('sources', predicate)
+            
+            if deleted_count > 0:
+                logger.info(f"Hard deleted source {source_id}")
+                return True
+            else:
+                logger.warning(f"Source {source_id} not found for deletion")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to delete source {source_id}: {e}")
+            return False
+    
+    async def delete_flow(self, flow_id: str, cascade: bool = True) -> bool:
+        """
+        Delete a flow from the VAST store by its unique identifier.
+        
+        Args:
+            flow_id (str): The unique identifier of the flow to delete.
+            cascade (bool): If True, also delete associated segments.
+            
+        Returns:
+            bool: True if the flow was deleted, False if not found or deletion failed.
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            # First check if flow exists
+            predicate = (ibis_.id == flow_id)
+            results = self.db_manager.select('flows', predicate=predicate, output_by_row=True)
+            
+            if not results:
+                logger.warning(f"Flow {flow_id} not found for deletion")
+                return False
+            
+            if cascade:
+                # Delete associated segments first
+                await self.delete_flow_segments(flow_id)
+            
+            # Delete the flow
+            deleted_count = self.db_manager.delete('flows', predicate)
+            
+            if deleted_count > 0:
+                logger.info(f"Hard deleted flow {flow_id}")
+                return True
+            else:
+                logger.warning(f"Flow {flow_id} not found for deletion")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to delete flow {flow_id}: {e}")
+            return False
+    
+    async def delete_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> bool:
+        """
+        Delete flow segments for a specific flow.
+        
+        Args:
+            flow_id (str): The unique identifier of the flow.
+            timerange (Optional[str]): Optional timerange filter for segments to delete.
+            
+        Returns:
+            bool: True if segments were deleted, False if deletion failed.
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            # Get segments to delete
+            segments = await self.get_flow_segments(flow_id, timerange)
+            
+            if not segments:
+                logger.info(f"No segments found for flow {flow_id}")
+                return True
+            
+            # Delete segments from S3 first
+            for segment in segments:
+                if segment.storage_path:
+                    try:
+                        self.s3_store.delete_object(segment.storage_path)
+                        logger.debug(f"Deleted S3 object: {segment.storage_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to delete S3 object {segment.storage_path}: {e}")
+            
+            # Delete segments from VAST database
+            predicate = (ibis_.flow_id == flow_id)
+            if timerange:
+                predicate = predicate & (ibis_.timerange == timerange)
+            
+            deleted_count = self.db_manager.delete('segments', predicate)
+            
+            if deleted_count > 0:
+                logger.info(f"Hard deleted {deleted_count} segments for flow {flow_id}")
+                return True
+            else:
+                logger.warning(f"No segments found for flow {flow_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to delete flow segments for flow {flow_id}: {e}")
+            return False
+    
+    async def delete_object(self, object_id: str) -> bool:
+        """
+        Delete an object from the VAST store by its unique identifier.
+        
+        Args:
+            object_id (str): The unique identifier of the object to delete.
+            
+        Returns:
+            bool: True if the object was deleted, False if not found or deletion failed.
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            # First check if object exists
+            predicate = (ibis_.object_id == object_id)
+            results = self.db_manager.select('objects', predicate=predicate, output_by_row=True)
+            
+            if not results:
+                logger.warning(f"Object {object_id} not found for deletion")
+                return False
+            
+            # Delete the object
+            deleted_count = self.db_manager.delete('objects', predicate)
+            
+            if deleted_count > 0:
+                logger.info(f"Hard deleted object {object_id}")
+                return True
+            else:
+                logger.warning(f"Object {object_id} not found for deletion")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to delete object {object_id}: {e}")
+            return False
+    
     async def close(self):
         """Close VAST store and cleanup resources"""
         logger.info("Closing VAST store")

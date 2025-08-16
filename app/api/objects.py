@@ -32,10 +32,10 @@ async def create_object(store: VASTStore, obj: Object) -> bool:
         logger.error(f"Failed to create object: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def delete_object(store: VASTStore, object_id: str, soft_delete: bool = True, deleted_by: str = "system") -> bool:
-    """Delete an object"""
+async def delete_object(store: VASTStore, object_id: str) -> bool:
+    """Delete an object (hard delete only - TAMS compliant)"""
     try:
-        success = await store.delete_object(object_id, soft_delete=soft_delete, deleted_by=deleted_by)
+        success = await store.delete_object(object_id)
         return success
     except Exception as e:
         logger.error(f"Failed to delete object {object_id}: {e}")
@@ -78,17 +78,16 @@ class ObjectManager:
             logger.error(f"Failed to create object: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def delete_object(self, object_id: str, store: Optional[VASTStore] = None, soft_delete: bool = True, deleted_by: str = "system"):
+    async def delete_object(self, object_id: str, store: Optional[VASTStore] = None):
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
         try:
-            success = await store.delete_object(object_id, soft_delete=soft_delete, deleted_by=deleted_by)
+            success = await store.delete_object(object_id)
             if not success:
                 raise HTTPException(status_code=404, detail="Object not found")
             
-            delete_type = "soft deleted" if soft_delete else "hard deleted"
-            return {"message": f"Object {delete_type}"}
+            return {"message": "Object hard deleted"}
         except HTTPException:
             raise
         except Exception as e:

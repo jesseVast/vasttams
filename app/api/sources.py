@@ -49,10 +49,10 @@ async def create_source(store: VASTStore, source: Source) -> bool:
         logger.error(f"Failed to create source: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def delete_source(store: VASTStore, source_id: str, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system") -> bool:
-    """Delete a source"""
+async def delete_source(store: VASTStore, source_id: str, cascade: bool = True) -> bool:
+    """Delete a source (hard delete only - TAMS compliant)"""
     try:
-        success = await store.delete_source(source_id, soft_delete=soft_delete, cascade=cascade, deleted_by=deleted_by)
+        success = await store.delete_source(source_id, cascade=cascade)
         return success
     except Exception as e:
         logger.error(f"Failed to delete source {source_id}: {e}")
@@ -110,18 +110,17 @@ class SourceManager:
             logger.error(f"Failed to create source: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def delete_source(self, source_id: str, store: Optional[VASTStore] = None, soft_delete: bool = True, cascade: bool = True, deleted_by: str = "system"):
+    async def delete_source(self, source_id: str, store: Optional[VASTStore] = None, cascade: bool = True):
         store = store or self.store
         if store is None:
             raise HTTPException(status_code=500, detail="VAST store is not initialized")
         try:
-            success = await store.delete_source(source_id, soft_delete=soft_delete, cascade=cascade, deleted_by=deleted_by)
+            success = await store.delete_source(source_id, cascade=cascade)
             if not success:
                 raise HTTPException(status_code=404, detail="Source not found")
             
-            delete_type = "soft deleted" if soft_delete else "hard deleted"
             cascade_msg = " with cascade" if cascade else ""
-            return {"message": f"Source {delete_type}{cascade_msg}"}
+            return {"message": f"Source hard deleted{cascade_msg}"}
         except HTTPException:
             raise
         except Exception as e:

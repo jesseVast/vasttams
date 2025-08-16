@@ -134,18 +134,16 @@ async def update_flow_by_id(
 @router.delete("/flows/{flow_id}")
 async def delete_flow_by_id(
     flow_id: str,
-    soft_delete: bool = Query(True, description="Use soft delete"),
     cascade: bool = Query(True, description="Cascade delete related segments"),
-    deleted_by: str = Query("system", description="User performing the deletion"),
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Delete a flow"""
+    """Delete a flow (hard delete only - TAMS compliant)"""
     try:
         await check_flow_read_only(store, flow_id)
-        success = await delete_flow(store, flow_id, soft_delete, cascade, deleted_by)
+        success = await delete_flow(store, flow_id, cascade)
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")
-        return {"message": "Flow deleted successfully"}
+        return {"message": "Flow hard deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:

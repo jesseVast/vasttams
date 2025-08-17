@@ -20,6 +20,7 @@ import asyncio
 import aiohttp
 import json
 import tempfile
+import requests
 from pathlib import Path
 
 # Add the project root to the path for imports
@@ -35,13 +36,14 @@ class TestEndToEndWorkflow:
         self.base_url = "http://localhost:8000"
         self.test_data = {}
         
-    async def create_test_file(self, filename: str, size_mb: int = 1) -> tuple[str, int]:
+    async def create_test_file(self, filename: str, size_mb: float = 1) -> tuple[str, int]:
         """Create a temporary test file and return its path and size"""
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=f"_{filename}")
         temp_path = temp_file.name
         
-        # Create file with random content (size_mb MB)
-        content = os.urandom(size_mb * 1024 * 1024)
+        # Create file with random content (size_mb MB, supports fractional sizes)
+        size_bytes = int(size_mb * 1024 * 1024)
+        content = os.urandom(size_bytes)
         temp_file.write(content)
         temp_file.close()
         
@@ -112,9 +114,9 @@ class TestEndToEndWorkflow:
                 # Step 3: Upload two objects (obj-1, obj-2) to flow-1
                 print("📝 Step 3: Uploading objects obj-1 and obj-2 to flow-1")
                 
-                # Create test files
-                obj_1_path, obj_1_size = await self.create_test_file("obj-1.mp4", 2)
-                obj_2_path, obj_2_size = await self.create_test_file("obj-2.mp4", 3)
+                # Create test files (100KB each)
+                obj_1_path, obj_1_size = await self.create_test_file("obj-1.mp4", 0.1)  # 100KB
+                obj_2_path, obj_2_size = await self.create_test_file("obj-2.mp4", 0.1)  # 100KB
                 
                 try:
                     # Get storage allocation for flow-1
@@ -138,27 +140,37 @@ class TestEndToEndWorkflow:
                                     print(f"   ❌ Invalid presigned URL structure")
                                     return False
                                 
-                                # Upload obj-1
+                                # Upload obj-1 using requests
                                 print(f"   📤 Uploading obj-1 ({obj_1_size} bytes)")
-                                with open(obj_1_path, 'rb') as f:
-                                    async with session.put(obj_1_url, data=f) as upload_response:
-                                        if upload_response.status in [200, 201]:
+                                try:
+                                    with open(obj_1_path, 'rb') as f:
+                                        upload_response = requests.put(obj_1_url, data=f, timeout=30)
+                                        if upload_response.status_code in [200, 201]:
                                             print(f"   ✅ Obj-1 uploaded successfully")
                                             self.test_data['obj_1_id'] = media_objects[0].get('object_id')
                                         else:
-                                            print(f"   ❌ Obj-1 upload failed: {upload_response.status}")
+                                            print(f"   ❌ Obj-1 upload failed: {upload_response.status_code}")
+                                            print(f"   📄 Response: {upload_response.text}")
                                             return False
+                                except Exception as e:
+                                    print(f"   ❌ Obj-1 upload error: {e}")
+                                    return False
                                 
-                                # Upload obj-2
+                                # Upload obj-2 using requests
                                 print(f"   📤 Uploading obj-2 ({obj_2_size} bytes)")
-                                with open(obj_2_path, 'rb') as f:
-                                    async with session.put(obj_2_url, data=f) as upload_response:
-                                        if upload_response.status in [200, 201]:
+                                try:
+                                    with open(obj_2_path, 'rb') as f:
+                                        upload_response = requests.put(obj_2_url, data=f, timeout=30)
+                                        if upload_response.status_code in [200, 201]:
                                             print(f"   ✅ Obj-2 uploaded successfully")
                                             self.test_data['obj_2_id'] = media_objects[1].get('object_id')
                                         else:
-                                            print(f"   ❌ Obj-2 upload failed: {upload_response.status}")
+                                            print(f"   ❌ Obj-2 upload failed: {upload_response.status_code}")
+                                            print(f"   📄 Response: {upload_response.text}")
                                             return False
+                                except Exception as e:
+                                    print(f"   ❌ Obj-2 upload error: {e}")
+                                    return False
                             else:
                                 print(f"   ❌ Insufficient media objects in storage allocation")
                                 return False

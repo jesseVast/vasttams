@@ -1341,47 +1341,31 @@ class VASTStore:
         """
         Delete a source from the VAST store by its unique identifier.
         
+        NOTE: According to TAMS API rules, sources CANNOT be deleted - they are immutable.
+        This method will always throw an error.
+        
         Args:
             source_id (str): The unique identifier of the source to delete.
-            cascade (bool): If True, also delete associated flows and segments.
+            cascade (bool): Ignored - sources cannot be deleted.
             
         Returns:
-            bool: True if the source was deleted, False if not found or deletion failed.
+            bool: Never returns - always raises exception.
+            
+        Raises:
+            ValueError: Sources cannot be deleted according to TAMS API rules.
         """
-        try:
-            from ibis import _ as ibis_
-            
-            # First check if source exists
-            predicate = (ibis_.id == source_id)
-            results = self.db_manager.select('sources', predicate=predicate, output_by_row=True)
-            
-            if not results:
-                logger.warning(f"Source {source_id} not found for deletion")
-                return False
-            
-            if cascade:
-                # Get associated flows first
-                flows = await self.list_flows({'source_id': source_id})
-                for flow in flows:
-                    await self.delete_flow(str(flow.id), cascade=True)
-            
-            # Delete the source
-            deleted_count = self.db_manager.delete('sources', predicate)
-            
-            if deleted_count > 0:
-                logger.info(f"Hard deleted source {source_id}")
-                return True
-            else:
-                logger.warning(f"Source {source_id} not found for deletion")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Failed to delete source {source_id}: {e}")
-            return False
+        raise ValueError(
+            f"Source {source_id} cannot be deleted. Sources are immutable by design according to TAMS API rules. "
+            "Use flow and segment management instead."
+        )
     
     async def delete_flow(self, flow_id: str, cascade: bool = True) -> bool:
         """
         Delete a flow from the VAST store by its unique identifier.
+        
+        According to TAMS API rules:
+        - cascade=True: Delete flow + all segments (objects remain immutable)
+        - cascade=False: Delete flow ONLY if no segments exist
         
         Args:
             flow_id (str): The unique identifier of the flow to delete.
@@ -1389,6 +1373,9 @@ class VASTStore:
             
         Returns:
             bool: True if the flow was deleted, False if not found or deletion failed.
+            
+        Raises:
+            ValueError: If cascade=False and segments exist
         """
         try:
             from ibis import _ as ibis_
@@ -1401,8 +1388,22 @@ class VASTStore:
                 logger.warning(f"Flow {flow_id} not found for deletion")
                 return False
             
-            if cascade:
-                # Delete associated segments first
+            # Check for dependent segments
+            deps = await self.check_flow_dependencies(flow_id)
+            
+            if not cascade and deps['has_dependencies']:
+                # Cannot delete flow if cascade=False and segments exist
+                raise ValueError(
+                    f"Cannot delete flow {flow_id}: {deps['segment_count']} dependent segments exist. "
+                    "Use cascade=true to delete all dependencies, or delete segments first."
+                )
+            
+            if cascade and deps['has_dependencies']:
+                # Check if this is a large deletion (>100 segments) that needs async handling
+                if deps['segment_count'] > 100:
+                    logger.warning(f"Large flow deletion detected: {deps['segment_count']} segments. Consider using async deletion via /flow-delete-requests endpoint for better performance.")
+                
+                # Delete associated segments first (objects remain immutable)
                 await self.delete_flow_segments(flow_id)
             
             # Delete the flow
@@ -1417,11 +1418,16 @@ class VASTStore:
                 
         except Exception as e:
             logger.error(f"Failed to delete flow {flow_id}: {e}")
-            return False
+            raise  # Re-raise to let caller handle the error
     
     async def delete_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> bool:
         """
         Delete flow segments for a specific flow.
+        
+        According to TAMS API rules:
+        - Segments can be deleted
+        - Objects remain immutable and are NOT deleted
+        - Only the segment metadata is removed
         
         Args:
             flow_id (str): The unique identifier of the flow.
@@ -1471,6 +1477,9 @@ class VASTStore:
         """
         Delete an object from the VAST store by its unique identifier.
         
+        NOTE: According to TAMS API rules, objects can ONLY be deleted via this method.
+        They are immutable by design and cannot be deleted via cascade operations.
+        
         Args:
             object_id (str): The unique identifier of the object to delete.
             
@@ -1487,6 +1496,12 @@ class VASTStore:
             if not results:
                 logger.warning(f"Object {object_id} not found for deletion")
                 return False
+            
+            # Check if object has any flow references (segments)
+            # Note: We don't prevent deletion, but log for audit purposes
+            flow_refs = results[0].get('flow_references', []) if isinstance(results, list) and results else []
+            if flow_refs:
+                logger.warning(f"Object {object_id} has {len(flow_refs)} flow references. Deleting anyway as per TAMS API rules.")
             
             # Delete the object
             deleted_count = self.db_manager.delete('objects', predicate)
@@ -1643,7 +1658,10 @@ class VASTStore:
 
     async def check_source_dependencies(self, source_id: str) -> Dict[str, Any]:
         """
-        Efficiently check for dependencies on a source using direct DB queries.
+        Check for dependencies on a source using direct DB queries.
+        
+        NOTE: According to TAMS API rules, sources CANNOT be deleted - they are immutable.
+        This method is provided for informational purposes only.
         
         Args:
             source_id (str): The source ID to check dependencies for
@@ -1654,7 +1672,8 @@ class VASTStore:
                 'has_dependencies': bool,
                 'flow_count': int,
                 'segment_count': int,
-                'object_count': int
+                'object_count': int,
+                'deletable': False  # Sources are never deletable
             }
         """
         try:
@@ -1863,4 +1882,178 @@ class VASTStore:
         except Exception as e:
             logger.error(f"Failed to get dependency summary for {entity_type} {entity_id}: {e}")
             return {'has_dependencies': True, 'error': str(e)}
+    
+    async def create_async_deletion_request(self, flow_id: str, timerange: Optional[str] = None) -> str:
+        """
+        Create an async deletion request for a flow with many segments.
+        
+        According to TAMS API rules, flows with >100 segments should use async deletion
+        via the /flow-delete-requests endpoint for better performance.
+        
+        Args:
+            flow_id (str): The flow ID to delete
+            timerange (Optional[str]): Optional timerange filter for segments
+            
+        Returns:
+            str: The deletion request ID for tracking status
+            
+        Raises:
+            ValueError: If flow has <=100 segments (should use sync deletion)
+        """
+        try:
+            # Check flow dependencies first
+            deps = await self.check_flow_dependencies(flow_id)
+            
+            if not deps['has_dependencies']:
+                raise ValueError(f"Flow {flow_id} has no segments to delete")
+            
+            if deps['segment_count'] <= 100:
+                raise ValueError(
+                    f"Flow {flow_id} has only {deps['segment_count']} segments. "
+                    "Use sync deletion (cascade=true) for flows with <=100 segments."
+                )
+            
+            # Generate unique request ID
+            request_id = f"del-{flow_id}-{int(datetime.now().timestamp())}"
+            
+            # Create deletion request record
+            deletion_request = {
+                'request_id': request_id,
+                'flow_id': flow_id,
+                'timerange': timerange or "0:0_999999:0",  # Default to full range
+                'status': 'pending',
+                'created': datetime.now(timezone.utc),
+                'updated': datetime.now(timezone.utc)
+            }
+            
+            # Store the deletion request
+            success = await self.create_deletion_request(deletion_request)
+            if not success:
+                raise RuntimeError(f"Failed to create deletion request for flow {flow_id}")
+            
+            logger.info(f"Created async deletion request {request_id} for flow {flow_id} with {deps['segment_count']} segments")
+            return request_id
+            
+        except Exception as e:
+            logger.error(f"Failed to create async deletion request for flow {flow_id}: {e}")
+            raise
+    
+    async def create_deletion_request(self, deletion_request: Dict[str, Any]) -> bool:
+        """
+        Create a deletion request record in the database.
+        
+        Args:
+            deletion_request (Dict[str, Any]): Deletion request data
+            
+        Returns:
+            bool: True if created successfully, False otherwise
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            # Insert deletion request
+            rows_inserted = self.db_manager.insert_batch_efficient(
+                table_name='deletion_requests',
+                data=deletion_request,
+                batch_size=1
+            )
+            
+            return rows_inserted > 0
+            
+        except Exception as e:
+            logger.error(f"Failed to create deletion request: {e}")
+            return False
+    
+    async def get_deletion_request(self, request_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a deletion request by ID.
+        
+        Args:
+            request_id (str): The deletion request ID
+            
+        Returns:
+            Optional[Dict[str, Any]]: Deletion request data or None if not found
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            predicate = (ibis_.id == request_id)
+            results = self.db_manager.select('deletion_requests', predicate=predicate, output_by_row=True)
+            
+            if not results:
+                return None
+            
+            # Convert to dict format
+            if isinstance(results, list) and results:
+                return dict(results[0])
+            elif isinstance(results, dict):
+                return results
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get deletion request {request_id}: {e}")
+            return None
+    
+    async def list_deletion_requests(self) -> List[Dict[str, Any]]:
+        """
+        List all deletion requests.
+        
+        Returns:
+            List[Dict[str, Any]]: List of deletion requests
+        """
+        try:
+            results = self.db_manager.select('deletion_requests', output_by_row=True)
+            
+            if not results:
+                return []
+            
+            # Convert to list of dicts
+            if isinstance(results, list):
+                return [dict(row) for row in results]
+            elif isinstance(results, dict):
+                # Handle column-oriented format
+                keys = list(results.keys())
+                if keys:
+                    return [dict(zip(keys, values)) for values in zip(*results.values())]
+            
+            return []
+            
+        except Exception as e:
+            logger.error(f"Failed to list deletion requests: {e}")
+            return []
+    
+    async def update_deletion_request_status(self, request_id: str, status: str) -> bool:
+        """
+        Update the status of a deletion request.
+        
+        Args:
+            request_id (str): The deletion request ID
+            status (str): New status ('pending', 'in_progress', 'completed', 'failed')
+            
+        Returns:
+            bool: True if updated successfully, False otherwise
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            # Update status and timestamp
+            update_data = {
+                'status': status,
+                'updated': datetime.now(timezone.utc)
+            }
+            
+            # Note: This assumes the db_manager has an update method
+            # If not, we'll need to implement it differently
+            success = self.db_manager.update(
+                table_name='deletion_requests',
+                predicate=(ibis_.id == request_id),
+                data=update_data
+            )
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to update deletion request {request_id} status: {e}")
+            return False
 

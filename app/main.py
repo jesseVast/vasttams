@@ -347,5 +347,37 @@ async def get_metrics():
     """Prometheus metrics endpoint"""
     return metrics_endpoint()
 
+# Configuration management endpoints
+@app.get("/config/async-deletion-threshold")
+async def get_async_deletion_threshold():
+    """Get current async deletion threshold"""
+    from .config import get_settings
+    settings = get_settings()
+    return {
+        "async_deletion_threshold": settings.async_deletion_threshold,
+        "description": "Threshold for async deletion (number of segments). Flows with more segments than this will use async deletion."
+    }
+
+@app.put("/config/async-deletion-threshold")
+async def update_async_deletion_threshold(threshold: int):
+    """Update async deletion threshold at runtime
+    
+    Args:
+        threshold (int): New threshold value (must be >= 1)
+        
+    Returns:
+        dict: Confirmation of the update
+    """
+    if threshold < 1:
+        raise HTTPException(status_code=400, detail="Async deletion threshold must be at least 1")
+    
+    from .config import update_async_deletion_threshold
+    update_async_deletion_threshold(threshold)
+    
+    return {
+        "message": f"Async deletion threshold updated to {threshold} segments",
+        "async_deletion_threshold": threshold
+    }
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000) 

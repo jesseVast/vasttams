@@ -67,8 +67,10 @@ def get_test_paths(options):
         return [str(base_dir / "mock_tests")]
     elif options.real_only:
         return [str(base_dir / "real_tests")]
+    elif options.performance_only:
+        return [str(base_dir / "performance_tests")]
     else:
-        # Run all tests
+        # Run all tests except performance tests (integration focus)
         return [
             str(base_dir / "mock_tests"),
             str(base_dir / "real_tests")
@@ -80,6 +82,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run consolidated TAMS tests")
     parser.add_argument("--mock-only", action="store_true", help="Run only mock tests")
     parser.add_argument("--real-only", action="store_true", help="Run only real integration tests")
+    parser.add_argument("--performance-only", action="store_true", help="Run only performance tests")
     parser.add_argument("--fast", action="store_true", help="Run fast tests only")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--coverage", action="store_true", help="Run with coverage reporting")
@@ -87,19 +90,22 @@ def main():
     args = parser.parse_args()
     
     # Validate options
-    if args.mock_only and args.real_only:
-        print("Error: Cannot specify both --mock-only and --real-only")
+    if sum([args.mock_only, args.real_only, args.performance_only]) > 1:
+        print("Error: Cannot specify multiple test types")
         return 1
     
     # Get test paths
     test_paths = get_test_paths(args)
     
     # Print test summary
-    print("TAMS Consolidated Test Suite")
+    print("TAMS Consolidated Test Suite (Integration Focus)")
     print("=" * 80)
-    print(f"Mock tests: {len(list(Path(test_paths[0]).glob('test_*.py')))} files")
-    if len(test_paths) > 1:
-        print(f"Real tests: {len(list(Path(test_paths[1]).glob('test_*.py')))} files")
+    if args.performance_only:
+        print(f"Performance tests: {len(list(Path(test_paths[0]).glob('test_*.py')))} files")
+    else:
+        print(f"Mock tests: {len(list(Path(test_paths[0]).glob('test_*.py')))} files")
+        if len(test_paths) > 1:
+            print(f"Real tests: {len(list(Path(test_paths[1]).glob('test_*.py')))} files")
     print(f"Total test files: {sum(len(list(Path(p).glob('test_*.py'))) for p in test_paths)}")
     print()
     

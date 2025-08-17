@@ -28,9 +28,13 @@ def drop_all_tables():
         print(f"📋 Existing tables: {existing_tables}")
         
         # Drop all existing tables using VAST connection directly
-        with db_manager.connection.transaction() as tx:
-            bucket = tx.bucket(db_manager.bucket)
-            schema = bucket.schema(db_manager.schema)
+        connection = db_manager.connection_manager.get_connection()
+        bucket = db_manager.connection_manager.get_bucket()
+        schema_name = db_manager.connection_manager.get_schema()
+        
+        with connection.transaction() as tx:
+            bucket_obj = tx.bucket(bucket)
+            schema = bucket_obj.schema(schema_name)
             
             for table_name in existing_tables:
                 try:

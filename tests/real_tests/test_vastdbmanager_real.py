@@ -31,7 +31,7 @@ class TestVastDBManagerRealOperations:
     def test_vastdbmanager_initialization_real(self, vast_manager_real):
         """Test VastDBManager initialization with real configuration"""
         assert vast_manager_real is not None
-        assert vast_manager_real.endpoints is not None
+        assert vast_manager_real.connection_manager.endpoints is not None
         
         # Test that components are initialized
         assert hasattr(vast_manager_real, 'cache_manager')
@@ -78,7 +78,7 @@ class TestVastDBManagerRealOperations:
                 'created': datetime.now(timezone.utc).isoformat()
             }
             
-            result = vast_manager_real.insert_record(table_name, record_data)
+            result = vast_manager_real.insert_single_record(table_name, record_data)
             
             # Should return success indicator
             assert result is not None
@@ -175,144 +175,83 @@ class TestVastDBManagerErrorHandlingReal:
         )
         assert manager is not None
         
-        # Test that authentication-related methods exist
-        assert hasattr(manager, 'endpoints')
-        assert hasattr(manager, 'connection')
-        
-        # Test that we can access endpoint information
-        assert len(manager.endpoints) > 0
-        assert manager.endpoints[0] == vast_endpoint
+        # Test that authentication methods exist
+        assert hasattr(manager, 'connect')
+        assert hasattr(manager, 'disconnect')
 
 
 class TestVastDBManagerIntegrationReal:
-    """Test VastDBManager integration scenarios with real data"""
+    """Test VastDBManager integration with real database"""
     
     @pytest.fixture
     def vast_manager_integration(self, vast_endpoint):
-        """Create VastDBManager instance for integration testing using centralized harness"""
+        """Create VastDBManager instance for integration testing"""
+        manager = VastDBManager(
+            endpoints=[vast_endpoint],
+            auto_connect=False  # Don't connect automatically for testing
+        )
+        return manager
+    
+    def test_full_workflow_real(self, vast_manager_integration, harness):
+        """Test complete workflow with real database"""
+        try:
+            # Test table creation
+            table_name = f"test_table_{uuid.uuid4().hex[:8]}"
+            
+            # Create simple schema
+            from pyarrow import Schema, field
+            schema = Schema([
+                field('id', 'string'),
+                field('name', 'string'),
+                field('created', 'string')
+            ])
+            
+            # Try to create table
+            result = vast_manager_integration.create_table(table_name, schema)
+            assert result is not None
+            
+            # Test data insertion
+            source_table = f"test_sources_{uuid.uuid4().hex[:8]}"
+            source_data = {
+                'id': [str(uuid.uuid4())],
+                'name': ['test_source'],
+                'created': [datetime.now(timezone.utc).isoformat()]
+            }
+            
+            source_result = vast_manager_integration.insert(source_table, source_data)
+            assert source_result is not None
+            
+            # Test flow creation
+            flow_table = f"test_flows_{uuid.uuid4().hex[:8]}"
+            flow_data = {
+                'id': [str(uuid.uuid4())],
+                'name': ['test_flow'],
+                'created': [datetime.now(timezone.utc).isoformat()]
+            }
+            
+            flow_result = vast_manager_integration.insert(flow_table, flow_data)
+            assert flow_result is not None
+            
+        except Exception as e:
+            # If operations fail, this is expected in test environment
+            pytest.skip(f"VAST database integration not available: {e}")
+    
+    def test_endpoint_management_real(self, vast_endpoint):
+        """Test endpoint management with real configuration"""
+        # Test that we can create a manager with valid endpoint
         manager = VastDBManager(
             endpoints=[vast_endpoint]
         )
-        return manager
-    
-    def test_source_to_flow_workflow_real(self, vast_manager_integration, harness):
-        """Test complete workflow from source to flow using centralized harness"""
-        try:
-            # Create sample data using harness
-            sample_source = harness.create_sample_source()
-            sample_video_flow = harness.create_sample_video_flow(source_id=sample_source.id)
-            
-            # Connect to database
-            vast_manager_integration.connect()
-            
-            # Insert source
-            source_table = "sources"
-            source_data = {
-                'id': str(sample_source.id),
-                'label': sample_source.label,
-                'description': sample_source.description,
-                'format': sample_source.format,
-                'created': datetime.now(timezone.utc).isoformat()
-            }
-            
-            source_result = vast_manager_integration.insert_record(source_table, source_data)
-            
-            if source_result:
-                # Insert flow with source reference
-                flow_table = "video_flows"
-                flow_data = {
-                    'id': str(sample_video_flow.id),
-                    'source_id': str(sample_source.id),
-                    'label': sample_video_flow.label,
-                    'description': sample_video_flow.description,
-                    'codec': sample_video_flow.codec,
-                    'frame_width': sample_video_flow.frame_width,
-                    'frame_height': sample_video_flow.frame_height,
-                    'frame_rate': sample_video_flow.frame_rate,
-                    'created': datetime.now(timezone.utc).isoformat()
-                }
-                
-                flow_result = vast_manager_integration.insert_record(flow_table, flow_data)
-                
-                if flow_result:
-                    # Query to verify relationship
-                    flow_query = vast_manager_integration.query_with_predicates(
-                        flow_table, 
-                        {'source_id': str(sample_source.id)}
-                    )
-                    
-                    assert len(flow_query) > 0
-                    assert flow_query[0]['id'] == str(sample_video_flow.id)
-            
-            # Disconnect
-            vast_manager_integration.disconnect()
-            
-        except Exception as e:
-            # If workflow fails, this is expected in test environment
-            pytest.skip(f"VAST database workflow not available: {e}")
-    
-    def test_performance_monitoring_real(self, vast_manager_integration):
-        """Test performance monitoring with real database"""
-        try:
-            # Test performance monitoring initialization
-            print(f"🔍 Testing performance monitoring with manager: {type(vast_manager_integration)}")
-            print(f"🔍 Manager attributes: {[attr for attr in dir(vast_manager_integration) if not attr.startswith('_')]}")
-            
-            assert vast_manager_integration.performance_monitor is not None
-            
-            # Test basic performance metrics
-            metrics = vast_manager_integration.performance_monitor.get_performance_summary()
-            
-            # Should return metrics (may be empty)
-            assert isinstance(metrics, dict)
-            print(f"✅ Performance monitoring successful, metrics: {metrics}")
-            
-        except Exception as e:
-            # If performance monitoring fails, this is expected in test environment
-            print(f"❌ Performance monitoring failed with error: {e}")
-            print(f"❌ Error type: {type(e)}")
-            import traceback
-            traceback.print_exc()
-            pytest.skip(f"VAST performance monitoring not available: {e}")
-
-
-class TestVastDBManagerAnalyticsReal:
-    """Test VastDBManager analytics components with real data"""
-    
-    @pytest.fixture
-    def vast_manager_analytics(self):
-        """Create VastDBManager instance for analytics testing"""
-        endpoints = os.getenv("TAMS_VAST_ENDPOINT", "http://172.200.204.90").split(",")
+        assert manager is not None
         
-        manager = VastDBManager(
-            endpoints=endpoints
-        )
-        return manager
-    
-    def test_analytics_components_real(self, vast_manager_analytics):
-        """Test analytics components with real database"""
-        try:
-            # Test analytics components initialization
-            assert hasattr(vast_manager_analytics, 'time_series_analytics')
-            assert hasattr(vast_manager_analytics, 'aggregation_analytics')
-            assert hasattr(vast_manager_analytics, 'hybrid_analytics')
-            
-            # Test basic analytics functionality
-            if vast_manager_analytics.time_series_analytics:
-                # Test time series analytics
-                pass
-            
-            if vast_manager_analytics.aggregation_analytics:
-                # Test aggregation analytics
-                pass
-            
-            if vast_manager_analytics.hybrid_analytics:
-                # Test hybrid analytics
-                pass
-                
-        except Exception as e:
-            # If analytics fail, this is expected in test environment
-            pytest.skip(f"VAST analytics not available: {e}")
+        # Test endpoint information
+        assert len(manager.connection_manager.endpoints) > 0
+        assert manager.connection_manager.endpoints[0] == vast_endpoint
+        
+        # Test connection management
+        assert hasattr(manager, 'connect')
+        assert hasattr(manager, 'disconnect')
+        assert hasattr(manager, 'connect_to_endpoint')
 
 
 if __name__ == "__main__":

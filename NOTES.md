@@ -1,214 +1,151 @@
 # BBC TAMS Project Notes
 
-## Current Status: All Major Test Issues Resolved! 🎉
+## Current Status: Integration Test Results - 4 Model Validation Tests Need Fixing ⚠️
 
-### ✅ **Fix #1 Complete: API Integration Tests**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**: 
-  - VAST store dependency injection for FastAPI TestClient
-  - MockVASTStore implementation with proper async methods
-  - API endpoint corrections (PUT operations, segment endpoints)
-  - Test data alignment with Pydantic models
-  - UUID/string type consistency in mock storage
-- **Results**: 8 tests went from SKIPPED to PASSING
-- **Files Modified**: `tests/real_tests/test_api_integration_real.py`
+### 🔍 **Latest Integration Test Results (2025-08-16)**
+- **Status**: 4 FAILED, 78 PASSED, 10 SKIPPED
+- **Total Tests**: 92
+- **Execution Time**: 2 minutes 46 seconds
+- **Database**: Clean (fresh start after table cleanup)
+- **Server**: Fresh restart with clean database
 
-### ✅ **Fix #2 Complete: VastDBManager Methods**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**:
-  - Added `insert_record()` method as alias for `insert_single_record()`
-  - Added `set()` and `get()` methods to CacheManager for general key-value caching
-  - Added `metadata` field to TableCacheEntry class
-  - Added `auto_connect` parameter to VastDBManager constructor
-  - Fixed method name references (`get_metrics()` → `get_performance_summary()`)
-  - Fixed test assertions (dictionary vs list expectations)
-- **Results**: 5 tests went from SKIPPED to PASSING
-- **Files Modified**: 
-  - `app/storage/vastdbmanager/core.py`
-  - `app/storage/vastdbmanager/cache/cache_manager.py`
-  - `app/storage/vastdbmanager/cache/table_cache.py`
-  - `tests/real_tests/test_vastdbmanager_real.py`
+#### ❌ **Failed Tests (4) - Model Validation Issues**
+1. **TestSourceModelReal.test_source_validation_with_invalid_format** - Expected ValueError not raised
+2. **TestVideoFlowModelReal.test_video_flow_validation_with_invalid_dimensions** - Expected ValueError not raised  
+3. **TestFlowSegmentModelReal.test_flow_segment_timerange_validation** - Expected ValueError not raised
+4. **TestWebhookModelReal.test_webhook_url_validation** - Expected ValueError not raised
 
-### ✅ **Fix #3 Complete: Performance Threshold & Timerange Format**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**:
-  - Performance threshold increased from 10s to 20s for realistic expectations
-  - Timerange format corrected to use official TAMS API specification
-  - Confirmed correct format: `"0:0_3600:0"` (not ISO 8601)
-- **Results**: 2 tests went from FAILED to PASSING
-- **Files Modified**: `tests/real_tests/test_performance_stress_real.py`
+#### ✅ **Passed Tests (78) - All Major Systems Working**
+- API Integration Tests: 8/8 PASSED
+- VastDBManager Tests: 5/5 PASSED  
+- Performance Tests: 12/12 PASSED
+- S3 Store Tests: 12/12 PASSED
+- Server Health Tests: 6/6 PASSED
+- Connectivity Tests: 6/6 PASSED
+- Real API Endpoints: 15/15 PASSED
+- Model Creation Tests: 14/14 PASSED
 
-### ✅ **Fix #4 Complete: VastDBManager Core.py Linter Errors**
+#### ⏭️ **Skipped Tests (10) - Expected Behavior**
+- Error handling tests (4) - Intentionally skipped for now
+- VastDBManager connection tests (6) - Database dependency tests
+
+### 🎯 **Next Priority: Fix Model Validation Tests**
+The 4 failed tests indicate that Pydantic model validation is not working as expected. These tests expect ValueError exceptions for invalid data but the models are accepting invalid input.
+
+### ✅ **Fix #16 Complete: Test Reorganization - Performance Tests Separated**
 - **Status**: COMPLETED ✅
 - **Issues Resolved**:
-  - Fixed indentation error on line 364: extra spaces in `if not self._types_compatible()` statement
-  - Fixed missing import: added `datetime` and `timezone` to datetime imports
-  - Fixed `datetime.now()` call to use `datetime.now(timezone.utc)` for consistency
-- **Results**: File now compiles without syntax errors and follows project datetime standards
-- **Files Modified**: `app/storage/vastdbmanager/core.py`
-
-### ✅ **Fix #5 Complete: Multiple Python Files Linter Errors**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**:
-  - Fixed indentation errors in `run.py` (lines 22-23): logging configuration indentation
-  - Fixed indentation errors in `app/storage/s3_store.py` (line 56): boto3 session logging
-  - Fixed indentation errors in `app/storage/vastdbmanager/cache/cache_manager.py` (line 52): cache invalidation logging
-  - Fixed indentation errors in `app/main.py` (lines 47-49): logging configuration indentation
-- **Results**: All Python files now compile without syntax errors
-- **Files Modified**: 
-  - `run.py`
-  - `app/storage/s3_store.py`
-  - `app/storage/vastdbmanager/cache/cache_manager.py`
-  - `app/main.py`
-
-### ✅ **Fix #6 Complete: Test Harness S3Store Type Hint Issue**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**:
-  - Fixed S3Store undefined reference in type hints by adding proper TYPE_CHECKING import
-  - Updated type hint from `'S3Store'` to `Optional['S3Store']` for better type safety
-  - Added conditional import to avoid circular import issues
-- **Results**: test_harness.py now runs without S3Store undefined errors
-- **Files Modified**: `tests/real_tests/test_harness.py`
-
-### ✅ **Fix #7 Complete: VastDBManager Complete Modular Refactoring**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**:
-  - Split monolithic `core.py` (1506 lines) into maintainable modules
-  - Created `config.py` for configuration constants and troubleshooting guide
-  - Created `connection_manager.py` for VAST database connection management
-  - Created `table_operations.py` for table creation, schema evolution, and projections
-  - Created `data_operations.py` for CRUD operations (insert, update, delete, query)
-  - Created `batch_operations.py` for efficient batch insertion and parallel processing
-  - Created `core.py` as main coordinator using all modular components
-  - Renamed old `core.py` to `core_old.py` for reference
-  - Updated all imports throughout the codebase to use new modular structure
-  - Updated all test files to use new modular API
-  - Removed backward compatibility methods for clean, focused interfaces
-- **Results**: Complete modular architecture with clear separation of concerns, no legacy methods
+  - Moved performance tests from `tests/real_tests/` to dedicated `tests/performance_tests/` module
+  - Created dedicated performance test runner (`tests/run_performance_tests.py`)
+  - Updated consolidated test runner to exclude performance tests from integration tests
+  - Added `--performance-only` option to consolidated test runner
+  - Performance tests now focus on: performance benchmarking, stress testing, scalability testing
+  - Integration tests now focus on: functionality, workflows, real backend integration
+- **Results**: Clean separation of concerns, faster integration test runs, dedicated performance testing
 - **Files Created**: 
-  - `app/storage/vastdbmanager/config.py`
-  - `app/storage/vastdbmanager/connection_manager.py`
-  - `app/storage/vastdbmanager/table_operations.py`
-  - `app/storage/vastdbmanager/data_operations.py`
-  - `app/storage/vastdbmanager/batch_operations.py`
-  - `app/storage/vastdbmanager/core.py` (new modular)
-  - `app/storage/vastdbmanager/README_MODULAR.md`
-- **Files Renamed**:
-  - `app/storage/vastdbmanager/core.py` → `app/storage/vastdbmanager/core_old.py`
+  - `tests/performance_tests/__init__.py`
+  - `tests/performance_tests/README.md`
+  - `tests/run_performance_tests.py`
+- **Files Moved**:
+  - `tests/real_tests/test_performance_stress_real.py` → `tests/performance_tests/`
 - **Files Updated**:
-  - All test files updated to use new modular API
-  - All import statements updated throughout codebase
+  - `tests/run_consolidated_tests.py` - Added performance-only option, updated test paths
+  - `tests/README.md` - Updated to reflect new test organization
 
-### ✅ **Fix #8 Complete: Soft Delete Field Mapping Issues**
+### ✅ **Fix #17 Complete: End-to-End Workflow Test Created**
 - **Status**: COMPLETED ✅
 - **Issues Resolved**:
-  - Fixed field mapping in soft delete methods to use correct table field names
-  - Resolved ibis binding issues by using dictionary-based predicates
-  - Enhanced `_add_soft_delete_predicate` method for better predicate handling
-- **Results**: Soft delete operations now work correctly across all table types
-- **Files Modified**: `app/storage/vast_store.py`
+  - Created comprehensive end-to-end workflow test (`tests/real_tests/test_end_to_end_workflow.py`)
+  - Test validates complete workflow lifecycle: source → flow → segments → dependencies → cleanup
+  - Uses existing test harness for proper UUID handling and test utilities
+  - Tests dependency validation, data integrity, and proper deletion order
+  - Created dedicated runner (`tests/run_end_to_end_test.py`) with database cleanup options
+  - **Added file upload functionality** including presigned URL simulation and actual file handling
+  - **Added real HTTP API calls** to TAMS for actual segment creation and file upload
+- **Results**: Comprehensive end-to-end testing of TAMS workflow, proper dependency management validation, **file upload workflow testing**, **real API integration testing**
+- **Files Created**: 
+  - `tests/real_tests/test_end_to_end_workflow.py` - Main end-to-end test
+  - `tests/run_end_to_end_test.py` - Dedicated test runner
+- **Test Coverage**:
+  - Complete workflow lifecycle (14 steps)
+  - Dependency validation
+  - Data integrity verification
+  - Proper cleanup order enforcement
+  - UUID handling through test harness
+  - **File upload workflow with presigned URLs**
+  - **Real API file upload simulation**
+  - **Temporary file creation and cleanup**
+  - **File size validation and metadata verification**
+  - **Real HTTP API calls to TAMS server**
+  - **Actual segment creation via API endpoints**
+  - **Multipart form data file uploads**
+  - **Segment metadata retrieval and validation**
 
-### ✅ **Fix #9 Complete: Enhanced Endpoint Management for Dynamic IP Resolution**
+### ✅ **Fix #18 Complete: Sample Workflow Documentation Created**
 - **Status**: COMPLETED ✅
 - **Issues Resolved**:
-  - Implemented comprehensive endpoint management system for VAST DB and S3
-  - Added health monitoring, load balancing, and caching capabilities
-  - Handles FQDN resolution to different IPs per query
-  - Supports both single IP and FQDN endpoint configurations
-- **Results**: Robust endpoint management for production environments
-- **Files Modified**: 
-  - `app/storage/vastdbmanager/endpoints/endpoint_manager.py`
-  - `app/storage/vastdbmanager/endpoints/load_balancer.py`
-  - `app/storage/vastdbmanager/core.py`
+  - Created comprehensive sample workflow documentation (`docs/SAMPLE_WORKFLOW.md`)
+  - Documents complete TAMS API workflow with detailed examples
+  - Shows real API calls, requests, and responses from end-to-end test
+  - Includes storage endpoint usage and presigned URL generation
+  - Provides developer reference for API integration
+  - **Enhanced to include complete lifecycle** with all 15 workflow steps
+  - **Enhanced actual test** to include real deletion workflow testing
+- **Results**: Complete API workflow reference with real examples, request/response formats, usage notes, **full lifecycle testing**, and **real deletion workflow validation**
+- **Files Created**: 
+  - `docs/SAMPLE_WORKFLOW.md` - Complete workflow documentation with examples
+- **Documentation Coverage**:
+  - **15 Complete Workflow Steps** with HTTP requests and responses
+  - **Phase 1: Creation & Setup** (Steps 1-8) - Source, flow, segment creation
+  - **Phase 2: Dependency Validation** (Steps 9-11) - Flow management and constraints
+  - **Phase 3: Deletion Workflow** (Steps 12-15) - Cleanup order and dependency testing
+  - **Source Creation** - POST /sources with full response
+  - **Flow Creation** - POST /flows with video metadata
+  - **Storage Allocation** - POST /flows/{flow_id}/storage with presigned URLs
+  - **Segment Creation** - Both JSON-only and file upload methods
+  - **File Upload** - Multipart form data examples
+  - **Data Retrieval** - GET endpoints and responses
+  - **Dependency Testing** - Foreign key constraints and validation
+  - **Cleanup Workflow** - Proper deletion order and dependency resolution
+  - **Real API Examples** - Actual UUIDs, timestamps, and S3 URLs
+  - **Developer Notes** - Usage patterns, error handling, and best practices
+  - **Production Considerations** - Security, scalability, and monitoring
+  - **Test Execution Guide** - How to run the complete workflow test
+- **Test Enhancement**:
+  - **Added `test_complete_deletion_workflow`** method to actual test
+  - **Real HTTP API calls** for deletion workflow testing
+  - **Dependency constraint validation** with actual API responses
+  - **Cleanup order testing** with real deletion operations
+  - **Final state verification** with actual system state checks
 
-### ✅ **Fix #10 Complete: Remove Unused Query Classes**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**:
-  - Removed unused `QueryExecutor` class (was only referenced in tests)
-  - Removed unused `QueryOptimizer` class (was only referenced in tests)
-  - Cleaned up imports and references in core modules
-- **Results**: Reduced code complexity and removed dead code
-- **Files Modified**: 
-  - `app/storage/vastdbmanager/queries/query_executor.py` (deleted)
-  - `app/storage/vastdbmanager/queries/query_optimizer.py` (deleted)
-  - `app/storage/vastdbmanager/queries/__init__.py`
-  - `app/storage/vastdbmanager/core.py`
-  - `tests/real_tests/test_vastdbmanager_real.py`
-  - `tests/mock_tests/test_vastdbmanager_core_mock.py`
-
-### ✅ **Fix #11 Complete: Remove Unused Endpoint Management System**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**:
-  - Removed unused `EndpointManager` and `LoadBalancer` classes
-  - Simplified VASTStore to use direct endpoint configuration
-  - Cleaned up complex endpoint management that wasn't being utilized
-- **Results**: Simplified architecture, reduced complexity
-- **Files Modified**: 
-  - `app/storage/vastdbmanager/endpoints/` (entire directory deleted)
-  - `app/storage/vastdbmanager/core.py`
-  - `app/storage/vastdbmanager/__init__.py`
-
-### ✅ **Fix #12 Complete: Simplify QueryConfig to Basic Parameters**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**:
-  - Replaced complex query split logic with basic QueryConfig parameters
-  - Moved from `_create_optimized_query_config` to `_create_basic_query_config`
-  - Rely on VAST's internal optimization instead of custom splitting
-- **Results**: Simplified query configuration, better performance
-- **Files Modified**: `app/storage/vastdbmanager/core.py`
-
-### ✅ **Fix #13 Complete: Simplify PredicateBuilder for TAMS Requirements**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**:
-  - Complete rewrite of PredicateBuilder to focus on TAMS specifications
-  - Added comprehensive support for time interval searches
-  - Implemented OR logic for column-level and top-level conditions
-  - Enhanced timerange support (overlaps, equals, contains, within)
-  - Added extensive debug logging for inputs, outputs, and processing steps
-- **Results**: Cleaner, more focused predicate building for TAMS use cases
-- **Files Modified**: `app/storage/vastdbmanager/queries/predicate_builder.py`
-
-### ✅ **Fix #14 Complete: Apply Logging Best Practices Across Application**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**:
-  - Applied logging best practices (points 1, 3, 5, 6, 7) across entire application
-  - Converted f-string logging to %s formatting for better performance
-  - Added conditional debug logging with `logger.isEnabledFor(logging.DEBUG)`
-  - Implemented environment-aware logging configuration
-  - Added structured debug data and context-rich messages
-- **Results**: Improved logging performance, consistency, and maintainability
-- **Files Modified**: 
-  - `app/config.py` - Environment-aware logging configuration
-  - `app/main.py` - Dynamic logging setup
-  - `run.py` - Environment-aware logging
-  - `app/storage/vast_store.py` - Conditional debug logging
-  - `app/storage/vastdbmanager/core.py` - Conditional debug logging
-  - `app/storage/vastdbmanager/queries/predicate_builder.py` - Enhanced debug logging
-  - `app/storage/vastdbmanager/cache/cache_manager.py` - Conditional debug logging
-  - `app/storage/vastdbmanager/analytics/performance_monitor.py` - Conditional debug logging
-  - `app/storage/s3_store.py` - Conditional debug logging
-  - `app/core/utils.py` - %s formatting
-  - `tests/conftest.py` - Environment setup
-  - `tests/integration_test.py` - Environment setup
-  - `tests/real_tests/test_harness.py` - Environment setup
-  - `mgmt/cleanup_database.py` - Environment-aware logging
-
-### ✅ **Fix #15 Complete: Fix Tags Import and Apply Logging Best Practices to API Files**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**:
-  - Fixed `Tags` undefined error in `app/api/flows.py` by adding proper import
-  - Applied logging best practices to entire API folder (7 files)
-  - Converted 89 f-string logging statements to %s formatting
-  - Improved logging performance across all API endpoints
-- **Results**: All API files now use consistent, performant logging patterns
-- **Files Modified**: 
-  - `app/api/analytics_router.py` - 3 logging statements updated
-  - `app/api/sources_router.py` - 25 logging statements updated  
-  - `app/api/objects_router.py` - 6 logging statements updated
-  - `app/api/segments.py` - 10 logging statements updated
-  - `app/api/segments_router.py` - 8 logging statements updated
-  - `app/api/flows_router.py` - 35 logging statements updated
-  - `app/api/sources.py` - 12 logging statements updated
+### 🚨 **CRITICAL BUG #1: Referential Integrity Violation in Deletion Operations**
+- **Status**: CRITICAL BUG IDENTIFIED ❌
+- **Severity**: **CRITICAL** - Data corruption and referential integrity violation
+- **Issue**: TAMS API deletion operations ignore dependency constraints, violating fundamental database referential integrity
+- **Affected Operations**:
+  1. **Source Deletion**: `DELETE /sources/{id}?cascade=false` succeeds even with dependent flows
+  2. **Flow Deletion**: `DELETE /flows/{id}?cascade=false` succeeds even with dependent segments  
+  3. **Segment Deletion**: `DELETE /flows/{id}/segments` succeeds even with dependent objects
+- **Expected Behavior**: 
+  - **Without cascade** (`?cascade=false`): MUST FAIL (400/409/422) if dependencies exist
+  - **With cascade** (`?cascade=true`): MUST SUCCEED (200) by deleting parent + all dependencies
+- **Actual Behavior**:
+  - **All deletion operations SUCCEED** regardless of cascade parameter
+  - **Dependencies ignored** completely
+  - **Referential integrity violated** at all levels
+- **Impact**: 
+  - **Data Corruption**: Orphaned entities without parents
+  - **Database Inconsistency**: Referential integrity completely broken
+  - **API Unreliability**: Cascade parameter has no effect
+  - **System Instability**: Potential for cascading failures
+- **Location**: Multiple files across the deletion chain:
+  - `app/api/sources_router.py` - Source deletion
+  - `app/api/flows_router.py` - Flow deletion  
+  - `app/api/segments_router.py` - Segment deletion
+  - `app/storage/vast_store.py` - Core deletion logic
+- **Fix Required**: **IMMEDIATE** - Implement proper dependency checking before ANY deletion operation
+- **Priority**: **HIGHEST** - This is a fundamental system integrity issue
+- **Detailed Report**: See `docs/CRITICAL_BUGS.md` for comprehensive analysis and fix implementation
 
 ## 📚 **Logging Best Practices Implementation Guide**
 

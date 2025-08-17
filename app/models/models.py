@@ -132,10 +132,10 @@ def validate_hierarchical_path(v: str) -> str:
 
 
 # Type aliases with validation
-ContentFormat = Annotated[str, field_validator('*')(validate_content_format)]
-MimeType = Annotated[str, field_validator('*')(validate_mime_type)]
-TimeRange = Annotated[str, field_validator('*')(validate_time_range)]
-HierarchicalPathStr = Annotated[str, field_validator('*')(validate_hierarchical_path)]
+ContentFormat = Annotated[str, Field(description="Content format URN", validation_alias="format")]
+MimeType = Annotated[str, Field(description="MIME type", validation_alias="mime_type")]
+TimeRange = Annotated[str, Field(description="Time range", validation_alias="timerange")]
+HierarchicalPathStr = Annotated[str, Field(description="Hierarchical path", validation_alias="path")]
 
 
 class Tags(RootModel[Dict[str, str]]):
@@ -175,7 +175,7 @@ class CollectionItem(BaseModel):
 class Source(BaseModel):
     """Source model as defined in TAMS API"""
     id: UUID4
-    format: ContentFormat
+    format: str = Field(description="Content format URN")
     label: Optional[str] = None
     description: Optional[str] = None
     created_by: Optional[str] = None
@@ -185,6 +185,11 @@ class Source(BaseModel):
     tags: Optional[Tags] = None
     source_collection: Optional[List[CollectionItem]] = None
     collected_by: Optional[List[UUID4]] = None
+    
+    @field_validator('format')
+    @classmethod
+    def validate_format(cls, v: str) -> str:
+        return validate_content_format(v)
     
     @field_serializer('created', 'updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
@@ -200,7 +205,7 @@ class GetUrl(BaseModel):
 class FlowSegment(BaseModel):
     """Flow segment model"""
     object_id: str
-    timerange: TimeRange
+    timerange: str = Field(description="Time range")
     ts_offset: Optional[str] = None  # Timestamp format
     last_duration: Optional[str] = None  # Timestamp format
     sample_offset: Optional[int] = None
@@ -209,14 +214,19 @@ class FlowSegment(BaseModel):
     key_frame_count: Optional[int] = None
     # Storage path field - stores the actual S3 object key used for storage
     storage_path: Optional[str] = None  # The actual S3 object key where data is stored
+    
+    @field_validator('timerange')
+    @classmethod
+    def validate_timerange(cls, v: str) -> str:
+        return validate_time_range(v)
 
 
 class VideoFlow(BaseModel):
     """Video flow model"""
     id: UUID4
     source_id: UUID4
-    format: ContentFormat = Field(default="urn:x-nmos:format:video")
-    codec: MimeType
+    format: str = Field(default="urn:x-nmos:format:video", description="Content format URN")
+    codec: str = Field(description="MIME type")
     label: Optional[str] = None
     description: Optional[str] = None
     created_by: Optional[str] = None
@@ -224,9 +234,9 @@ class VideoFlow(BaseModel):
     created: Optional[datetime] = None
     updated: Optional[datetime] = None
     tags: Optional[Tags] = None
-    frame_width: int
-    frame_height: int
-    frame_rate: str  # Timestamp format
+    frame_width: int = Field(gt=0, description="Frame width must be positive")
+    frame_height: int = Field(gt=0, description="Frame height must be positive")
+    frame_rate: str = Field(description="Timestamp format")  # Timestamp format
     interlace_mode: Optional[str] = None
     color_sampling: Optional[str] = None
     color_space: Optional[str] = None
@@ -236,6 +246,16 @@ class VideoFlow(BaseModel):
     read_only: Optional[bool] = False
     max_bit_rate: Optional[int] = None
     avg_bit_rate: Optional[int] = None
+    
+    @field_validator('format')
+    @classmethod
+    def validate_format(cls, v: str) -> str:
+        return validate_content_format(v)
+    
+    @field_validator('codec')
+    @classmethod
+    def validate_codec(cls, v: str) -> str:
+        return validate_mime_type(v)
     
     @field_serializer('created', 'updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
@@ -364,7 +384,7 @@ class Service(BaseModel):
 
 class Webhook(BaseModel):
     """Webhook configuration"""
-    url: str
+    url: str = Field(description="Webhook URL")
     api_key_name: str
     api_key_value: Optional[str] = None
     events: List[str]
@@ -372,6 +392,13 @@ class Webhook(BaseModel):
     owner_id: Optional[str] = None
     created_by: Optional[str] = None
     created: Optional[datetime] = None
+    
+    @field_validator('url')
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        if not v.startswith(('http://', 'https://')):
+            raise ValueError('URL must start with http:// or https://')
+        return v
 
 
 class WebhookPost(BaseModel):

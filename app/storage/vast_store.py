@@ -71,6 +71,7 @@ DEFAULT_MAX_WORKERS = 4  # Default maximum parallel workers
 DEFAULT_ANALYTICS_TIMEOUT = 60  # Default analytics query timeout
 DEFAULT_STORAGE_CALCULATION_BASE = 0  # Base value for storage calculations
 DEFAULT_ACCESS_COUNT_BASE = 0  # Base value for access count calculations
+
 EXPECTED_PARTS_LENGTH = 2  # Expected number of parts for parsing
 EXPECTED_CONDITIONS_LENGTH = 2  # Expected number of conditions for predicate building
 SINGLE_CONDITION_LENGTH = 1  # Length indicating single condition
@@ -1399,9 +1400,13 @@ class VASTStore:
                 )
             
             if cascade and deps['has_dependencies']:
-                # Check if this is a large deletion (>100 segments) that needs async handling
-                if deps['segment_count'] > 100:
-                    logger.warning(f"Large flow deletion detected: {deps['segment_count']} segments. Consider using async deletion via /flow-delete-requests endpoint for better performance.")
+                # Check if this is a large deletion that needs async handling
+                from ..config import get_settings
+                settings = get_settings()
+                threshold = settings.async_deletion_threshold
+                
+                if deps['segment_count'] > threshold:
+                    logger.warning(f"Large flow deletion detected: {deps['segment_count']} segments (threshold: {threshold}). Consider using async deletion via /flow-delete-requests endpoint for better performance.")
                 
                 # Delete associated segments first (objects remain immutable)
                 await self.delete_flow_segments(flow_id)
@@ -1887,7 +1892,7 @@ class VASTStore:
         """
         Create an async deletion request for a flow with many segments.
         
-        According to TAMS API rules, flows with >100 segments should use async deletion
+        According to TAMS API rules, flows with >{threshold} segments should use async deletion
         via the /flow-delete-requests endpoint for better performance.
         
         Args:
@@ -1898,7 +1903,7 @@ class VASTStore:
             str: The deletion request ID for tracking status
             
         Raises:
-            ValueError: If flow has <=100 segments (should use sync deletion)
+            ValueError: If flow has <={threshold} segments (should use sync deletion)
         """
         try:
             # Check flow dependencies first
@@ -1907,10 +1912,15 @@ class VASTStore:
             if not deps['has_dependencies']:
                 raise ValueError(f"Flow {flow_id} has no segments to delete")
             
-            if deps['segment_count'] <= 100:
+            # Get configurable threshold
+            from ..config import get_settings
+            settings = get_settings()
+            threshold = settings.async_deletion_threshold
+            
+            if deps['segment_count'] <= threshold:
                 raise ValueError(
-                    f"Flow {flow_id} has only {deps['segment_count']} segments. "
-                    "Use sync deletion (cascade=true) for flows with <=100 segments."
+                    f"Flow {flow_id} has only {deps['segment_count']} segments (threshold: {threshold}). "
+                    "Use sync deletion (cascade=true) for flows with <={threshold} segments."
                 )
             
             # Generate unique request ID

@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings
 from pydantic import Field
 from typing import Optional, List
 import os
+import json
 
 # Configuration Constants - Easy to adjust for troubleshooting
 DEFAULT_PORT = 8000  # Default application port
@@ -71,6 +72,13 @@ class Settings(BaseSettings):
     s3_bucket_name: str = "jthaloor-s3"
     s3_use_ssl: bool = False
     
+    # Deletion settings
+    async_deletion_threshold: int = Field(
+        default=500,
+        description="Threshold for async deletion (number of segments). Flows with more segments than this will use async deletion.",
+        env="TAMS_ASYNC_DELETION_THRESHOLD"
+    )
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
@@ -118,4 +126,24 @@ def update_settings(**kwargs):
     
     for key, value in kwargs.items():
         if hasattr(_settings, key):
-            setattr(_settings, key, value) 
+            setattr(_settings, key, value)
+
+
+def update_async_deletion_threshold(threshold: int):
+    """Update async deletion threshold at runtime
+    
+    Args:
+        threshold (int): New threshold value for async deletion (number of segments)
+        
+    Raises:
+        ValueError: If threshold is less than 1
+    """
+    if threshold < 1:
+        raise ValueError("Async deletion threshold must be at least 1")
+    
+    global _settings
+    if _settings is None:
+        _settings = Settings()
+    
+    _settings.async_deletion_threshold = threshold
+    print(f"Async deletion threshold updated to {threshold} segments") 

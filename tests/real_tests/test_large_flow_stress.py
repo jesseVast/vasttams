@@ -202,26 +202,59 @@ class TestLargeFlowStress:
                 
                 # Step 3: Get storage allocation for 1000 objects (BULK - already optimized)
                 print("📝 Step 3: Getting storage allocation for 1000 objects (BULK)")
+                
+                # First, test with 1 object to verify the endpoint works
+                print("   🔍 Testing storage endpoint with 1 object first...")
+                test_storage_request = {
+                    "storage_id": None,
+                    "limit": 1
+                }
+                
+                try:
+                    timeout = aiohttp.ClientTimeout(total=10)  # 10 seconds for test
+                    async with session.post(f"{self.base_url}/flows/{flow_id}/storage", 
+                                          json=test_storage_request, 
+                                          timeout=timeout) as response:
+                        if response.status in [200, 201]:
+                            test_data = await response.json()
+                            test_objects = test_data.get('media_objects', [])
+                            if len(test_objects) >= 1:
+                                print(f"   ✅ Storage endpoint test successful: {len(test_objects)} object allocated")
+                            else:
+                                print(f"   ❌ Storage endpoint test failed: insufficient objects")
+                                return False
+                        else:
+                            print(f"   ❌ Storage endpoint test failed: {response.status}")
+                            response_text = await response.text()
+                            print(f"   📄 Response: {response_text}")
+                            return False
+                except Exception as e:
+                    print(f"   ❌ Storage endpoint test error: {e}")
+                    return False
+                
+                # Now proceed with batched allocation
                 storage_request = {
                     "storage_id": None,  # Use default storage
-                    "limit": 100  # Reduced from 1000 to 100 for better performance
+                    "limit": 10  # Reduced from 100 to 10 for better performance
                 }
                 
                 start_time = time.time()
-                print("   🚀 Requesting bulk storage allocation for 100 objects (will repeat 10 times)...")
+                print("   🚀 Requesting bulk storage allocation for 10 objects (will repeat 100 times)...")
                 
-                # Get storage allocation in batches of 100 for better performance
+                # Get storage allocation in batches of 10 for better performance
                 all_media_objects = []
-                batch_size = 100
-                total_batches = 10
+                batch_size = 10
+                total_batches = 100
                 
                 for batch_num in range(1, total_batches + 1):
-                    print(f"      📦 Storage batch {batch_num}/{total_batches} (100 objects)")
+                    print(f"      📦 Storage batch {batch_num}/{total_batches} (10 objects)")
                     batch_start_time = time.time()
                     
                     try:
                         # Set a reasonable timeout for each request
-                        timeout = aiohttp.ClientTimeout(total=60)  # 60 seconds timeout
+                        timeout = aiohttp.ClientTimeout(total=30)  # Reduced to 30 seconds timeout
+                        print(f"         🔄 Requesting storage allocation...")
+                        
                         async with session.post(f"{self.base_url}/flows/{flow_id}/storage", 
                                               json=storage_request, 
                                               timeout=timeout) as response:
@@ -229,12 +262,12 @@ class TestLargeFlowStress:
                                 storage_data = await response.json()
                                 media_objects = storage_data.get('media_objects', [])
                                 
-                                if len(media_objects) >= 100:
+                                if len(media_objects) >= 10:
                                     all_media_objects.extend(media_objects)
                                     batch_time = time.time() - batch_start_time
                                     print(f"         ✅ Batch {batch_num} complete: {len(media_objects)} objects in {batch_time:.2f}s")
                                 else:
-                                    print(f"         ❌ Insufficient media objects in batch {batch_num}: {len(media_objects)} < 100")
+                                    print(f"         ❌ Insufficient media objects in batch {batch_num}: {len(media_objects)} < 10")
                                     return False
                             else:
                                 print(f"         ❌ Storage allocation failed for batch {batch_num}: {response.status}")
@@ -242,15 +275,26 @@ class TestLargeFlowStress:
                                 print(f"         📄 Response: {response_text}")
                                 return False
                     except asyncio.TimeoutError:
-                        print(f"         ❌ Storage allocation timeout for batch {batch_num} (60s)")
+                        print(f"         ❌ Storage allocation timeout for batch {batch_num} (30s)")
+                        print(f"         🔍 This suggests the storage endpoint is taking too long to respond")
                         return False
                     except Exception as e:
                         print(f"         ❌ Storage allocation error for batch {batch_num}: {e}")
+                        print(f"         🔍 Error type: {type(e).__name__}")
                         return False
                     
-                    # Small delay between batches
+                    # Progress update every 10 batches
+                    if batch_num % 10 == 0:
+                        elapsed = time.time() - start_time
+                        objects_allocated = len(all_media_objects)
+                        rate = objects_allocated / elapsed if elapsed > 0 else 0
+                        eta = (1000 - objects_allocated) / rate if rate > 0 else 0
+                        print(f"         📊 Progress: {objects_allocated}/1000 objects ({objects_allocated/1000*100:.1f}%)")
+                        print(f"         ⏱️  Rate: {rate:.1f} objects/sec, ETA: {eta:.1f}s")
+                    
+                    # Small delay between batches to avoid overwhelming the system
                     if batch_num < total_batches:
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(0.2)
                 
                 allocation_time = time.time() - start_time
                 print(f"   ✅ Storage allocated for {flow_name} in {allocation_time:.2f}s")

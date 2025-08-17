@@ -303,7 +303,7 @@ class TelemetryManager:
         ).inc()
         
         if error_message:
-            logger.error(f"Error recorded: {error_type} at {endpoint}: {error_message}")
+            logger.error("Error recorded: %s at %s: %s", error_type, endpoint, error_message)
 
 # Global telemetry manager
 telemetry_manager = TelemetryManager()

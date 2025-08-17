@@ -297,8 +297,8 @@ async def make_request(url: str, method: str = "GET", data: Optional[Dict[str, A
                 if response.status == 200:
                     return await response.json()
                 else:
-                    logging.warning(f"Request failed with status {response.status}")
+                    logging.warning("Request failed with status %d", response.status)
                     return None
     except Exception as e:
-        logging.error(f"Request error: {e}")
+        logging.error("Request error: %s", e)
         return None

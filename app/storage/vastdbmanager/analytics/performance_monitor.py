@@ -57,14 +57,15 @@ class PerformanceMonitor:
             
             # Log slow queries
             if execution_time > self.slow_query_threshold:
-                logger.warning(f"Slow query detected: {query_type} on {table_name} "
-                             f"took {execution_time:.2f}s")
+                logger.warning("Slow query detected: %s on %s took %.2fs", 
+                             query_type, table_name, execution_time)
             
-            logger.debug(f"Recorded {query_type} query on {table_name}: "
-                        f"{execution_time:.3f}s, {rows_returned} rows")
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Recorded %s query on %s: %.3fs, %d rows", 
+                           query_type, table_name, execution_time, rows_returned)
                         
         except Exception as e:
-            logger.error(f"Error recording query metrics: {e}")
+            logger.error("Error recording query metrics: %s", e)
     
     def get_performance_summary(self, time_window: timedelta = timedelta(hours=1)) -> Dict[str, Any]:
         """Get performance summary for the specified time window"""

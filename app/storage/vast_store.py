@@ -217,7 +217,8 @@ class VASTStore:
             self.db_manager = VastDBManager(
                 endpoints=self.endpoints  # Pass the full endpoints list
             )
-            logger.info(f"VAST Store initialized with {len(self.endpoints)} endpoint(s): {self.endpoints}, bucket: {bucket}, schema: {schema}")
+            logger.info("VAST Store initialized with %d endpoint(s): %s, bucket: %s, schema: %s", 
+                   len(self.endpoints), self.endpoints, bucket, schema)
             
             # Setup TAMS tables with schemas
             self._setup_tams_tables()
@@ -225,7 +226,7 @@ class VASTStore:
             self.s3_store = S3Store()
             
         except Exception as e:
-            logger.error(f"Failed to initialize VAST Store: {e}")
+            logger.error("Failed to initialize VAST Store: %s", e)
             raise
     
     def _setup_tams_tables(self):
@@ -469,9 +470,9 @@ class VASTStore:
         for table_name, schema in tables_config.items():
             try:
                 self.db_manager.create_table(table_name, schema)
-                logger.info(f"Table '{table_name}' setup complete")
+                logger.info("Table '%s' setup complete", table_name)
             except Exception as e:
-                logger.error(f"Failed to setup table '{table_name}': {e}")
+                logger.error("Failed to setup table '%s': %s", table_name, e)
                 raise
     
     def _parse_timerange(self, timerange: str) -> Tuple[datetime, datetime, float]:

@@ -137,7 +137,8 @@ class VastDBManager:
                     table_stats = table.get_stats()
                     total_rows = getattr(table_stats, 'total_rows', 0) or 0
                     self.cache_manager.update_table_cache(table_name, table.columns(), total_rows)
-                    logger.debug(f"Discovered and cached table: {table_name} ({total_rows} rows)")
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug("Discovered and cached table: %s (%s rows)", table_name, total_rows)
                     
             logger.info(f"Discovered and cached {len(self.cache_manager.get_all_table_names())} tables")
                     
@@ -355,12 +356,14 @@ class VastDBManager:
             # Check if all new fields exist in current schema with same type
             for field_name, field_type in new_fields.items():
                 if field_name not in current_fields:
-                    logger.debug(f"New field {field_name} not in current schema")
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug("New field %s not in current schema", field_name)
                     return False
                 
                 # Compare field types (allowing for some type compatibility)
-                if not self._types_compatible(current_fields[field_name], field_type):
-                    logger.debug(f"Field {field_name} type changed: {current_fields[field_name]} -> {field_type}")
+                                if not self._types_compatible(current_fields[field_name], field_type):
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug("Field %s type changed: %s -> %s", field_name, current_fields[field_name], field_type)
                     return False
             
             logger.debug("Schemas are compatible")

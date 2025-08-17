@@ -14,10 +14,10 @@ def main():
     settings = get_settings()
     
     # Configure logging
-    logging.basicConfig(
-        level=getattr(logging, settings.log_level.upper()),
-        format=settings.log_format
-    )
+    # Configure logging based on environment
+log_level = getattr(logging, settings.log_level.upper())
+log_format = settings.log_format
+logging.basicConfig(level=log_level, format=log_format)
     
     logger = logging.getLogger(__name__)
     logger.info(f"Starting TAMS API server on {settings.host}:{settings.port}")

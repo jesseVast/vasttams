@@ -45,7 +45,10 @@ from .core.dependencies import get_vast_store, set_vast_store
 from .core.telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+    # Configure logging based on environment
+    log_level = getattr(logging, get_settings().log_level.upper())
+    log_format = get_settings().log_format
+    logging.basicConfig(level=log_level, format=log_format)
 logger = logging.getLogger(__name__)
 
 # Global VAST store instance

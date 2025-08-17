@@ -62,7 +62,7 @@ def override_env_vars():
         'S3_USE_SSL': 'false',
         'HOST': '0.0.0.0',
         'PORT': '8000',
-        'DEBUG': 'true',
+        'ENVIRONMENT': 'development',
         'LOG_LEVEL': 'DEBUG',
     }
     

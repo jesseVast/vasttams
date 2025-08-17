@@ -35,7 +35,7 @@ async def get_flows(store: VASTStore, filters: FlowFilters) -> List[Flow]:
         flows = await store.list_flows(filters=filter_dict, limit=filters.limit)
         return flows
     except Exception as e:
-        logger.error(f"Failed to get flows: {e}")
+        logger.error("Failed to get flows: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def get_flow(store: VASTStore, flow_id: str, filters: Optional[FlowDetailFilters] = None) -> Optional[Flow]:

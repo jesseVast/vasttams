@@ -48,7 +48,8 @@ class TestHarness:
         # Set server settings
         os.environ["HOST"] = "0.0.0.0"
         os.environ["PORT"] = "8000"
-        os.environ["LOG_LEVEL"] = "INFO"
+        os.environ["ENVIRONMENT"] = "development"
+        os.environ["LOG_LEVEL"] = "DEBUG"
         
         print("🔧 Test harness environment configured:")
         print(f"   VAST: {os.environ['TAMS_VAST_ENDPOINT']}")

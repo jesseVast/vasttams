@@ -30,7 +30,7 @@ async def get_flow_usage_analytics(
         
         return analytics
     except Exception as e:
-        logger.error(f"Failed to get flow usage analytics: {e}")
+        logger.error("Failed to get flow usage analytics: %s", e)
         telemetry_manager.record_error("analytics_error", "/analytics/flow-usage", str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -53,7 +53,7 @@ async def get_storage_usage_analytics(
         
         return analytics
     except Exception as e:
-        logger.error(f"Failed to get storage usage analytics: {e}")
+        logger.error("Failed to get storage usage analytics: %s", e)
         telemetry_manager.record_error("analytics_error", "/analytics/storage-usage", str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -75,6 +75,6 @@ async def get_time_range_analytics(
         
         return analytics
     except Exception as e:
-        logger.error(f"Failed to get time range analytics: {e}")
+        logger.error("Failed to get time range analytics: %s", e)
         telemetry_manager.record_error("analytics_error", "/analytics/time-range-analysis", str(e))
         raise HTTPException(status_code=500, detail="Internal server error") 

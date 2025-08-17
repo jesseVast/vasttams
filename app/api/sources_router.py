@@ -41,7 +41,7 @@ async def list_sources(
         sources = await get_sources(store, filters)
         return SourcesResponse(data=sources)
     except Exception as e:
-        logger.error(f"Failed to list sources: {e}")
+        logger.error("Failed to list sources: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/sources/{source_id}", response_model=Source)
@@ -58,7 +58,7 @@ async def get_source_by_id(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get source {source_id}: {e}")
+        logger.error("Failed to get source %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # POST endpoint
@@ -76,7 +76,7 @@ async def create_new_source(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to create source: {e}")
+        logger.error("Failed to create source: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Batch POST endpoint
@@ -99,7 +99,7 @@ async def create_sources_batch(
             return sources
         
         # For multiple sources, use VAST's native batch insert
-        logger.info(f"Using VAST batch insert for {len(sources)} sources")
+        logger.info("Using VAST batch insert for %d sources", len(sources))
         
         # Convert Pydantic models to the format expected by insert_batch_efficient
         # The method expects Dict[str, List[Any]] where keys are column names
@@ -124,13 +124,13 @@ async def create_sources_batch(
         if rows_inserted <= 0:
             raise HTTPException(status_code=500, detail="Failed to insert sources batch")
         
-        logger.info(f"Successfully created {rows_inserted} sources using VAST batch insert")
+        logger.info("Successfully created %d sources using VAST batch insert", rows_inserted)
         return sources
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to create sources batch: {e}")
+        logger.error("Failed to create sources batch: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # DELETE endpoint
@@ -149,7 +149,7 @@ async def delete_source_by_id(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete source {source_id}: {e}")
+        logger.error("Failed to delete source %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -177,7 +177,7 @@ async def list_source_tags(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to list source tags for {source_id}: {e}")
+        logger.error("Failed to list source tags for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/sources/{source_id}/tags", response_model=Tags)
@@ -202,7 +202,7 @@ async def update_source_tags(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update source tags for {source_id}: {e}")
+        logger.error("Failed to update source tags for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.head("/sources/{source_id}/tags/{name}")
@@ -231,7 +231,7 @@ async def get_source_tag(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get source tag {name} for {source_id}: {e}")
+        logger.error("Failed to get source tag %s for %s: %s", name, source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/sources/{source_id}/tags/{name}", status_code=204)
@@ -260,7 +260,7 @@ async def update_source_tag(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update source tag {name} for {source_id}: {e}")
+        logger.error("Failed to update source tag %s for %s: %s", name, source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/sources/{source_id}/tags/{name}", status_code=204)
@@ -288,7 +288,7 @@ async def delete_source_tag(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete source tag {name} for {source_id}: {e}")
+        logger.error("Failed to delete source tag %s for %s: %s", name, source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -312,7 +312,7 @@ async def get_source_description(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get source description for {source_id}: {e}")
+        logger.error("Failed to get source description for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/sources/{source_id}/description")
@@ -336,7 +336,7 @@ async def update_source_description(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update source description for {source_id}: {e}")
+        logger.error("Failed to update source description for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/sources/{source_id}/description")
@@ -361,7 +361,7 @@ async def delete_source_description(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete source description for {source_id}: {e}")
+        logger.error("Failed to delete source description for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.head("/sources/{source_id}/label")
@@ -383,7 +383,7 @@ async def get_source_label(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get source label for {source_id}: {e}")
+        logger.error("Failed to get source label for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/sources/{source_id}/label")
@@ -407,7 +407,7 @@ async def update_source_label(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update source label for {source_id}: {e}")
+        logger.error("Failed to update source label for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/sources/{source_id}/label")
@@ -432,7 +432,7 @@ async def delete_source_label(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete source label for {source_id}: {e}")
+        logger.error("Failed to delete source label for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
  

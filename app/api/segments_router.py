@@ -37,7 +37,7 @@ async def check_flow_read_only(store: VASTStore, flow_id: str) -> None:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to check flow read-only status for {flow_id}: {e}")
+        logger.error("Failed to check flow read-only status for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # HEAD endpoint
@@ -58,7 +58,7 @@ async def list_flow_segments(
         segments = await get_flow_segments(store, flow_id, timerange)
         return segments
     except Exception as e:
-        logger.error(f"Failed to list segments for flow {flow_id}: {e}")
+        logger.error("Failed to list segments for flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # POST endpoint for segment data (JSON or multipart form)
@@ -86,7 +86,7 @@ async def create_new_flow_segment(
                     s3_store = S3Store()
                     storage_path = s3_store.generate_segment_key(flow_id, segment_obj.object_id, segment_obj.timerange)
                     segment_obj.storage_path = storage_path
-                    logger.info(f"Generated storage_path for segment {segment_obj.object_id}: {storage_path}")
+                    logger.info("Generated storage_path for segment %s: %s", segment_obj.object_id, storage_path)
                 
             except json.JSONDecodeError as e:
                 raise HTTPException(status_code=400, detail=f"Invalid JSON in segment data: {e}")
@@ -111,7 +111,7 @@ async def create_new_flow_segment(
                 s3_store = S3Store()
                 storage_path = s3_store.generate_segment_key(flow_id, segment.object_id, segment.timerange)
                 segment.storage_path = storage_path
-                logger.info(f"Generated storage_path for segment {segment.object_id}: {storage_path}")
+                logger.info("Generated storage_path for segment %s: %s", segment.object_id, storage_path)
             
             success = await create_flow_segment(store, flow_id, segment)
             if not success:
@@ -130,7 +130,7 @@ async def create_new_flow_segment(
                     s3_store = S3Store()
                     storage_path = s3_store.generate_segment_key(flow_id, segment_obj.object_id, segment_obj.timerange)
                     segment_obj.storage_path = storage_path
-                    logger.info(f"Generated storage_path for segment {segment_obj.object_id}: {storage_path}")
+                    logger.info("Generated storage_path for segment %s: %s", segment_obj.object_id, storage_path)
                 
             except json.JSONDecodeError as e:
                 raise HTTPException(status_code=400, detail=f"Invalid JSON in segment data: {e}")
@@ -149,7 +149,7 @@ async def create_new_flow_segment(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to create segment for flow {flow_id}: {e}")
+        logger.error("Failed to create segment for flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -171,7 +171,7 @@ async def delete_flow_segments_by_id(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete segments for flow {flow_id}: {e}")
+        logger.error("Failed to delete segments for flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Storage endpoint
@@ -190,5 +190,5 @@ async def create_flow_storage_by_id(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to create storage for flow {flow_id}: {e}")
+        logger.error("Failed to create storage for flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error") 

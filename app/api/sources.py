@@ -25,7 +25,7 @@ async def get_sources(store: VASTStore, filters: SourceFilters) -> List[Source]:
         sources = await store.list_sources(filters=filter_dict, limit=filters.limit)
         return sources
     except Exception as e:
-        logger.error(f"Failed to get sources: {e}")
+        logger.error("Failed to get sources: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def get_source(store: VASTStore, source_id: str) -> Optional[Source]:
@@ -34,7 +34,7 @@ async def get_source(store: VASTStore, source_id: str) -> Optional[Source]:
         source = await store.get_source(source_id)
         return source
     except Exception as e:
-        logger.error(f"Failed to get source {source_id}: {e}")
+        logger.error("Failed to get source %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def create_source(store: VASTStore, source: Source) -> bool:
@@ -46,7 +46,7 @@ async def create_source(store: VASTStore, source: Source) -> bool:
         success = await store.create_source(source)
         return success
     except Exception as e:
-        logger.error(f"Failed to create source: {e}")
+        logger.error("Failed to create source: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def delete_source(store: VASTStore, source_id: str, cascade: bool = True) -> bool:
@@ -55,7 +55,7 @@ async def delete_source(store: VASTStore, source_id: str, cascade: bool = True) 
         success = await store.delete_source(source_id, cascade=cascade)
         return success
     except Exception as e:
-        logger.error(f"Failed to delete source {source_id}: {e}")
+        logger.error("Failed to delete source %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 class SourceManager:
@@ -74,7 +74,7 @@ class SourceManager:
                 paging = None  # PagingInfo can be added if needed
             return SourcesResponse(data=sources, paging=paging)
         except Exception as e:
-            logger.error(f"Failed to list sources: {e}")
+            logger.error("Failed to list sources: %s", e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def get_source(self, source_id: str, store: Optional[VASTStore] = None) -> Source:
@@ -89,7 +89,7 @@ class SourceManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to get source {source_id}: {e}")
+            logger.error("Failed to get source %s: %s", source_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def create_source(self, source: Source, store: Optional[VASTStore] = None) -> Source:
@@ -107,7 +107,7 @@ class SourceManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to create source: {e}")
+            logger.error("Failed to create source: %s", e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def delete_source(self, source_id: str, store: Optional[VASTStore] = None, cascade: bool = True):
@@ -124,7 +124,7 @@ class SourceManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to delete source {source_id}: {e}")
+            logger.error("Failed to delete source %s: %s", source_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def update_source(self, source_id: str, source: Source, store: Optional[VASTStore] = None) -> Source:
@@ -159,5 +159,5 @@ class SourceManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to update source {source_id}: {e}")
+            logger.error("Failed to update source %s: %s", source_id, e)
             raise HTTPException(status_code=500, detail="Internal server error") 

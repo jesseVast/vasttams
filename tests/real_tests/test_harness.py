@@ -14,10 +14,14 @@ import pytest
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import Mock
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
 # Import models after environment is set
 from app.models.models import Source, VideoFlow, FlowSegment, TimeRange
+
+# Type checking imports
+if TYPE_CHECKING:
+    from app.storage.s3_store import S3Store
 
 
 class TestHarness:
@@ -88,7 +92,7 @@ class TestHarness:
             "use_ssl": os.environ["TAMS_S3_USE_SSL"]
         }
     
-    def get_s3_store(self) -> 'S3Store':
+    def get_s3_store(self) -> Optional['S3Store']:
         """Get S3Store instance for testing"""
         try:
             from app.storage.s3_store import S3Store

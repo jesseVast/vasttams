@@ -6,7 +6,7 @@ Tests focus on initialization, basic operations, and error handling.
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import patch, MagicMock
 import uuid
 from datetime import datetime, timezone, timedelta
 from pyarrow import Schema, field
@@ -17,7 +17,7 @@ from app.storage.vastdbmanager.core import VastDBManager
 class TestVastDBManagerInitialization:
     """Test VastDBManager initialization and setup"""
     
-    @patch('app.storage.vastdbmanager.core.vastdb.connect')
+    @patch('app.storage.vastdbmanager.connection_manager.vastdb.connect')
     @patch('app.core.config.get_settings')
     def test_vastdbmanager_creation(self, mock_get_settings, mock_vast_connect):
         """Test VastDBManager instance creation"""
@@ -37,12 +37,12 @@ class TestVastDBManagerInitialization:
         manager = VastDBManager("test-endpoint")
         
         assert manager is not None
-        assert manager.endpoints == ["test-endpoint"]
-        assert manager.bucket == "test-bucket"
-        assert manager.schema == "test-schema"
-        assert manager.connection is not None
+        assert manager.connection_manager.endpoints == ["test-endpoint"]
+        assert manager.connection_manager.get_bucket() == "test-bucket"
+        assert manager.connection_manager.get_schema() == "test-schema"
+        assert manager.connection_manager.get_connection() is not None
     
-    @patch('app.storage.vastdbmanager.core.vastdb.connect')
+    @patch('app.storage.vastdbmanager.connection_manager.vastdb.connect')
     @patch('app.core.config.get_settings')
     def test_vastdbmanager_multiple_endpoints(self, mock_get_settings, mock_vast_connect):
         """Test VastDBManager with multiple endpoints"""
@@ -62,10 +62,10 @@ class TestVastDBManagerInitialization:
         endpoints = ["endpoint1", "endpoint2", "endpoint3"]
         manager = VastDBManager(endpoints)
         
-        assert manager.endpoints == endpoints
-        assert len(manager.endpoints) == 3
+        assert manager.connection_manager.endpoints == endpoints
+        assert len(manager.connection_manager.endpoints) == 3
     
-    @patch('app.storage.vastdbmanager.core.vastdb.connect')
+    @patch('app.storage.vastdbmanager.connection_manager.vastdb.connect')
     @patch('app.core.config.get_settings')
     def test_vastdbmanager_component_initialization(self, mock_get_settings, mock_vast_connect):
         """Test that all components are properly initialized"""
@@ -98,7 +98,7 @@ class TestVastDBManagerConnection:
     @pytest.fixture
     def mock_manager(self):
         """Create VastDBManager with mocked dependencies"""
-        with patch('app.storage.vastdbmanager.core.vastdb.connect') as mock_vast_connect:
+        with patch('app.storage.vastdbmanager.connection_manager.vastdb.connect') as mock_vast_connect:
             with patch('app.core.config.get_settings') as mock_get_settings:
                 mock_settings = MagicMock()
                 mock_settings.vast_access_key = "test-key"
@@ -115,25 +115,23 @@ class TestVastDBManagerConnection:
     
     def test_connection_establishment(self, mock_manager):
         """Test that connection is established during initialization"""
-        assert mock_manager.connection is not None
+        assert mock_manager.connection_manager.get_connection() is not None
     
     def test_connection_to_specific_endpoint(self, mock_manager):
         """Test connecting to a specific endpoint"""
-        # Mock the connection method
-        mock_manager.connect_to_endpoint = MagicMock()
+        # Mock the connection manager's connect_to_endpoint method
+        mock_manager.connection_manager.connect_to_endpoint = MagicMock()
         
-        endpoint = "specific-endpoint"
-        mock_manager.connect_to_endpoint(endpoint)
-        
-        mock_manager.connect_to_endpoint.assert_called_once_with(endpoint)
+        mock_manager.connect_to_endpoint("specific-endpoint")
+        mock_manager.connection_manager.connect_to_endpoint.assert_called_once_with("specific-endpoint")
     
     def test_disconnection(self, mock_manager):
-        """Test disconnecting from VAST"""
-        # Mock the disconnect method
-        mock_manager.disconnect = MagicMock()
+        """Test disconnecting from the database"""
+        # Mock the connection manager's disconnect method
+        mock_manager.connection_manager.disconnect = MagicMock()
         
         mock_manager.disconnect()
-        mock_manager.disconnect.assert_called_once()
+        mock_manager.connection_manager.disconnect.assert_called_once()
 
 
 class TestVastDBManagerTableOperations:
@@ -142,7 +140,7 @@ class TestVastDBManagerTableOperations:
     @pytest.fixture
     def mock_manager(self):
         """Create VastDBManager with mocked dependencies"""
-        with patch('app.storage.vastdbmanager.core.vastdb.connect') as mock_vast_connect:
+        with patch('app.storage.vastdbmanager.connection_manager.vastdb.connect') as mock_vast_connect:
             with patch('app.core.config.get_settings') as mock_get_settings:
                 mock_settings = MagicMock()
                 mock_settings.vast_access_key = "test-key"
@@ -192,7 +190,7 @@ class TestVastDBManagerDataOperations:
     @pytest.fixture
     def mock_manager(self):
         """Create VastDBManager with mocked dependencies"""
-        with patch('app.storage.vastdbmanager.core.vastdb.connect') as mock_vast_connect:
+        with patch('app.storage.vastdbmanager.connection_manager.vastdb.connect') as mock_vast_connect:
             with patch('app.core.config.get_settings') as mock_get_settings:
                 mock_settings = MagicMock()
                 mock_settings.vast_access_key = "test-key"
@@ -258,7 +256,7 @@ class TestVastDBManagerCacheOperations:
     @pytest.fixture
     def mock_manager(self):
         """Create VastDBManager with mocked dependencies"""
-        with patch('app.storage.vastdbmanager.core.vastdb.connect') as mock_vast_connect:
+        with patch('app.storage.vastdbmanager.connection_manager.vastdb.connect') as mock_vast_connect:
             with patch('app.core.config.get_settings') as mock_get_settings:
                 mock_settings = MagicMock()
                 mock_settings.vast_access_key = "test-key"
@@ -299,7 +297,7 @@ class TestVastDBManagerAnalytics:
     @pytest.fixture
     def mock_manager(self):
         """Create VastDBManager with mocked dependencies"""
-        with patch('app.storage.vastdbmanager.core.vastdb.connect') as mock_vast_connect:
+        with patch('app.storage.vastdbmanager.connection_manager.vastdb.connect') as mock_vast_connect:
             with patch('app.core.config.get_settings') as mock_get_settings:
                 mock_settings = MagicMock()
                 mock_settings.vast_access_key = "test-key"
@@ -318,16 +316,11 @@ class TestVastDBManagerAnalytics:
         """Test performance monitoring functionality"""
         # Mock performance methods
         mock_manager.get_performance_summary = MagicMock(return_value={"queries": 100, "avg_time": 0.5})
-        mock_manager.get_endpoint_stats = MagicMock(return_value={"endpoint1": {"status": "healthy"}})
         
         # Test performance summary
         perf_summary = mock_manager.get_performance_summary()
         assert perf_summary["queries"] == 100
         assert perf_summary["avg_time"] == 0.5
-        
-        # Test endpoint stats
-        endpoint_stats = mock_manager.get_endpoint_stats()
-        assert endpoint_stats["endpoint1"]["status"] == "healthy"
     
     def test_analytics_components(self, mock_manager):
         """Test analytics component availability"""
@@ -340,7 +333,7 @@ class TestVastDBManagerAnalytics:
 class TestVastDBManagerErrorHandling:
     """Test VastDBManager error handling"""
     
-    @patch('app.storage.vastdbmanager.core.vastdb.connect')
+    @patch('app.storage.vastdbmanager.connection_manager.vastdb.connect')
     @patch('app.core.config.get_settings')
     def test_connection_error_handling(self, mock_get_settings, mock_vast_connect):
         """Test handling of connection errors"""
@@ -359,7 +352,7 @@ class TestVastDBManagerErrorHandling:
         with pytest.raises(Exception):
             VastDBManager("test-endpoint")
     
-    @patch('app.storage.vastdbmanager.core.vastdb.connect')
+    @patch('app.storage.vastdbmanager.connection_manager.vastdb.connect')
     @patch('app.core.config.get_settings')
     def test_method_error_handling(self, mock_get_settings, mock_vast_connect):
         """Test error handling in method calls"""

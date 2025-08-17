@@ -49,8 +49,8 @@ class CacheManager:
         """Invalidate cached data for a table"""
         if table_name in self.table_cache:
             del self.table_cache[table_name]
-                    if logger.isEnabledFor(logging.DEBUG):
-            logger.debug("Invalidated cache for table %s", table_name)
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Invalidated cache for table %s", table_name)
     
     def get_all_table_names(self) -> list[str]:
         """Get list of all cached table names"""

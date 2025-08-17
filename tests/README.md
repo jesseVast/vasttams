@@ -1,6 +1,28 @@
 # TAMS Tests
 
-This directory contains all test files for the TAMS (Time-addressable Media Store) API application.
+This directory contains all test files for the TAMS (Time-addressable Media Store) API application, organized into focused modules for different testing purposes.
+
+## Test Organization
+
+### Test Modules
+
+#### `mock_tests/` - Mock/Unit Tests
+- **Purpose**: Fast, isolated unit tests using mocked dependencies
+- **Coverage**: Individual components, business logic, error handling
+- **Dependencies**: pytest, mock libraries
+- **Usage**: Development, CI/CD, fast feedback
+
+#### `real_tests/` - Integration Tests  
+- **Purpose**: Real integration tests with actual backend services
+- **Coverage**: End-to-end workflows, cross-module interactions, real data
+- **Dependencies**: VAST database, S3 storage, running server
+- **Usage**: Integration testing, pre-deployment validation
+
+#### `performance_tests/` - Performance & Stress Tests
+- **Purpose**: Performance benchmarking and stress testing
+- **Coverage**: Performance metrics, scalability, resource usage, concurrent operations
+- **Dependencies**: Real backend services, significant resources
+- **Usage**: Performance validation, capacity planning, stress testing
 
 ## Test Files Overview
 
@@ -80,7 +102,32 @@ Make sure you have the required dependencies installed:
 pip install -r requirements.txt
 ```
 
-### Running All Tests
+### Test Runners
+
+#### Integration Tests (Recommended for Development)
+```bash
+# Run all integration tests (mock + real, no performance)
+python tests/run_consolidated_tests.py
+
+# Run only real integration tests
+python tests/run_consolidated_tests.py --real-only
+
+# Run only mock tests
+python tests/run_consolidated_tests.py --mock-only
+```
+
+#### Performance Tests (Separate Module)
+```bash
+# Run all performance tests
+python tests/run_performance_tests.py
+
+# Run specific performance test categories
+python tests/run_performance_tests.py --fast
+python tests/run_performance_tests.py --stress
+python tests/run_performance_tests.py --scalability
+```
+
+#### Direct Pytest (Advanced Users)
 ```bash
 # From the project root
 python -m pytest tests/

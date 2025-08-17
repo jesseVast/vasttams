@@ -835,23 +835,14 @@ If S3 storage operations fail:
 ## 🚀 Roadmap
 
 - [ ] Real-time event streaming with WebSockets
-- [ ] Advanced analytics with machine learning
-- [ ] Multi-region deployment support
+
 - [ ] Enhanced security with OAuth2/JWT
-- [ ] GraphQL API support
-- [ ] Plugin system for custom storage backends
-- [ ] Performance optimization for large-scale deployments
-- [ ] Integration with popular media processing tools
+
 - [ ] Advanced observability features (custom dashboards, alerting rules)
-- [ ] Service mesh integration for distributed tracing
-- [ ] Metrics aggregation and long-term storage
-- [ ] Automated performance baselining and anomaly detection
-- [ ] Enhanced soft delete query parameters (include_deleted, deleted_only, deleted_state)
-- [ ] Bulk operations for soft delete and restore
+
 - [ ] Advanced audit trail and compliance reporting
 - [ ] **Trino integration for advanced query capabilities**
   - [ ] SQL query interface for complex analytics
-  - [ ] Federated queries across multiple data sources
   - [ ] Advanced aggregation and window functions
   - [ ] Integration with existing VAST database infrastructure
   - [ ] Performance optimization for large-scale data queries

@@ -53,8 +53,8 @@ class S3Store:
         # Initialize S3 client using VastS3 approach
         try:
             session = boto3.session.Session()
-                    if logger.isEnabledFor(logging.DEBUG):
-            logger.debug("Created boto3 session: %s", session)
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Created boto3 session: %s", session)
             
             self.s3_client = session.client(
                 service_name='s3',

@@ -1793,17 +1793,12 @@ class VASTStore:
                     'object_count': 0
                 }
             
-            # Check for dependent objects (through this flow)
+            # Check for dependent objects (through segments in this flow)
             object_count = 0
             if segment_count > 0:
-                # Query objects that reference this flow
-                object_predicate = (ibis_.flow_id == flow_id)
-                object_results = self.db_manager.select('objects', predicate=object_predicate, columns=['object_id'], output_by_row=True)
-                
-                if isinstance(object_results, list):
-                    object_count = len(object_results)
-                elif isinstance(object_results, dict) and 'object_id' in object_results:
-                    object_count = len(object_results['object_id']) if isinstance(object_results['object_id'], list) else 1
+                # Objects are linked to flows through segments, so we count segments as object references
+                # Each segment represents one object reference
+                object_count = segment_count
             
             return {
                 'has_dependencies': segment_count > 0 or object_count > 0,
@@ -1838,18 +1833,23 @@ class VASTStore:
             from ibis import _ as ibis_
             
             # Check for dependent objects that reference the flow containing this segment
-            object_predicate = (ibis_.flow_id == flow_id)
-            object_results = self.db_manager.select('objects', predicate=object_predicate, columns=['object_id'], output_by_row=True)
+            # Since objects are immutable and linked through segments, we check if this segment
+            # is referenced by any other flows (indicating dependency)
+            segment_predicate = (ibis_.object_id == segment_id)
+            segment_results = self.db_manager.select('segments', predicate=segment_predicate, columns=['id'], output_by_row=True)
             
-            object_count = 0
-            if isinstance(object_results, list):
-                object_count = len(object_results)
-            elif isinstance(object_results, dict) and 'object_id' in object_results:
-                object_count = len(object_results['object_id']) if isinstance(object_results['object_id'], list) else 1
+            dependency_count = 0
+            if isinstance(segment_results, list):
+                dependency_count = len(segment_results)
+            elif isinstance(segment_results, dict) and 'id' in segment_results:
+                dependency_count = len(segment_results['id']) if isinstance(segment_results['id'], list) else 1
+            
+            # A segment has dependencies if it's referenced by multiple flows
+            has_dependencies = dependency_count > 1  # More than just the current flow
             
             return {
-                'has_dependencies': object_count > 0,
-                'object_count': object_count
+                'has_dependencies': has_dependencies,
+                'object_count': dependency_count
             }
             
         except Exception as e:

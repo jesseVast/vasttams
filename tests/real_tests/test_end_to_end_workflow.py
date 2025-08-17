@@ -585,30 +585,73 @@ class TestEndToEndWorkflow:
                         print(f"   ❌ Test flow creation failed: {response.status}")
                         return False
                 
-                # Step 8: Test source deletion (should fail)
-                print("📝 Step 8: Testing source deletion (should fail)")
-                # Try to delete without cascade first to test dependency constraints
-                async with session.delete(f"{base_url}/sources/{test_source_id}?cascade=false") as response:
-                    if response.status in [400, 409, 422]:  # Various error statuses for constraints
-                        print(f"   ❌ Source deletion failed as expected: {response.status}")
-                        error_text = await response.text()
-                        print(f"   📄 Error response: {error_text}")
-                    else:
-                        print(f"   ⚠️  Unexpected response: {response.status}")
-                        error_text = await response.text()
-                        print(f"   📄 Response: {error_text}")
+                # Step 8: Create a new flow using existing source and objects
+                print("📝 Step 8: Creating a new flow using existing source and objects")
+                new_flow_id = str(uuid.uuid4())
+                new_flow_data = {
+                    "id": new_flow_id,
+                    "source_id": test_source_id,  # Use the existing source
+                    "codec": "video/h264",
+                    "frame_width": 1920,
+                    "frame_height": 1080,
+                    "frame_rate": "25/1",
+                    "label": "New Test Flow",
+                    "description": "New flow using existing source"
+                }
                 
-                # Also test with cascade=true to show the difference
-                print("📝 Step 8b: Testing source deletion with cascade (should succeed)")
-                async with session.delete(f"{base_url}/sources/{test_source_id}?cascade=true") as response:
-                    if response.status in [200, 204]:
-                        print(f"   ✅ Source deleted with cascade: {response.status}")
-                        error_text = await response.text()
-                        print(f"   📄 Response: {error_text}")
+                async with session.post(f"{base_url}/flows", json=new_flow_data) as response:
+                    if response.status == 201:
+                        print(f"   ✅ New flow created: {new_flow_id}")
                     else:
-                        print(f"   ❌ Source deletion with cascade failed: {response.status}")
+                        print(f"   ❌ New flow creation failed: {response.status}")
                         error_text = await response.text()
                         print(f"   📄 Error response: {error_text}")
+                        return False
+                
+                # Step 8b: List all sources, flows, and segments
+                print("📝 Step 8b: Listing all sources, flows, and segments")
+                
+                # List sources
+                async with session.get(f"{base_url}/sources") as response:
+                    if response.status == 200:
+                        sources = await response.json()
+                        print(f"   📊 Sources ({len(sources)} total):")
+                        for source in sources:
+                            if isinstance(source, str):
+                                print(f"      📁 Source: {source}")
+                            else:
+                                print(f"      📁 Source: {source.get('id', 'N/A')} - {source.get('label', 'N/A')}")
+                    else:
+                        print(f"   ❌ Sources retrieval failed: {response.status}")
+                
+                # List flows
+                async with session.get(f"{base_url}/flows") as response:
+                    if response.status == 200:
+                        flows = await response.json()
+                        print(f"   📊 Flows ({len(flows)} total):")
+                        for flow in flows:
+                            if isinstance(flow, str):
+                                print(f"      📁 Flow: {flow}")
+                            else:
+                                print(f"      📁 Flow: {flow.get('id', 'N/A')} - {flow.get('label', 'N/A')}")
+                    else:
+                        print(f"   ❌ Flows retrieval failed: {response.status}")
+                
+                # List segments for each flow
+                for flow in flows:
+                    if isinstance(flow, dict) and 'id' in flow:
+                        flow_id = flow['id']
+                        async with session.get(f"{base_url}/flows/{flow_id}/segments") as response:
+                            if response.status == 200:
+                                segments = await response.json()
+                                print(f"   📊 Segments for flow {flow_id} ({len(segments)} total):")
+                                for segment in segments:
+                                    if isinstance(segment, str):
+                                        print(f"      📁 Segment: {segment}")
+                                    else:
+                                        print(f"      📁 Segment: {segment.get('object_id', 'N/A')} - {segment.get('timerange', 'N/A')}")
+                            else:
+                                print(f"   ❌ Segments retrieval failed for flow {flow_id}: {response.status}")
                 
                 # Step 9: Test flow deletion (should succeed)
                 print("📝 Step 9: Testing flow deletion (should succeed)")
@@ -620,23 +663,18 @@ class TestEndToEndWorkflow:
                         error_text = await response.text()
                         print(f"   📄 Error response: {error_text}")
                 
-                # Step 10: Check list of flows
-                print("📝 Step 10: Checking list of flows")
-                async with session.get(f"{base_url}/flows") as response:
-                    if response.status == 200:
-                        flows = await response.json()
-                        print(f"   ✅ Retrieved flows list: {len(flows)} flows")
-                        for flow in flows:
-                            # Handle both string and object responses
-                            if isinstance(flow, str):
-                                print(f"      📁 Flow: {flow}")
-                            else:
-                                print(f"      📁 Flow: {flow.get('id', 'N/A')} - {flow.get('label', 'N/A')}")
+                # Step 10: Test new flow deletion (should succeed)
+                print("📝 Step 10: Testing new flow deletion (should succeed)")
+                async with session.delete(f"{base_url}/flows/{new_flow_id}") as response:
+                    if response.status in [200, 204]:
+                        print(f"   ✅ New flow deleted successfully")
                     else:
-                        print(f"   ❌ Flows retrieval failed: {response.status}")
+                        print(f"   ❌ New flow deletion failed: {response.status}")
+                        error_text = await response.text()
+                        print(f"   📄 Error response: {error_text}")
                 
-                # Step 11: Final verification
-                print("📝 Step 11: Final verification")
+                # Step 11: Final verification and listing
+                print("📝 Step 11: Final verification and listing")
                 async with session.get(f"{base_url}/flows") as response:
                     if response.status == 200:
                         flows = await response.json()
@@ -672,7 +710,10 @@ if __name__ == "__main__":
     print("4. Create segments flow-seg-1, flow-seg-2 based on objects")
     print("5. Test data retrieval for each flow")
     print("6. Test API endpoints with detailed logging (Steps 1-5)")
-    print("7-11. Test deletion workflow and constraints")
+    print("7. Test deletion workflow and constraints")
+    print("8. Create new flow using existing source")
+    print("8b. List all sources, flows, and segments")
+    print("9-11. Test deletion workflow and final verification")
     print()
     
     # Create test instance

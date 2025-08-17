@@ -5,7 +5,7 @@ Handles flow-related operations and business logic.
 from typing import List, Optional, Dict
 from fastapi import HTTPException
 from datetime import datetime, timezone
-from ..models.models import Flow, FlowsResponse, PagingInfo, FlowFilters, FlowDetailFilters
+from ..models.models import Flow, FlowsResponse, PagingInfo, FlowFilters, FlowDetailFilters, Tags
 from ..storage.vast_store import VASTStore
 import logging
 import uuid
@@ -44,7 +44,7 @@ async def get_flow(store: VASTStore, flow_id: str, filters: Optional[FlowDetailF
         flow = await store.get_flow(flow_id)
         return flow
     except Exception as e:
-        logger.error(f"Failed to get flow {flow_id}: {e}")
+        logger.error("Failed to get flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def create_flow(store: VASTStore, flow: Flow) -> bool:
@@ -56,7 +56,7 @@ async def create_flow(store: VASTStore, flow: Flow) -> bool:
         success = await store.create_flow(flow)
         return success
     except Exception as e:
-        logger.error(f"Failed to create flow: {e}")
+        logger.error("Failed to create flow: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def update_flow(store: VASTStore, flow_id: str, flow: Flow) -> Optional[Flow]:
@@ -68,7 +68,7 @@ async def update_flow(store: VASTStore, flow_id: str, flow: Flow) -> Optional[Fl
             return flow
         return None
     except Exception as e:
-        logger.error(f"Failed to update flow {flow_id}: {e}")
+        logger.error("Failed to update flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def delete_flow(store: VASTStore, flow_id: str, cascade: bool = True) -> bool:
@@ -77,7 +77,7 @@ async def delete_flow(store: VASTStore, flow_id: str, cascade: bool = True) -> b
         success = await store.delete_flow(flow_id, cascade=cascade)
         return success
     except Exception as e:
-        logger.error(f"Failed to delete flow {flow_id}: {e}")
+        logger.error("Failed to delete flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 class FlowManager:
@@ -114,7 +114,7 @@ class FlowManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to check flow read-only status for {flow_id}: {e}")
+            logger.error("Failed to check flow read-only status for %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def list_flows(self, filters: Dict, limit: int, store: Optional[VASTStore] = None) -> FlowsResponse:
@@ -128,7 +128,7 @@ class FlowManager:
                 paging = None  # PagingInfo can be added if needed
             return FlowsResponse(data=flows, paging=paging)
         except Exception as e:
-            logger.error(f"Failed to list flows: {e}")
+            logger.error("Failed to list flows: %s", e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def get_flow(self, flow_id: str, store: Optional[VASTStore] = None) -> Flow:
@@ -143,7 +143,7 @@ class FlowManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to get flow {flow_id}: {e}")
+            logger.error("Failed to get flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def create_flow(self, flow: Flow, store: Optional[VASTStore] = None) -> Flow:
@@ -161,7 +161,7 @@ class FlowManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to create flow: {e}")
+            logger.error("Failed to create flow: %s", e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def update_flow(self, flow_id: str, flow: Flow, store: Optional[VASTStore] = None) -> Flow:
@@ -180,7 +180,7 @@ class FlowManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to update flow {flow_id}: {e}")
+            logger.error("Failed to update flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def delete_flow(self, flow_id: str, store: Optional[VASTStore] = None, cascade: bool = True):
@@ -200,7 +200,7 @@ class FlowManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to delete flow {flow_id}: {e}")
+            logger.error("Failed to delete flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
 

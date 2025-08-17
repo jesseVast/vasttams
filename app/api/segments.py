@@ -21,7 +21,7 @@ async def get_flow_segments(store: VASTStore, flow_id: str, timerange: Optional[
         segments = await store.get_flow_segments(flow_id, timerange=timerange)
         return segments
     except Exception as e:
-        logger.error(f"Failed to get flow segments for {flow_id}: {e}")
+        logger.error("Failed to get flow segments for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def create_flow_segment(store: VASTStore, flow_id: str, segment: FlowSegment) -> bool:
@@ -32,7 +32,7 @@ async def create_flow_segment(store: VASTStore, flow_id: str, segment: FlowSegme
         success = await store.create_flow_segment(segment, flow_id, b"", "application/octet-stream")
         return success
     except Exception as e:
-        logger.error(f"Failed to create flow segment for {flow_id}: {e}")
+        logger.error("Failed to create flow segment for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def delete_flow_segments(store: VASTStore, flow_id: str, timerange: Optional[str] = None) -> bool:
@@ -41,7 +41,7 @@ async def delete_flow_segments(store: VASTStore, flow_id: str, timerange: Option
         success = await store.delete_flow_segments(flow_id, timerange=timerange)
         return success
     except Exception as e:
-        logger.error(f"Failed to delete flow segments for {flow_id}: {e}")
+        logger.error("Failed to delete flow segments for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def create_flow_storage(store: VASTStore, flow_id: str, storage_request: FlowStoragePost) -> Optional[FlowStorage]:
@@ -72,7 +72,7 @@ async def create_flow_storage(store: VASTStore, flow_id: str, storage_request: F
             # This ensures consistency between storage and retrieval URLs
             object_key = store.s3_store.generate_segment_key(flow_id, object_id, get_storage_timerange())
             
-            logger.info(f"Generated hierarchical path: {object_key} for object {object_id}")
+            logger.info("Generated hierarchical path: %s for object %s", object_key, object_id)
             
             # Generate S3 presigned PUT URL using S3Store
             put_url = store.s3_store.generate_object_presigned_url(
@@ -101,7 +101,7 @@ async def create_flow_storage(store: VASTStore, flow_id: str, storage_request: F
         return FlowStorage(media_objects=media_objects)
         
     except Exception as e:
-        logger.error(f"Failed to create flow storage for {flow_id}: {e}")
+        logger.error("Failed to create flow storage for %s: %s", flow_id, e)
         raise
 
 class SegmentManager:
@@ -117,7 +117,7 @@ class SegmentManager:
             segments = await store.get_flow_segments(flow_id, timerange=timerange)
             return segments
         except Exception as e:
-            logger.error(f"Failed to get segments for flow {flow_id}: {e}")
+            logger.error("Failed to get segments for flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def create_segment(self, flow_id: str, request, file, segment: str, store: Optional[VASTStore] = None) -> FlowSegment:
@@ -140,7 +140,7 @@ class SegmentManager:
             
             return segment_obj
         except Exception as e:
-            logger.error(f"Failed to create segment for flow {flow_id}: {e}")
+            logger.error("Failed to create segment for flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def delete_segments(self, flow_id: str, timerange: Optional[str], store: Optional[VASTStore] = None):
@@ -157,7 +157,7 @@ class SegmentManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to delete segments for flow {flow_id}: {e}")
+            logger.error("Failed to delete segments for flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def allocate_storage(self, flow_id: str, storage_request: FlowStoragePost, store: Optional[VASTStore] = None) -> FlowStorage:
@@ -178,7 +178,7 @@ class SegmentManager:
             
             return FlowStorage(storage_locations=storage_locations)
         except Exception as e:
-            logger.error(f"Failed to allocate storage for flow {flow_id}: {e}")
+            logger.error("Failed to allocate storage for flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def head_segments(self, flow_id: str) -> dict:

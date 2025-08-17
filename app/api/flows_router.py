@@ -38,7 +38,7 @@ async def check_flow_read_only(store: VASTStore, flow_id: str) -> None:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to check flow read-only status for {flow_id}: {e}")
+        logger.error("Failed to check flow read-only status for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # HEAD endpoints
@@ -87,7 +87,7 @@ async def list_flows(
         flows = await get_flows(store, filters)
         return FlowsResponse(data=flows)
     except Exception as e:
-        logger.error(f"Failed to list flows: {e}")
+        logger.error("Failed to list flows: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/flows/{flow_id}", response_model=Flow)
@@ -107,7 +107,7 @@ async def get_flow_by_id(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get flow {flow_id}: {e}")
+        logger.error("Failed to get flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # PUT endpoint
@@ -127,7 +127,7 @@ async def update_flow_by_id(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update flow {flow_id}: {e}")
+        logger.error("Failed to update flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # DELETE endpoint
@@ -147,7 +147,7 @@ async def delete_flow_by_id(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete flow {flow_id}: {e}")
+        logger.error("Failed to delete flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # POST endpoint
@@ -165,7 +165,7 @@ async def create_new_flow(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to create flow: {e}")
+        logger.error("Failed to create flow: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Batch POST endpoint
@@ -177,7 +177,7 @@ async def create_flows_batch(
     """Create multiple flows in a single batch operation using VAST's native batch insert"""
     try:
         # For multiple flows, use VAST's native batch insert
-        logger.info(f"Using VAST batch insert for {len(flows)} flows")
+        logger.info("Using VAST batch insert for %d flows", len(flows))
         
         # Convert Pydantic models to the format expected by insert_batch_efficient
         # The method expects Dict[str, List[Any]] where keys are column names
@@ -202,13 +202,13 @@ async def create_flows_batch(
         if rows_inserted <= 0:
             raise HTTPException(status_code=500, detail="Failed to insert flows batch")
         
-        logger.info(f"Successfully created {rows_inserted} flows using VAST batch insert")
+        logger.info("Successfully created %d flows using VAST batch insert", rows_inserted)
         return flows
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to create flows batch: {e}")
+        logger.error("Failed to create flows batch: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Individual field endpoints
@@ -231,7 +231,7 @@ async def get_flow_tags(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get flow tags for {flow_id}: {e}")
+        logger.error("Failed to get flow tags for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.head("/flows/{flow_id}/tags/{name}")
@@ -256,7 +256,7 @@ async def get_flow_tag(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get flow tag {name} for {flow_id}: {e}")
+        logger.error("Failed to get flow tag %s for %s: %s", name, flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/flows/{flow_id}/tags", response_model=Tags)
@@ -285,7 +285,7 @@ async def update_flow_tags(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update flow tags for {flow_id}: {e}")
+        logger.error("Failed to update flow tags for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/flows/{flow_id}/tags/{name}")
@@ -316,7 +316,7 @@ async def update_flow_tag(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update flow tag {name} for {flow_id}: {e}")
+        logger.error("Failed to update flow tag %s for %s: %s", name, flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/flows/{flow_id}/tags/{name}")
@@ -351,7 +351,7 @@ async def delete_flow_tag(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete flow tag {name} for {flow_id}: {e}")
+        logger.error("Failed to delete flow tag %s for %s: %s", name, flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.head("/flows/{flow_id}/description")
@@ -373,7 +373,7 @@ async def get_flow_description(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get flow description for {flow_id}: {e}")
+        logger.error("Failed to get flow description for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/flows/{flow_id}/description")
@@ -398,7 +398,7 @@ async def update_flow_description(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update flow description for {flow_id}: {e}")
+        logger.error("Failed to update flow description for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/flows/{flow_id}/description")
@@ -424,7 +424,7 @@ async def delete_flow_description(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete flow description for {flow_id}: {e}")
+        logger.error("Failed to delete flow description for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.head("/flows/{flow_id}/label")
@@ -446,7 +446,7 @@ async def get_flow_label(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get flow label for {flow_id}: {e}")
+        logger.error("Failed to get flow label for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/flows/{flow_id}/label")
@@ -471,7 +471,7 @@ async def update_flow_label(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update flow label for {flow_id}: {e}")
+        logger.error("Failed to update flow label for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/flows/{flow_id}/label")
@@ -497,7 +497,7 @@ async def delete_flow_label(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete flow label for {flow_id}: {e}")
+        logger.error("Failed to delete flow label for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.head("/flows/{flow_id}/read_only")
@@ -519,7 +519,7 @@ async def get_flow_read_only(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get flow read-only status for {flow_id}: {e}")
+        logger.error("Failed to get flow read-only status for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -548,7 +548,7 @@ async def get_flow_collection(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get flow collection for {flow_id}: {e}")
+        logger.error("Failed to get flow collection for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/flows/{flow_id}/flow_collection")
@@ -576,7 +576,7 @@ async def update_flow_collection(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update flow collection for {flow_id}: {e}")
+        logger.error("Failed to update flow collection for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.head("/flows/{flow_id}/max_bit_rate")
@@ -603,7 +603,7 @@ async def get_flow_max_bit_rate(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get flow max bit rate for {flow_id}: {e}")
+        logger.error("Failed to get flow max bit rate for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/flows/{flow_id}/max_bit_rate")
@@ -631,7 +631,7 @@ async def update_flow_max_bit_rate(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update flow max bit rate for {flow_id}: {e}")
+        logger.error("Failed to update flow max bit rate for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.head("/flows/{flow_id}/avg_bit_rate")
@@ -658,7 +658,7 @@ async def get_flow_avg_bit_rate(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get flow average bit rate for {flow_id}: {e}")
+        logger.error("Failed to get flow average bit rate for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/flows/{flow_id}/avg_bit_rate")
@@ -686,7 +686,7 @@ async def update_flow_avg_bit_rate(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update flow average bit rate for {flow_id}: {e}")
+        logger.error("Failed to update flow average bit rate for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Flow storage allocation endpoint
@@ -730,17 +730,17 @@ async def allocate_flow_storage(
             # This ensures consistency between storage and retrieval URLs
             object_key = store.s3_store.generate_segment_key(flow_id, object_id, get_storage_timerange())
             
-            logger.info(f"Generated hierarchical path: {object_key} for object {object_id}")
+            logger.info("Generated hierarchical path: %s for object %s", object_key, object_id)
             
             try:
                 # Check if S3Store has the required method
                 if not hasattr(store.s3_store, 'generate_object_presigned_url'):
-                    logger.error(f"S3Store missing generate_object_presigned_url method")
+                    logger.error("S3Store missing generate_object_presigned_url method")
                     raise HTTPException(status_code=500, detail="S3Store not properly initialized")
                 
                 # Check if S3Store has a working s3_client
                 if not hasattr(store.s3_store, 's3_client') or not store.s3_store.s3_client:
-                    logger.error(f"S3Store missing s3_client")
+                    logger.error("S3Store missing s3_client")
                     raise HTTPException(status_code=500, detail="S3Store s3_client not initialized")
                 
                 # Generate presigned URL for the hierarchical path
@@ -750,14 +750,14 @@ async def allocate_flow_storage(
                     custom_key=object_key  # Use the hierarchical path
                 )
                 
-                logger.info(f"Generated presigned URL: {put_url}")
+                logger.info("Generated presigned URL: %s", put_url)
                 
                 if not put_url:
-                    logger.error(f"Failed to generate presigned URL for object {object_id}")
+                    logger.error("Failed to generate presigned URL for object %s", object_id)
                     raise HTTPException(status_code=500, detail=f"Failed to generate presigned URL for object {object_id}")
                     
             except Exception as e:
-                logger.error(f"Error generating presigned URL: {e}")
+                logger.error("Error generating presigned URL: %s", e)
                 raise HTTPException(status_code=500, detail=f"Error generating presigned URL: {str(e)}")
             
             # Create MediaObject with the hierarchical path
@@ -778,7 +778,7 @@ async def allocate_flow_storage(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to allocate storage for flow {flow_id}: {e}")
+        logger.error("Failed to allocate storage for flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Flow read-only endpoints
@@ -807,7 +807,7 @@ async def get_flow_read_only(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get flow read-only status for {flow_id}: {e}")
+        logger.error("Failed to get flow read-only status for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/flows/{flow_id}/read_only", status_code=204)
@@ -832,5 +832,5 @@ async def set_flow_read_only(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to set flow read-only status for {flow_id}: {e}")
+        logger.error("Failed to set flow read-only status for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error") 

@@ -36,7 +36,7 @@ async def get_object_by_id(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get object {object_id}: {e}")
+        logger.error("Failed to get object %s: %s", object_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # POST endpoint
@@ -54,7 +54,7 @@ async def create_new_object(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to create object: {e}")
+        logger.error("Failed to create object: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Batch POST endpoint
@@ -66,7 +66,7 @@ async def create_objects_batch(
     """Create multiple objects in a single batch operation using VAST's native batch insert"""
     try:
         # For multiple objects, use VAST's native batch insert
-        logger.info(f"Using VAST batch insert for {len(objects)} objects")
+        logger.info("Using VAST batch insert for %d objects", len(objects))
         
         # Convert Pydantic models to the format expected by insert_batch_efficient
         # The method expects Dict[str, List[Any]] where keys are column names
@@ -91,13 +91,13 @@ async def create_objects_batch(
         if rows_inserted <= 0:
             raise HTTPException(status_code=500, detail="Failed to insert objects batch")
         
-        logger.info(f"Successfully created {rows_inserted} objects using VAST batch insert")
+        logger.info("Successfully created %d objects using VAST batch insert", rows_inserted)
         return objects
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to create objects batch: {e}")
+        logger.error("Failed to create objects batch: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # DELETE endpoint
@@ -115,7 +115,7 @@ async def delete_object_by_id(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete object {object_id}: {e}")
+        logger.error("Failed to delete object %s: %s", object_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
  

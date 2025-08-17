@@ -1,344 +1,501 @@
-"""Predicate processing and VAST predicate objects for VastDBManager"""
+"""
+Simplified predicate builder for TAMS timerange queries and basic comparisons
+
+This module provides a focused predicate builder that handles TAMS requirements:
+- Timerange overlap queries for media segments
+- Simple equality and range comparisons
+- OR logic for combining multiple conditions
+- Compound predicates with AND/OR combinations
+
+The PredicateBuilder converts Python dictionaries to VAST-compatible Ibis predicate objects
+that can be used in VAST database queries.
+"""
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, Union
-import pyarrow as pa
+from typing import Dict, Any, Optional, Union, List
+import re
 from ibis import _
 
 logger = logging.getLogger(__name__)
 
 
 class PredicateBuilder:
-    """Converts Python predicates to VAST-compatible Ibis predicate objects"""
+    """
+    Simplified predicate builder for TAMS requirements.
+    
+    This class converts Python dictionary predicates to VAST-compatible Ibis predicate objects.
+    It focuses on TAMS-specific requirements including timerange queries and basic comparisons.
+    
+    **Supported Dictionary Formats:**
+    
+    1. **Simple Equality:**
+       ```python
+       predicates = {
+           'is_active': True,
+           'format': 'urn:x-nmos:format:video',
+           'source_id': 'source_123'
+       }
+       ```
+    
+    2. **Comparison Operators:**
+       ```python
+       predicates = {
+           'duration': {'gt': 30.0},           # duration > 30.0
+           'file_size': {'gte': 1024},        # file_size >= 1024
+           'timestamp': {'lt': '2024-01-01'}, # timestamp < 2024-01-01
+           'bitrate': {'lte': 5000000}        # bitrate <= 5000000
+       }
+       ```
+    
+    3. **Range Queries:**
+       ```python
+       predicates = {
+           'timestamp': {'between': ['2024-01-01', '2024-01-31']},
+           'duration': {'in': [30.0, 60.0, 90.0]}
+       }
+       ```
+    
+    4. **Timerange Queries (TAMS Specific):**
+       ```python
+       predicates = {
+           'timerange': {
+               'overlaps': {
+                   'start': '2024-01-01T00:00:00Z',
+                   'end': '2024-01-01T23:59:59Z'
+               }
+           }
+       }
+       ```
+    
+    5. **OR Logic:**
+       ```python
+       predicates = {
+           'format': {'or': ['urn:x-nmos:format:video', 'urn:x-nmos:format:audio']},
+           'source_id': {'or': ['source_1', 'source_2', 'source_3']}
+       }
+       ```
+    
+    6. **Compound AND/OR Logic:**
+       ```python
+       predicates = {
+           'and': [
+               {'format': 'urn:x-nmos:format:video'},
+               {'or': [
+                   {'source_id': 'source_1'},
+                   {'source_id': 'source_2'}
+               ]},
+               {'timerange': {'overlaps': {'start': '2024-01-01', 'end': '2024-01-02'}}}
+           ]
+       }
+       ```
+    
+    7. **Null Checks:**
+       ```python
+       predicates = {
+           'metadata': {'is_null': True},
+           'tags': {'is_not_null': True}
+       }
+       ```
+    
+    **Expected Predicates Generated:**
+    
+    The builder converts these dictionaries to Ibis predicate objects that can be used
+    directly in VAST database queries. For example:
+    
+    - Simple equality becomes: `table.column == value`
+    - Comparisons become: `table.column > value`, `table.column <= value`
+    - Timerange overlaps become: `(table.start_time <= end) & (table.end_time >= start)`
+    - OR logic becomes: `(table.column == value1) | (table.column == value2)`
+    - Compound logic becomes: `(condition1) & ((condition2) | (condition3))`
+    
+    **Usage Example:**
+    
+    ```python
+    builder = PredicateBuilder()
+    
+    # Simple query
+    predicates = {'format': 'urn:x-nmos:format:video'}
+    vast_predicates = builder.build_vast_predicates(predicates)
+    
+    # Timerange query
+    predicates = {
+        'timerange': {
+            'overlaps': {
+                'start': '2024-01-01T00:00:00Z',
+                'end': '2024-01-01T23:59:59Z'
+            }
+        }
+    }
+    vast_predicates = builder.build_vast_predicates(predicates)
+    
+    # Use in VAST query
+    result = table.filter(vast_predicates).execute()
+    ```
+    """
     
     def build_vast_predicates(self, predicates: Dict[str, Any]) -> Optional[Any]:
         """
         Convert Python predicates to VAST-compatible Ibis predicate objects.
         
+        Focuses on TAMS requirements:
+        - Timerange overlap queries
+        - Simple equality comparisons
+        - Basic range comparisons
+        - OR logic for multiple values
+        - Compound AND/OR logic
+        
         Args:
-            predicates: Dictionary of column predicates
-                Example: {
-                    'format': 'urn:x-nmos:format:video',
-                    'bitrate': {'gte': 10000000},
-                    'timestamp': {'between': [start_time, end_time]},
-                    'tags': 'live'
-                }
-                
+            predicates: Dictionary of column names and their conditions
+            
         Returns:
-            VAST-compatible Ibis predicate object or None
+            Ibis predicate object or None if no predicates
+            
+        Raises:
+            ValueError: If predicate format is invalid
         """
         if not predicates:
+            logger.debug("No predicates provided, returning None")
             return None
+            
+        logger.debug(f"Building VAST predicates from input: {predicates}")
         
         try:
-            # Build Ibis predicates
-            ibis_predicates = []
+            # Handle compound logic (AND/OR at top level)
+            if 'and' in predicates:
+                logger.debug("Processing AND logic at top level")
+                result = self._build_and_predicates(predicates['and'])
+                logger.debug(f"AND logic result: {result}")
+                return result
+            elif 'or' in predicates:
+                logger.debug("Processing OR logic at top level")
+                result = self._build_or_predicates(predicates['or'])
+                logger.debug(f"OR logic result: {result}")
+                return result
             
+            # Handle individual column predicates
+            built_predicates = []
             for column, condition in predicates.items():
-                if isinstance(condition, dict):
-                    # Complex condition (range, comparison, etc.)
-                    predicate = self._build_complex_predicate(column, condition)
-                    if predicate is not None:
-                        ibis_predicates.append(predicate)
+                logger.debug(f"Processing column '{column}' with condition: {condition}")
+                
+                if column == 'timerange':
+                    predicate = self._build_timerange_predicate(condition)
                 else:
-                    # Simple equality
-                    predicate = self._build_simple_predicate(column, condition)
-                    if predicate is not None:
-                        ibis_predicates.append(predicate)
-            
-            # Combine all predicates with AND logic
-            if ibis_predicates:
-                if len(ibis_predicates) == 1:
-                    return ibis_predicates[0]
+                    predicate = self._build_column_predicate(column, condition)
+                
+                if predicate is not None:
+                    built_predicates.append(predicate)
+                    logger.debug(f"Built predicate for '{column}': {predicate}")
                 else:
-                    # Combine multiple predicates with AND
-                    result = ibis_predicates[0]
-                    for predicate in ibis_predicates[1:]:
-                        result = result & predicate
-                    return result
+                    logger.debug(f"No predicate built for '{column}'")
             
-            return None
-            
-        except Exception as e:
-            logger.error(f"Error building Ibis predicates: {e}")
-            logger.warning("Falling back to unfiltered query")
-            return None
-    
-    def _build_simple_predicate(self, column: str, value: Any) -> Optional[Any]:
-        """Build simple equality predicate using Ibis"""
-        try:
-            if value is None:
-                return getattr(_, column).isnull()
+            if not built_predicates:
+                logger.debug("No predicates were built, returning None")
+                return None
+            elif len(built_predicates) == 1:
+                logger.debug(f"Single predicate result: {built_predicates[0]}")
+                return built_predicates[0]
             else:
-                return getattr(_, column) == self._convert_timestamp_value(value)
+                # Combine all predicates with AND logic
+                result = built_predicates[0].and_(built_predicates[1:])
+                logger.debug(f"Combined AND predicates result: {result}")
+                return result
+                
         except Exception as e:
-            logger.warning(f"Failed to build simple predicate for {column}: {e}")
-            return None
+            logger.error(f"Error building predicates: {e}")
+            raise ValueError(f"Invalid predicate format: {e}")
     
-    def _build_complex_predicate(self, column: str, condition: Dict[str, Any]) -> Optional[Any]:
-        """Build complex predicate with operators using Ibis"""
-        try:
-            column_ref = getattr(_, column)
-            
-            for operator, value in condition.items():
-                if operator == 'eq':
-                    return column_ref == self._convert_timestamp_value(value)
-                elif operator == 'ne':
-                    return column_ref != self._convert_timestamp_value(value)
-                elif operator == 'gt':
-                    return column_ref > self._convert_timestamp_value(value)
-                elif operator == 'gte':
-                    return column_ref >= self._convert_timestamp_value(value)
-                elif operator == 'lt':
-                    return column_ref < self._convert_timestamp_value(value)
-                elif operator == 'lte':
-                    return column_ref <= self._convert_timestamp_value(value)
-                elif operator == 'between':
-                    if isinstance(value, (list, tuple)) and len(value) == 2:
-                        start, end = value
-                        start_converted = self._convert_timestamp_value(start)
-                        end_converted = self._convert_timestamp_value(end)
-                        return (column_ref >= start_converted) & (column_ref <= end_converted)
-                    else:
-                        logger.warning(f"Invalid 'between' value for column {column}: {value}")
-                        return None
-                elif operator == 'in':
-                    if isinstance(value, (list, tuple)):
-                        converted_values = [self._convert_timestamp_value(v) for v in value]
-                        return column_ref.isin(converted_values)
-                    else:
-                        logger.warning(f"Invalid 'in' value for column {column}: {value}")
-                        return None
-                elif operator == 'contains':
-                    if isinstance(value, str):
-                        return column_ref.contains(value)
-                    else:
-                        logger.warning(f"Invalid 'contains' value for column {column}: {value}")
-                        return None
-                elif operator == 'starts_with':
-                    if isinstance(value, str):
-                        return column_ref.startswith(value)
-                    else:
-                        logger.warning(f"Invalid 'starts_with' value for column {column}: {value}")
-                        return None
-                elif operator == 'is_null':
-                    return column_ref.isnull()
-                elif operator == 'is_not_null':
-                    return column_ref.notnull()
-                elif operator == 'or':
-                    # Handle OR operations
-                    if isinstance(value, (list, tuple)):
-                        # Convert to Ibis OR expression
-                        if len(value) >= 2:
-                            # Generic OR for multiple values
-                            converted_values = [self._convert_timestamp_value(v) for v in value]
-                            return column_ref.isin(converted_values)
-                        else:
-                            logger.warning(f"Invalid 'or' value for column {column}: {value}")
-                            return None
-                    else:
-                        logger.warning(f"Invalid 'or' value for column {column}: {value}")
-                        return None
-                else:
-                    logger.warning(f"Unsupported operator '{operator}' for column {column}")
-                    return None
-            
+    def _build_and_predicates(self, conditions: List[Dict[str, Any]]) -> Any:
+        """Build AND logic for multiple conditions"""
+        if not conditions:
+            logger.debug("No conditions for AND logic, returning None")
             return None
             
-        except Exception as e:
-            logger.warning(f"Failed to build complex predicate for {column}: {e}")
-            return None
-    
-    def _convert_timestamp_value(self, value: Any) -> Any:
-        """Convert Python datetime to VAST-compatible timestamp if needed"""
-        if isinstance(value, datetime):
-            # For VAST with PyArrow timestamps, use datetime objects directly
-            # This enables optimal VAST timestamp comparisons and indexing
-            return value
-        return value
-    
-    def convert_ibis_predicate_to_vast(self, ibis_predicate: Any) -> Optional[Dict[str, Any]]:
-        """
-        Convert Ibis predicate objects to VAST-compatible dictionary format.
+        logger.debug(f"Building AND predicates from conditions: {conditions}")
+        predicates = []
+        for i, condition in enumerate(conditions):
+            logger.debug(f"Processing AND condition {i+1}: {condition}")
+            predicate = self.build_vast_predicates(condition)
+            if predicate is not None:
+                predicates.append(predicate)
+                logger.debug(f"Added predicate {i+1} to AND list: {predicate}")
+            else:
+                logger.debug(f"Condition {i+1} produced no predicate")
         
-        This method handles the conversion of Ibis predicates (including Deferred types)
-        to a format that can be used by VAST queries.
+        if not predicates:
+            logger.debug("No predicates built for AND logic, returning None")
+            return None
+        elif len(predicates) == 1:
+            logger.debug(f"Single AND predicate result: {predicates[0]}")
+            return predicates[0]
+        else:
+            result = predicates[0].and_(predicates[1:])
+            logger.debug(f"Combined AND predicates result: {result}")
+            return result
+    
+    def _build_or_predicates(self, conditions: List[Dict[str, Any]]) -> Any:
+        """Build OR logic for multiple conditions"""
+        if not conditions:
+            logger.debug("No conditions for OR logic, returning None")
+            return None
+            
+        logger.debug(f"Building OR predicates from conditions: {conditions}")
+        predicates = []
+        for i, condition in enumerate(conditions):
+            logger.debug(f"Processing OR condition {i+1}: {condition}")
+            predicate = self.build_vast_predicates(condition)
+            if predicate is not None:
+                predicates.append(predicate)
+                logger.debug(f"Added predicate {i+1} to OR list: {predicate}")
+            else:
+                logger.debug(f"Condition {i+1} produced no predicate")
+        
+        if not predicates:
+            logger.debug("No predicates built for OR logic, returning None")
+            return None
+        elif len(predicates) == 1:
+            logger.debug(f"Single OR predicate result: {predicates[0]}")
+            return predicates[0]
+        else:
+            result = predicates[0].or_(predicates[1:])
+            logger.debug(f"Combined OR predicates result: {result}")
+            return result
+    
+    def _build_column_predicate(self, column: str, condition: Any) -> Optional[Any]:
+        """Build predicate for a single column"""
+        try:
+            logger.debug(f"Building predicate for column '{column}' with condition: {condition}")
+            
+            # Handle OR logic for multiple values
+            if isinstance(condition, dict) and 'or' in condition:
+                logger.debug(f"Column '{column}' has OR logic with values: {condition['or']}")
+                result = self._build_column_or_predicate(column, condition['or'])
+                logger.debug(f"OR logic result for column '{column}': {result}")
+                return result
+            
+            # Handle comparison operators
+            if isinstance(condition, dict):
+                logger.debug(f"Column '{column}' has comparison operators: {condition}")
+                result = self._build_comparison_predicate(column, condition)
+                logger.debug(f"Comparison result for column '{column}': {result}")
+                return result
+            
+            # Handle simple equality
+            logger.debug(f"Column '{column}' has simple equality with value: {condition}")
+            result = self._build_equality_predicate(column, condition)
+            logger.debug(f"Equality result for column '{column}': {result}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error building predicate for column {column}: {e}")
+            return None
+    
+    def _build_column_or_predicate(self, column: str, values: List[Any]) -> Any:
+        """Build OR predicate for multiple values of the same column"""
+        if not values:
+            return None
+            
+        predicates = []
+        for value in values:
+            predicate = self._build_equality_predicate(column, value)
+            if predicate is not None:
+                predicates.append(predicate)
+        
+        if not predicates:
+            return None
+        elif len(predicates) == 1:
+            return predicates[0]
+        else:
+            return predicates[0].or_(predicates[1:])
+    
+    def _build_equality_predicate(self, column: str, value: Any) -> Any:
+        """Build equality predicate for a column"""
+        if value is None:
+            return getattr(_, column).isnull()
+        else:
+            return getattr(_, column) == value
+    
+    def _build_comparison_predicate(self, column: str, condition: Dict[str, Any]) -> Any:
+        """Build comparison predicate for a column"""
+        column_ref = getattr(_, column)
+        
+        for operator, value in condition.items():
+            if operator == 'eq':
+                return column_ref == value
+            elif operator == 'ne':
+                return column_ref != value
+            elif operator == 'gt':
+                return column_ref > value
+            elif operator == 'gte':
+                return column_ref >= value
+            elif operator == 'lt':
+                return column_ref < value
+            elif operator == 'lte':
+                return column_ref <= value
+            elif operator == 'in':
+                if isinstance(value, (list, tuple)):
+                    return column_ref.isin(value)
+                else:
+                    raise ValueError(f"Invalid 'in' value: {value}")
+            elif operator == 'is_null':
+                return column_ref.isnull()
+            elif operator == 'is_not_null':
+                return column_ref.notnull()
+            else:
+                raise ValueError(f"Unsupported operator: {operator}")
+        
+        raise ValueError(f"No valid operator found in condition: {condition}")
+    
+    def _build_timerange_predicate(self, condition: Dict[str, Any]) -> Optional[Any]:
+        """
+        Build timerange predicate for TAMS timerange queries.
+        
+        Supports:
+        - overlaps: Check if timeranges overlap
+        - equals: Check if timeranges are exactly equal
+        - contains: Check if one timerange contains another
+        - within: Check if one timerange is within another
         
         Args:
-            ibis_predicate: Ibis predicate object (can be Deferred, BinaryOp, etc.)
+            condition: Timerange condition dictionary
             
         Returns:
-            VAST-compatible predicate dictionary or None if conversion fails
+            Ibis predicate for timerange comparison
         """
-        if ibis_predicate is None:
-            return None
-            
         try:
-            # Convert to string first to avoid Deferred object issues
-            predicate_str = str(ibis_predicate)
+            logger.debug(f"Building timerange predicate from condition: {condition}")
             
-            # Parse the string representation to extract predicates
-            return self._parse_predicate_string(predicate_str)
+            for operator, timerange in condition.items():
+                logger.debug(f"Processing timerange operator '{operator}' with value: {timerange}")
                 
+                if operator == 'overlaps':
+                    result = self._build_overlaps_predicate(timerange)
+                    logger.debug(f"Overlaps predicate result: {result}")
+                    return result
+                elif operator == 'equals':
+                    result = self._build_equals_predicate(timerange)
+                    logger.debug(f"Equals predicate result: {result}")
+                    return result
+                elif operator == 'contains':
+                    result = self._build_contains_predicate(timerange)
+                    logger.debug(f"Contains predicate result: {result}")
+                    return result
+                elif operator == 'within':
+                    result = self._build_within_predicate(timerange)
+                    logger.debug(f"Within predicate result: {result}")
+                    return result
+                else:
+                    raise ValueError(f"Unsupported timerange operator: {operator}")
+                    
         except Exception as e:
-            logger.warning(f"Failed to convert Ibis predicate {ibis_predicate}: {e}")
+            logger.error(f"Error building timerange predicate: {e}")
             return None
     
-    def _parse_predicate_string(self, predicate_str: str) -> Optional[Dict[str, Any]]:
-        """Parse predicate string representation to extract column conditions"""
-        try:
-            # Handle common patterns in Ibis predicate strings
+    def _build_overlaps_predicate(self, timerange: Dict[str, Any]) -> Any:
+        """
+        Build predicate for timerange overlap.
+        
+        Two timeranges overlap if:
+        start1 <= end2 AND start2 <= end1
+        
+        Args:
+            timerange: Dictionary with 'start' and 'end' keys
             
-            # Handle AND operations: (left & right) - check this first
-            if ' & ' in predicate_str:
-                # Handle nested parentheses in AND operations
-                # Example: ((_.id == 'test-id') & (_.format == 'video'))
-                if predicate_str.startswith('((') and predicate_str.endswith('))'):
-                    # Remove outer double parentheses
-                    inner_str = predicate_str[2:-2]
-                    if ' & ' in inner_str:
-                        left_part = inner_str.split(' & ')[0]
-                        right_part = inner_str.split(' & ')[1]
-                        
-                        # Try to parse each part
-                        left_pred = self._parse_predicate_string(left_part)
-                        right_pred = self._parse_predicate_string(right_part)
-                        
-                        if left_pred and right_pred:
-                            # Combine both predicates
-                            combined = left_pred.copy()
-                            combined.update(right_pred)
-                            return combined
-                        elif left_pred:
-                            return left_pred
-                        elif right_pred:
-                            return right_pred
-                else:
-                    # Standard AND operation
-                    left_part = predicate_str.split(' & ')[0]
-                    right_part = predicate_str.split(' & ')[1]
-                    
-                    # Try to parse each part
-                    left_pred = self._parse_predicate_string(left_part)
-                    right_pred = self._parse_predicate_string(right_part)
-                    
-                    if left_pred and right_pred:
-                        # Combine both predicates
-                        combined = left_pred.copy()
-                        combined.update(right_pred)
-                        return combined
-                    elif left_pred:
-                        return left_pred
-                    elif right_pred:
-                        return right_pred
+        Returns:
+            Ibis predicate for overlap check
+        """
+        start = self._parse_timestamp(timerange.get('start'))
+        end = self._parse_timestamp(timerange.get('end'))
+        
+        if start is None or end is None:
+            raise ValueError("Timerange must have both 'start' and 'end' values")
+        
+        # Overlap: (table.start_time <= end) AND (table.end_time >= start)
+        return (
+            (_.start_time <= end) & 
+            (_.end_time >= start)
+        )
+    
+    def _build_equals_predicate(self, timerange: Dict[str, Any]) -> Any:
+        """Build predicate for exact timerange equality"""
+        start = self._parse_timestamp(timerange.get('start'))
+        end = self._parse_timestamp(timerange.get('end'))
+        
+        if start is None or end is None:
+            raise ValueError("Timerange must have both 'start' and 'end' values")
+        
+        return (_.start_time == start) & (_.end_time == end)
+    
+    def _build_contains_predicate(self, timerange: Dict[str, Any]) -> Any:
+        """Build predicate for timerange containment"""
+        start = self._parse_timestamp(timerange.get('start'))
+        end = self._parse_timestamp(timerange.get('end'))
+        
+        if start is None or end is None:
+            raise ValueError("Timerange must have both 'start' and 'end' values")
+        
+        # Contains: (table.start_time <= start) AND (table.end_time >= end)
+        return (
+            (_.start_time <= start) & 
+            (_.end_time >= end)
+        )
+    
+    def _build_within_predicate(self, timerange: Dict[str, Any]) -> Any:
+        """Build predicate for timerange within check"""
+        start = self._parse_timestamp(timerange.get('start'))
+        end = self._parse_timestamp(timerange.get('end'))
+        
+        if start is None or end is None:
+            raise ValueError("Timerange must have both 'start' and 'end' values")
+        
+        # Within: (table.start_time >= start) AND (table.end_time <= end)
+        return (
+            (_.start_time >= start) & 
+            (_.end_time <= end)
+        )
+    
+    def _parse_timestamp(self, timestamp: Any) -> Any:
+        """
+        Parse timestamp value to appropriate format.
+        
+        Args:
+            timestamp: Timestamp value (string, datetime, or other)
             
-            # Handle OR operations: (left | right) - check this second
-            elif ' | ' in predicate_str:
-                # For OR operations, extract the first valid predicate
-                left_part = predicate_str.split(' | ')[0]
-                right_part = predicate_str.split(' | ')[1]
-                
-                left_pred = self._parse_predicate_string(left_part)
-                if left_pred:
-                    return left_pred
-                
-                right_pred = self._parse_predicate_string(right_part)
-                if right_pred:
-                    return right_pred
-            
-            # Handle isnull(): _.column.isnull()
-            elif '.isnull()' in predicate_str:
-                column = predicate_str.split('.isnull()')[0]
-                if column.startswith('_.'):
-                    column = column[2:]  # Remove _.
-                elif column.startswith('(_.'):
-                    column = column[3:-1]  # Remove (_. and )
-                return {column: None}
-            
-            # Handle notnull(): _.column.notnull()
-            elif '.notnull()' in predicate_str:
-                column = predicate_str.split('.notnull()')[0]
-                if column.startswith('_.'):
-                    column = column[2:]  # Remove _.
-                elif column.startswith('(_.'):
-                    column = column[3:-1]  # Remove (_. and )
-                return {column: {'is_not_null': True}}
-            
-            # Simple equality: (_.column == value) - check this last
-            elif ' == ' in predicate_str:
-                parts = predicate_str.split(' == ')
-                if len(parts) == 2:
-                    left = parts[0].strip()
-                    right = parts[1].strip()
-                    
-                    # Extract column name from left side - handle extra parentheses
-                    if left.startswith('(_.') and left.endswith(')'):
-                        column = left[3:-1]  # Remove (_. and )
-                    elif left.startswith('_.'):
-                        column = left[2:]  # Remove _.
-                    else:
-                        # Try to find column name in the left part
-                        if '_.' in left:
-                            column_start = left.find('_.') + 2
-                            column_end = left.find(')', column_start)
-                            if column_end == -1:
-                                column_end = len(left)
-                            column = left[column_start:column_end]
-                        else:
-                            logger.debug(f"Could not extract column name from left part: {left}")
-                            return None
-                    
-                    # Clean up right side value - handle extra parentheses and quotes
-                    if right.startswith("'") and right.endswith("'"):
-                        value = right[1:-1]  # Remove quotes
-                    elif right.endswith(')'):
-                        # Remove trailing parentheses
-                        value_str = right.rstrip(')')
-                        if value_str == 'False':
-                            value = False
-                        elif value_str == 'True':
-                            value = True
-                        elif value_str == 'None':
-                            value = None
-                        elif value_str.startswith("'") and value_str.endswith("'"):
-                            value = value_str[1:-1]  # Remove quotes
-                        else:
-                            # Try to convert to appropriate type
-                            try:
-                                value = int(value_str)
-                            except ValueError:
-                                try:
-                                    value = float(value_str)
-                                except ValueError:
-                                    value = value_str
-                    else:
-                        # Handle values without trailing parentheses
-                        if right == 'False':
-                            value = False
-                        elif right == 'True':
-                            value = True
-                        elif right == 'None':
-                            value = None
-                        elif right.startswith("'") and right.endswith("'"):
-                            value = right[1:-1]  # Remove quotes
-                        else:
-                            # Try to convert to appropriate type
-                            try:
-                                value = int(right)
-                            except ValueError:
-                                try:
-                                    value = float(right)
-                                except ValueError:
-                                    value = right
-                    
-                    logger.debug(f"Extracted column: {column}, value: {value}")
-                    return {column: value}
-            
-            # If we can't parse it, return None
-            logger.debug(f"Could not parse predicate string: {predicate_str}")
+        Returns:
+            Parsed timestamp value
+        """
+        logger.debug(f"Parsing timestamp: {timestamp} (type: {type(timestamp)})")
+        
+        if timestamp is None:
+            logger.debug("Timestamp is None, returning None")
             return None
-            
-        except Exception as e:
-            logger.warning(f"Failed to parse predicate string '{predicate_str}': {e}")
-            return None
+        
+        # If it's already a datetime object, return as is
+        if isinstance(timestamp, datetime):
+            logger.debug(f"Timestamp is already datetime object: {timestamp}")
+            return timestamp
+        
+        # If it's a string, try to parse it
+        if isinstance(timestamp, str):
+            try:
+                # Handle ISO format timestamps
+                if 'T' in timestamp or 'Z' in timestamp:
+                    logger.debug(f"Timestamp is ISO format, returning as string: {timestamp}")
+                    return timestamp  # Return as string for VAST to handle
+                
+                # Handle simple date formats
+                if re.match(r'^\d{4}-\d{2}-\d{2}$', timestamp):
+                    logger.debug(f"Timestamp is simple date format: {timestamp}")
+                    return timestamp
+                
+                # Handle datetime formats
+                if re.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}', timestamp):
+                    logger.debug(f"Timestamp is datetime format: {timestamp}")
+                    return timestamp
+                    
+            except Exception as e:
+                logger.warning(f"Could not parse timestamp {timestamp}: {e}")
+        
+        # Return as is for other types
+        logger.debug(f"Returning timestamp as-is: {timestamp}")
+        return timestamp

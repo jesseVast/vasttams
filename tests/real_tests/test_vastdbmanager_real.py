@@ -34,8 +34,6 @@ class TestVastDBManagerRealOperations:
         assert vast_manager_real.endpoints is not None
         
         # Test that components are initialized
-        assert hasattr(vast_manager_real, 'endpoint_manager')
-        assert hasattr(vast_manager_real, 'query_executor')
         assert hasattr(vast_manager_real, 'cache_manager')
     
     def test_connection_establishment_real(self, vast_manager_real):

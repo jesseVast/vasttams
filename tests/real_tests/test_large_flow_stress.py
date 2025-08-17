@@ -152,12 +152,12 @@ class TestLargeFlowStress:
                         print(f"   📄 Response: {response_text}")
                         return False
                 
-                # Step 4: Create 1000 segments
-                print("📝 Step 4: Creating 1000 segments")
+                # Step 4: Create 1000 segments using bulk creation
+                print("📝 Step 4: Creating 1000 segments using bulk creation")
                 segment_creation_start = time.time()
                 
-                # Create segments in batches to avoid overwhelming the API
-                batch_size = 50
+                # Create segments in larger batches for better performance
+                batch_size = 100  # Increased batch size for better performance
                 total_segments = 1000
                 
                 for batch_start in range(0, total_segments, batch_size):
@@ -167,7 +167,7 @@ class TestLargeFlowStress:
                     
                     print(f"   📦 Creating batch {batch_num}/{total_batches} (segments {batch_start+1}-{batch_end})")
                     
-                    # Create segments for this batch
+                    # Create segments for this batch using bulk creation
                     batch_segments = []
                     for i in range(batch_start, batch_end):
                         object_id = self.test_data['object_ids'][i]
@@ -265,23 +265,27 @@ class TestLargeFlowStress:
                 flow_id = self.test_data['flow_id']
                 flow_name = self.test_data['flow_name']
                 
-                # Step 7: Delete first 10 segments
-                print("📝 Step 7: Deleting first 10 segments")
+                # Step 7: Delete first 10 segments using bulk delete
+                print("📝 Step 7: Deleting first 10 segments using bulk delete")
                 segments_to_delete = self.test_data['segment_ids'][:10]
                 segment_names_to_delete = self.test_data['segment_names'][:10]
                 
                 print(f"   🗑️  Deleting segments: {', '.join(segment_names_to_delete)}")
                 
-                deletion_start = time.time()
-                deleted_count = 0
+                # Use bulk delete endpoint for better performance
+                # Delete segments by timerange (first 10 segments cover 0-10 hours)
+                timerange = "0:0_36000:0"  # 0 to 10 hours (10 * 3600 seconds)
                 
-                for segment_id in segments_to_delete:
-                    # Delete segment by object_id (since segments are identified by object_id)
-                    async with session.delete(f"{self.base_url}/flows/{flow_id}/segments/{segment_id}") as response:
-                        if response.status in [200, 204]:
-                            deleted_count += 1
-                        else:
-                            print(f"   ❌ Failed to delete segment {segment_id}: {response.status}")
+                deletion_start = time.time()
+                async with session.delete(f"{self.base_url}/flows/{flow_id}/segments?timerange={timerange}") as response:
+                    if response.status in [200, 204]:
+                        print(f"   ✅ Bulk deleted first 10 segments successfully")
+                        deleted_count = 10
+                    else:
+                        print(f"   ❌ Bulk deletion failed: {response.status}")
+                        response_text = await response.text()
+                        print(f"   📄 Response: {response_text}")
+                        return False
                 
                 deletion_time = time.time() - deletion_start
                 print(f"   ✅ Deleted {deleted_count}/10 segments in {deletion_time:.2f}s")
@@ -300,34 +304,65 @@ class TestLargeFlowStress:
                     else:
                         print(f"   ❌ Failed to verify deletion: {response.status}")
                 
-                # Step 8: Delete next 501 segments
-                print("📝 Step 8: Deleting next 501 segments")
+                # Step 8: Delete next 501 segments using async deletion
+                print("📝 Step 8: Delete next 501 segments using async deletion")
                 segments_to_delete_501 = self.test_data['segment_ids'][10:511]  # 10-510 (501 segments)
                 segment_names_to_delete_501 = self.test_data['segment_names'][10:511]
                 
                 print(f"   🗑️  Deleting segments: {len(segments_to_delete_501)} segments")
                 print(f"      📋 Range: {segment_names_to_delete_501[0]} to {segment_names_to_delete_501[-1]}")
                 
-                deletion_start_501 = time.time()
-                deleted_count_501 = 0
+                # Use async deletion for large operations (>500 segments)
+                print("   🚀 Using async deletion for large operation (501 segments)")
                 
-                # Delete in smaller batches to avoid overwhelming the API
-                batch_size = 25
-                for i in range(0, len(segments_to_delete_501), batch_size):
-                    batch = segments_to_delete_501[i:i+batch_size]
-                    batch_num = (i // batch_size) + 1
-                    total_batches = (len(segments_to_delete_501) + batch_size - 1) // batch_size
-                    
-                    print(f"      📦 Deleting batch {batch_num}/{total_batches} ({len(batch)} segments)")
-                    
-                    for segment_id in batch:
-                        async with session.delete(f"{self.base_url}/flows/{flow_id}/segments/{segment_id}") as response:
-                            if response.status in [200, 204]:
-                                deleted_count_501 += 1
-                            else:
-                                print(f"         ❌ Failed to delete segment {segment_id}: {response.status}")
+                # Create async deletion request
+                deletion_request_data = {
+                    "flow_id": flow_id,
+                    "timerange": "36000:0_183600:0",  # 10 hours to 51 hours (segments 11-511)
+                    "description": "Stress test deletion of 501 segments"
+                }
                 
-                deletion_time_501 = time.time() - deletion_start_501
+                async with session.post(f"{self.base_url}/flow-delete-requests", json=deletion_request_data) as response:
+                    if response.status == 201:
+                        deletion_request = await response.json()
+                        request_id = deletion_request.get('id')
+                        print(f"   ✅ Async deletion request created: {request_id}")
+                        
+                        # Poll for completion
+                        max_wait_time = 300  # 5 minutes max wait
+                        poll_interval = 5  # Check every 5 seconds
+                        start_poll = time.time()
+                        
+                        while time.time() - start_poll < max_wait_time:
+                            await asyncio.sleep(poll_interval)
+                            
+                            async with session.get(f"{self.base_url}/flow-delete-requests/{request_id}") as status_response:
+                                if status_response.status == 200:
+                                    status_data = await status_response.json()
+                                    status = status_data.get('status', 'pending')
+                                    print(f"      📊 Deletion status: {status}")
+                                    
+                                    if status == 'completed':
+                                        print(f"   ✅ Async deletion completed successfully")
+                                        deleted_count_501 = 501
+                                        break
+                                    elif status == 'failed':
+                                        print(f"   ❌ Async deletion failed")
+                                        return False
+                                    # Continue polling if status is 'pending' or 'processing'
+                                else:
+                                    print(f"   ⚠️  Failed to check deletion status: {status_response.status}")
+                        
+                        if deleted_count_501 != 501:
+                            print(f"   ⚠️  Async deletion did not complete within {max_wait_time}s")
+                            deleted_count_501 = 0
+                    else:
+                        print(f"   ❌ Failed to create async deletion request: {response.status}")
+                        response_text = await response.text()
+                        print(f"   📄 Response: {response_text}")
+                        return False
+                
+                deletion_time_501 = time.time() - deletion_start
                 print(f"   ✅ Deleted {deleted_count_501}/501 segments in {deletion_time_501:.2f}s")
                 
                 # Verify final deletion

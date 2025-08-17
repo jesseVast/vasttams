@@ -1641,3 +1641,226 @@ class VASTStore:
             logger.error(f"Failed to get column info for {table_name}.{column_name}: {e}")
             return None
 
+    async def check_source_dependencies(self, source_id: str) -> Dict[str, Any]:
+        """
+        Efficiently check for dependencies on a source using direct DB queries.
+        
+        Args:
+            source_id (str): The source ID to check dependencies for
+            
+        Returns:
+            Dict containing dependency information:
+            {
+                'has_dependencies': bool,
+                'flow_count': int,
+                'segment_count': int,
+                'object_count': int
+            }
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            # Check for dependent flows (most direct dependency)
+            flow_predicate = (ibis_.source_id == source_id)
+            flow_results = self.db_manager.select('flows', predicate=flow_predicate, columns=['id'], output_by_row=True)
+            
+            flow_count = 0
+            if isinstance(flow_results, list):
+                flow_count = len(flow_results)
+            elif isinstance(flow_results, dict) and 'id' in flow_results:
+                flow_count = len(flow_results['id']) if isinstance(flow_results['id'], list) else 1
+            
+            # If no flows, no need to check deeper dependencies
+            if flow_count == 0:
+                return {
+                    'has_dependencies': False,
+                    'flow_count': 0,
+                    'segment_count': 0,
+                    'object_count': 0
+                }
+            
+            # Check for dependent segments (through flows)
+            segment_count = 0
+            if flow_count > 0:
+                # Get flow IDs for segment query
+                flow_ids = []
+                if isinstance(flow_results, list):
+                    flow_ids = [str(row['id']) for row in flow_results]
+                elif isinstance(flow_results, dict) and 'id' in flow_results:
+                    flow_ids = [str(id_val) for id_val in (flow_results['id'] if isinstance(flow_results['id'], list) else [flow_results['id']])]
+                
+                # Query segments for these flows
+                if flow_ids:
+                    # Note: This assumes segments table has flow_id column
+                    # If not, we'll need to adjust the query structure
+                    segment_predicate = ibis_.flow_id.isin(flow_ids)
+                    segment_results = self.db_manager.select('segments', predicate=segment_predicate, columns=['id'], output_by_row=True)
+                    
+                    if isinstance(segment_results, list):
+                        segment_count = len(segment_results)
+                    elif isinstance(segment_results, dict) and 'id' in segment_results:
+                        segment_count = len(segment_results['id']) if isinstance(segment_results['id'], list) else 1
+            
+            # Check for dependent objects (through segments)
+            object_count = 0
+            if segment_count > 0:
+                # Query objects that reference these segments
+                # Note: Objects have flow_references, not direct segment_id
+                # We'll check if any objects reference the flows that contain these segments
+                if flow_ids:
+                    # Check objects that reference any of the flows
+                    object_predicate = ibis_.flow_id.isin(flow_ids)
+                    object_results = self.db_manager.select('objects', predicate=object_predicate, columns=['object_id'], output_by_row=True)
+                    
+                    if isinstance(object_results, list):
+                        object_count = len(object_results)
+                    elif isinstance(object_results, dict) and 'object_id' in object_results:
+                        object_count = len(object_results['object_id']) if isinstance(object_results['object_id'], list) else 1
+            
+            return {
+                'has_dependencies': flow_count > 0 or segment_count > 0 or object_count > 0,
+                'flow_count': flow_count,
+                'segment_count': segment_count,
+                'object_count': object_count
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to check source dependencies for {source_id}: {e}")
+            return {
+                'has_dependencies': True,  # Assume dependencies exist on error (safer)
+                'flow_count': -1,
+                'segment_count': -1,
+                'object_count': -1
+            }
+    
+    async def check_flow_dependencies(self, flow_id: str) -> Dict[str, Any]:
+        """
+        Efficiently check for dependencies on a flow using direct DB queries.
+        
+        Args:
+            flow_id (str): The flow ID to check dependencies for
+            
+        Returns:
+            Dict containing dependency information:
+            {
+                'has_dependencies': bool,
+                'segment_count': int,
+                'object_count': int
+            }
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            # Check for dependent segments
+            segment_predicate = (ibis_.flow_id == flow_id)
+            segment_results = self.db_manager.select('segments', predicate=segment_predicate, columns=['id'], output_by_row=True)
+            
+            segment_count = 0
+            if isinstance(segment_results, list):
+                segment_count = len(segment_results)
+            elif isinstance(segment_results, dict) and 'id' in segment_results:
+                segment_count = len(segment_results['id']) if isinstance(segment_results['id'], list) else 1
+            
+            # If no segments, no need to check deeper dependencies
+            if segment_count == 0:
+                return {
+                    'has_dependencies': False,
+                    'segment_count': 0,
+                    'object_count': 0
+                }
+            
+            # Check for dependent objects (through this flow)
+            object_count = 0
+            if segment_count > 0:
+                # Query objects that reference this flow
+                object_predicate = (ibis_.flow_id == flow_id)
+                object_results = self.db_manager.select('objects', predicate=object_predicate, columns=['object_id'], output_by_row=True)
+                
+                if isinstance(object_results, list):
+                    object_count = len(object_results)
+                elif isinstance(object_results, dict) and 'object_id' in object_results:
+                    object_count = len(object_results['object_id']) if isinstance(object_results['object_id'], list) else 1
+            
+            return {
+                'has_dependencies': segment_count > 0 or object_count > 0,
+                'segment_count': segment_count,
+                'object_count': object_count
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to check flow dependencies for {flow_id}: {e}")
+            return {
+                'has_dependencies': True,  # Assume dependencies exist on error (safer)
+                'segment_count': -1,
+                'object_count': -1
+            }
+    
+    async def check_segment_dependencies(self, segment_id: str, flow_id: str) -> Dict[str, Any]:
+        """
+        Efficiently check for dependencies on a segment using direct DB queries.
+        
+        Args:
+            segment_id (str): The segment ID to check dependencies for
+            flow_id (str): The flow ID that contains this segment
+            
+        Returns:
+            Dict containing dependency information:
+            {
+                'has_dependencies': bool,
+                'object_count': int
+            }
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            # Check for dependent objects that reference the flow containing this segment
+            object_predicate = (ibis_.flow_id == flow_id)
+            object_results = self.db_manager.select('objects', predicate=object_predicate, columns=['object_id'], output_by_row=True)
+            
+            object_count = 0
+            if isinstance(object_results, list):
+                object_count = len(object_results)
+            elif isinstance(object_results, dict) and 'object_id' in object_results:
+                object_count = len(object_results['object_id']) if isinstance(object_results['object_id'], list) else 1
+            
+            return {
+                'has_dependencies': object_count > 0,
+                'object_count': object_count
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to check segment dependencies for {segment_id}: {e}")
+            return {
+                'has_dependencies': True,  # Assume dependencies exist on error (safer)
+                'object_count': -1
+            }
+    
+    async def get_dependency_summary(self, entity_type: str, entity_id: str) -> Dict[str, Any]:
+        """
+        Get a comprehensive dependency summary for any entity type.
+        
+        Args:
+            entity_type (str): Type of entity ('source', 'flow', 'segment')
+            entity_id (str): ID of the entity
+            
+        Returns:
+            Dict containing dependency summary
+        """
+        try:
+            if entity_type == 'source':
+                return await self.check_source_dependencies(entity_id)
+            elif entity_type == 'flow':
+                return await self.check_flow_dependencies(entity_id)
+            elif entity_type == 'segment':
+                # For segments, we need both segment_id and flow_id
+                # This is a limitation - we'll need to pass flow_id separately
+                logger.warning("Segment dependency check requires flow_id - use check_segment_dependencies(segment_id, flow_id) directly")
+                return {'has_dependencies': True, 'error': 'flow_id required for segment dependency check'}
+            else:
+                logger.error(f"Unknown entity type: {entity_type}")
+                return {'has_dependencies': True, 'error': f"Unknown entity type: {entity_type}"}
+                
+        except Exception as e:
+            logger.error(f"Failed to get dependency summary for {entity_type} {entity_id}: {e}")
+            return {'has_dependencies': True, 'error': str(e)}
+

@@ -55,8 +55,14 @@ class Settings(BaseSettings):
     vast_schema: str = "tams7"
     
     # Logging settings
-    log_level: str = "INFO"
-    log_format: str = "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
+    log_level: str = Field(
+        default="DEBUG" if os.getenv("ENVIRONMENT") == "development" else "INFO",
+        description="Logging level (DEBUG, INFO, WARNING, ERROR)"
+    )
+    log_format: str = Field(
+        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s" if os.getenv("ENVIRONMENT") == "production" else "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
+        description="Log message format"
+    )
     
     # S3 settings for flow segment storage
     s3_endpoint_url: str = "http://172.200.204.90"

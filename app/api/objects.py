@@ -18,7 +18,7 @@ async def get_object(store: VASTStore, object_id: str) -> Optional[Object]:
         obj = await store.get_object(object_id)
         return obj
     except Exception as e:
-        logger.error(f"Failed to get object {object_id}: {e}")
+        logger.error("Failed to get object %s: %s", object_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def create_object(store: VASTStore, obj: Object) -> bool:
@@ -29,7 +29,7 @@ async def create_object(store: VASTStore, obj: Object) -> bool:
         success = await store.create_object(obj)
         return success
     except Exception as e:
-        logger.error(f"Failed to create object: {e}")
+        logger.error("Failed to create object: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 async def delete_object(store: VASTStore, object_id: str) -> bool:
@@ -38,7 +38,7 @@ async def delete_object(store: VASTStore, object_id: str) -> bool:
         success = await store.delete_object(object_id)
         return success
     except Exception as e:
-        logger.error(f"Failed to delete object {object_id}: {e}")
+        logger.error("Failed to delete object %s: %s", object_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 class ObjectManager:
@@ -58,7 +58,7 @@ class ObjectManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to get object {object_id}: {e}")
+            logger.error("Failed to get object %s: %s", object_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def create_object(self, obj: Object, store: Optional[VASTStore] = None) -> Object:
@@ -75,7 +75,7 @@ class ObjectManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to create object: {e}")
+            logger.error("Failed to create object: %s", e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
     async def delete_object(self, object_id: str, store: Optional[VASTStore] = None):
@@ -91,7 +91,7 @@ class ObjectManager:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to delete object {object_id}: {e}")
+            logger.error("Failed to delete object %s: %s", object_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
  

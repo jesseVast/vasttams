@@ -47,12 +47,14 @@ class S3Store:
             self.bucket_name = settings.s3_bucket_name
             self.use_ssl = settings.s3_use_ssl
             
-        logger.info(f"S3Store initialization - Endpoint: {self.endpoint_url}, Bucket: {self.bucket_name}, Access Key: {self.access_key_id}")
+        logger.info("S3Store initialization - Endpoint: %s, Bucket: %s, Access Key: %s", 
+                   self.endpoint_url, self.bucket_name, self.access_key_id)
         
         # Initialize S3 client using VastS3 approach
         try:
             session = boto3.session.Session()
-            logger.info(f"Created boto3 session: {session}")
+                    if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Created boto3 session: %s", session)
             
             self.s3_client = session.client(
                 service_name='s3',

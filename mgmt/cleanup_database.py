@@ -18,10 +18,12 @@ from app.config import get_settings
 import vastdb
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configure logging based on environment
+env = os.getenv("ENVIRONMENT", "production")
+log_level = logging.DEBUG if env == "development" else logging.INFO
+log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s" if env == "production" else "%(asctime)s - %(levelname)s - %(message)s"
+
+logging.basicConfig(level=log_level, format=log_format)
 logger = logging.getLogger(__name__)
 
 async def cleanup_database():
@@ -30,9 +32,9 @@ async def cleanup_database():
     
     settings = get_settings()
     
-    logger.info(f"VAST Endpoint: {settings.vast_endpoint}")
-    logger.info(f"VAST Bucket: {settings.vast_bucket}")
-    logger.info(f"VAST Schema: {settings.vast_schema}")
+    logger.info("VAST Endpoint: %s", settings.vast_endpoint)
+    logger.info("VAST Bucket: %s", settings.vast_bucket)
+    logger.info("VAST Schema: %s", settings.vast_schema)
     
     try:
         # Connect to VAST directly
@@ -55,7 +57,7 @@ async def cleanup_database():
             tables = list(schema.tables())
             table_names = [t.name for t in tables]
             
-            logger.info(f"Found {len(table_names)} tables: {table_names}")
+            logger.info("Found %d tables: %s", len(table_names), table_names)
             
             if not table_names:
                 logger.info("✅ No tables found to delete")

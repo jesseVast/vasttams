@@ -15,15 +15,18 @@ class CacheManager:
     def __init__(self):
         """Initialize simplified cache manager"""
         self.table_cache: Dict[str, TableCacheEntry] = {}
-        logger.debug("Initialized simplified cache manager")
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Initialized simplified cache manager")
     
     def get_table_columns(self, table_name: str) -> Optional[Schema]:
         """Get column definitions for a table from cache"""
         cache_entry = self.table_cache.get(table_name)
         if cache_entry:
-            logger.debug(f"Cache hit for table {table_name} columns")
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Cache hit for table %s columns", table_name)
             return cache_entry.schema
-        logger.debug(f"Cache miss for table {table_name} columns")
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Cache miss for table %s columns", table_name)
         return None
     
     def get_table_stats(self, table_name: str) -> Dict[str, Any]:
@@ -39,13 +42,15 @@ class CacheManager:
             schema=schema,
             total_rows=total_rows
         )
-        logger.debug(f"Updated cache for table {table_name}: {total_rows} rows")
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Updated cache for table %s: %d rows", table_name, total_rows)
     
     def invalidate_table_cache(self, table_name: str):
         """Invalidate cached data for a table"""
         if table_name in self.table_cache:
             del self.table_cache[table_name]
-            logger.debug(f"Invalidated cache for table {table_name}")
+                    if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Invalidated cache for table %s", table_name)
     
     def get_all_table_names(self) -> list[str]:
         """Get list of all cached table names"""

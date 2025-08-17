@@ -70,7 +70,36 @@
 - **Results**: test_harness.py now runs without S3Store undefined errors
 - **Files Modified**: `tests/real_tests/test_harness.py`
 
-### ✅ **Fix #7 Complete: Soft Delete Field Mapping Issues**
+### ✅ **Fix #7 Complete: VastDBManager Complete Modular Refactoring**
+- **Status**: COMPLETED ✅
+- **Issues Resolved**:
+  - Split monolithic `core.py` (1506 lines) into maintainable modules
+  - Created `config.py` for configuration constants and troubleshooting guide
+  - Created `connection_manager.py` for VAST database connection management
+  - Created `table_operations.py` for table creation, schema evolution, and projections
+  - Created `data_operations.py` for CRUD operations (insert, update, delete, query)
+  - Created `batch_operations.py` for efficient batch insertion and parallel processing
+  - Created `core.py` as main coordinator using all modular components
+  - Renamed old `core.py` to `core_old.py` for reference
+  - Updated all imports throughout the codebase to use new modular structure
+  - Updated all test files to use new modular API
+  - Removed backward compatibility methods for clean, focused interfaces
+- **Results**: Complete modular architecture with clear separation of concerns, no legacy methods
+- **Files Created**: 
+  - `app/storage/vastdbmanager/config.py`
+  - `app/storage/vastdbmanager/connection_manager.py`
+  - `app/storage/vastdbmanager/table_operations.py`
+  - `app/storage/vastdbmanager/data_operations.py`
+  - `app/storage/vastdbmanager/batch_operations.py`
+  - `app/storage/vastdbmanager/core.py` (new modular)
+  - `app/storage/vastdbmanager/README_MODULAR.md`
+- **Files Renamed**:
+  - `app/storage/vastdbmanager/core.py` → `app/storage/vastdbmanager/core_old.py`
+- **Files Updated**:
+  - All test files updated to use new modular API
+  - All import statements updated throughout codebase
+
+### ✅ **Fix #8 Complete: Soft Delete Field Mapping Issues**
 - **Status**: COMPLETED ✅
 - **Issues Resolved**:
   - Fixed field mapping in soft delete methods to use correct table field names
@@ -79,7 +108,7 @@
 - **Results**: Soft delete operations now work correctly across all table types
 - **Files Modified**: `app/storage/vast_store.py`
 
-### ✅ **Fix #8 Complete: Enhanced Endpoint Management for Dynamic IP Resolution**
+### ✅ **Fix #9 Complete: Enhanced Endpoint Management for Dynamic IP Resolution**
 - **Status**: COMPLETED ✅
 - **Issues Resolved**:
   - Implemented comprehensive endpoint management system for VAST DB and S3
@@ -92,7 +121,7 @@
   - `app/storage/vastdbmanager/endpoints/load_balancer.py`
   - `app/storage/vastdbmanager/core.py`
 
-### ✅ **Fix #9 Complete: Remove Unused Query Classes**
+### ✅ **Fix #10 Complete: Remove Unused Query Classes**
 - **Status**: COMPLETED ✅
 - **Issues Resolved**:
   - Removed unused `QueryExecutor` class (was only referenced in tests)
@@ -107,7 +136,7 @@
   - `tests/real_tests/test_vastdbmanager_real.py`
   - `tests/mock_tests/test_vastdbmanager_core_mock.py`
 
-### ✅ **Fix #10 Complete: Remove Unused Endpoint Management System**
+### ✅ **Fix #11 Complete: Remove Unused Endpoint Management System**
 - **Status**: COMPLETED ✅
 - **Issues Resolved**:
   - Removed unused `EndpointManager` and `LoadBalancer` classes
@@ -119,7 +148,7 @@
   - `app/storage/vastdbmanager/core.py`
   - `app/storage/vastdbmanager/__init__.py`
 
-### ✅ **Fix #11 Complete: Simplify QueryConfig to Basic Parameters**
+### ✅ **Fix #12 Complete: Simplify QueryConfig to Basic Parameters**
 - **Status**: COMPLETED ✅
 - **Issues Resolved**:
   - Replaced complex query split logic with basic QueryConfig parameters
@@ -128,7 +157,7 @@
 - **Results**: Simplified query configuration, better performance
 - **Files Modified**: `app/storage/vastdbmanager/core.py`
 
-### ✅ **Fix #12 Complete: Simplify PredicateBuilder for TAMS Requirements**
+### ✅ **Fix #13 Complete: Simplify PredicateBuilder for TAMS Requirements**
 - **Status**: COMPLETED ✅
 - **Issues Resolved**:
   - Complete rewrite of PredicateBuilder to focus on TAMS specifications
@@ -139,7 +168,7 @@
 - **Results**: Cleaner, more focused predicate building for TAMS use cases
 - **Files Modified**: `app/storage/vastdbmanager/queries/predicate_builder.py`
 
-### ✅ **Fix #13 Complete: Apply Logging Best Practices Across Application**
+### ✅ **Fix #14 Complete: Apply Logging Best Practices Across Application**
 - **Status**: COMPLETED ✅
 - **Issues Resolved**:
   - Applied logging best practices (points 1, 3, 5, 6, 7) across entire application
@@ -164,7 +193,7 @@
   - `tests/real_tests/test_harness.py` - Environment setup
   - `mgmt/cleanup_database.py` - Environment-aware logging
 
-### ✅ **Fix #14 Complete: Fix Tags Import and Apply Logging Best Practices to API Files**
+### ✅ **Fix #15 Complete: Fix Tags Import and Apply Logging Best Practices to API Files**
 - **Status**: COMPLETED ✅
 - **Issues Resolved**:
   - Fixed `Tags` undefined error in `app/api/flows.py` by adding proper import
@@ -432,3 +461,76 @@ class MockVASTStore:
 - Monitor the 4 environment-dependent skipped tests
 - Consider adding more comprehensive integration tests
 - Document the testing patterns for future development
+
+## 🔮 **Planned Enhancements**
+
+### **Trino Integration for Advanced Query Capabilities**
+
+#### **Overview**
+Integration of Trino (formerly PrestoSQL) to provide advanced SQL query capabilities alongside the existing VAST database infrastructure.
+
+#### **Key Benefits**
+- **SQL Interface**: Standard SQL queries for complex analytics
+- **Federated Queries**: Query across multiple data sources simultaneously
+- **Advanced Functions**: Window functions, complex aggregations, and analytics
+- **Performance**: Optimized for large-scale data processing
+- **Compatibility**: Works with existing VAST database and S3 storage
+
+#### **Implementation Plan**
+
+##### **Phase 1: Core Integration**
+- [ ] Install and configure Trino server
+- [ ] Create Trino connector for VAST database
+- [ ] Set up S3 connector for direct S3 queries
+- [ ] Implement basic query routing
+
+##### **Phase 2: Advanced Features**
+- [ ] Federated queries across VAST + S3
+- [ ] Complex analytics queries (window functions, aggregations)
+- [ ] Performance optimization for large datasets
+- [ ] Query caching and optimization
+
+##### **Phase 3: Production Features**
+- [ ] Query monitoring and performance metrics
+- [ ] Security integration with existing auth system
+- [ ] Load balancing and high availability
+- [ ] Integration with observability stack
+
+#### **Technical Architecture**
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   FastAPI App  │    │   Trino Server  │    │   VAST Store    │
+│                 │    │                 │    │                 │
+│ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
+│ │ Query API  │◄┼────┼►│ Coordinator │ │    │ │ Database    │ │
+│ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
+│                 │    │                 │    │                 │
+│ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
+│ │ Auth &     │ │    │ ┌─────────────┐ │    │ │ S3 Storage  │ │
+│ │ Security   │ │    │ │ Workers     │ │    │ └─────────────┘ │
+│ └─────────────┘ │    │ └─────────────┘ │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+#### **Use Cases**
+1. **Complex Analytics**: Multi-table joins and aggregations
+2. **Data Exploration**: Ad-hoc SQL queries for data analysis
+3. **Reporting**: Scheduled reports with complex business logic
+4. **Data Integration**: Federated queries across multiple sources
+5. **Performance Analysis**: Query performance optimization and monitoring
+
+#### **Dependencies**
+- **Trino Server**: Core query engine
+- **VAST Connector**: Custom connector for VAST database
+- **S3 Connector**: Hive connector for S3 data
+- **Authentication**: Integration with existing auth system
+- **Monitoring**: Integration with Prometheus/Grafana stack
+
+#### **Performance Considerations**
+- **Query Optimization**: Trino's cost-based optimizer
+- **Parallel Processing**: Distributed query execution
+- **Caching**: Query result caching for repeated queries
+- **Resource Management**: Memory and CPU allocation per query
+- **Monitoring**: Query performance metrics and alerting
+
+This enhancement will significantly expand the analytical capabilities of the TAMS system while maintaining compatibility with existing infrastructure.

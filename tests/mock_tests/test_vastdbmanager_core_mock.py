@@ -86,8 +86,6 @@ class TestVastDBManagerInitialization:
         
         # Check that all components are initialized
         assert manager.cache_manager is not None
-        assert manager.query_executor is not None
-        assert manager.endpoint_manager is not None
         assert manager.performance_monitor is not None
         assert manager.time_series_analytics is not None
         assert manager.aggregation_analytics is not None

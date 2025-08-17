@@ -9,9 +9,9 @@ from pyarrow import Schema
 import uuid
 
 from .cache import CacheManager
-from .queries import PredicateBuilder, QueryOptimizer, QueryExecutor
+from .queries import PredicateBuilder
 from .analytics import TimeSeriesAnalytics, AggregationAnalytics, PerformanceMonitor, HybridAnalytics
-from .endpoints import EndpointManager, LoadBalancer
+
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +51,6 @@ class VastDBManager:
         # Initialize modular components
         self.cache_manager = CacheManager()
         self.predicate_builder = PredicateBuilder()
-        self.query_optimizer = QueryOptimizer(self.cache_manager)
-        self.query_executor = QueryExecutor(self.cache_manager)
-        self.endpoint_manager = EndpointManager(self.endpoints)
-        self.load_balancer = LoadBalancer(self.endpoint_manager)
         self.performance_monitor = PerformanceMonitor()
         
         # Initialize analytics components
@@ -64,7 +60,7 @@ class VastDBManager:
         
         # VAST connection and configuration
         self.connection = None
-        self.default_query_config = None  # No QueryConfig needed - VAST handles optimization internally
+        self.default_query_config = None  # Basic QueryConfig used for essential parameters
         
         # Initialize connection to first endpoint
         self.connect()
@@ -153,12 +149,8 @@ class VastDBManager:
         """Connect to a specific VAST database endpoint"""
         try:
             if endpoint is None:
-                endpoint = self.load_balancer.get_endpoint("read")
+                endpoint = self.endpoints[0]  # Use first endpoint as fallback
             
-            if not endpoint:
-                raise RuntimeError("No healthy endpoints available")
-            
-            # Use the first endpoint for now (simplified approach)
             from app.core.config import get_settings
             settings = get_settings()
             
@@ -171,12 +163,7 @@ class VastDBManager:
             
             logger.info(f"Connected to VAST database at {endpoint}")
             
-            # Update endpoint health
-            self.endpoint_manager.mark_endpoint_success(endpoint, 0.0)
-            
         except Exception as e:
-            if endpoint:
-                self.endpoint_manager.mark_endpoint_error(endpoint, str(e))
             logger.error(f"Failed to connect to VAST database: {e}")
             raise
     
@@ -596,8 +583,8 @@ class VastDBManager:
                 logger.error(f"Table {table_name} not found in cache")
                 return None
             
-            # Create optimized query configuration
-            query_config = self._create_optimized_query_config(table_name, predicates)
+            # Create basic query configuration - let VAST handle optimization
+            query_config = self._create_basic_query_config(table_name)
             
             # Execute query with VAST
             with self.connection.transaction() as tx:
@@ -692,82 +679,23 @@ class VastDBManager:
             # Invalidate cache on error to force fresh fetch next time
             self.cache_manager.invalidate_table_cache(table_name)
     
-    def _create_optimized_query_config(self, table_name: str, predicates: Optional[Any] = None) -> 'vastdb.config.QueryConfig':
-        """Create optimized QueryConfig for VAST query execution with aggressive optimization"""
+    def _create_basic_query_config(self, table_name: str) -> 'vastdb.config.QueryConfig':
+        """Create basic QueryConfig with essential parameters only - let VAST handle optimization"""
         try:
             from vastdb.config import QueryConfig
             
-            # Get table statistics for optimization
-            table_stats = self.cache_manager.get_table_stats(table_name)
-            total_rows = 0
-            if table_stats and isinstance(table_stats, dict):
-                total_rows = table_stats.get('total_rows', 0)
-                if isinstance(total_rows, dict):
-                    total_rows = total_rows.get('total_rows', 0)
-                # Ensure we have a valid number before calling int()
-                if total_rows is not None and total_rows != '':
-                    try:
-                        total_rows = int(total_rows)
-                    except (ValueError, TypeError):
-                        total_rows = 0
-                else:
-                    total_rows = 0
-            
-            # Base configuration - optimized for performance
+            # Basic configuration - only essential parameters that VAST doesn't auto-optimize
             config = QueryConfig(
-                num_sub_splits=8,  # Increased from 4 for better parallelism
-                limit_rows_per_sub_split=65536,  # Reduced from 131072 for faster processing
-                num_row_groups_per_sub_split=4,  # Reduced from 8 for better memory usage
                 use_semi_sorted_projections=True,  # Use our projections
-                rows_per_split=2000000  # Reduced from 4000000 for faster splits
+                # Let VAST handle splits, subsplits, and row limits automatically
             )
             
-            # Aggressive optimization based on query type and table size
-            if predicates is not None:
-                # Handle different predicate types
-                if isinstance(predicates, dict):
-                    # Dictionary predicates - can analyze keys and structure
-                    if any('time' in key.lower() or 'timestamp' in key.lower() for key in predicates.keys()):
-                        config.num_sub_splits = 12  # Maximum splits for time queries
-                        config.limit_rows_per_sub_split = 32768  # Smaller subsplits for time queries
-                        config.num_row_groups_per_sub_split = 2  # Minimal row groups for time queries
-                    
-                    # Large result set queries - aggressive splitting
-                    if total_rows > 5000:  # Lowered threshold for more aggressive optimization
-                        config.num_splits = min(32, total_rows // 100000)  # More splits for smaller tables
-                        config.num_sub_splits = 10  # More subsplits for better parallelism
-                        config.limit_rows_per_sub_split = 32768  # Smaller subsplits for large tables
-                    
-                    # Complex queries - optimize for predicate evaluation
-                    if len(predicates) > 1:  # Lowered threshold for optimization
-                        config.limit_rows_per_sub_split = 32768  # Smaller subsplits for complex queries
-                        config.num_row_groups_per_sub_split = 2  # Fewer row groups for complex queries
-                        config.num_sub_splits = 10  # More splits for complex queries
-                
-                elif hasattr(predicates, 'op'):
-                    # Ibis predicates - use conservative optimization since we can't analyze structure
-                    config.num_sub_splits = 8  # Default subsplits for Ibis predicates
-                    config.limit_rows_per_sub_split = 65536  # Default subsplit limit
-                    config.num_row_groups_per_sub_split = 4  # Default row groups
-                    
-                    # Large result set queries - aggressive splitting
-                    if total_rows > 5000:
-                        config.num_splits = min(32, total_rows // 100000)
-                        config.num_sub_splits = 10
-                        config.limit_rows_per_sub_split = 32768
-            
-            # Use available endpoints for load balancing
-            if hasattr(self, 'endpoints') and self.endpoints:
-                config.data_endpoints = self.endpoints
-            
-            logger.debug(f"Created aggressive QueryConfig: splits={config.num_splits}, subsplits={config.num_sub_splits}, "
-                        f"subsplit_limit={config.limit_rows_per_sub_split}, row_groups={config.num_row_groups_per_sub_split}")
-            
+            logger.debug(f"Created basic QueryConfig for {table_name} - VAST handles optimization")
             return config
             
         except Exception as e:
-            logger.warning(f"Failed to create optimized QueryConfig: {e}, using defaults")
-            # Return default config if optimization fails
+            logger.warning(f"Failed to create basic QueryConfig: {e}, using VAST defaults")
+            # Return default config if creation fails - VAST will handle optimization
             try:
                 from vastdb.config import QueryConfig
                 return QueryConfig()
@@ -779,9 +707,7 @@ class VastDBManager:
         """Get performance summary"""
         return self.performance_monitor.get_performance_summary(time_window)
     
-    def get_endpoint_stats(self) -> Dict[str, Any]:
-        """Get endpoint statistics"""
-        return self.endpoint_manager.get_endpoint_stats()
+
     
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""

@@ -240,7 +240,7 @@ def parse_tams_timerange(timerange: str) -> Tuple[float, float]:
         return start_seconds, end_seconds
         
     except Exception as e:
-        logger.warning(f"Failed to parse TAMS timerange '{timerange}': {e}")
+        logger.warning("Failed to parse TAMS timerange '%s': %s", timerange, e)
         # Return default values
         return 0.0, 0.0
 
@@ -332,7 +332,7 @@ def timeranges_overlap(timerange1: str, timerange2: str) -> bool:
         return start1 < end2 and end1 > start2
         
     except Exception as e:
-        logger.warning(f"Failed to check timerange overlap: {e}")
+        logger.warning("Failed to check timerange overlap: %s", e)
         return False
 
 
@@ -355,5 +355,5 @@ def timerange_contains(timerange1: str, timerange2: str) -> bool:
         return start1 <= start2 and end1 >= end2
         
     except Exception as e:
-        logger.warning(f"Failed to check timerange containment: {e}")
+        logger.warning("Failed to check timerange containment: %s", e)
         return False

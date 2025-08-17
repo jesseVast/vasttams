@@ -849,3 +849,9 @@ If S3 storage operations fail:
 - [ ] Enhanced soft delete query parameters (include_deleted, deleted_only, deleted_state)
 - [ ] Bulk operations for soft delete and restore
 - [ ] Advanced audit trail and compliance reporting
+- [ ] **Trino integration for advanced query capabilities**
+  - [ ] SQL query interface for complex analytics
+  - [ ] Federated queries across multiple data sources
+  - [ ] Advanced aggregation and window functions
+  - [ ] Integration with existing VAST database infrastructure
+  - [ ] Performance optimization for large-scale data queries

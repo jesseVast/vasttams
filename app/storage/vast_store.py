@@ -1717,32 +1717,37 @@ class VASTStore:
             List of webhook configurations
         """
         try:
-            # Get all webhooks from the database
-            results = self.db_manager.select('webhooks')
+            # Get all webhooks from the database - use output_by_row=True to get row-oriented data
+            results = self.db_manager.select('webhooks', output_by_row=True)
             
             if not results:
                 return []
             
             webhooks = []
             for row in results:
-                webhook = Webhook(
-                    url=row['url'],
-                    api_key_name=row['api_key_name'],
-                    api_key_value=row.get('api_key_value'),
-                    events=self._json_to_list(row['events']),
-                    flow_ids=self._json_to_list(row.get('flow_ids')),
-                    source_ids=self._json_to_list(row.get('source_ids')),
-                    flow_collected_by_ids=self._json_to_list(row.get('flow_collected_by_ids')),
-                    source_collected_by_ids=self._json_to_list(row.get('source_collected_by_ids')),
-                    accept_get_urls=self._json_to_list(row.get('accept_get_urls')),
-                    accept_storage_ids=self._json_to_list(row.get('accept_storage_ids')),
-                    presigned=row.get('presigned'),
-                    verbose_storage=row.get('verbose_storage'),
-                    owner_id=row.get('owner_id'),
-                    created_by=row.get('created_by'),
-                    created=row['created'] if 'created' in row else None
-                )
-                webhooks.append(webhook)
+                try:
+                    webhook = Webhook(
+                        url=row['url'],
+                        api_key_name=row['api_key_name'],
+                        api_key_value=row.get('api_key_value'),
+                        events=self._json_to_list(row['events']),
+                        flow_ids=self._json_to_list(row.get('flow_ids')),
+                        source_ids=self._json_to_list(row.get('source_ids')),
+                        flow_collected_by_ids=self._json_to_list(row.get('flow_collected_by_ids')),
+                        source_collected_by_ids=self._json_to_list(row.get('source_collected_by_ids')),
+                        accept_get_urls=self._json_to_list(row.get('accept_get_urls')),
+                        accept_storage_ids=self._json_to_list(row.get('accept_storage_ids')),
+                        presigned=row.get('presigned'),
+                        verbose_storage=row.get('verbose_storage'),
+                        owner_id=row.get('owner_id'),
+                        created_by=row.get('created_by'),
+                        created=row['created'] if 'created' in row else None
+                    )
+                    webhooks.append(webhook)
+                except Exception as row_e:
+                    logger.error(f"Error processing webhook row: {row_e}")
+                    logger.error(f"Row data: {row}")
+                    continue
             
             return webhooks
             

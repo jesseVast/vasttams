@@ -1,5 +1,32 @@
 # BBC TAMS Project Notes
 
+## ✅ Table Projections Management Completed (2025-08-18)
+
+### Summary
+- Centralized projection definitions in `VASTStore` via `VASTStore._get_desired_table_projections()` (static).
+- `mgmt/create_table_projections.py` now imports projection specs from `VASTStore` to avoid duplication.
+- Added full projection lifecycle support: create, list, drop.
+- Implemented disabling by dropping existing projections using the VAST SDK `projection.drop()` method (see VAST docs: [Projections](https://vast-data.github.io/data-platform-field-docs/vast_database/sdk_ref/07_projections.html)).
+- Adjusted `flows` projections to only include `('id')` and `('id','source_id')` since `flows` schema has no `start_time`/`end_time`.
+
+### Key Changes
+- `app/storage/vastdbmanager/table_operations.py`: Added `drop_projection(table_name, projection_name)` using `table.projection(name).drop()`; improved logging.
+- `app/storage/vastdbmanager/core.py`: Exposed `drop_projection()` delegating to table operations.
+- `mgmt/create_table_projections.py`:
+  - Uses `VASTStore._get_desired_table_projections()` for definitions.
+  - `--disable` now drops projections safely with proper logging.
+  - `--enable`/`--status` unchanged; now reflect centralized specs.
+- `app/storage/vast_store.py`: Introduced static `_get_desired_table_projections()` and consume it during table setup; removed unsupported `flows` time-range projection.
+
+### Results
+- Verified create → status → disable → status flows.
+- 12/13 projections created as expected; `flows_id_start_time_end_time_proj` intentionally skipped (columns absent).
+- Status after disable shows no projections; after enable, shows all valid projections restored.
+
+### Next
+- None blocking here. Projections are configurable via `ENABLE_TABLE_PROJECTIONS` and managed consistently across code and scripts.
+
+
 ## 🚨 **CRITICAL TAMS API COMPLIANCE ISSUES DISCOVERED - NEW CHAT STARTING POINT**
 
 ### **🔍 Current Investigation Status: COMPLETE**

@@ -1,10 +1,20 @@
 # BBC TAMS Project - Next Chat Session Summary
 
-## 🎯 **CURRENT STATUS: SERVICE ENDPOINTS AND ANALYTICS COMPLETED**
+## 🎯 CURRENT STATUS: Table Projections Centralized + Script Finalized
 
-**Date**: August 18, 2025  
-**Last Session**: Service endpoints and analytics functionality implementation  
-**Status**: ✅ COMPLETE with one known issue  
+Date: August 18, 2025  
+Last Session: Table projection management finalized and centralized in `VASTStore`  
+Status: ✅ COMPLETE
+
+### Highlights
+- Centralized projection definitions: `VASTStore._get_desired_table_projections()` (static).
+- Mgmt script `mgmt/create_table_projections.py` now uses centralized specs; supports `--enable`, `--status`, `--disable` (drops via VAST SDK `projection.drop()`).
+- VastDBManager gained `drop_projection()`; full lifecycle supported: create, list, drop.
+- `flows` projections updated to only `('id')`, `('id','source_id')` (no time columns on flows).
+
+### Ready To Tackle Next
+- Proceed with any remaining compliance tasks or performance tuning.
+- Optional: add projection stats/reporting endpoints, or projection config per-table.
 
 ---
 
@@ -28,9 +38,9 @@
 
 ---
 
-## ⚠️ **KNOWN ISSUE REQUIRING ATTENTION**
+## ⚠️ KNOWN ISSUE REQUIRING ATTENTION
 
-### **Webhook Persistence Problem:**
+### Webhook Persistence Problem
 **Issue**: Webhook creation succeeds (returns 201 status) but webhooks are not persisting to the database. The `/service/webhooks` endpoint always returns an empty array `{"data":[]}` even after successful webhook creation.
 
 **Symptoms**:

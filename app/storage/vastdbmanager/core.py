@@ -195,6 +195,10 @@ class VastDBManager:
         """Add a new projection to an existing table"""
         return self.table_operations.add_projection(table_name, projection_name, columns)
     
+    def drop_projection(self, table_name: str, projection_name: str):
+        """Drop (delete) a projection from an existing table"""
+        return self.table_operations.drop_projection(table_name, projection_name)
+    
     # Data Operations - Delegate to DataOperations module
     def insert_single_record(self, table_name: str, data: Dict[str, Any]):
         """Insert a single Python dictionary record into a table"""

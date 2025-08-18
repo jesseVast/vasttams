@@ -224,3 +224,28 @@ class TableOperations:
         except Exception as e:
             logger.error(f"Failed to add projection {projection_name} to table {table_name}: {e}")
             raise
+
+    def drop_projection(self, table_name: str, projection_name: str):
+        """Drop (delete) a projection from an existing table"""
+        try:
+            if not self.connection_manager.is_connected():
+                raise RuntimeError("Not connected to VAST database")
+            
+            connection = self.connection_manager.get_connection()
+            bucket = self.connection_manager.get_bucket()
+            schema_name = self.connection_manager.get_schema()
+            
+            with connection.transaction() as tx:
+                bucket_obj = tx.bucket(bucket)
+                schema_obj = bucket_obj.schema(schema_name)
+                table = schema_obj.table(table_name)
+                
+                # Get the projection object and drop it using VAST's actual API
+                projection = table.projection(projection_name)
+                projection.drop()
+                
+                logger.info(f"Dropped projection '{projection_name}' from table {table_name}")
+                
+        except Exception as e:
+            logger.error(f"Failed to drop projection {projection_name} from table {table_name}: {e}")
+            raise

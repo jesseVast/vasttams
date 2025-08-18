@@ -135,11 +135,53 @@ def create_projections(store, force=False):
         return False
 
 def disable_projections(store):
-    """Disable table projections (note: VAST doesn't support dropping projections)"""
-    logger.warning("VAST database doesn't support dropping projections")
-    logger.info("To disable projections, set ENABLE_TABLE_PROJECTIONS=false in configuration")
-    logger.info("Existing projections will remain but won't be used for new queries")
-    return True
+    """Disable table projections by dropping existing projections"""
+    if not store:
+        logger.error("No VAST store available")
+        return False
+    
+    try:
+        logger.info("Disabling table projections by dropping existing projections...")
+        
+        success_count = 0
+        total_count = 0
+        
+        for table_name in TABLE_PROJECTIONS.keys():
+            try:
+                existing_projections = store.db_manager.get_table_projections(table_name)
+                if existing_projections:
+                    logger.info("Table: %s - Found %d projections to drop", table_name, len(existing_projections))
+                    
+                    for proj_name in existing_projections:
+                        total_count += 1
+                        try:
+                            # Get the projection object and drop it
+                            logger.info("Dropping projection: %s", proj_name)
+                            store.db_manager.drop_projection(table_name, proj_name)
+                            success_count += 1
+                            logger.info("Successfully dropped projection: %s", proj_name)
+                        except Exception as e:
+                            logger.error("Failed to drop projection %s: %s", proj_name, e)
+                            continue
+                else:
+                    logger.info("Table: %s - No projections to drop", table_name)
+                    
+            except Exception as e:
+                logger.error("Failed to get projections for table %s: %s", table_name, e)
+                continue
+        
+        logger.info("Projection disabling complete: %d/%d projections dropped", success_count, total_count)
+        
+        if success_count > 0:
+            logger.info("Projections have been disabled. Set ENABLE_TABLE_PROJECTIONS=false in configuration to prevent new projections from being created.")
+        else:
+            logger.info("No projections were found to drop.")
+        
+        return True
+        
+    except Exception as e:
+        logger.error("Failed to disable projections: %s", e)
+        return False
 
 def show_status(store):
     """Show current projection status for all tables"""

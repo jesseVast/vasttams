@@ -13,7 +13,7 @@ DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_CORS_ORIGINS = ["*"]
 DEFAULT_CORS_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 DEFAULT_CORS_HEADERS = ["*"]
-DEFAULT_PRESIGNED_URL_TIMEOUT = 3600
+# Removed - replaced with s3_presigned_url_upload_timeout and s3_presigned_url_download_timeout
 
 
 class Settings(BaseSettings):

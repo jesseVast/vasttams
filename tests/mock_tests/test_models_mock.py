@@ -78,23 +78,23 @@ class TestVideoFlowModel:
         flow = VideoFlow(
             id=str(uuid.uuid4()),
             source_id=str(uuid.uuid4()),
-            format="video",
-            codec="H.264",
+            format="urn:x-nmos:format:video",
+            codec="video/h264",
             label="Test Video Flow",
             description="Test flow for video processing",
             created_by="test_user",
             frame_width=1920,
             frame_height=1080,
-            frame_rate="30"
+            frame_rate="30:1"
         )
         
         assert flow.id is not None
         assert flow.source_id is not None
-        assert flow.format == "video"
-        assert flow.codec == "H.264"
+        assert flow.format == "urn:x-nmos:format:video"
+        assert flow.codec == "video/h264"
         assert flow.frame_width == 1920
         assert flow.frame_height == 1080
-        assert flow.frame_rate == "30"
+        assert flow.frame_rate == "30:1"
     
     def test_video_flow_validation(self):
         """Test VideoFlow model validation"""
@@ -102,10 +102,10 @@ class TestVideoFlowModel:
         flow = VideoFlow(
             id=str(uuid.uuid4()),
             source_id=str(uuid.uuid4()),
-            codec="video/H.264",
+            codec="video/h264",
             frame_width=1920,
             frame_height=1080,
-            frame_rate="30"
+            frame_rate="30:1"
         )
         assert flow is not None
         
@@ -113,10 +113,10 @@ class TestVideoFlowModel:
         flow = VideoFlow(
             id=str(uuid.uuid4()),
             source_id=str(uuid.uuid4()),
-            codec="video/H.264",
+            codec="video/h264",
             frame_width=1280,
             frame_height=720,
-            frame_rate="30"
+            frame_rate="30:1"
         )
         assert flow.frame_width == 1280
         assert flow.frame_height == 720
@@ -128,15 +128,15 @@ class TestFlowSegmentModel:
     def test_flow_segment_creation(self):
         """Test creating a FlowSegment instance"""
         segment = FlowSegment(
-            object_id=str(uuid.uuid4()),
-            timerange="2024-01-01T00:00:00Z/2024-01-01T01:00:00Z",
+            id=str(uuid.uuid4()),
+            timerange="[0:0_10:0)",
             sample_offset=0,
             sample_count=1000,
             key_frame_count=10
         )
         
-        assert segment.object_id is not None
-        assert segment.timerange == "2024-01-01T00:00:00Z/2024-01-01T01:00:00Z"
+        assert segment.id is not None
+        assert segment.timerange == "[0:0_10:0)"
         assert segment.sample_offset == 0
         assert segment.sample_count == 1000
         assert segment.key_frame_count == 10
@@ -145,14 +145,14 @@ class TestFlowSegmentModel:
         """Test FlowSegment timerange validation"""
         # Test valid timerange format
         valid_timeranges = [
-            "2024-01-01T00:00:00Z/2024-01-01T01:00:00Z",
-            "2024-01-01T12:00:00Z/2024-01-01T13:00:00Z",
-            "2024-12-31T23:59:59Z/2025-01-01T00:00:00Z"
+            "[0:0_10:0)",
+            "[10:0_20:0)",
+            "[0:0_30:0)"
         ]
         
         for timerange in valid_timeranges:
             segment = FlowSegment(
-                object_id=str(uuid.uuid4()),
+                id=str(uuid.uuid4()),
                 timerange=timerange,
                 sample_offset=0,
                 sample_count=1000,
@@ -167,19 +167,14 @@ class TestObjectModel:
     def test_object_creation(self):
         """Test creating an Object instance"""
         obj = Object(
-            object_id=str(uuid.uuid4()),
-            flow_references=[
-                {
-                    "flow_id": str(uuid.uuid4()),
-                    "timerange": "2024-01-01T00:00:00Z/2024-01-01T01:00:00Z"
-                }
-            ],
+            id=str(uuid.uuid4()),
+            referenced_by_flows=[str(uuid.uuid4())],
             size=1024000,
             created=datetime.now(timezone.utc)
         )
         
-        assert obj.object_id is not None
-        assert len(obj.flow_references) == 1
+        assert obj.id is not None
+        assert len(obj.referenced_by_flows) == 1
         assert obj.size == 1024000
         assert obj.created is not None
     
@@ -187,20 +182,14 @@ class TestObjectModel:
         """Test Object flow references handling"""
         flow_id = str(uuid.uuid4())
         obj = Object(
-            object_id=str(uuid.uuid4()),
-            flow_references=[
-                {
-                    "flow_id": flow_id,
-                    "timerange": "2024-01-01T00:00:00Z/2024-01-01T01:00:00Z"
-                }
-            ],
+            id=str(uuid.uuid4()),
+            referenced_by_flows=[flow_id],
             size=1024000,
             created=datetime.now(timezone.utc)
         )
         
-        # Test flow reference access
-        assert obj.flow_references[0]["flow_id"] == flow_id
-        assert "timerange" in obj.flow_references[0]
+        assert flow_id in obj.referenced_by_flows
+        assert obj.size == 1024000
 
 
 class TestWebhookModel:
@@ -324,10 +313,10 @@ class TestModelRelationships:
         flow = VideoFlow(
             id=str(uuid.uuid4()),
             source_id=source.id,
-            codec="video/H.264",
+            codec="video/h264",
             frame_width=1920,
             frame_height=1080,
-            frame_rate="30"
+            frame_rate="30:1"
         )
         
         assert flow.source_id == source.id
@@ -337,22 +326,22 @@ class TestModelRelationships:
         flow = VideoFlow(
             id=str(uuid.uuid4()),
             source_id=str(uuid.uuid4()),
-            codec="video/H.264",
+            codec="video/h264",
             frame_width=1920,
             frame_height=1080,
-            frame_rate="30"
+            frame_rate="30:1"
         )
         
         segment = FlowSegment(
-            object_id=str(uuid.uuid4()),
-            timerange="2024-01-01T00:00:00Z/2024-01-01T01:00:00Z",
+            id=str(uuid.uuid4()),
+            timerange="[0:0_10:0)",
             sample_offset=0,
             sample_count=1000,
             key_frame_count=10
         )
         
         # Test that segment can reference flow
-        assert segment.object_id is not None
+        assert segment.id is not None
         assert segment.timerange is not None
 
 

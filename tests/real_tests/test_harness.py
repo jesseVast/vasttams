@@ -132,6 +132,7 @@ class TestHarness:
         defaults = {
             "id": self.test_flow_id,
             "source_id": self.test_source_id,
+            "format": "urn:x-nmos:format:video",
             "label": "Test Video Flow",
             "description": "A test video flow for testing",
             "codec": "video/h264",
@@ -145,8 +146,8 @@ class TestHarness:
     def create_sample_flow_segment(self, **kwargs) -> FlowSegment:
         """Create a sample flow segment with consistent data"""
         defaults = {
-            "object_id": self.test_segment_id,
-            "timerange": "0:0_3600:0",  # Correct TimeRange format: 1 hour range
+            "id": self.test_segment_id,
+            "timerange": "[0:0_3600:0)",  # Correct TAMS TimeRange format
             "sample_offset": 0,
             "sample_count": 90000,
             "key_frame_count": 3600

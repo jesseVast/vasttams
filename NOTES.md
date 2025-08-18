@@ -45,6 +45,54 @@
 
 ---
 
+## ✅ **TAG FUNCTIONALITY FIXES COMPLETED**
+
+### **🔍 Current Status: COMPLETE**
+**Date**: 2025-08-18  
+**Task**: Fix tag-related 500 errors and implement missing tag update methods  
+**Status**: All tag operations now working correctly  
+
+### **📋 SUMMARY OF TAG FIXES**
+
+#### **Issues Identified and Fixed:**
+1. **Missing Methods**: `update_source_tags`, `update_flow_tags`, `update_source`, `update_flow` methods were missing from VASTStore
+2. **Async/Await Mismatch**: Methods were trying to await synchronous VastDBManager.update() calls
+3. **Predicate Format**: String predicates were being passed instead of dictionary format expected by PredicateBuilder
+4. **Schema Mismatch**: Flow update was trying to update non-existent columns (`max_bit_rate`, `avg_bit_rate`)
+
+#### **Methods Added to VASTStore:**
+- `update_source_tags(source_id, tags)` - Updates source tags
+- `update_source(source_id, source)` - Updates source properties
+- `update_flow_tags(flow_id, tags)` - Updates flow tags  
+- `update_flow(flow_id, flow)` - Updates flow properties
+- `update_source_property(source_id, property_name, property_value)` - Updates individual source properties
+- `update_flow_property(flow_id, property_name, property_value)` - Updates individual flow properties
+
+#### **Technical Fixes Applied:**
+1. **Removed await**: Changed `await self.db_manager.update()` to `self.db_manager.update()` (synchronous)
+2. **Fixed Predicates**: Changed string predicates `f"id = '{id}'"` to dictionary format `{'id': id}`
+3. **Schema Validation**: Added runtime schema validation to only update existing columns
+4. **Data Format**: Wrapped single values in lists as expected by VastDBManager: `{'field': [value]}`
+5. **Tags Handling**: Fixed Tags model access using `.root` property for dictionary operations
+
+#### **API Endpoints Now Working:**
+- ✅ `PUT /sources/{id}/tags` - Update all source tags
+- ✅ `PUT /sources/{id}/tags/{name}` - Update individual source tag
+- ✅ `DELETE /sources/{id}/tags/{name}` - Delete source tag
+- ✅ `PUT /flows/{id}/tags` - Update all flow tags
+- ✅ `PUT /flows/{id}/tags/{name}` - Update individual flow tag
+- ✅ `DELETE /flows/{id}/tags/{name}` - Delete flow tag
+
+#### **Test Results:**
+- Source tag creation: ✅ Working
+- Source tag updates: ✅ Working
+- Source tag deletion: ✅ Working
+- Flow tag creation: ✅ Working
+- Flow tag updates: ✅ Working
+- Flow tag deletion: ✅ Working
+
+---
+
 ## 🚨 **CRITICAL TAMS API COMPLIANCE ISSUES - GET_URLS IMPLEMENTATION**
 
 ### **🔍 Current Investigation Status: COMPLETE**

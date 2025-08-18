@@ -25,6 +25,7 @@ import aiohttp
 import json
 import tempfile
 import time
+import pytest
 from pathlib import Path
 from typing import List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor
@@ -42,7 +43,8 @@ class TestLargeFlowStress:
     # Configuration constants
     SEGMENT_COUNT = 30  # Number of segments to create for stress testing
     
-    def __init__(self):
+    @pytest.fixture(autouse=True)
+    def setup_test_data(self):
         self.base_url = "http://localhost:8000"
         self.test_data = {
             'source_id': None,

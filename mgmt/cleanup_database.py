@@ -125,20 +125,9 @@ async def cleanup_database(dry_run=False):
                 logger.info("✅ No tables found to delete")
                 return True
             
-            # Tables to delete (in order to handle dependencies)
-            tables_to_delete = [
-                'deletion_requests',  # Delete first (no dependencies)
-                'webhooks',          # Delete first (no dependencies)
-                'segments',          # Delete before flows (depends on flows)
-                'objects',           # Delete before flows (may reference flows)
-                'flows',             # Delete before sources (depends on sources)
-                'sources',           # Delete last (base table)
-                'users',             # Auth tables
-                'api_tokens',        # Auth tables
-                'refresh_tokens',    # Auth tables
-                'auth_logs',        # Auth tables
-                'test_simple_table' # Test table
-            ]
+            # Get all tables dynamically and delete them
+            # We'll try to delete all tables found in the schema
+            tables_to_delete = table_names
             
             deleted_tables = []
             failed_tables = []

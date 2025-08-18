@@ -10,7 +10,9 @@ from datetime import datetime, timedelta, timezone
 
 # Configuration Constants - Easy to adjust for troubleshooting
 DEFAULT_S3_TIMEOUT = 30  # Default S3 operation timeout in seconds
-DEFAULT_PRESIGNED_URL_TIMEOUT = 3600  # Default presigned URL expiration time in seconds (matches config.py)
+# Default presigned URL expiration time constants (fallback values)
+DEFAULT_UPLOAD_TIMEOUT = 3600  # 1 hour for uploads
+DEFAULT_DOWNLOAD_TIMEOUT = 3600  # 1 hour for downloads
 DEFAULT_MAX_RETRIES = 3  # Default maximum retry attempts for S3 operations
 DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024  # Default chunk size for multipart uploads (8MB)
 DEFAULT_MAX_CONCURRENT_PARTS = 10  # Default maximum concurrent parts for multipart uploads
@@ -174,7 +176,7 @@ class S3Store:
         """
         try:
             # Generate unique segment ID if not provided
-            segment_id = segment.object_id if segment.object_id else str(uuid.uuid4())
+            segment_id = segment.id if segment.id else str(uuid.uuid4())
             
             # Generate S3 object key
             object_key = self._generate_segment_key(flow_id, segment_id, segment.timerange)
@@ -416,9 +418,17 @@ class S3Store:
         if expires_in is None:
             try:
                 settings = get_settings()
-                expires_in = settings.s3_presigned_url_timeout
+                # Use appropriate timeout based on operation
+                if operation == 'put_object':
+                    expires_in = settings.s3_presigned_url_upload_timeout
+                else:
+                    expires_in = settings.s3_presigned_url_download_timeout
             except Exception:
-                expires_in = DEFAULT_PRESIGNED_URL_TIMEOUT  # Fallback to configured default
+                # Fallback to appropriate default based on operation
+                if operation == 'put_object':
+                    expires_in = DEFAULT_UPLOAD_TIMEOUT
+                else:
+                    expires_in = DEFAULT_DOWNLOAD_TIMEOUT
         
         logger.info(f"generate_presigned_url called with flow_id={flow_id}, segment_id={segment_id}, timerange={timerange}, operation={operation}, expires_in={expires_in}")
         logger.info(f"S3Store state - endpoint_url: {self.endpoint_url}, bucket_name: {self.bucket_name}, s3_client: {self.s3_client}")
@@ -476,9 +486,9 @@ class S3Store:
             except Exception:
                 # Fallback to appropriate default based on operation
                 if operation == 'put_object':
-                    expires_in = 3600  # 1 hour for uploads
+                    expires_in = DEFAULT_UPLOAD_TIMEOUT
                 else:
-                    expires_in = 3600  # 1 hour for downloads
+                    expires_in = DEFAULT_DOWNLOAD_TIMEOUT
         
         logger.info(f"generate_object_presigned_url called with object_id={object_id}, operation={operation}, expires_in={expires_in}, custom_key={custom_key}")
         logger.info(f"S3Store state - endpoint_url: {self.endpoint_url}, bucket_name: {self.bucket_name}, s3_client: {self.s3_client}")
@@ -541,7 +551,7 @@ class S3Store:
                     'Bucket': self.bucket_name,
                     'Key': object_key
                 },
-                ExpiresIn=DEFAULT_PRESIGNED_URL_TIMEOUT
+                ExpiresIn=DEFAULT_DOWNLOAD_TIMEOUT
             )
             
             if presigned_url:

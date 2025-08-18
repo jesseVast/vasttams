@@ -9,7 +9,7 @@ during testing.
 import os
 import tempfile
 from unittest.mock import patch
-from app.config import Settings, get_settings, update_settings
+from app.core.config import Settings, get_settings
 
 
 class TestSettings(Settings):

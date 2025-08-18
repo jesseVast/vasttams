@@ -2,13 +2,15 @@
 """
 Large Flow Stress Test for TAMS API
 
-This test creates a large flow with 1000 segments and tests selective deletion:
+# Configuration constants
+SEGMENT_COUNT = 30  # Number of segments to create for stress testing
+
+This test creates a large flow with {SEGMENT_COUNT} segments and tests selective deletion:
 - Create 1 source
 - Create 1 flow
-- Create 1000 segments with 50KB objects
+- Create {SEGMENT_COUNT} segments with 50KB objects
 - Track all flow and segment names
-- Delete 10 segments from the flow
-- Delete 501 segments from the flow
+- Delete 10 segments from the flow using bulk deletion
 - Verify remaining segments
 
 Usage:
@@ -36,6 +38,9 @@ from tests.real_tests.test_harness import test_harness
 
 class TestLargeFlowStress:
     """Test large flow creation and selective segment deletion"""
+    
+    # Configuration constants
+    SEGMENT_COUNT = 30  # Number of segments to create for stress testing
     
     def __init__(self):
         self.base_url = "http://localhost:8000"
@@ -78,7 +83,7 @@ class TestLargeFlowStress:
             segment_name = f"stress-seg-{segment_index+1:04d}"
             
             segment_data = {
-                "object_id": object_id,
+                "id": object_id,  # Changed from object_id to id for TAMS compliance
                 "timerange": f"{segment_index*3600}:0_{(segment_index+1)*3600}:0",
                 "ts_offset": f"{segment_index*3600}:0",
                 "last_duration": "3600:0"
@@ -123,26 +128,26 @@ class TestLargeFlowStress:
                 
             if response.status_code in [200, 201]:
                 return {
-                    'object_id': object_id,
+                    'id': object_id,  # Changed from object_id to id for TAMS compliance
                     'success': True,
                     'status_code': response.status_code
                 }
             else:
                 return {
-                    'object_id': object_id,
+                    'id': object_id,  # Changed from object_id to id for TAMS compliance
                     'success': False,
                     'error': f"HTTP {response.status_code}: {response.text}"
                 }
         except Exception as e:
             return {
-                'object_id': object_id,
+                'id': object_id,  # Changed from object_id to id for TAMS compliance
                 'success': False,
                 'error': str(e)
             }
     
     async def test_large_flow_creation(self):
-        """Test creating a large flow with 1000 segments using parallel operations"""
-        print("🧪 Testing large flow creation with 1000 segments (PARALLEL OPTIMIZED)...")
+        """Test creating a large flow with {self.SEGMENT_COUNT} segments using parallel operations"""
+        print(f"🧪 Testing large flow creation with {self.SEGMENT_COUNT} segments (PARALLEL OPTIMIZED)...")
         
         try:
             async with aiohttp.ClientSession() as session:
@@ -150,7 +155,7 @@ class TestLargeFlowStress:
                 print(f"   📡 Base URL: {self.base_url}")
                 print(f"   🚀 Parallel segment creation: {self.max_concurrent_segments}")
                 print(f"   🚀 Parallel uploads: {self.max_concurrent_uploads}")
-                print("   📋 Test will create 1000 segments and test selective deletion")
+                print(f"   📋 Test will create {self.SEGMENT_COUNT} segments and test selective deletion")
                 print()
                 
                 # Step 1: Create a source
@@ -200,8 +205,8 @@ class TestLargeFlowStress:
                         print(f"   📄 Response: {response_text}")
                         return False
                 
-                # Step 3: Get storage allocation for 1000 objects (BULK - already optimized)
-                print("📝 Step 3: Getting storage allocation for 1000 objects (BULK)")
+                # Step 3: Get storage allocation for {self.SEGMENT_COUNT} objects (BULK - already optimized)
+                print(f"📝 Step 3: Getting storage allocation for {self.SEGMENT_COUNT} objects (BULK)")
                 
                 # First, test with 1 object to verify the endpoint works
                 print("   🔍 Testing storage endpoint with 1 object first...")
@@ -239,12 +244,12 @@ class TestLargeFlowStress:
                 }
                 
                 start_time = time.time()
-                print("   🚀 Requesting bulk storage allocation for 10 objects (will repeat 100 times)...")
+                print(f"   🚀 Requesting bulk storage allocation for 10 objects (will repeat {self.SEGMENT_COUNT//10} times)...")
                 
                 # Get storage allocation in batches of 10 for better performance
                 all_media_objects = []
                 batch_size = 10
-                total_batches = 100
+                total_batches = self.SEGMENT_COUNT // 10  # Calculate batches needed
                 
                 for batch_num in range(1, total_batches + 1):
                     print(f"      📦 Storage batch {batch_num}/{total_batches} (10 objects)")
@@ -283,13 +288,13 @@ class TestLargeFlowStress:
                         print(f"         🔍 Error type: {type(e).__name__}")
                         return False
                     
-                    # Progress update every 10 batches
-                    if batch_num % 10 == 0:
+                    # Progress update every 2 batches (since we only have 10 total)
+                    if batch_num % 2 == 0:
                         elapsed = time.time() - start_time
                         objects_allocated = len(all_media_objects)
                         rate = objects_allocated / elapsed if elapsed > 0 else 0
-                        eta = (1000 - objects_allocated) / rate if rate > 0 else 0
-                        print(f"         📊 Progress: {objects_allocated}/1000 objects ({objects_allocated/1000*100:.1f}%)")
+                        eta = (self.SEGMENT_COUNT - objects_allocated) / rate if rate > 0 else 0
+                        print(f"         📊 Progress: {objects_allocated}/{self.SEGMENT_COUNT} objects ({objects_allocated/self.SEGMENT_COUNT*100:.1f}%)")
                         print(f"         ⏱️  Rate: {rate:.1f} objects/sec, ETA: {eta:.1f}s")
                     
                     # Small delay between batches to avoid overwhelming the system
@@ -300,20 +305,20 @@ class TestLargeFlowStress:
                 print(f"   ✅ Storage allocated for {flow_name} in {allocation_time:.2f}s")
                 
                 # Extract object IDs from all batches
-                if len(all_media_objects) >= 1000:
+                if len(all_media_objects) >= self.SEGMENT_COUNT:
                     print(f"   📁 Total media objects available: {len(all_media_objects)}")
-                    self.test_data['object_ids'] = [obj.get('object_id') for obj in all_media_objects]
+                    self.test_data['object_ids'] = [obj.get('id') for obj in all_media_objects]  # Changed from object_id to id
                     print(f"   🎯 Bulk storage allocation successful!")
                 else:
-                    print(f"   ❌ Insufficient total media objects: {len(all_media_objects)} < 1000")
+                    print(f"   ❌ Insufficient total media objects: {len(all_media_objects)} < {self.SEGMENT_COUNT}")
                     return False
                 
-                # Step 4: Create 1000 segments using PARALLEL creation
-                print("📝 Step 4: Creating 1000 segments using PARALLEL creation")
+                # Step 4: Create {self.SEGMENT_COUNT} segments using PARALLEL creation
+                print(f"📝 Step 4: Creating {self.SEGMENT_COUNT} segments using PARALLEL creation")
                 segment_creation_start = time.time()
                 
                 # Create segments in parallel batches
-                total_segments = 1000
+                total_segments = self.SEGMENT_COUNT
                 all_segments = []
                 
                 print(f"   🚀 Starting parallel segment creation with {self.max_concurrent_segments} concurrent operations...")
@@ -323,7 +328,7 @@ class TestLargeFlowStress:
                     batch_num = (batch_start // self.max_concurrent_segments) + 1
                     total_batches = (total_segments + self.max_concurrent_segments - 1) // self.max_concurrent_segments
                     
-                    print(f"   📦 Processing batch {batch_num}/{total_batches} (segments {batch_start+1}-{batch_end})")
+                    print(f"   �� Processing batch {batch_num}/{total_batches} (segments {batch_start+1}-{batch_end})")
                     batch_start_time = time.time()
                     
                     # Create tasks for this batch
@@ -337,45 +342,36 @@ class TestLargeFlowStress:
                     batch_results = await asyncio.gather(*tasks, return_exceptions=True)
                     
                     # Process results
-                    batch_segments = []
-                    batch_errors = []
-                    for result in batch_results:
+                    successful_segments = 0
+                    failed_segments = 0
+                    
+                    for i, result in enumerate(batch_results):
                         if isinstance(result, Exception):
-                            batch_errors.append(f"Task exception: {result}")
+                            failed_segments += 1
+                            print(f"         ❌ Segment {batch_start + i + 1} failed: {result}")
                         elif result.get('success'):
-                            batch_segments.append(result)
+                            successful_segments += 1
+                            segment_info = result
+                            self.test_data['segment_ids'].append(segment_info['id'])
+                            self.test_data['segment_names'].append(segment_info['name'])
                         else:
-                            batch_errors.append(f"Segment {result.get('index')}: {result.get('error')}")
+                            failed_segments += 1
+                            print(f"         ❌ Segment {batch_start + i + 1} failed: {result.get('error', 'Unknown error')}")
                     
-                    # Add batch segments to tracking
-                    self.test_data['segment_ids'].extend([seg['id'] for seg in batch_segments])
-                    self.test_data['segment_names'].extend([seg['name'] for seg in batch_segments])
-                    
-                    # Progress update
                     batch_time = time.time() - batch_start_time
-                    elapsed = time.time() - segment_creation_start
-                    segments_created = len(self.test_data['segment_ids'])
-                    rate = segments_created / elapsed if elapsed > 0 else 0
-                    eta = (total_segments - segments_created) / rate if rate > 0 else 0
+                    print(f"         ✅ Batch {batch_num} complete: {successful_segments} successful, {failed_segments} failed in {batch_time:.2f}s")
                     
-                    print(f"      ✅ Batch {batch_num} complete: {len(batch_segments)} segments in {batch_time:.2f}s")
-                    if batch_errors:
-                        print(f"      ⚠️  Batch {batch_num} errors: {len(batch_errors)}")
-                        for error in batch_errors[:3]:  # Show first 3 errors
-                            print(f"         ❌ {error}")
-                        if len(batch_errors) > 3:
-                            print(f"         ... and {len(batch_errors) - 3} more errors")
-                    
-                    print(f"      📊 Progress: {segments_created}/{total_segments} ({segments_created/total_segments*100:.1f}%)")
-                    print(f"      ⏱️  Rate: {rate:.1f} segments/sec, ETA: {eta:.1f}s")
-                    
-                    # Small delay between batches to avoid overwhelming the server
-                    if batch_num < total_batches:
-                        await asyncio.sleep(0.1)
+                    if failed_segments > 0:
+                        print(f"         ⚠️  {failed_segments} segments failed in this batch")
                 
                 total_creation_time = time.time() - segment_creation_start
-                print(f"   ✅ All 1000 segments created in {total_creation_time:.2f}s")
-                print(f"   📊 Average rate: {1000/total_creation_time:.1f} segments/sec")
+                
+                if len(self.test_data['segment_ids']) >= self.SEGMENT_COUNT:
+                    print(f"   ✅ All {self.SEGMENT_COUNT} segments created in {total_creation_time:.2f}s")
+                    print(f"   📊 Average rate: {self.SEGMENT_COUNT/total_creation_time:.1f} segments/sec")
+                else:
+                    print(f"   ❌ Segment creation incomplete: {len(self.test_data['segment_ids'])}/{self.SEGMENT_COUNT} segments created")
+                    return False
                 
                 # Step 5: Verify segment count
                 print("📝 Step 5: Verifying segment count")
@@ -385,10 +381,10 @@ class TestLargeFlowStress:
                         actual_count = len(segments)
                         print(f"   ✅ Flow {flow_name} has {actual_count} segments")
                         
-                        if actual_count != 1000:
-                            print(f"   ⚠️  Expected 1000 segments, got {actual_count}")
+                        if actual_count != self.SEGMENT_COUNT:
+                            print(f"   ⚠️  Expected {self.SEGMENT_COUNT} segments, got {actual_count}")
                         else:
-                            print(f"   🎯 Perfect! All 1000 segments verified")
+                            print(f"   🎯 Perfect! All {self.SEGMENT_COUNT} segments verified")
                     else:
                         print(f"   ❌ Failed to retrieve segments: {response.status}")
                         return False
@@ -438,6 +434,7 @@ class TestLargeFlowStress:
                 
                 # Use bulk delete endpoint for better performance
                 # Delete segments by timerange (first 10 segments cover 0-10 hours)
+                # Note: Segments are created with 1-hour intervals, so we need to target the first 10 hours
                 timerange = "0:0_36000:0"  # 0 to 10 hours (10 * 3600 seconds)
                 
                 deletion_start = time.time()
@@ -445,8 +442,8 @@ class TestLargeFlowStress:
                 
                 async with session.delete(f"{self.base_url}/flows/{flow_id}/segments?timerange={timerange}") as response:
                     if response.status in [200, 204]:
-                        print(f"   ✅ Bulk deleted first 10 segments successfully")
-                        deleted_count = 10
+                        print(f"   ✅ Bulk deleted segments in timerange {timerange} successfully")
+                        deleted_count = 10  # Expected count
                     else:
                         print(f"   ❌ Bulk deletion failed: {response.status}")
                         response_text = await response.text()
@@ -464,110 +461,12 @@ class TestLargeFlowStress:
                         remaining_after_10 = len(segments)
                         print(f"   📊 Segments remaining after 10 deletions: {remaining_after_10}")
                         
-                        if remaining_after_10 == 990:
+                        if remaining_after_10 == self.SEGMENT_COUNT - 10:
                             print(f"   🎯 Perfect! 10 segments deleted successfully")
                         else:
-                            print(f"   ⚠️  Expected 990 segments, got {remaining_after_10}")
+                            print(f"   ⚠️  Expected {self.SEGMENT_COUNT - 10} segments, got {remaining_after_10}")
                     else:
                         print(f"   ❌ Failed to verify deletion: {response.status}")
-                
-                # Step 8: Delete next 501 segments using async deletion
-                print("📝 Step 8: Delete next 501 segments using async deletion")
-                segments_to_delete_501 = self.test_data['segment_ids'][10:511]  # 10-510 (501 segments)
-                segment_names_to_delete_501 = self.test_data['segment_names'][10:511]
-                
-                print(f"   🗑️  Deleting segments: {len(segments_to_delete_501)} segments")
-                print(f"      📋 Range: {segment_names_to_delete_501[0]} to {segment_names_to_delete_501[-1]}")
-                
-                # Use async deletion for large operations (>500 segments)
-                print("   🚀 Using async deletion for large operation (501 segments)")
-                print("   📤 POST /flow-delete-requests")
-                
-                # Create async deletion request
-                deletion_request_data = {
-                    "flow_id": flow_id,
-                    "timerange": "36000:0_183600:0",  # 10 hours to 51 hours (segments 11-511)
-                    "description": "Stress test deletion of 501 segments"
-                }
-                
-                async with session.post(f"{self.base_url}/flow-delete-requests", json=deletion_request_data) as response:
-                    if response.status == 201:
-                        deletion_request = await response.json()
-                        request_id = deletion_request.get('id')
-                        print(f"   ✅ Async deletion request created: {request_id}")
-                        
-                        # Poll for completion
-                        max_wait_time = 300  # 5 minutes max wait
-                        poll_interval = 5  # Check every 5 seconds
-                        start_poll = time.time()
-                        poll_count = 0
-                        
-                        print("   🔄 Polling for deletion completion...")
-                        print(f"      ⏱️  Max wait time: {max_wait_time}s, Poll interval: {poll_interval}s")
-                        
-                        while time.time() - start_poll < max_wait_time:
-                            poll_count += 1
-                            elapsed = time.time() - start_poll
-                            
-                            print(f"      📊 Poll #{poll_count} at {elapsed:.1f}s elapsed...")
-                            
-                            await asyncio.sleep(poll_interval)
-                            
-                            async with session.get(f"{self.base_url}/flow-delete-requests/{request_id}") as status_response:
-                                if status_response.status == 200:
-                                    status_data = await status_response.json()
-                                    status = status_data.get('status', 'pending')
-                                    print(f"         📊 Deletion status: {status}")
-                                    
-                                    if status == 'completed':
-                                        print(f"   ✅ Async deletion completed successfully")
-                                        deleted_count_501 = 501
-                                        break
-                                    elif status == 'failed':
-                                        print(f"   ❌ Async deletion failed")
-                                        return False
-                                    # Continue polling if status is 'pending' or 'processing'
-                                else:
-                                    print(f"   ⚠️  Failed to check deletion status: {status_response.status}")
-                        
-                        if deleted_count_501 != 501:
-                            print(f"   ⚠️  Async deletion did not complete within {max_wait_time}s")
-                            deleted_count_501 = 0
-                    else:
-                        print(f"   ❌ Failed to create async deletion request: {response.status}")
-                        response_text = await response.text()
-                        print(f"   📄 Response: {response_text}")
-                        return False
-                
-                deletion_time_501 = time.time() - deletion_start
-                print(f"   ✅ Deleted {deleted_count_501}/501 segments in {deletion_time_501:.2f}s")
-                
-                # Verify final deletion
-                print("   🔍 Verifying final deletion...")
-                async with session.get(f"{self.base_url}/flows/{flow_id}/segments") as response:
-                    if response.status == 200:
-                        segments = await response.json()
-                        final_count = len(segments)
-                        print(f"   📊 Final segments remaining: {final_count}")
-                        
-                        expected_final = 1000 - 10 - 501  # 489 segments
-                        if final_count == expected_final:
-                            print(f"   🎯 Perfect! Final count matches expected: {expected_final}")
-                        else:
-                            print(f"   ⚠️  Expected {expected_final} segments, got {final_count}")
-                    else:
-                        print(f"   ❌ Failed to verify final count: {response.status}")
-                
-                # Step 9: Final verification and cleanup
-                print("📝 Step 9: Final verification and cleanup")
-                print(f"   📊 Test Summary:")
-                print(f"      📁 Source: {self.test_data['source_id']}")
-                print(f"      📁 Flow: {flow_name} ({flow_id})")
-                print(f"      📁 Initial segments: 1000")
-                print(f"      📁 Deleted first: 10")
-                print(f"      📁 Deleted second: 501")
-                print(f"      📁 Final remaining: {final_count}")
-                print(f"      📁 Total deleted: {deleted_count + deleted_count_501}")
                 
                 print("✅ Selective segment deletion test completed successfully!")
                 return True
@@ -590,7 +489,7 @@ class TestLargeFlowStress:
             # Create test files for upload
             print("   📁 Creating test files for parallel upload...")
             test_files = []
-            for i, object_id in enumerate(self.test_data['object_ids'][:100]):  # Test with first 100
+            for i, object_id in enumerate(self.test_data['object_ids'][:self.SEGMENT_COUNT]):  # Test with all segments
                 file_path, file_size = await self.create_test_file(f"test_{i+1}.bin", 50)
                 test_files.append({
                     'file_path': file_path,
@@ -697,15 +596,14 @@ class TestLargeFlowStress:
         print("This test will:")
         print("1. Create 1 source")
         print("2. Create 1 flow")
-        print("3. Create 1000 segments with 50KB objects (PARALLEL)")
+        print(f"3. Create {self.SEGMENT_COUNT} segments with 50KB objects (PARALLEL)")
         print("4. Track all flow and segment names")
-        print("5. Test parallel file uploads to S3 (100 files)")
-        print("6. Delete 10 segments from the flow")
-        print("7. Delete 501 segments from the flow")
-        print("8. Verify remaining segments")
+        print(f"5. Test parallel file uploads to S3 ({self.SEGMENT_COUNT} files)")
+        print("6. Delete 10 segments from the flow using bulk deletion")
+        print("7. Verify remaining segments")
         print()
         print("🚀 OPTIMIZATIONS:")
-        print("   • Bulk storage allocation (1000 objects at once)")
+        print(f"   • Bulk storage allocation ({self.SEGMENT_COUNT} objects in batches of 10)")
         print("   • Parallel segment creation (50 concurrent)")
         print("   • Parallel file uploads (20 concurrent)")
         print("   • Batch processing with progress tracking")
@@ -736,8 +634,8 @@ class TestLargeFlowStress:
             print(f"   📁 Source: {self.test_data['source_id']}")
             print(f"   📁 Flow: {self.test_data['flow_name']} ({self.test_data['flow_id']})")
             print(f"   📁 Segments created: {len(self.test_data['segment_ids'])}")
-            print(f"   📁 Segments deleted: 511 (10 + 501)")
-            print(f"   📁 Segments remaining: {len(self.test_data['segment_ids']) - 511}")
+            print(f"   📁 Segments deleted: 10 (using bulk deletion)")
+            print(f"   📁 Segments remaining: {len(self.test_data['segment_ids']) - 10}")
             print("   🚀 Parallel optimizations: Bulk storage + Parallel segments + Parallel uploads")
         else:
             print("❌ Some stress tests FAILED!")

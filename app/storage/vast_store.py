@@ -59,6 +59,8 @@ from ..models.models import (
     CollectionItem, GetUrl, Webhook, WebhookPost, User, ApiToken, AuthLog
 )
 from .s3_store import S3Store
+from .storage_backend_manager import StorageBackendManager
+from ..core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -145,90 +147,52 @@ class VASTStore:
     """
     
     def __init__(self, 
-                 endpoints: Union[str, List[str]] = "http://main.vast.acme.com",
-                 access_key: str = "test-access-key",
-                 secret_key: str = "test-secret-key", 
-                 bucket: str = "tams-bucket",
-                 schema: str = "tams-schema",
-                 s3_endpoint_url: str = "http://s3.vast.acme.com",
-                 s3_access_key_id: str = "minioadmin",
-                 s3_secret_access_key: str = "minioadmin",
-                 s3_bucket_name: str = "tams-bucket",
-                 s3_use_ssl: bool = False):
+                 endpoint: Optional[str] = None, 
+                 access_key: Optional[str] = None, 
+                 secret_key: Optional[str] = None, 
+                 bucket: Optional[str] = None,
+                 schema: Optional[str] = None):
         """
-        Initialize VAST Store with connection parameters.
-        
-        Sets up both VAST Database and S3 storage connections, creates necessary
-        schemas and tables, and prepares the store for TAMS operations.
+        Initialize VAST Store
         
         Args:
-            endpoints: VAST Database endpoint URL(s) - can be single string or list
-                     (default: "http://main.vast.acme.com")
-            access_key: VAST access key for authentication (default: "test-access-key")
-            secret_key: VAST secret key for authentication (default: "test-secret-key")
-            bucket: VAST bucket name for TAMS data (default: "tams-bucket")
-            schema: VAST schema name for TAMS tables (default: "tams-schema")
-            s3_endpoint_url: S3-compatible endpoint URL for media storage
-                           (default: "http://s3.vast.acme.com")
-            s3_access_key_id: S3 access key ID for media storage (default: "minioadmin")
-            s3_secret_access_key: S3 secret access key for media storage (default: "minioadmin")
-            s3_bucket_name: S3 bucket name for media segments (default: "tams-bucket")
-            s3_use_ssl: Whether to use SSL for S3 communication (default: False)
-            
-        Raises:
-            Exception: If connection setup fails or required tables cannot be created
-            
-        Note:
-            The initialization process:
-            1. Establishes VAST Database connection with multiple endpoints
-            2. Creates schema if it doesn't exist
-            3. Sets up TAMS tables with optimized schemas
-            4. Initializes S3 storage connection
-            5. Validates all connections are ready
-            
-        Example:
-            >>> store = VASTStore(
-            ...     endpoints=["http://vast1.example.com", "http://vast2.example.com"],
-            ...     access_key="your_vast_key",
-            ...     secret_key="your_vast_secret",
-            ...     bucket="tams-data",
-            ...     schema="tams-schema",
-            ...     s3_endpoint_url="http://s3.example.com",
-            ...     s3_access_key_id="your_s3_key",
-            ...     s3_secret_access_key="your_s3_secret",
-            ...     s3_bucket_name="tams-media",
-            ...     s3_use_ssl=True
-            ... )
+            endpoint: VAST Database endpoint URL
+            access_key: VAST access key for authentication
+            secret_key: VAST secret key for authentication
+            bucket: VAST bucket name for TAMS data
+            schema: VAST schema name for TAMS tables
         """
-        # Handle both single endpoint and list of endpoints
-        if isinstance(endpoints, str):
-            self.endpoints = [endpoints]
-            self.endpoint = endpoints  # Keep for backward compatibility
+        # Use provided parameters or load from config
+        if endpoint is None or access_key is None or secret_key is None or bucket is None:
+            settings = get_settings()
+            self.endpoint = endpoint or settings.vast_endpoint
+            self.access_key = access_key or settings.vast_access_key
+            self.secret_key = secret_key or settings.vast_secret_key
+            self.bucket = bucket or settings.vast_bucket
+            self.schema = schema or settings.vast_schema
         else:
-            self.endpoints = endpoints
-            self.endpoint = endpoints[0]  # Use first endpoint as primary
-            
-        self.access_key = access_key
-        self.secret_key = secret_key
-        self.bucket = bucket
-        self.schema = schema
+            self.endpoint = endpoint
+            self.access_key = access_key
+            self.secret_key = secret_key
+            self.bucket = bucket
+            self.schema = schema or "tams7"
         
-        # Initialize VAST database manager with multiple endpoints
-        try:
-            self.db_manager = VastDBManager(
-                endpoints=self.endpoints  # Pass the full endpoints list
-            )
-            logger.info("VAST Store initialized with %d endpoint(s): %s, bucket: %s, schema: %s", 
-                   len(self.endpoints), self.endpoints, bucket, schema)
-            
-            # Setup TAMS tables with schemas
-            self._setup_tams_tables()
-            
-            self.s3_store = S3Store()
-            
-        except Exception as e:
-            logger.error("Failed to initialize VAST Store: %s", e)
-            raise
+        # Initialize storage backend manager
+        self.storage_backend_manager = StorageBackendManager()
+        
+        # Initialize S3 store with storage backend manager
+        self.s3_store = S3Store(storage_backend_manager=self.storage_backend_manager)
+        
+        # Initialize VAST database manager
+        self.db_manager = VastDBManager(
+            endpoint=self.endpoint,
+            access_key=self.access_key,
+            secret_key=self.secret_key,
+            bucket=self.bucket,
+            schema=self.schema
+        )
+        
+        logger.info(f"VAST Store initialized with endpoint: {self.endpoint}, bucket: {self.bucket}, schema: {self.schema}")
     
     def _setup_tams_tables(self):
         """Setup TAMS tables with their schemas"""
@@ -301,14 +265,20 @@ class VASTStore:
             ('duration_seconds', pa.float64()),
         ])
         
-        # Object table schema
+        # Object table schema - TAMS compliant
         object_schema = pa.schema([
-            ('object_id', pa.string()),
-            ('flow_references', pa.string()),  # JSON string
+            ('id', pa.string()),  # Changed from object_id to id
             ('size', pa.int64()),
             ('created', pa.timestamp('us')),
             ('last_accessed', pa.timestamp('us')),
             ('access_count', pa.int32()),
+        ])
+        
+        # Flow-Object references table schema
+        flow_object_references_schema = pa.schema([
+            ('object_id', pa.string()),
+            ('flow_id', pa.string()),
+            ('created', pa.timestamp('us')),
         ])
         
         # Webhook table schema
@@ -460,6 +430,7 @@ class VASTStore:
             'flows': flow_schema,
             'segments': segment_schema,
             'objects': object_schema,
+            'flow_object_references': flow_object_references_schema,
             'webhooks': webhook_schema,
             'deletion_requests': deletion_request_schema,
             'users': users_schema,
@@ -854,18 +825,24 @@ class VASTStore:
             # Generate storage_path if not provided to ensure consistency
             if not segment.storage_path:
                 # Generate the same hierarchical path that would be used in storage allocation
-                storage_path = self.s3_store.generate_segment_key(flow_id, segment.object_id, segment.timerange)
-                logger.info(f"Generated storage_path for segment {segment.object_id}: {storage_path}")
+                storage_path = self.s3_store.generate_segment_key(flow_id, segment.id, segment.timerange)  # Changed from object_id to id
+                logger.info(f"Generated storage_path for segment {segment.id}: {storage_path}")  # Changed from object_id to id
             else:
                 storage_path = segment.storage_path
-                logger.info(f"Using provided storage_path for segment {segment.object_id}: {storage_path}")
+                logger.info(f"Using provided storage_path for segment {segment.id}: {storage_path}")  # Changed from object_id to id
             
-            get_urls_objs = await self.s3_store.create_get_urls(flow_id, segment.object_id, segment.timerange, storage_path)
+            # Generate TAMS-compliant get_urls using the new method
+            get_urls_objs = await self.s3_store.create_tams_compliant_get_urls(
+                flow_id=flow_id,
+                segment_id=segment.id,  # Changed from object_id to id
+                timerange=segment.timerange,
+                storage_path=storage_path
+            )
             get_urls_json = self._dict_to_json([url.model_dump() for url in get_urls_objs])
             segment_data = {
                 'id': str(uuid.uuid4()),
                 'flow_id': flow_id,
-                'object_id': segment.object_id,
+                'object_id': segment.id,  # Changed from object_id to id
                 'timerange': segment.timerange,
                 'ts_offset': segment.ts_offset or "",
                 'last_duration': segment.last_duration or "",
@@ -890,7 +867,7 @@ class VASTStore:
         """Get flow segment metadata from VAST DB and data from S3"""
         try:
             # First get all segments for the flow (no timerange filtering at DB level)
-            predicate = (ibis_.id == flow_id)
+            predicate = (ibis_.flow_id == flow_id)
             
             
             results = self.db_manager.select('segments', predicate=predicate, output_by_row=True)
@@ -903,7 +880,12 @@ class VASTStore:
                         continue
                     
                     # get_urls is generated from S3 using stored storage_path
-                    get_urls = await self.s3_store.create_get_urls(flow_id, row['object_id'], row['timerange'], row.get('storage_path'))
+                    get_urls = await self.s3_store.create_tams_compliant_get_urls(
+                        flow_id=flow_id, 
+                        segment_id=row['object_id'], 
+                        timerange=row['timerange'], 
+                        storage_path=row.get('storage_path')
+                    )
                     segment = FlowSegment(
                         object_id=row['object_id'],
                         timerange=row['timerange'],
@@ -922,30 +904,41 @@ class VASTStore:
             return []
     
     async def create_object(self, obj: Object) -> bool:
-        """Create a new media object in VAST store"""
+        """Create a new media object in VAST store - TAMS compliant"""
         try:
-            # Convert object to dictionary
+            # Convert object to dictionary for objects table
             object_data = {
-                'object_id': obj.object_id,
-                'flow_references': self._dict_to_json(obj.flow_references),
+                'id': obj.id,  # Changed from object_id to id
                 'size': obj.size or 0,
                 'created': obj.created or datetime.now(timezone.utc),
                 'last_accessed': datetime.now(timezone.utc),
                 'access_count': 0,
             }
+            
             # Insert into VAST database as dict of lists
             self.db_manager.insert('objects', {k: [v] for k, v in object_data.items()})
-            logger.info(f"Created object {obj.object_id} in VAST store")
+            
+            # If there are flow references, insert them into the flow_object_references table
+            if obj.referenced_by_flows:
+                for flow_id in obj.referenced_by_flows:
+                    ref_data = {
+                        'object_id': obj.id,
+                        'flow_id': flow_id,
+                        'created': obj.created or datetime.now(timezone.utc),
+                    }
+                    self.db_manager.insert('flow_object_references', {k: [v] for k, v in ref_data.items()})
+            
+            logger.info(f"Created object {obj.id} in VAST store")
             return True
         except Exception as e:
-            logger.error(f"Failed to create object {obj.object_id}: {e}")
+            logger.error(f"Failed to create object {obj.id}: {e}")
             return False
     
     async def get_object(self, object_id: str) -> Optional[Object]:
-        """Get media object by ID"""
+        """Get media object by ID - TAMS compliant"""
         try:
             # Query for specific object
-            predicate = (ibis_.object_id == object_id)
+            predicate = (ibis_.id == object_id)  # Changed from object_id to id
             results = self.db_manager.select('objects', predicate=predicate, output_by_row=True)
             
             if not results:
@@ -970,15 +963,33 @@ class VASTStore:
             }
             self.db_manager.update('objects', update_data, predicate)
             
+            # Get flow references from the flow_object_references table
+            ref_predicate = (ibis_.object_id == object_id)
+            ref_results = self.db_manager.select('flow_object_references', predicate=ref_predicate, output_by_row=True)
+            
+            referenced_by_flows = []
+            first_referenced_by_flow = None
+            
+            if ref_results:
+                if isinstance(ref_results, list):
+                    for ref_row in ref_results:
+                        flow_id = ref_row['flow_id'][0] if isinstance(ref_row['flow_id'], list) else ref_row['flow_id']
+                        if flow_id:
+                            referenced_by_flows.append(str(flow_id))
+                            # Set first_referenced_by_flow to the first one we encounter
+                            if first_referenced_by_flow is None:
+                                first_referenced_by_flow = str(flow_id)
+                elif isinstance(ref_results, dict):
+                    flow_id = ref_results['flow_id'][0] if isinstance(ref_results['flow_id'], list) else ref_results['flow_id']
+                    if flow_id:
+                        referenced_by_flows.append(str(flow_id))
+                        first_referenced_by_flow = str(flow_id)
+            
             # Convert back to Object model
-            flow_refs = self._json_to_dict(row['flow_references'])
-            if isinstance(flow_refs, dict):
-                flow_refs = [flow_refs]
-            elif not isinstance(flow_refs, list):
-                flow_refs = []
             obj = Object(
-                object_id=str(row['object_id']),
-                flow_references=flow_refs,
+                id=str(row['id']),  # Changed from object_id to id
+                referenced_by_flows=referenced_by_flows,
+                first_referenced_by_flow=first_referenced_by_flow,
                 size=int(row['size']) if row['size'] is not None and not isinstance(row['size'], list) else (row['size'][0] if isinstance(row['size'], list) and row['size'] else None),
                 created=row['created'] if isinstance(row['created'], (datetime, type(None))) else datetime.fromisoformat(str(row['created'])) if row['created'] else None
             )
@@ -1401,7 +1412,7 @@ class VASTStore:
             
             if cascade and deps['has_dependencies']:
                 # Check if this is a large deletion that needs async handling
-                from ..config import get_settings
+                from ..core.config import get_settings
                 settings = get_settings()
                 threshold = settings.async_deletion_threshold
                 
@@ -1451,14 +1462,9 @@ class VASTStore:
                 logger.info(f"No segments found for flow {flow_id}")
                 return True
             
-            # Delete segments from S3 first
-            for segment in segments:
-                if segment.storage_path:
-                    try:
-                        self.s3_store.delete_object(segment.storage_path)
-                        logger.debug(f"Deleted S3 object: {segment.storage_path}")
-                    except Exception as e:
-                        logger.warning(f"Failed to delete S3 object {segment.storage_path}: {e}")
+            # Note: According to TAMS API rules, objects are immutable and should NOT be deleted
+            # Only segment metadata is removed from the database
+            # S3 objects remain available for potential reuse by other flows
             
             # Delete segments from VAST database
             predicate = (ibis_.flow_id == flow_id)
@@ -1495,20 +1501,24 @@ class VASTStore:
             from ibis import _ as ibis_
             
             # First check if object exists
-            predicate = (ibis_.object_id == object_id)
+            predicate = (ibis_.id == object_id)  # Changed from object_id to id
             results = self.db_manager.select('objects', predicate=predicate, output_by_row=True)
             
             if not results:
                 logger.warning(f"Object {object_id} not found for deletion")
                 return False
             
-            # Check if object has any flow references (segments)
-            # Note: We don't prevent deletion, but log for audit purposes
-            flow_refs = results[0].get('flow_references', []) if isinstance(results, list) and results else []
-            if flow_refs:
-                logger.warning(f"Object {object_id} has {len(flow_refs)} flow references. Deleting anyway as per TAMS API rules.")
+            # Check if object has any flow references in the flow_object_references table
+            # According to TAMS API rules, objects are immutable and cannot be deleted if they have flow references
+            ref_predicate = (ibis_.object_id == object_id)
+            ref_results = self.db_manager.select('flow_object_references', predicate=ref_predicate, output_by_row=True)
             
-            # Delete the object
+            if ref_results:
+                ref_count = len(ref_results) if isinstance(ref_results, list) else 1
+                logger.error(f"Object {object_id} has {ref_count} flow references. Objects are immutable by design and cannot be deleted while referenced by flows.")
+                return False
+            
+            # Delete the object (only if no flow references exist)
             deleted_count = self.db_manager.delete('objects', predicate)
             
             if deleted_count > 0:
@@ -1913,7 +1923,7 @@ class VASTStore:
                 raise ValueError(f"Flow {flow_id} has no segments to delete")
             
             # Get configurable threshold
-            from ..config import get_settings
+            from ..core.config import get_settings
             settings = get_settings()
             threshold = settings.async_deletion_threshold
             
@@ -2066,4 +2076,129 @@ class VASTStore:
         except Exception as e:
             logger.error(f"Failed to update deletion request {request_id} status: {e}")
             return False
+
+    # Flow-Object Reference Management Methods
+    
+    async def add_flow_object_reference(self, object_id: str, flow_id: str) -> bool:
+        """
+        Add a flow-object reference relationship.
+        
+        Args:
+            object_id (str): The object ID
+            flow_id (str): The flow ID
+            
+        Returns:
+            bool: True if reference was added successfully, False otherwise
+        """
+        try:
+            ref_data = {
+                'object_id': object_id,
+                'flow_id': flow_id,
+                'created': datetime.now(timezone.utc),
+            }
+            
+            # Insert into flow_object_references table
+            self.db_manager.insert('flow_object_references', {k: [v] for k, v in ref_data.items()})
+            logger.info(f"Added flow-object reference: {flow_id} -> {object_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to add flow-object reference {flow_id} -> {object_id}: {e}")
+            return False
+    
+    async def remove_flow_object_reference(self, object_id: str, flow_id: str) -> bool:
+        """
+        Remove a flow-object reference relationship.
+        
+        Args:
+            object_id (str): The object ID
+            flow_id (str): The flow ID
+            
+        Returns:
+            bool: True if reference was removed successfully, False otherwise
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            predicate = (ibis_.object_id == object_id) & (ibis_.flow_id == flow_id)
+            deleted_count = self.db_manager.delete('flow_object_references', predicate)
+            
+            if deleted_count > 0:
+                logger.info(f"Removed flow-object reference: {flow_id} -> {object_id}")
+                return True
+            else:
+                logger.warning(f"Flow-object reference not found: {flow_id} -> {object_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to remove flow-object reference {flow_id} -> {object_id}: {e}")
+            return False
+    
+    async def get_object_flow_references(self, object_id: str) -> List[str]:
+        """
+        Get all flow IDs that reference a specific object.
+        
+        Args:
+            object_id (str): The object ID
+            
+        Returns:
+            List[str]: List of flow IDs that reference this object
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            predicate = (ibis_.object_id == object_id)
+            results = self.db_manager.select('flow_object_references', predicate=predicate, output_by_row=True)
+            
+            flow_ids = []
+            if results:
+                if isinstance(results, list):
+                    for row in results:
+                        flow_id = row['flow_id'][0] if isinstance(row['flow_id'], list) else row['flow_id']
+                        if flow_id:
+                            flow_ids.append(str(flow_id))
+                elif isinstance(results, dict):
+                    flow_id = results['flow_id'][0] if isinstance(results['flow_id'], list) else results['flow_id']
+                    if flow_id:
+                        flow_ids.append(str(flow_id))
+            
+            return flow_ids
+            
+        except Exception as e:
+            logger.error(f"Failed to get flow references for object {object_id}: {e}")
+            return []
+    
+    async def get_flow_object_references(self, flow_id: str) -> List[str]:
+        """
+        Get all object IDs that are referenced by a specific flow.
+        
+        Args:
+            flow_id (str): The flow ID
+            
+        Returns:
+            List[str]: List of object IDs referenced by this flow
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            predicate = (ibis_.flow_id == flow_id)
+            results = self.db_manager.select('flow_object_references', predicate=predicate, output_by_row=True)
+            
+            object_ids = []
+            if results:
+                if isinstance(results, list):
+                    for row in results:
+                        obj_id = row['object_id'][0] if isinstance(row['object_id'], list) else row['object_id']
+                        if obj_id:
+                            object_ids.append(str(obj_id))
+                elif isinstance(results, dict):
+                    obj_id = results['object_id'][0] if isinstance(results['object_id'], list) else results['object_id']
+                    if obj_id:
+                        object_ids.append(str(obj_id))
+            
+            return object_ids
+            
+        except Exception as e:
+            logger.error(f"Failed to get object references for flow {flow_id}: {e}")
+            return []
 

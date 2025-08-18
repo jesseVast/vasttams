@@ -18,6 +18,7 @@ EXPECTED_PARTS_LENGTH = 2  # Expected number of parts for key parsing
 
 from ..models.models import FlowSegment, GetUrl
 from ..core.config import get_settings
+from .storage_backend_manager import StorageBackendManager
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ class S3Store:
     stored as objects in S3 buckets.
     """
     
-    def __init__(self, endpoint_url=None, access_key_id=None, secret_access_key=None, bucket_name=None, use_ssl=None):
+    def __init__(self, endpoint_url=None, access_key_id=None, secret_access_key=None, bucket_name=None, use_ssl=None, storage_backend_manager=None):
         """Initialize S3 Store using provided config or config.py"""
         if any(param is not None for param in [endpoint_url, access_key_id, secret_access_key, bucket_name, use_ssl]):
             self.endpoint_url = endpoint_url
@@ -46,7 +47,10 @@ class S3Store:
             self.secret_access_key = settings.s3_secret_access_key
             self.bucket_name = settings.s3_bucket_name
             self.use_ssl = settings.s3_use_ssl
-            
+        
+        # Initialize storage backend manager
+        self.storage_backend_manager = storage_backend_manager or StorageBackendManager()
+        
         logger.info("S3Store initialization - Endpoint: %s, Bucket: %s, Access Key: %s", 
                    self.endpoint_url, self.bucket_name, self.access_key_id)
         
@@ -357,6 +361,38 @@ class S3Store:
             logger.error(f"Failed to delete flow segment {segment_id} for flow {flow_id}: {e}")
             return False
     
+    def delete_object(self, storage_path: str) -> bool:
+        """
+        Delete an object from S3 by its storage path
+        
+        Args:
+            storage_path: The storage path/key of the object to delete
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Delete object from S3 using the storage path directly as the key
+            self.s3_client.delete_object(
+                Bucket=self.bucket_name,
+                Key=storage_path
+            )
+            
+            logger.info(f"Deleted S3 object: {storage_path}")
+            return True
+            
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            if error_code == 'NoSuchKey':
+                logger.warning(f"S3 object not found: {storage_path}")
+                return True  # Consider it successful if it doesn't exist
+            else:
+                logger.error(f"Failed to delete S3 object {storage_path}: {e}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to delete S3 object {storage_path}: {e}")
+            return False
+    
     def generate_presigned_url(self, 
                               flow_id: str,
                               segment_id: str,
@@ -412,12 +448,12 @@ class S3Store:
             return None
     
     def generate_object_presigned_url(self, 
-                                    object_id: str,
-                                    operation: str = 'put_object',
-                                    expires_in: int = None,
+                                    object_id: str, 
+                                    operation: str, 
+                                    expires_in: Optional[int] = None,
                                     custom_key: Optional[str] = None) -> Optional[str]:
         """
-        Generate presigned URL for S3 operations on simple object IDs
+        Generate a presigned URL for S3 object operations
         
         Args:
             object_id: Object identifier
@@ -432,9 +468,17 @@ class S3Store:
         if expires_in is None:
             try:
                 settings = get_settings()
-                expires_in = settings.s3_presigned_url_timeout
+                # Use appropriate timeout based on operation
+                if operation == 'put_object':
+                    expires_in = settings.s3_presigned_url_upload_timeout
+                else:
+                    expires_in = settings.s3_presigned_url_download_timeout
             except Exception:
-                expires_in = DEFAULT_PRESIGNED_URL_TIMEOUT  # Fallback to configured default
+                # Fallback to appropriate default based on operation
+                if operation == 'put_object':
+                    expires_in = 3600  # 1 hour for uploads
+                else:
+                    expires_in = 3600  # 1 hour for downloads
         
         logger.info(f"generate_object_presigned_url called with object_id={object_id}, operation={operation}, expires_in={expires_in}, custom_key={custom_key}")
         logger.info(f"S3Store state - endpoint_url: {self.endpoint_url}, bucket_name: {self.bucket_name}, s3_client: {self.s3_client}")
@@ -469,7 +513,7 @@ class S3Store:
                              timerange: str,
                              storage_path: Optional[str] = None) -> List[GetUrl]:
         """
-        Create GetUrl objects for flow segment access
+        Create GetUrl objects for flow segment access (Legacy method - kept for backward compatibility)
         
         Args:
             flow_id: Flow identifier
@@ -512,6 +556,84 @@ class S3Store:
             
         except Exception as e:
             logger.error(f"Failed to create GetUrls for segment {segment_id}: {e}")
+            return []
+
+    async def create_tams_compliant_get_urls(
+        self, 
+        flow_id: str, 
+        segment_id: str, 
+        timerange: str,
+        storage_path: Optional[str] = None,
+        storage_backend_id: str = None
+    ) -> List[GetUrl]:
+        """
+        Create TAMS-compliant GetUrl objects with dynamic URL generation
+        
+        Args:
+            flow_id: Flow identifier
+            segment_id: Segment identifier
+            timerange: Time range string
+            storage_path: Optional storage path to use instead of regenerating
+            storage_backend_id: Storage backend ID to use (defaults to config default)
+            
+        Returns:
+            List of TAMS-compliant GetUrl objects
+        """
+        try:
+            # Get storage backend metadata
+            if storage_backend_id is None:
+                settings = get_settings()
+                storage_backend_id = settings.default_storage_backend_id
+            
+            backend_info = self.storage_backend_manager.get_storage_backend_info(storage_backend_id)
+            
+            # Use provided storage_path if available, otherwise generate from parameters
+            if storage_path:
+                object_key = storage_path
+                logger.info(f"Using provided storage path: {object_key}")
+            else:
+                # Generate path from parameters
+                object_key = self._generate_segment_key(flow_id, segment_id, timerange)
+                logger.info(f"Generated storage path: {object_key}")
+            
+            # Generate presigned URL for the object key using download timeout
+            settings = get_settings()
+            expires_in = settings.s3_presigned_url_download_timeout
+            
+            presigned_url = self.s3_client.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': self.bucket_name,
+                    'Key': object_key
+                },
+                ExpiresIn=expires_in
+            )
+            
+            if presigned_url:
+                # Create TAMS-compliant GetUrl object
+                get_url = GetUrl(
+                    # Storage backend fields from storage-backend.json
+                    store_type=backend_info.get("store_type", "http_object_store"),
+                    provider=backend_info.get("provider", "S3-Compatible"),
+                    region=backend_info.get("region", "default"),
+                    availability_zone=backend_info.get("availability_zone"),
+                    store_product=backend_info.get("store_product", "S3-Compatible Storage"),
+                    
+                    # Dynamic fields
+                    url=presigned_url,
+                    storage_id=storage_backend_id,
+                    presigned=True,
+                    label=f"Direct access for segment {segment_id}",
+                    controlled=True
+                )
+                
+                logger.info(f"Created TAMS-compliant GetUrl for segment {segment_id}")
+                return [get_url]
+            
+            return []
+            
+        except Exception as e:
+            logger.error(f"Failed to create TAMS-compliant GetUrls for segment {segment_id}: {e}")
             return []
     
     async def close(self):

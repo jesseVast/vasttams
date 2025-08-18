@@ -197,23 +197,35 @@ class Source(BaseModel):
 
 
 class GetUrl(BaseModel):
-    """Get URL for flow segments"""
-    url: str
-    label: Optional[str] = None
+    """TAMS-compliant GetUrl model extending storage-backend.json schema"""
+    
+    # storage-backend.json fields
+    store_type: str = Field(default="http_object_store", description="The generic store type")
+    provider: str = Field(..., description="The cloud (or other) provider of the storage")
+    region: str = Field(..., description="The region in the cloud this storage backend resides")
+    availability_zone: Optional[str] = Field(None, description="The availability zone in the cloud region this storage backend resides")
+    store_product: str = Field(..., description="The storage product name")
+    
+    # Additional required fields from flow-segment.json
+    url: str = Field(..., description="A URL to which a GET request can be made to directly retrieve the contents of the segment")
+    storage_id: str = Field(..., description="Storage backend identifier", pattern="^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+    presigned: bool = Field(default=True, description="If true, this URL is pre-signed")
+    label: Optional[str] = Field(None, description="Label identifying this URL")
+    controlled: bool = Field(default=True, description="If true, this URL is on a storage backend controlled by this service instance")
 
 
 class FlowSegment(BaseModel):
-    """Flow segment model"""
-    object_id: str
+    """Flow segment model - TAMS compliant"""
+    id: str = Field(..., description="The object store identifier for the media object")  # Changed from object_id to id for TAMS compliance
     timerange: str = Field(description="Time range")
-    ts_offset: Optional[str] = None  # Timestamp format
-    last_duration: Optional[str] = None  # Timestamp format
-    sample_offset: Optional[int] = None
-    sample_count: Optional[int] = None
-    get_urls: Optional[List[GetUrl]] = None
-    key_frame_count: Optional[int] = None
+    ts_offset: Optional[str] = Field(None, description="Timestamp offset between sample timestamps and segment timestamps")  # Fixed description
+    last_duration: Optional[str] = Field(None, description="Difference between exclusive end of timerange and last sample timestamp")  # Fixed description
+    sample_offset: Optional[int] = Field(None, description="Start of segment as count of samples from start of object")
+    sample_count: Optional[int] = Field(None, description="Count of samples in the segment")
+    get_urls: Optional[List[GetUrl]] = Field(None, description="List of URLs for direct segment retrieval")
+    key_frame_count: Optional[int] = Field(None, description="Number of key frames in the segment")
     # Storage path field - stores the actual S3 object key used for storage
-    storage_path: Optional[str] = None  # The actual S3 object key where data is stored
+    storage_path: Optional[str] = Field(None, description="The actual S3 object key where data is stored")
     
     @field_validator('timerange')
     @classmethod
@@ -222,30 +234,38 @@ class FlowSegment(BaseModel):
 
 
 class VideoFlow(BaseModel):
-    """Video flow model"""
+    """Video flow model - TAMS compliant"""
     id: UUID4
     source_id: UUID4
     format: str = Field(default="urn:x-nmos:format:video", description="Content format URN")
-    codec: str = Field(description="MIME type")
-    label: Optional[str] = None
-    description: Optional[str] = None
-    created_by: Optional[str] = None
-    updated_by: Optional[str] = None
-    created: Optional[datetime] = None
-    updated: Optional[datetime] = None
-    tags: Optional[Tags] = None
+    codec: str = Field(description="MIME type identification of the coding used for the flow content")
+    label: Optional[str] = Field(None, description="Freeform string label for the flow")
+    description: Optional[str] = Field(None, description="Freeform text describing the flow")
+    created_by: Optional[str] = Field(None, description="Entity that created the flow")
+    updated_by: Optional[str] = Field(None, description="Entity that updated the flow metadata most recently")
+    created: Optional[datetime] = Field(None, description="Date-time the flow was created")
+    metadata_updated: Optional[datetime] = Field(None, description="Date-time the flow metadata was updated")  # Changed from updated to metadata_updated for TAMS compliance
+    segments_updated: Optional[datetime] = Field(None, description="Date-time the flow segments were updated")  # Added missing required field
+    tags: Optional[Tags] = Field(None, description="Flow tags")
+    
+    # TAMS required fields
+    metadata_version: Optional[str] = Field(None, description="Flow metadata version for change tracking")  # Added missing required field
+    generation: Optional[int] = Field(None, ge=0, description="Number of lossy encodings the flow content has been through")  # Added missing required field
+    segment_duration: Optional[Dict[str, int]] = Field(None, description="Target flow segment duration as numerator/denominator")  # Added missing required field
+    
+    # Video-specific fields
     frame_width: int = Field(gt=0, description="Frame width must be positive")
     frame_height: int = Field(gt=0, description="Frame height must be positive")
-    frame_rate: str = Field(description="Timestamp format")  # Timestamp format
-    interlace_mode: Optional[str] = None
-    color_sampling: Optional[str] = None
-    color_space: Optional[str] = None
-    transfer_characteristics: Optional[str] = None
-    color_primaries: Optional[str] = None
-    container: Optional[str] = None
-    read_only: Optional[bool] = False
-    max_bit_rate: Optional[int] = None
-    avg_bit_rate: Optional[int] = None
+    frame_rate: str = Field(description="Frame rate in timestamp format")  # Kept for backward compatibility
+    interlace_mode: Optional[str] = Field(None, description="Interlacing mode")
+    color_sampling: Optional[str] = Field(None, description="Color sampling format")
+    color_space: Optional[str] = Field(None, description="Color space")
+    transfer_characteristics: Optional[str] = Field(None, description="Transfer characteristics")
+    color_primaries: Optional[str] = Field(None, description="Color primaries")
+    container: Optional[str] = Field(None, description="Container MIME type for flow segments")
+    read_only: Optional[bool] = Field(False, description="Whether flow is read-only")
+    max_bit_rate: Optional[int] = Field(None, ge=0, description="Maximum bit rate in 1000 bits/second")
+    avg_bit_rate: Optional[int] = Field(None, ge=0, description="Average bit rate in 1000 bits/second")
     
     @field_validator('format')
     @classmethod
@@ -257,101 +277,136 @@ class VideoFlow(BaseModel):
     def validate_codec(cls, v: str) -> str:
         return validate_mime_type(v)
     
-    @field_serializer('created', 'updated')
+    @field_serializer('created', 'metadata_updated', 'segments_updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
 
 class AudioFlow(BaseModel):
-    """Audio flow model"""
+    """Audio flow model - TAMS compliant"""
     id: UUID4
     source_id: UUID4
-    format: ContentFormat = Field(default="urn:x-nmos:format:audio")
-    codec: MimeType
-    label: Optional[str] = None
-    description: Optional[str] = None
-    created_by: Optional[str] = None
-    updated_by: Optional[str] = None
-    created: Optional[datetime] = None
-    updated: Optional[datetime] = None
-    tags: Optional[Tags] = None
-    sample_rate: int
-    bits_per_sample: int
-    channels: int
-    container: Optional[str] = None
-    read_only: Optional[bool] = False
-    max_bit_rate: Optional[int] = None
-    avg_bit_rate: Optional[int] = None
+    format: ContentFormat = Field(default="urn:x-nmos:format:audio", description="Content format URN")
+    codec: MimeType = Field(description="MIME type identification of the coding used for the flow content")
+    label: Optional[str] = Field(None, description="Freeform string label for the flow")
+    description: Optional[str] = Field(None, description="Freeform text describing the flow")
+    created_by: Optional[str] = Field(None, description="Entity that created the flow")
+    updated_by: Optional[str] = Field(None, description="Entity that updated the flow metadata most recently")
+    created: Optional[datetime] = Field(None, description="Date-time the flow was created")
+    metadata_updated: Optional[datetime] = Field(None, description="Date-time the flow metadata was updated")  # Changed from updated to metadata_updated for TAMS compliance
+    segments_updated: Optional[datetime] = Field(None, description="Date-time the flow segments were updated")  # Added missing required field
+    tags: Optional[Tags] = Field(None, description="Flow tags")
     
-    @field_serializer('created', 'updated')
+    # TAMS required fields
+    metadata_version: Optional[str] = Field(None, description="Flow metadata version for change tracking")  # Added missing required field
+    generation: Optional[int] = Field(None, ge=0, description="Number of lossy encodings the flow content has been through")  # Added missing required field
+    segment_duration: Optional[Dict[str, int]] = Field(None, description="Target flow segment duration as numerator/denominator")  # Added missing required field
+    
+    # Audio-specific fields
+    sample_rate: int = Field(gt=0, description="Audio sample rate in Hz")
+    bits_per_sample: int = Field(gt=0, description="Bits per audio sample")
+    channels: int = Field(gt=0, description="Number of audio channels")
+    container: Optional[str] = Field(None, description="Container MIME type for flow segments")
+    read_only: Optional[bool] = Field(False, description="Whether flow is read-only")
+    max_bit_rate: Optional[int] = Field(None, ge=0, description="Maximum bit rate in 1000 bits/second")
+    avg_bit_rate: Optional[int] = Field(None, ge=0, description="Average bit rate in 1000 bits/second")
+    
+    @field_serializer('created', 'metadata_updated', 'segments_updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
 
 class DataFlow(BaseModel):
-    """Data flow model"""
+    """Data flow model - TAMS compliant"""
     id: UUID4
     source_id: UUID4
-    format: ContentFormat = Field(default="urn:x-nmos:format:data")
-    codec: MimeType
-    label: Optional[str] = None
-    description: Optional[str] = None
-    created_by: Optional[str] = None
-    updated_by: Optional[str] = None
-    created: Optional[datetime] = None
-    updated: Optional[datetime] = None
-    tags: Optional[Tags] = None
-    container: Optional[str] = None
-    read_only: Optional[bool] = False
+    format: ContentFormat = Field(default="urn:x-nmos:format:data", description="Content format URN")
+    codec: MimeType = Field(description="MIME type identification of the coding used for the flow content")
+    label: Optional[str] = Field(None, description="Freeform string label for the flow")
+    description: Optional[str] = Field(None, description="Freeform text describing the flow")
+    created_by: Optional[str] = Field(None, description="Entity that created the flow")
+    updated_by: Optional[str] = Field(None, description="Entity that updated the flow metadata most recently")
+    created: Optional[datetime] = Field(None, description="Date-time the flow was created")
+    metadata_updated: Optional[datetime] = Field(None, description="Date-time the flow metadata was updated")  # Changed from updated to metadata_updated for TAMS compliance
+    segments_updated: Optional[datetime] = Field(None, description="Date-time the flow segments were updated")  # Added missing required field
+    tags: Optional[Tags] = Field(None, description="Flow tags")
     
-    @field_serializer('created', 'updated')
+    # TAMS required fields
+    metadata_version: Optional[str] = Field(None, description="Flow metadata version for change tracking")  # Added missing required field
+    generation: Optional[int] = Field(None, ge=0, description="Number of lossy encodings the flow content has been through")  # Added missing required field
+    segment_duration: Optional[Dict[str, int]] = Field(None, description="Target flow segment duration as numerator/denominator")  # Added missing required field
+    
+    # Data-specific fields
+    container: Optional[str] = Field(None, description="Container MIME type for flow segments")
+    read_only: Optional[bool] = Field(False, description="Whether flow is read-only")
+    
+    @field_serializer('created', 'metadata_updated', 'segments_updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
 
 class ImageFlow(BaseModel):
-    """Image flow model"""
+    """Image flow model - TAMS compliant"""
     id: UUID4
     source_id: UUID4
-    format: ContentFormat = Field(default="urn:x-tam:format:image")
-    codec: MimeType
-    label: Optional[str] = None
-    description: Optional[str] = None
-    created_by: Optional[str] = None
-    updated_by: Optional[str] = None
-    created: Optional[datetime] = None
-    updated: Optional[datetime] = None
-    tags: Optional[Tags] = None
-    frame_width: int
-    frame_height: int
-    container: Optional[str] = None
-    read_only: Optional[bool] = False
-    max_bit_rate: Optional[int] = None
-    avg_bit_rate: Optional[int] = None
+    format: ContentFormat = Field(default="urn:x-tam:format:image", description="Content format URN")
+    codec: MimeType = Field(description="MIME type identification of the coding used for the flow content")
+    label: Optional[str] = Field(None, description="Freeform string label for the flow")
+    description: Optional[str] = Field(None, description="Freeform text describing the flow")
+    created_by: Optional[str] = Field(None, description="Entity that created the flow")
+    updated_by: Optional[str] = Field(None, description="Entity that updated the flow metadata most recently")
+    created: Optional[datetime] = Field(None, description="Date-time the flow was created")
+    metadata_updated: Optional[datetime] = Field(None, description="Date-time the flow metadata was updated")  # Changed from updated to metadata_updated for TAMS compliance
+    segments_updated: Optional[datetime] = Field(None, description="Date-time the flow segments were updated")  # Added missing required field
+    tags: Optional[Tags] = Field(None, description="Flow tags")
     
-    @field_serializer('created', 'updated')
+    # TAMS required fields
+    metadata_version: Optional[str] = Field(None, description="Flow metadata version for change tracking")  # Added missing required field
+    generation: Optional[int] = Field(None, ge=0, description="Number of lossy encodings the flow content has been through")  # Added missing required field
+    segment_duration: Optional[Dict[str, int]] = Field(None, description="Target flow segment duration as numerator/denominator")  # Added missing required field
+    
+    # Image-specific fields
+    frame_width: int = Field(gt=0, description="Image frame width in pixels")
+    frame_height: int = Field(gt=0, description="Image frame height in pixels")
+    container: Optional[str] = Field(None, description="Container MIME type for flow segments")
+    read_only: Optional[bool] = Field(False, description="Whether flow is read-only")
+    max_bit_rate: Optional[int] = Field(None, ge=0, description="Maximum bit rate in 1000 bits/second")
+    avg_bit_rate: Optional[int] = Field(None, ge=0, description="Average bit rate in 1000 bits/second")
+    
+    @field_serializer('created', 'metadata_updated', 'segments_updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
 
 class MultiFlow(BaseModel):
-    """Multi flow model"""
+    """Multi flow model - TAMS compliant"""
     id: UUID4
     source_id: UUID4
-    format: ContentFormat = Field(default="urn:x-nmos:format:multi")
-    codec: MimeType
-    label: Optional[str] = None
-    description: Optional[str] = None
-    created_by: Optional[str] = None
-    updated_by: Optional[str] = None
-    created: Optional[datetime] = None
-    updated: Optional[datetime] = None
-    tags: Optional[Tags] = None
-    container: Optional[str] = None
-    read_only: Optional[bool] = False
-    flow_collection: List[UUID4]
+    format: ContentFormat = Field(default="urn:x-nmos:format:multi", description="Content format URN")
+    codec: MimeType = Field(description="MIME type identification of the coding used for the flow content")
+    label: Optional[str] = Field(None, description="Freeform string label for the flow")
+    description: Optional[str] = Field(None, description="Freeform text describing the flow")
+    created_by: Optional[str] = Field(None, description="Entity that created the flow")
+    updated_by: Optional[str] = Field(None, description="Entity that updated the flow metadata most recently")
+    created: Optional[datetime] = Field(None, description="Date-time the flow was created")
+    metadata_updated: Optional[datetime] = Field(None, description="Date-time the flow metadata was updated")  # Changed from updated to metadata_updated for TAMS compliance
+    segments_updated: Optional[datetime] = Field(None, description="Date-time the flow segments were updated")  # Added missing required field
+    tags: Optional[Tags] = Field(None, description="Flow tags")
     
-    @field_serializer('created', 'updated')
+    # TAMS required fields
+    metadata_version: Optional[str] = Field(None, description="Flow metadata version for change tracking")  # Added missing required field
+    generation: Optional[int] = Field(None, ge=0, description="Number of lossy encodings the flow content has been through")  # Added missing required field
+    segment_duration: Optional[Dict[str, int]] = Field(None, description="Target flow segment duration as numerator/denominator")  # Added missing required field
+    
+    # Multi-specific fields
+    flow_collection: Optional[List[str]] = Field(None, description="List of Flow IDs that are collected together by this Flow")  # Added missing required field
+    collected_by: Optional[List[str]] = Field(None, description="Flows that reference this Flow to include it in a collection")  # Added missing required field
+    container: Optional[str] = Field(None, description="Container MIME type for flow segments")
+    read_only: Optional[bool] = Field(False, description="Whether flow is read-only")
+    max_bit_rate: Optional[int] = Field(None, ge=0, description="Maximum bit rate in 1000 bits/second")
+    avg_bit_rate: Optional[int] = Field(None, ge=0, description="Average bit rate in 1000 bits/second")
+    
+    @field_serializer('created', 'metadata_updated', 'segments_updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
@@ -383,15 +438,28 @@ class Service(BaseModel):
 
 
 class Webhook(BaseModel):
-    """Webhook configuration"""
-    url: str = Field(description="Webhook URL")
-    api_key_name: str
-    api_key_value: Optional[str] = None
-    events: List[str]
+    """Webhook configuration - TAMS compliant"""
+    url: str = Field(..., description="The URL to which the API should make HTTP POST requests with event data")
+    api_key_name: str = Field(..., description="The HTTP header name that is added to the event POST")
+    api_key_value: Optional[str] = Field(None, description="The value that the HTTP header 'api_key_name' will be set to")
+    events: List[str] = Field(..., description="List of event types to receive")
+    
+    # TAMS-specific filtering fields
+    flow_ids: Optional[List[str]] = Field(None, description="Limit Flow and Flow Segment events to Flows in the given list of Flow IDs")
+    source_ids: Optional[List[str]] = Field(None, description="Limit Flow, Flow Segment and Source events to Sources in the given list of Source IDs")
+    flow_collected_by_ids: Optional[List[str]] = Field(None, description="Limit Flow and Flow Segment events to those with Flow that is collected by a Flow Collection in the given list of Flow Collection IDs")
+    source_collected_by_ids: Optional[List[str]] = Field(None, description="Limit Flow, Flow Segment and Source events to those with Source that is collected by a Source Collection in the given list of Source Collection IDs")
+    
+    # TAMS-specific get_urls filtering fields
+    accept_get_urls: Optional[List[str]] = Field(None, description="List of labels of URLs to include in the get_urls property in flows/segments_added events")
+    accept_storage_ids: Optional[List[str]] = Field(None, description="List of labels of storage_ids to include in the get_urls property in flows/segments_added events")
+    presigned: Optional[bool] = Field(None, description="Whether to include presigned/non-presigned URLs in the get_urls property in flows/segments_added events")
+    verbose_storage: Optional[bool] = Field(None, description="Whether to include storage metadata in the get_urls property in flows/segments_added events")
+    
     # Ownership fields for TAMS API v7.0 compliance
-    owner_id: Optional[str] = None
-    created_by: Optional[str] = None
-    created: Optional[datetime] = None
+    owner_id: Optional[str] = Field(None, description="Owner identifier for the webhook")
+    created_by: Optional[str] = Field(None, description="Entity that created the webhook")
+    created: Optional[datetime] = Field(None, description="Date-time the webhook was created")
     
     @field_validator('url')
     @classmethod
@@ -399,17 +467,59 @@ class Webhook(BaseModel):
         if not v.startswith(('http://', 'https://')):
             raise ValueError('URL must start with http:// or https://')
         return v
+    
+    @field_validator('flow_ids', 'source_ids', 'flow_collected_by_ids', 'source_collected_by_ids', 'accept_storage_ids')
+    @classmethod
+    def validate_uuid_list(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is not None:
+            import re
+            uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+            for uuid_str in v:
+                if not uuid_pattern.match(uuid_str):
+                    raise ValueError(f'Invalid UUID format: {uuid_str}')
+        return v
 
 
 class WebhookPost(BaseModel):
-    """Webhook registration request"""
-    url: str
-    api_key_name: str
-    api_key_value: str
-    events: List[str]
+    """Webhook registration request - TAMS compliant"""
+    url: str = Field(..., description="The URL to which the API should make HTTP POST requests with event data")
+    api_key_name: str = Field(..., description="The HTTP header name that is added to the event POST")
+    api_key_value: str = Field(..., description="The value that the HTTP header 'api_key_name' will be set to")
+    events: List[str] = Field(..., description="List of event types to receive")
+    
+    # TAMS-specific filtering fields
+    flow_ids: Optional[List[str]] = Field(None, description="Limit Flow and Flow Segment events to Flows in the given list of Flow IDs")
+    source_ids: Optional[List[str]] = Field(None, description="Limit Flow, Flow Segment and Source events to Sources in the given list of Source IDs")
+    flow_collected_by_ids: Optional[List[str]] = Field(None, description="Limit Flow and Flow Segment events to those with Flow that is collected by a Flow Collection in the given list of Flow Collection IDs")
+    source_collected_by_ids: Optional[List[str]] = Field(None, description="Limit Flow, Flow Segment and Source events to those with Source that is collected by a Source Collection in the given list of Source Collection IDs")
+    
+    # TAMS-specific get_urls filtering fields
+    accept_get_urls: Optional[List[str]] = Field(None, description="List of labels of URLs to include in the get_urls property in flows/segments_added events")
+    accept_storage_ids: Optional[List[str]] = Field(None, description="List of labels of storage_ids to include in the get_urls property in flows/segments_added events")
+    presigned: Optional[bool] = Field(None, description="Whether to include presigned/non-presigned URLs in the get_urls property in flows/segments_added events")
+    verbose_storage: Optional[bool] = Field(None, description="Whether to include storage metadata in the get_urls property in flows/segments_added events")
+    
     # Ownership fields for TAMS API v7.0 compliance
-    owner_id: Optional[str] = None
-    created_by: Optional[str] = None
+    owner_id: Optional[str] = Field(None, description="Owner identifier for the webhook")
+    created_by: Optional[str] = Field(None, description="Entity that created the webhook")
+    
+    @field_validator('url')
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        if not v.startswith(('http://', 'https://')):
+            raise ValueError('URL must start with http:// or https://')
+        return v
+    
+    @field_validator('flow_ids', 'source_ids', 'flow_collected_by_ids', 'source_collected_by_ids', 'accept_storage_ids')
+    @classmethod
+    def validate_uuid_list(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is not None:
+            import re
+            uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+            for uuid_str in v:
+                if not uuid_pattern.match(uuid_str):
+                    raise ValueError(f'Invalid UUID format: {uuid_str}')
+        return v
 
 
 class FlowStoragePost(BaseModel):
@@ -465,11 +575,12 @@ class StorageBackendsList(BaseModel):
 
 
 class Object(BaseModel):
-    """Media object information"""
-    object_id: str
-    flow_references: List[Dict[str, Any]]
-    size: Optional[int] = None
-    created: Optional[datetime] = None
+    """Media object information - TAMS compliant"""
+    id: str = Field(..., description="The media object identifier")
+    referenced_by_flows: List[str] = Field(..., description="List of Flows that reference this media object via Flow Segments in this store")
+    first_referenced_by_flow: Optional[str] = Field(None, description="The first Flow that had a Flow Segment reference the media object in this store")
+    size: Optional[int] = None  # Additional for implementation
+    created: Optional[datetime] = None  # Additional for implementation
     
     @field_serializer('created')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:

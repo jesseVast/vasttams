@@ -79,6 +79,19 @@ class Settings(BaseSettings):
         env="TAMS_ASYNC_DELETION_THRESHOLD"
     )
     
+    # Storage API settings
+    flow_storage_default_limit: int = Field(
+        default=10,
+        description="Default limit for flow storage allocation when no limit is specified in the request",
+        env="TAMS_FLOW_STORAGE_DEFAULT_LIMIT"
+    )
+    
+    segment_storage_default_limit: int = Field(
+        default=10,
+        description="Default limit for segment storage allocation when no limit is specified in the request",
+        env="TAMS_SEGMENT_STORAGE_DEFAULT_LIMIT"
+    )
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

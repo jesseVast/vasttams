@@ -318,9 +318,9 @@ class TAMSIntegrationTester:
         objects_data = []
         for i in range(TEST_OBJECTS_COUNT):
             obj = {
-                "object_id": str(uuid.uuid4()),  # API expects object_id, not id
+                "id": str(uuid.uuid4()),  # TAMS API expects 'id', not 'object_id'
                 # Only include required fields from the schema
-                "flow_references": [{"id": str(uuid.uuid4()), "label": f"Flow Ref {i+1}"}]
+                "referenced_by_flows": [str(uuid.uuid4())]  # TAMS API expects array of UUID strings
             }
             objects_data.append(obj)
         
@@ -338,8 +338,8 @@ class TAMSIntegrationTester:
             # Test individual object retrieval
             for obj in objects_data[:3]:  # Test first 3
                 await self.make_request(
-                    'GET', f"/objects/{obj['object_id']}",  # Use object_id for retrieval
-                    description=f"Get object {obj['object_id']}"
+                    'GET', f"/objects/{obj['id']}",  # Use 'id' for retrieval
+                    description=f"Get object {obj['id']}"
                 )
         else:
             logger.warning("⚠️ Objects creation failed, skipping related tests")

@@ -281,12 +281,10 @@ class TestRealAPIEndpoints:
         
         # Test data for segments
         segment_data = {
-            "object_id": str(uuid.uuid4()),
-            "timerange": "0:0_3600:0",  # TAMS format: 1 hour
-            "sample_offset": 0,
-            "sample_count": 90000,  # 25fps * 3600s
-            "key_frame_count": 3600,
-            "storage_path": f"flows/{flow_id}/segments/test_segment"
+            "id": str(uuid.uuid4()),  # Changed from object_id to id for TAMS compliance
+            "timerange": "0:0_3600:0",
+            "ts_offset": "0:0",
+            "last_duration": "3600:0"
         }
         
         # 1. CREATE - POST /flows/{flow_id}/segments
@@ -302,7 +300,7 @@ class TestRealAPIEndpoints:
         
         if create_response.status_code == 201:
             created_segment = create_response.json()
-            segment_object_id = created_segment["object_id"]
+            segment_object_id = created_segment["id"]  # Changed from object_id to id for TAMS compliance
             print(f"✅ Flow segment created successfully with object ID: {segment_object_id}")
             
             # 2. READ - GET /flows/{flow_id}/segments
@@ -319,12 +317,12 @@ class TestRealAPIEndpoints:
                 # Find our created segment
                 our_segment = None
                 for segment in segments:
-                    if segment.get("object_id") == segment_object_id:
+                    if segment.get("id") == segment_object_id:  # Changed from object_id to id
                         our_segment = segment
                         break
                 
                 if our_segment:
-                    print(f"✅ Our created segment found in list: {our_segment['object_id']}")
+                    print(f"✅ Our created segment found in list: {our_segment['id']}")  # Changed from object_id to id
                 else:
                     print("⚠️ Our created segment not found in segments list")
                 
@@ -410,11 +408,10 @@ class TestRealAPIEndpoints:
         
         # Test data for multipart segment
         segment_data = {
-            "object_id": str(uuid.uuid4()),
+            "id": str(uuid.uuid4()),  # Changed from object_id to id for TAMS compliance
             "timerange": "0:0_1800:0",  # 30 minutes
-            "sample_offset": 0,
-            "sample_count": 45000,  # 25fps * 1800s
-            "key_frame_count": 1800
+            "ts_offset": "0:0",
+            "last_duration": "1800:0"
         }
         
         # Create a mock file content
@@ -438,7 +435,7 @@ class TestRealAPIEndpoints:
         
         if create_response.status_code == 201:
             created_segment = create_response.json()
-            segment_object_id = created_segment["object_id"]
+            segment_object_id = created_segment["id"]
             print(f"✅ Flow segment created successfully with multipart form: {segment_object_id}")
             
             # 2. READ - GET /flows/{flow_id}/segments to verify
@@ -453,12 +450,12 @@ class TestRealAPIEndpoints:
                 # Find our created segment
                 our_segment = None
                 for segment in segments:
-                    if segment.get("object_id") == segment_object_id:
+                    if segment.get("id") == segment_object_id:
                         our_segment = segment
                         break
                 
                 if our_segment:
-                    print(f"✅ Multipart segment found in list: {our_segment['object_id']}")
+                    print(f"✅ Multipart segment found in list: {our_segment['id']}")
                     if our_segment.get("storage_path"):
                         print(f"✅ Segment has storage path: {our_segment['storage_path']}")
                     else:
@@ -500,11 +497,10 @@ class TestRealAPIEndpoints:
         
         # POST segment to non-existent flow
         segment_data = {
-            "object_id": str(uuid.uuid4()),
+            "id": str(uuid.uuid4()),  # Changed from object_id to id for TAMS compliance
             "timerange": "0:0_3600:0",
-            "sample_offset": 0,
-            "sample_count": 90000,
-            "key_frame_count": 3600
+            "ts_offset": "0:0",
+            "last_duration": "3600:0"
         }
         
         post_response = requests.post(f"{server_url}/flows/{fake_flow_id}/segments", json=segment_data, timeout=10)
@@ -539,11 +535,10 @@ class TestRealAPIEndpoints:
             
             # Test invalid timerange
             invalid_segment_data = {
-                "object_id": str(uuid.uuid4()),
+                "id": str(uuid.uuid4()),  # Changed from object_id to id for TAMS compliance
                 "timerange": "invalid-timerange-format",  # Invalid format
-                "sample_offset": 0,
-                "sample_count": 90000,
-                "key_frame_count": 3600
+                "ts_offset": "0:0",
+                "last_duration": "3600:0"
             }
             
             invalid_response = requests.post(f"{server_url}/flows/{flow_id}/segments", json=invalid_segment_data, timeout=10)
@@ -625,11 +620,10 @@ class TestRealAPIEndpoints:
             
             # Test data for segment
             segment_data = {
-                "object_id": str(uuid.uuid4()),
+                "id": str(uuid.uuid4()),  # Changed from object_id to id for TAMS compliance
                 "timerange": "0:0_1800:0",  # 30 minutes
-                "sample_offset": 0,
-                "sample_count": 45000,  # 25fps * 1800s
-                "key_frame_count": 1800
+                "ts_offset": "0:0",
+                "last_duration": "1800:0"
             }
             
             # Create multipart form data with real file content
@@ -653,7 +647,7 @@ class TestRealAPIEndpoints:
             
             if create_response.status_code == 201:
                 created_segment = create_response.json()
-                segment_object_id = created_segment["object_id"]
+                segment_object_id = created_segment["id"]
                 print(f"✅ {test_case['name']} uploaded successfully: {segment_object_id}")
                 
                 # Store segment info for later verification
@@ -680,8 +674,8 @@ class TestRealAPIEndpoints:
             
             # Verify our uploaded segments are in the list
             for uploaded in uploaded_segments:
-                segment_id = uploaded["segment"]["object_id"]
-                found = any(seg["object_id"] == segment_id for seg in segments)
+                segment_id = uploaded["segment"]["id"]
+                found = any(seg["id"] == segment_id for seg in segments)
                 if found:
                     print(f"✅ Segment {segment_id} found in segments list")
                 else:
@@ -695,7 +689,7 @@ class TestRealAPIEndpoints:
         for uploaded in uploaded_segments:
             segment = uploaded["segment"]
             test_case = uploaded["test_case"]
-            segment_id = segment["object_id"]
+            segment_id = segment["id"]
             
             print(f"\n📥 Testing retrieval for {test_case['name']}: {segment_id}")
             
@@ -751,8 +745,10 @@ class TestRealAPIEndpoints:
             else:
                 print(f"⚠️ No get_urls available for segment {segment_id}")
                 print(f"🔍 Full segment data for debugging:")
-                print(f"   - object_id: {segment.get('object_id')}")
+                print(f"   - id: {segment.get('id')}")
                 print(f"   - timerange: {segment.get('timerange')}")
+                print(f"   - ts_offset: {segment.get('ts_offset')}")
+                print(f"   - last_duration: {segment.get('last_duration')}")
                 print(f"   - storage_path: {segment.get('storage_path')}")
                 print(f"   - get_urls: {segment.get('get_urls')}")
                 print(f"   - All fields: {list(segment.keys())}")
@@ -772,8 +768,8 @@ class TestRealAPIEndpoints:
             
             # Verify all our uploaded segments are in the filtered results
             for uploaded in uploaded_segments:
-                segment_id = uploaded["segment"]["object_id"]
-                found = any(seg["object_id"] == segment_id for seg in filtered_segments)
+                segment_id = uploaded["segment"]["id"]
+                found = any(seg["id"] == segment_id for seg in filtered_segments)
                 if found:
                     print(f"✅ Segment {segment_id} found in filtered results")
                 else:
@@ -862,11 +858,10 @@ class TestRealAPIEndpoints:
             
             # Test data for segment
             segment_data = {
-                "object_id": str(uuid.uuid4()),
+                "id": str(uuid.uuid4()),  # Changed from object_id to id for TAMS compliance
                 "timerange": "0:0_900:0",  # 15 minutes
-                "sample_offset": 0,
-                "sample_count": 22500,  # 25fps * 900s
-                "key_frame_count": 900
+                "ts_offset": "0:0",
+                "last_duration": "900:0"
             }
             
             # Create multipart form data
@@ -890,7 +885,7 @@ class TestRealAPIEndpoints:
             
             if create_response.status_code == 201:
                 created_segment = create_response.json()
-                segment_object_id = created_segment["object_id"]
+                segment_object_id = created_segment["id"]
                 print(f"✅ {edge_case['name']} uploaded successfully: {segment_object_id}")
                 
                 # Verify the segment was created
@@ -905,7 +900,7 @@ class TestRealAPIEndpoints:
                     list_response = requests.get(f"{server_url}/flows/{flow_id}/segments", timeout=10)
                     if list_response.status_code == 200:
                         segments = list_response.json()
-                        found = any(seg["object_id"] == segment_object_id for seg in segments)
+                        found = any(seg["id"] == segment_object_id for seg in segments)
                         if found:
                             print(f"✅ Segment {segment_object_id} found in segments list")
                         else:
@@ -924,11 +919,10 @@ class TestRealAPIEndpoints:
         
         # Test with missing file
         segment_data = {
-            "object_id": str(uuid.uuid4()),
+            "id": str(uuid.uuid4()),  # Changed from object_id to id for TAMS compliance
             "timerange": "0:0_900:0",
-            "sample_offset": 0,
-            "sample_count": 22500,
-            "key_frame_count": 900
+            "ts_offset": "0:0",
+            "last_duration": "900:0"
         }
         
         # Try to upload without file (only segment_data)
@@ -948,11 +942,10 @@ class TestRealAPIEndpoints:
         
         # Test with invalid segment data
         invalid_segment_data = {
-            "object_id": str(uuid.uuid4()),
+            "id": str(uuid.uuid4()),  # Changed from object_id to id for TAMS compliance
             "timerange": "invalid-timerange",  # Invalid timerange
-            "sample_offset": 0,
-            "sample_count": 22500,
-            "key_frame_count": 900
+            "ts_offset": "0:0",
+            "last_duration": "900:0"
         }
         
         files = {'file': ('test.mp4', b"test content", 'video/mp4')}

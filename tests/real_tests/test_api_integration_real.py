@@ -125,7 +125,7 @@ class TestAPIIntegrationReal:
                 return self.objects.get(object_id)
             
             async def create_object(self, obj, *args, **kwargs):
-                self.objects[obj.object_id] = obj
+                self.objects[obj.id] = obj  # Changed from object_id to id
                 return True
             
             async def delete_object(self, object_id, *args, **kwargs):
@@ -351,8 +351,8 @@ class TestAPIIntegrationReal:
     def test_objects_api_endpoints(self, client):
         """Test objects API endpoints"""
         sample_object_data = {
-            "object_id": str(uuid.uuid4()),
-            "flow_references": []  # Only required field
+            "id": str(uuid.uuid4()),
+            "referenced_by_flows": []  # Changed from flow_references to referenced_by_flows for TAMS compliance
         }
         
         # Test creating an object
@@ -361,11 +361,11 @@ class TestAPIIntegrationReal:
         if response.status_code == 201:
             # Successfully created
             created_object = response.json()
-            assert created_object["object_id"] == sample_object_data["object_id"]
-            assert created_object["flow_references"] == sample_object_data["flow_references"]
+            assert created_object["id"] == sample_object_data["id"]
+            assert created_object["referenced_by_flows"] == sample_object_data["referenced_by_flows"]
             
             # Test retrieving the object
-            object_id = created_object["object_id"]
+            object_id = created_object["id"]
             response = client.get(f"/objects/{object_id}")
             assert response.status_code == 200
             

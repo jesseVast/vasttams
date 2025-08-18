@@ -345,7 +345,7 @@ class TestStressReal:
                         sample_count=90000,
                         key_frame_count=3600
                     )
-                    await s3_store_stress.delete_flow_segment(flow_id, segment_id, segment.timerange)
+                    await s3_store_stress.delete_flow_segment(flow_id, segment.id, segment.timerange)  # Changed from object_id to id
         else:
             pytest.skip("S3 concurrent operations not available for stress testing")
     
@@ -415,7 +415,7 @@ class TestStressReal:
             assert storage_time < 60.0  # 60 seconds max for 1MB
             
             # Clean up
-            await s3_store_stress.delete_flow_segment(flow_id, segment.object_id, segment.timerange)
+            await s3_store_stress.delete_flow_segment(flow_id, segment.id, segment.timerange)
         else:
             pytest.skip("S3 large data handling not available for stress testing")
     
@@ -512,7 +512,7 @@ class TestScalabilityReal:
                 if result:
                     segment = segments[i]
                     await s3_store_scalability.delete_flow_segment(
-                        flow_id, segment.object_id, segment.timerange
+                        flow_id, segment.id, segment.timerange
                     )
         else:
             pytest.skip("S3 scalable operations not available for testing")

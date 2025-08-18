@@ -1,5 +1,32 @@
 # BBC TAMS Project - Code Changes Tracking
 
+## Fix #32: Table Projections Centralization and Drop Support (August 18, 2025)
+
+### Summary
+Centralized table projection definitions in `VASTStore`, updated management script to consume them, and implemented proper projection dropping using VAST SDK.
+
+### Files Modified
+
+1. `app/storage/vast_store.py`
+   - Added static `VASTStore._get_desired_table_projections()` and used it during table setup.
+   - Adjusted `flows` projections to only `('id')` and `('id','source_id')` (no time columns on flows).
+
+2. `app/storage/vastdbmanager/table_operations.py`
+   - Added `drop_projection(table_name, projection_name)` using `table.projection(name).drop()`.
+   - Retained existing `add_projection()` and `get_table_projections()`.
+
+3. `app/storage/vastdbmanager/core.py`
+   - Exposed `drop_projection()` delegating to table operations.
+
+4. `mgmt/create_table_projections.py`
+   - Removed local `TABLE_PROJECTIONS`; now calls `VASTStore._get_desired_table_projections()`.
+   - `--disable` now drops projections instead of warning.
+   - `--force` will drop then recreate when a projection already exists.
+
+### Notes
+- Drops use VAST SDK per docs: `table.projection(name).drop()` ([Projections](https://vast-data.github.io/data-platform-field-docs/vast_database/sdk_ref/07_projections.html)).
+- Verified end-to-end: create → status → disable (drop) → status → enable (recreate). 12 valid projections created; flows time-range projection intentionally skipped.
+
 ## Fix #30: Tag Functionality - Fix 500 Errors and Implement Missing Methods (August 18, 2025)
 
 ### **Problem Identified:**

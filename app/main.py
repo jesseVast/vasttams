@@ -238,6 +238,100 @@ async def create_webhook(
         logger.error(f"Failed to create webhook: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# Analytics endpoints
+@app.head("/flow-usage")
+async def head_flow_usage():
+    """Return flow usage analytics path headers"""
+    return {}
+
+@app.get("/flow-usage")
+async def get_flow_usage(
+    store: VASTStore = Depends(get_vast_store),
+    start_time: Optional[str] = Query(None, description="Start time for analytics (ISO 8601 format)"),
+    end_time: Optional[str] = Query(None, description="End time for analytics (ISO 8601 format)"),
+    source_id: Optional[str] = Query(None, description="Filter by source ID"),
+    format: Optional[str] = Query(None, description="Filter by flow format")
+):
+    """Get flow usage analytics"""
+    try:
+        analytics_params = {}
+        if start_time:
+            analytics_params['start_time'] = start_time
+        if end_time:
+            analytics_params['end_time'] = end_time
+        if source_id:
+            analytics_params['source_id'] = source_id
+        if format:
+            analytics_params['format'] = format
+            
+        result = await store.analytics_query('flow_usage', **analytics_params)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Failed to get flow usage analytics: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.head("/storage-usage")
+async def head_storage_usage():
+    """Return storage usage analytics path headers"""
+    return {}
+
+@app.get("/storage-usage")
+async def get_storage_usage(
+    store: VASTStore = Depends(get_vast_store),
+    start_time: Optional[str] = Query(None, description="Start time for analytics (ISO 8601 format)"),
+    end_time: Optional[str] = Query(None, description="End time for analytics (ISO 8601 format)"),
+    storage_backend_id: Optional[str] = Query(None, description="Filter by storage backend ID")
+):
+    """Get storage usage analytics"""
+    try:
+        analytics_params = {}
+        if start_time:
+            analytics_params['start_time'] = start_time
+        if end_time:
+            analytics_params['end_time'] = end_time
+        if storage_backend_id:
+            analytics_params['storage_backend_id'] = storage_backend_id
+            
+        result = await store.analytics_query('storage_usage', **analytics_params)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Failed to get storage usage analytics: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.head("/time-range-analysis")
+async def head_time_range_analysis():
+    """Return time range analysis path headers"""
+    return {}
+
+@app.get("/time-range-analysis")
+async def get_time_range_analysis(
+    store: VASTStore = Depends(get_vast_store),
+    start_time: Optional[str] = Query(None, description="Start time for analysis (ISO 8601 format)"),
+    end_time: Optional[str] = Query(None, description="End time for analysis (ISO 8601 format)"),
+    flow_id: Optional[str] = Query(None, description="Filter by flow ID"),
+    source_id: Optional[str] = Query(None, description="Filter by source ID")
+):
+    """Get time range analysis for flows and segments"""
+    try:
+        analytics_params = {}
+        if start_time:
+            analytics_params['start_time'] = start_time
+        if end_time:
+            analytics_params['end_time'] = end_time
+        if flow_id:
+            analytics_params['flow_id'] = flow_id
+        if source_id:
+            analytics_params['source_id'] = source_id
+            
+        result = await store.analytics_query('time_range_analysis', **analytics_params)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Failed to get time range analysis: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # Deletion requests endpoints
 @app.head("/flow-delete-requests")
 async def head_deletion_requests():

@@ -417,6 +417,9 @@ S3_SECRET_ACCESS_KEY=vast-s3-secret-key
 S3_BUCKET_NAME=tams-bucket
 S3_USE_SSL=false
 
+# Table projections for improved query performance
+ENABLE_TABLE_PROJECTIONS=false
+
 # Logging
 LOG_LEVEL=INFO
 

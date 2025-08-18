@@ -18,6 +18,8 @@
   "log_level": "INFO",
   "log_format": "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
   
+  "enable_table_projections": false,
+  
   "api_title": "TAMS API",
       "api_version": "7.0",
   "api_description": "Time-addressable Media Store API"

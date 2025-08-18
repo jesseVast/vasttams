@@ -447,10 +447,59 @@ class VASTStore:
             'auth_logs': auth_logs_schema
         }
         
+        settings = get_settings()
+        
+        # Define desired projections per table. Only columns present in the schema will be used.
+        desired_table_projections = {
+            'sources': [
+                ('id',),
+            ],
+            'flows': [
+                ('id',),
+            ],
+            'segments': [
+                ('id',),
+                ('id', 'flow_id'),
+                ('id', 'object_id'),
+            ],
+            'objects': [
+                ('id',),
+            ],
+            # flow_object_references does not have a dedicated id column
+            'flow_object_references': [
+                ('object_id',),
+                ('object_id', 'flow_id'),
+                ('flow_id', 'object_id'),
+            ],
+        }
+        
+        def _projection_name(table: str, cols: tuple) -> str:
+            return f"{table}_{'_'.join(cols)}_proj"
+        
         for table_name, schema in tables_config.items():
             try:
-                self.db_manager.create_table(table_name, schema)
-                logger.info("Table '%s' setup complete", table_name)
+                projections_arg = None
+                
+                if settings.enable_table_projections:
+                    # Filter projection columns to only those present in the schema
+                    schema_columns = {field.name for field in schema}
+                    desired_specs = desired_table_projections.get(table_name, [])
+                    projections_map = {}
+                    for cols in desired_specs:
+                        filtered_cols = [c for c in cols if c in schema_columns]
+                        if not filtered_cols:
+                            continue
+                        proj_name = _projection_name(table_name, tuple(filtered_cols))
+                        projections_map[proj_name] = filtered_cols
+                    if projections_map:
+                        projections_arg = projections_map
+                
+                # Create table with projections (if any)
+                self.db_manager.create_table(table_name, schema, projections=projections_arg)
+                if projections_arg:
+                    logger.info("Table '%s' setup complete with projections: %s", table_name, list(projections_arg.keys()))
+                else:
+                    logger.info("Table '%s' setup complete", table_name)
             except Exception as e:
                 logger.error("Failed to setup table '%s': %s", table_name, e)
                 raise

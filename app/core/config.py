@@ -102,6 +102,70 @@ class Settings(BaseSettings):
         env="ENABLE_TABLE_PROJECTIONS"
     )
     
+    # TAMS API Compliance settings
+    tams_compliance_mode: bool = Field(
+        default=True,
+        description="Enable strict TAMS API compliance mode",
+        env="TAMS_COMPLIANCE_MODE"
+    )
+    
+    tams_validation_level: str = Field(
+        default="strict",
+        description="TAMS validation level: strict, relaxed, or minimal",
+        env="TAMS_VALIDATION_LEVEL"
+    )
+    
+    # TAMS-specific validation settings
+    enable_uuid_validation: bool = Field(
+        default=True,
+        description="Enable strict UUID validation according to TAMS specification",
+        env="ENABLE_UUID_VALIDATION"
+    )
+    
+    enable_timestamp_validation: bool = Field(
+        default=True,
+        description="Enable strict timestamp validation according to TAMS specification",
+        env="ENABLE_TIMESTAMP_VALIDATION"
+    )
+    
+    enable_content_format_validation: bool = Field(
+        default=True,
+        description="Enable strict content format URN validation according to TAMS specification",
+        env="ENABLE_CONTENT_FORMAT_VALIDATION"
+    )
+    
+    enable_mime_type_validation: bool = Field(
+        default=True,
+        description="Enable strict MIME type validation according to TAMS specification",
+        env="ENABLE_MIME_TYPE_VALIDATION"
+    )
+    
+    # TAMS error handling settings
+    tams_error_reporting: bool = Field(
+        default=True,
+        description="Enable TAMS-specific error reporting and logging",
+        env="TAMS_ERROR_REPORTING"
+    )
+    
+    tams_audit_logging: bool = Field(
+        default=True,
+        description="Enable TAMS compliance audit logging",
+        env="TAMS_AUDIT_LOGGING"
+    )
+    
+    # TAMS performance settings
+    tams_cache_enabled: bool = Field(
+        default=True,
+        description="Enable TAMS-specific caching for improved performance",
+        env="TAMS_CACHE_ENABLED"
+    )
+    
+    tams_cache_ttl: int = Field(
+        default=300,
+        description="TAMS cache TTL in seconds",
+        env="TAMS_CACHE_TTL"
+    )
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
@@ -111,6 +175,19 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
         # Load configuration from mounted file if it exists
         self._load_mounted_config()
+        # Validate TAMS-specific settings
+        self._validate_tams_settings()
+    
+    def _validate_tams_settings(self):
+        """Validate TAMS-specific configuration settings"""
+        if self.tams_validation_level not in ["strict", "relaxed", "minimal"]:
+            raise ValueError(f"Invalid TAMS validation level: {self.tams_validation_level}. Must be one of: strict, relaxed, minimal")
+        
+        if self.tams_cache_ttl < 0:
+            raise ValueError("TAMS cache TTL cannot be negative")
+        
+        if self.tams_cache_ttl > 86400:  # 24 hours
+            raise ValueError("TAMS cache TTL cannot exceed 24 hours (86400 seconds)")
 
     def _load_mounted_config(self):
         """Load configuration from mounted config file"""

@@ -5,6 +5,7 @@ from .objects import get_object, create_object, delete_object
 from ..storage.vast_store import VASTStore
 from ..core.dependencies import get_vast_store
 import logging
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -63,36 +64,21 @@ async def create_objects_batch(
     objects: List[Object],
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Create multiple objects in a single batch operation using VAST's native batch insert"""
+    """Create multiple objects in a single batch operation"""
     try:
-        # For multiple objects, use VAST's native batch insert
-        logger.info("Using VAST batch insert for %d objects", len(objects))
+        logger.info("Creating %d objects using individual creation", len(objects))
         
-        # Convert Pydantic models to the format expected by insert_batch_efficient
-        # The method expects Dict[str, List[Any]] where keys are column names
-        first_object = objects[0].model_dump()
-        column_names = list(first_object.keys())
+        # Create objects one by one using the proper create_object method
+        # This ensures all business logic (timestamps, validation, etc.) is applied
+        created_objects = []
+        for obj in objects:
+            success = await create_object(store, obj)
+            if not success:
+                raise HTTPException(status_code=500, detail=f"Failed to create object {obj.id}")
+            created_objects.append(obj)
         
-        # Transform data to column-oriented format
-        batch_data = {}
-        for col in column_names:
-            batch_data[col] = []
-            for obj in objects:
-                obj_dict = obj.model_dump()
-                batch_data[col].append(obj_dict.get(col))
-        
-        # Use VAST's native batch insert functionality
-        rows_inserted = store.db_manager.insert_batch_efficient(
-            table_name="objects",
-            data=batch_data,
-            batch_size=len(objects)
-        )
-        
-        if rows_inserted <= 0:
-            raise HTTPException(status_code=500, detail="Failed to insert objects batch")
-        
-        logger.info("Successfully created %d objects using VAST batch insert", rows_inserted)
-        return objects
+        logger.info("Successfully created %d objects", len(created_objects))
+        return created_objects
         
     except HTTPException:
         raise

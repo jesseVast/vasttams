@@ -48,7 +48,59 @@ class Settings(BaseSettings):
     s3_secret_access_key: str = "WkKLxvG7YkAdSMuHjFsZG5Ou7BS1mDQGnr"
     s3_bucket_name: str = "jthaloor-s3"
     s3_use_ssl: bool = False
-    s3_presigned_url_timeout: int = Field(default=DEFAULT_PRESIGNED_URL_TIMEOUT, description="Presigned URL timeout in seconds (default: 1 hour)")
+    
+    # Presigned URL configuration - Runtime configurable
+    s3_presigned_url_upload_timeout: int = Field(
+        default=3600, 
+        description="Presigned URL timeout for upload operations in seconds (default: 1 hour)",
+        env="S3_PRESIGNED_URL_UPLOAD_TIMEOUT"
+    )
+    
+    s3_presigned_url_download_timeout: int = Field(
+        default=3600, 
+        description="Presigned URL timeout for download operations in seconds (default: 1 hour)",
+        env="S3_PRESIGNED_URL_DOWNLOAD_TIMEOUT"
+    )
+    
+    # Storage backend configuration for get_urls
+    default_storage_backend_id: str = Field(
+        default="default",
+        description="Default storage backend ID for get_urls generation",
+        env="DEFAULT_STORAGE_BACKEND_ID"
+    )
+    
+    # get_urls configuration
+    get_urls_max_count: int = Field(
+        default=5,
+        description="Maximum number of get_urls to generate per segment",
+        env="GET_URLS_MAX_COUNT"
+    )
+    
+    # Storage API settings
+    flow_storage_default_limit: int = Field(
+        default=10,
+        description="Default limit for flow storage allocation when no limit is specified in the request",
+        env="FLOW_STORAGE_DEFAULT_LIMIT"
+    )
+    
+    segment_storage_default_limit: int = Field(
+        default=10,
+        description="Default limit for segment storage allocation when no limit is specified in the request",
+        env="SEGMENT_STORAGE_DEFAULT_LIMIT"
+    )
+    
+    async_deletion_threshold: int = Field(
+        default=1000,
+        description="Threshold for triggering async deletion workflow (number of segments)",
+        env="ASYNC_DELETION_THRESHOLD"
+    )
+    
+    # Table projections settings
+    enable_table_projections: bool = Field(
+        default=False,
+        description="Enable table projections for improved query performance. Creates projections for: source(id), flow(id), segment(id,flow_id,object_id), object(id), flow_object_references(id)",
+        env="ENABLE_TABLE_PROJECTIONS"
+    )
     
     class Config:
         env_file = ".env"

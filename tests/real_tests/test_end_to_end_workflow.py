@@ -114,9 +114,9 @@ class TestEndToEndWorkflow:
                 # Step 3: Upload two objects (obj-1, obj-2) to flow-1
                 print("📝 Step 3: Uploading objects obj-1 and obj-2 to flow-1")
                 
-                # Create test files (100KB each)
-                obj_1_path, obj_1_size = await self.create_test_file("obj-1.mp4", 0.1)  # 100KB
-                obj_2_path, obj_2_size = await self.create_test_file("obj-2.mp4", 0.1)  # 100KB
+                # Create test files (50KB each)
+                obj_1_path, obj_1_size = await self.create_test_file("obj-1.mp4", 0.05)  # 50KB
+                obj_2_path, obj_2_size = await self.create_test_file("obj-2.mp4", 0.05)  # 50KB
                 
                 try:
                     # Get storage allocation for flow-1
@@ -147,7 +147,7 @@ class TestEndToEndWorkflow:
                                         upload_response = requests.put(obj_1_url, data=f, timeout=30)
                                         if upload_response.status_code in [200, 201]:
                                             print(f"   ✅ Obj-1 uploaded successfully")
-                                            self.test_data['obj_1_id'] = media_objects[0].get('object_id')
+                                            self.test_data['obj_1_id'] = media_objects[0].get('id')  # Changed from object_id to id
                                         else:
                                             print(f"   ❌ Obj-1 upload failed: {upload_response.status_code}")
                                             print(f"   📄 Response: {upload_response.text}")
@@ -163,7 +163,7 @@ class TestEndToEndWorkflow:
                                         upload_response = requests.put(obj_2_url, data=f, timeout=30)
                                         if upload_response.status_code in [200, 201]:
                                             print(f"   ✅ Obj-2 uploaded successfully")
-                                            self.test_data['obj_2_id'] = media_objects[1].get('object_id')
+                                            self.test_data['obj_2_id'] = media_objects[1].get('id')  # Changed from object_id to id
                                         else:
                                             print(f"   ❌ Obj-2 upload failed: {upload_response.status_code}")
                                             print(f"   📄 Response: {upload_response.text}")
@@ -190,7 +190,7 @@ class TestEndToEndWorkflow:
                 
                 # Create segment for obj-1
                 segment_1_data = {
-                    "object_id": self.test_data['obj_1_id'],
+                    "id": self.test_data['obj_1_id'],  # Changed from object_id to id for TAMS compliance
                     "timerange": "0:0_3600:0",
                     "ts_offset": "0:0",
                     "last_duration": "3600:0"
@@ -211,7 +211,7 @@ class TestEndToEndWorkflow:
                 
                 # Create segment for obj-2
                 segment_2_data = {
-                    "object_id": self.test_data['obj_2_id'],
+                    "id": self.test_data['obj_2_id'],  # Changed from object_id to id for TAMS compliance
                     "timerange": "3600:0_7200:0",
                     "ts_offset": "3600:0",
                     "last_duration": "3600:0"
@@ -649,7 +649,7 @@ class TestEndToEndWorkflow:
                                     if isinstance(segment, str):
                                         print(f"      📁 Segment: {segment}")
                                     else:
-                                        print(f"      📁 Segment: {segment.get('object_id', 'N/A')} - {segment.get('timerange', 'N/A')}")
+                                        print(f"      📁 Segment: {segment.get('id', 'N/A')} - {segment.get('timerange', 'N/A')}")
                             else:
                                 print(f"   ❌ Segments retrieval failed for flow {flow_id}: {response.status}")
                 

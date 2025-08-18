@@ -8,7 +8,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.storage.vastdbmanager.core import VastDBManager
-from app.config import get_settings
+from app.core.config import get_settings
 
 def drop_all_tables():
     """Drop all existing tables"""

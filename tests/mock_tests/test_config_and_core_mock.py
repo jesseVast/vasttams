@@ -12,7 +12,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
 
 # Import configuration and core modules
-from app.config import get_settings
+from app.core.config import get_settings
 from app.core import config, dependencies, telemetry, timerange_utils, utils
 
 

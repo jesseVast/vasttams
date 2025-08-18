@@ -714,7 +714,7 @@ async def allocate_flow_storage(
             object_ids = request.object_ids
         else:
             # Generate the requested number of object IDs
-            limit = request.limit or 10
+            limit = request.limit or settings.flow_storage_default_limit
             object_ids = [str(uuid.uuid4()) for _ in range(limit)]
         
         # Validate that object IDs don't already exist

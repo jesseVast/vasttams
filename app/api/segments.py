@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from ..models.models import FlowSegment, FlowStorage, FlowStoragePost, MediaObject, HttpRequest
 from ..storage.vast_store import VASTStore
 from ..core.timerange_utils import get_storage_timerange
+from ..core.config import get_settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,8 @@ async def create_flow_storage(store: VASTStore, flow_id: str, storage_request: F
         else:
             # Generate the requested number of object IDs
             import uuid
-            limit = storage_request.limit or 10
+            settings = get_settings()
+            limit = storage_request.limit or settings.segment_storage_default_limit
             object_ids = [str(uuid.uuid4()) for _ in range(limit)]
         
         # Validate that object IDs don't already exist

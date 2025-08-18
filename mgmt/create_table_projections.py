@@ -15,10 +15,7 @@ Options:
     --force      Force recreation of existing projections
 """
 
-import argparse
-import logging
 import sys
-import os
 from pathlib import Path
 
 # Add the parent directory to the path so we can import app modules
@@ -27,39 +24,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from app.core.config import get_settings
 from app.storage.vast_store import VASTStore
 
+import logging
+import argparse
+
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Projection definitions based on TODO list
-TABLE_PROJECTIONS = {
-    'sources': [
-        ('id',),  # Primary key projection
-    ],
-    'flows': [
-        ('id',),  # Primary key projection
-        ('id', 'source_id'),  # Composite key for source-based queries
-        ('id', 'start_time', 'end_time'),  # Time range projection
-    ],
-    'segments': [
-        ('id',),  # Primary key projection
-        ('id', 'flow_id'),  # Composite projection for flow-based queries
-        ('id', 'flow_id', 'object_id'),  # Composite key for segment queries
-        ('id', 'object_id'),  # Composite projection for object-based queries
-        ('id', 'start_time', 'end_time'),  # Time range projection
-    ],
-    'objects': [
-        ('id',),  # Primary key projection
-    ],
-    'flow_object_references': [
-        ('object_id',),  # Primary key projection
-        ('object_id', 'flow_id'),  # Composite key for object-flow queries
-        ('flow_id', 'object_id'),  # Composite key for flow-object queries
-    ]
-}
+def get_projection_definitions():
+    """Get projection definitions from vast_store to avoid duplication"""
+    # Get projection definitions from VASTStore class
+    return VASTStore._get_desired_table_projections()
 
 def get_vast_store():
     """Get configured VAST store instance"""
@@ -78,48 +53,47 @@ def get_vast_store():
         return None
 
 def create_projections(store, force=False):
-    """Create table projections for improved query performance"""
+    """Create table projections based on configuration"""
     if not store:
         logger.error("No VAST store available")
         return False
     
     try:
-        # Check if projections are enabled in config
         settings = get_settings()
         if not settings.enable_table_projections:
             logger.warning("Table projections are disabled in configuration. Set ENABLE_TABLE_PROJECTIONS=true to enable.")
             return False
         
-        logger.info("Creating table projections for improved query performance...")
+        logger.info("Creating table projections...")
+        
+        # Get projection definitions from vast_store
+        table_projections = get_projection_definitions()
         
         success_count = 0
         total_count = 0
         
-        for table_name, projections in TABLE_PROJECTIONS.items():
+        for table_name, projections in table_projections.items():
             logger.info("Processing table: %s", table_name)
             
-            for i, projection_columns in enumerate(projections):
+            for cols in projections:
                 total_count += 1
-                projection_name = f"{table_name}_{'_'.join(projection_columns)}_proj"
-                
                 try:
+                    # Generate projection name
+                    projection_name = f"{table_name}_{'_'.join(cols)}_proj"
+                    
                     # Check if projection already exists
                     existing_projections = store.db_manager.get_table_projections(table_name)
-                    
                     if projection_name in existing_projections:
                         if force:
-                            logger.info("Recreating existing projection: %s", projection_name)
-                            # Note: VAST doesn't support dropping projections, so we'll skip
-                            logger.warning("Cannot drop existing projection %s (VAST limitation)", projection_name)
-                            continue
+                            logger.info("Dropping existing projection: %s", projection_name)
+                            store.db_manager.drop_projection(table_name, projection_name)
                         else:
-                            logger.info("Projection %s already exists, skipping", projection_name)
-                            success_count += 1
+                            logger.info("Projection already exists, skipping: %s", projection_name)
                             continue
                     
                     # Create the projection
-                    logger.info("Creating projection %s with columns: %s", projection_name, projection_columns)
-                    store.db_manager.add_projection(table_name, projection_name, list(projection_columns))
+                    logger.info("Creating projection: %s with columns: %s", projection_name, cols)
+                    store.db_manager.add_projection(table_name, projection_name, list(cols))
                     success_count += 1
                     logger.info("Successfully created projection: %s", projection_name)
                     
@@ -127,8 +101,8 @@ def create_projections(store, force=False):
                     logger.error("Failed to create projection %s: %s", projection_name, e)
                     continue
         
-        logger.info("Projection creation complete: %d/%d successful", success_count, total_count)
-        return success_count > 0
+        logger.info("Projection creation complete: %d/%d projections created", success_count, total_count)
+        return True
         
     except Exception as e:
         logger.error("Failed to create projections: %s", e)
@@ -146,7 +120,10 @@ def disable_projections(store):
         success_count = 0
         total_count = 0
         
-        for table_name in TABLE_PROJECTIONS.keys():
+        # Get projection definitions from vast_store
+        table_projections = get_projection_definitions()
+        
+        for table_name in table_projections.keys():
             try:
                 existing_projections = store.db_manager.get_table_projections(table_name)
                 if existing_projections:
@@ -196,7 +173,10 @@ def show_status(store):
         logger.info("Configuration: ENABLE_TABLE_PROJECTIONS = %s", settings.enable_table_projections)
         logger.info("")
         
-        for table_name in TABLE_PROJECTIONS.keys():
+        # Get projection definitions from vast_store
+        table_projections = get_projection_definitions()
+        
+        for table_name in table_projections.keys():
             try:
                 existing_projections = store.db_manager.get_table_projections(table_name)
                 logger.info("Table: %s", table_name)

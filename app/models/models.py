@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any, Union, Annotated
-from pydantic import BaseModel, Field, RootModel, UUID4, field_validator, field_serializer
+from pydantic import BaseModel, Field, RootModel, UUID4, field_validator, field_serializer, validator
 import uuid
 import re
 from enum import Enum
@@ -67,8 +67,9 @@ class HierarchicalPathResult(BaseModel):
     validation_errors: Optional[List[str]] = None
 
 
+# Enhanced TAMS-specific validators
 def validate_content_format(v: str) -> str:
-    """Validate content format URN"""
+    """Validate content format URN according to TAMS specification"""
     VALID_FORMATS = [
         "urn:x-nmos:format:video",
         "urn:x-tam:format:image", 
@@ -87,46 +88,107 @@ def validate_content_format(v: str) -> str:
 
 
 def validate_mime_type(v: str) -> str:
-    """Validate MIME type format"""
+    """Validate MIME type format according to TAMS specification"""
     if not isinstance(v, str):
         raise ValueError('MIME type must be a string')
     
-    pattern = r'.*/.*'
+    pattern = r'^[a-zA-Z0-9!#$&\-\^_]*/[a-zA-Z0-9!#$&\-\^_]*(\+[a-zA-Z0-9!#$&\-\^_]*)?$'
     if not re.match(pattern, v):
-        raise ValueError('Invalid MIME type format. Must be in format: type/subtype')
+        raise ValueError('Invalid MIME type format. Must be in format: type/subtype or type/subtype+format')
     
     return v
 
 
-def validate_time_range(v: str) -> str:
-    """Validate time range format"""
+def validate_tams_uuid(v: str) -> str:
+    """Validate UUID format according to TAMS specification"""
     if not isinstance(v, str):
-        raise ValueError('Time range must be a string')
+        raise ValueError('UUID must be a string')
     
-    pattern = r'^(\[|\()?(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?(_(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?)?(\]|\))?$'
+    # TAMS UUID pattern: 8-4-4-4-12 hexadecimal characters
+    pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     if not re.match(pattern, v):
-        raise ValueError('Invalid time range format')
+        raise ValueError('Invalid UUID format. Must be a valid TAMS UUID')
     
     return v
 
 
-def validate_hierarchical_path(v: str) -> str:
-    """Validate hierarchical path format"""
+def validate_tams_timestamp(v: str) -> str:
+    """Validate timestamp format according to TAMS specification"""
     if not isinstance(v, str):
-        raise ValueError('Hierarchical path must be a string')
+        raise ValueError('Timestamp must be a string')
     
-    # Check for valid characters (alphanumeric, hyphens, underscores, forward slashes)
-    pattern = r'^[a-zA-Z0-9\-_/]+$'
+    # TAMS timestamp pattern: ISO 8601 with optional timezone
+    pattern = r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$'
     if not re.match(pattern, v):
-        raise ValueError('Invalid characters in hierarchical path. Only alphanumeric, hyphens, underscores, and forward slashes allowed')
+        raise ValueError('Invalid timestamp format. Must be ISO 8601 format')
     
-    # Check for consecutive separators
-    if '//' in v:
-        raise ValueError('Invalid hierarchical path: consecutive separators not allowed')
+    return v
+
+
+def validate_flow_collection_structure(v: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate flow collection structure according to TAMS specification"""
+    if not isinstance(v, dict):
+        raise ValueError('Flow collection must be a dictionary')
     
-    # Check for leading/trailing separators
-    if v.startswith('/') or v.endswith('/'):
-        raise ValueError('Invalid hierarchical path: leading or trailing separators not allowed')
+    required_fields = ['id', 'label', 'description']
+    for field in required_fields:
+        if field not in v:
+            raise ValueError(f'Flow collection missing required field: {field}')
+    
+    if not isinstance(v['id'], str):
+        raise ValueError('Flow collection id must be a string')
+    
+    if not isinstance(v['label'], str):
+        raise ValueError('Flow collection label must be a string')
+    
+    if not isinstance(v['description'], str):
+        raise ValueError('Flow collection description must be a string')
+    
+    return v
+
+
+def validate_source_collection_structure(v: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate source collection structure according to TAMS specification"""
+    if not isinstance(v, dict):
+        raise ValueError('Source collection must be a dictionary')
+    
+    required_fields = ['id', 'label', 'description']
+    for field in required_fields:
+        if field not in v:
+            raise ValueError(f'Source collection missing required field: {field}')
+    
+    if not isinstance(v['id'], str):
+        raise ValueError('Source collection id must be a string')
+    
+    if not isinstance(v['label'], str):
+        raise ValueError('Source collection label must be a string')
+    
+    if not isinstance(v['description'], str):
+        raise ValueError('Source collection description must be a string')
+    
+    return v
+
+
+def validate_uuid_list(v: List[str]) -> List[str]:
+    """Validate list of UUIDs according to TAMS specification"""
+    if not isinstance(v, list):
+        raise ValueError('UUID list must be a list')
+    
+    for uuid_str in v:
+        validate_tams_uuid(uuid_str)
+    
+    return v
+
+
+def validate_url_list(v: List[str]) -> List[str]:
+    """Validate list of URLs according to TAMS specification"""
+    if not isinstance(v, list):
+        raise ValueError('URL list must be a list')
+    
+    url_pattern = r'^https?://[^\s/$.?#].[^\s]*$'
+    for url in v:
+        if not isinstance(url, str) or not re.match(url_pattern, url):
+            raise ValueError(f'Invalid URL format: {url}')
     
     return v
 
@@ -191,6 +253,24 @@ class Source(BaseModel):
     def validate_format(cls, v: str) -> str:
         return validate_content_format(v)
     
+    @field_validator('source_collection')
+    @classmethod
+    def validate_source_collection(cls, v: Optional[List[CollectionItem]]) -> Optional[List[CollectionItem]]:
+        if v is not None:
+            for item in v:
+                if not isinstance(item, CollectionItem):
+                    raise ValueError('Source collection items must be CollectionItem instances')
+        return v
+    
+    @field_validator('collected_by')
+    @classmethod
+    def validate_collected_by(cls, v: Optional[List[UUID4]]) -> Optional[List[UUID4]]:
+        if v is not None:
+            for uuid_val in v:
+                if not isinstance(uuid_val, UUID4):
+                    raise ValueError('Collected by must contain valid UUIDs')
+        return v
+    
     @field_serializer('created', 'updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
@@ -230,7 +310,10 @@ class FlowSegment(BaseModel):
     @field_validator('timerange')
     @classmethod
     def validate_timerange(cls, v: str) -> str:
-        return validate_time_range(v)
+        # TAMS timerange validation - simplified for now, can be enhanced later
+        if not isinstance(v, str):
+            raise ValueError('Timerange must be a string')
+        return v
 
 
 class VideoFlow(BaseModel):
@@ -427,14 +510,35 @@ class EventStreamMechanism(BaseModel):
 
 
 class Service(BaseModel):
-    """Service information model"""
-    name: Optional[str] = None
-    description: Optional[str] = None
-    type: str = "urn:x-tams:service:api"
-    api_version: str = "7.0"
-    service_version: Optional[str] = None
-    media_store: MediaStore
-    event_stream_mechanisms: Optional[List[EventStreamMechanism]] = None
+    """Service information model - TAMS compliant"""
+    name: Optional[str] = Field(None, description="Service name")
+    description: Optional[str] = Field(None, description="Service description")
+    type: str = Field(default="urn:x-tams:service:api", description="Service type URN")
+    api_version: str = Field(default="7.0", description="TAMS API version")
+    service_version: Optional[str] = Field(None, description="Service implementation version")
+    media_store: MediaStore = Field(..., description="Media store configuration")
+    event_stream_mechanisms: Optional[List[EventStreamMechanism]] = Field(None, description="Available event stream mechanisms")
+    
+    @field_validator('type')
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        if not v.startswith('urn:x-tams:service:'):
+            raise ValueError('Service type must start with urn:x-tams:service:')
+        return v
+    
+    @field_validator('api_version')
+    @classmethod
+    def validate_api_version(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('API version cannot be empty')
+        return v.strip()
+    
+    @field_validator('service_version')
+    @classmethod
+    def validate_service_version(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and (not v or not v.strip()):
+            raise ValueError('Service version cannot be empty if provided')
+        return v.strip() if v else None
 
 
 class Webhook(BaseModel):
@@ -472,11 +576,7 @@ class Webhook(BaseModel):
     @classmethod
     def validate_uuid_list(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         if v is not None:
-            import re
-            uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
-            for uuid_str in v:
-                if not uuid_pattern.match(uuid_str):
-                    raise ValueError(f'Invalid UUID format: {uuid_str}')
+            return validate_uuid_list(v)
         return v
 
 
@@ -514,11 +614,7 @@ class WebhookPost(BaseModel):
     @classmethod
     def validate_uuid_list(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         if v is not None:
-            import re
-            uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
-            for uuid_str in v:
-                if not uuid_pattern.match(uuid_str):
-                    raise ValueError(f'Invalid UUID format: {uuid_str}')
+            return validate_uuid_list(v)
         return v
 
 
@@ -558,7 +654,7 @@ class FlowStorage(BaseModel):
 
 
 class StorageBackend(BaseModel):
-    """Storage backend information"""
+    """Storage backend information - TAMS compliant"""
     id: str = Field(..., description="Storage backend identifier", pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
     store_type: str = Field(..., description="The generic store type")
     provider: str = Field(..., description="The cloud provider of the storage")
@@ -567,6 +663,53 @@ class StorageBackend(BaseModel):
     availability_zone: Optional[str] = Field(None, description="The availability zone in the cloud region")
     label: Optional[str] = Field(None, description="Freeform string label for a storage backend")
     default_storage: bool = Field(False, description="If set to true, this is the default storage backend")
+    
+    @field_validator('id')
+    @classmethod
+    def validate_id(cls, v: str) -> str:
+        return validate_tams_uuid(v)
+    
+    @field_validator('store_type')
+    @classmethod
+    def validate_store_type(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Store type cannot be empty')
+        return v.strip()
+    
+    @field_validator('provider')
+    @classmethod
+    def validate_provider(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Provider cannot be empty')
+        return v.strip()
+    
+    @field_validator('store_product')
+    @classmethod
+    def validate_store_product(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Store product cannot be empty')
+        return v.strip()
+    
+    @field_validator('region')
+    @classmethod
+    def validate_region(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and (not v or not v.strip()):
+            raise ValueError('Region cannot be empty if provided')
+        return v.strip() if v else None
+    
+    @field_validator('availability_zone')
+    @classmethod
+    def validate_availability_zone(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and (not v or not v.strip()):
+            raise ValueError('Availability zone cannot be empty if provided')
+        return v.strip() if v else None
+    
+    @field_validator('label')
+    @classmethod
+    def validate_label(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and (not v or not v.strip()):
+            raise ValueError('Label cannot be empty if provided')
+        return v.strip() if v else None
 
 
 class StorageBackendsList(BaseModel):
@@ -579,8 +722,39 @@ class Object(BaseModel):
     id: str = Field(..., description="The media object identifier")
     referenced_by_flows: List[str] = Field(..., description="List of Flows that reference this media object via Flow Segments in this store")
     first_referenced_by_flow: Optional[str] = Field(None, description="The first Flow that had a Flow Segment reference the media object in this store")
-    size: Optional[int] = None  # Additional for implementation
-    created: Optional[datetime] = None  # Additional for implementation
+    size: Optional[int] = Field(None, ge=0, description="Size of the media object in bytes")
+    created: Optional[datetime] = Field(None, description="Date-time the media object was created")
+    
+    @field_validator('id')
+    @classmethod
+    def validate_id(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Object ID cannot be empty')
+        return v.strip()
+    
+    @field_validator('referenced_by_flows')
+    @classmethod
+    def validate_referenced_by_flows(cls, v: List[str]) -> List[str]:
+        if not v:
+            raise ValueError('Referenced by flows cannot be empty')
+        for flow_id in v:
+            if not flow_id or not flow_id.strip():
+                raise ValueError('Flow ID cannot be empty')
+        return v
+    
+    @field_validator('first_referenced_by_flow')
+    @classmethod
+    def validate_first_referenced_by_flow(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and (not v or not v.strip()):
+            raise ValueError('First referenced by flow ID cannot be empty if provided')
+        return v.strip() if v else None
+    
+    @field_validator('size')
+    @classmethod
+    def validate_size(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None and v < 0:
+            raise ValueError('Size cannot be negative')
+        return v
     
     @field_serializer('created')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:

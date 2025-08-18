@@ -98,8 +98,8 @@ class TestPerformanceReal:
         # Create test data using correct FlowSegment model
         flow_id = str(uuid.uuid4())
         segment = FlowSegment(
-            object_id=str(uuid.uuid4()),
-            timerange="0:0_3600:0",  # Correct TimeRange format: 1 hour range
+            id=str(uuid.uuid4()),
+            timerange="[0:0_3600:0)",  # Correct TAMS TimeRange format
             sample_offset=0,
             sample_count=90000,
             key_frame_count=3600
@@ -397,8 +397,8 @@ class TestStressReal:
         large_data = b"x" * (1024 * 1024)
         
         segment = FlowSegment(
-            object_id=str(uuid.uuid4()),
-            timerange="0:0_3600:0",  # Correct TimeRange format
+            id=str(uuid.uuid4()),
+            timerange="[0:0_3600:0)",  # Correct TAMS TimeRange format
             sample_offset=0,
             sample_count=90000,
             key_frame_count=3600
@@ -481,8 +481,8 @@ class TestScalabilityReal:
         segments = []
         for i in range(num_segments):
             segment = FlowSegment(
-                object_id=str(uuid.uuid4()),
-                timerange=f"{i*60}:0_{(i+1)*60}:0",  # Correct TimeRange format
+                id=str(uuid.uuid4()),
+                timerange=f"[{i*60}:0_{(i+1)*60}:0)",  # Correct TAMS TimeRange format
                 sample_offset=i * 90000,
                 sample_count=90000,
                 key_frame_count=3600
@@ -494,7 +494,7 @@ class TestScalabilityReal:
         storage_results = []
         
         for segment in segments:
-            data = f"Segment data for {segment.object_id}".encode()
+            data = f"Segment data for {segment.id}".encode()
             result = await s3_store_scalability.store_flow_segment(flow_id, segment, data)
             storage_results.append(result)
         

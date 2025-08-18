@@ -185,12 +185,11 @@ class VASTStore:
         
         # Initialize VAST database manager
         self.db_manager = VastDBManager(
-            endpoint=self.endpoint,
-            access_key=self.access_key,
-            secret_key=self.secret_key,
-            bucket=self.bucket,
-            schema=self.schema
+            endpoints=self.endpoint
         )
+        
+        # Create TAMS tables if they don't exist
+        self._setup_tams_tables()
         
         logger.info(f"VAST Store initialized with endpoint: {self.endpoint}, bucket: {self.bucket}, schema: {self.schema}")
     
@@ -206,7 +205,7 @@ class VASTStore:
             ('created_by', pa.string()),
             ('updated_by', pa.string()),
             ('created', pa.timestamp('us')),
-            ('updated', pa.timestamp('us')),
+            ('metadata_updated', pa.timestamp('us')),
             ('tags', pa.string()),  # JSON string
             ('source_collection', pa.string()),  # JSON string
             ('collected_by', pa.string()),  # JSON string
@@ -223,7 +222,7 @@ class VASTStore:
             ('created_by', pa.string()),
             ('updated_by', pa.string()),
             ('created', pa.timestamp('us')),
-            ('updated', pa.timestamp('us')),
+            ('metadata_updated', pa.timestamp('us')),
             ('tags', pa.string()),  # JSON string
             ('container', pa.string()),
             ('read_only', pa.bool_()),
@@ -593,7 +592,7 @@ class VASTStore:
                 'created_by': source.created_by or "",
                 'updated_by': source.updated_by or "",
                 'created': source.created or datetime.now(timezone.utc),
-                'updated': source.updated or datetime.now(timezone.utc),
+                'metadata_updated': source.metadata_updated or datetime.now(timezone.utc),
                 'tags': self._dict_to_json(source.tags.root if source.tags else {}),
                 'source_collection': self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else []),
                 'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else []),
@@ -632,7 +631,7 @@ class VASTStore:
                 'created_by': row['created_by'] if row['created_by'] else None,
                 'updated_by': row['updated_by'] if row['updated_by'] else None,
                 'created': row['created'],
-                'updated': row['updated'],
+                'metadata_updated': row['metadata_updated'],
                 'tags': Tags(self._json_to_dict(row['tags'])),
                 'source_collection': [CollectionItem(id=item.get('id', str(uuid.uuid4())), label=item.get('label', '')) if isinstance(item, dict) else CollectionItem(id=str(uuid.uuid4()), label=str(item)) for item in self._json_to_dict(row['source_collection'])],
                 'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])],
@@ -683,7 +682,7 @@ class VASTStore:
                         'created_by': row['created_by'] if row['created_by'] else None,
                         'updated_by': row['updated_by'] if row['updated_by'] else None,
                         'created': row['created'],
-                        'updated': row['updated'],
+                        'metadata_updated': row['metadata_updated'],
                         'tags': Tags(self._json_to_dict(row['tags'])),
                         'source_collection': [CollectionItem(id=item.get('id', str(uuid.uuid4())), label=item.get('label', '')) if isinstance(item, dict) else CollectionItem(id=str(uuid.uuid4()), label=str(item)) for item in self._json_to_dict(row['source_collection'])],
                         'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])],
@@ -710,7 +709,7 @@ class VASTStore:
                 'created_by': flow.created_by or "",
                 'updated_by': flow.updated_by or "",
                 'created': flow.created or datetime.now(timezone.utc),
-                'updated': flow.updated or datetime.now(timezone.utc),
+                'metadata_updated': flow.metadata_updated or datetime.now(timezone.utc),
                 'tags': self._dict_to_json(flow.tags.root if flow.tags else {}),
                 'container': flow.container or "",
                 'read_only': flow.read_only or False,
@@ -763,7 +762,7 @@ class VASTStore:
                 'created_by': row['created_by'] if row['created_by'] else None,
                 'updated_by': row['updated_by'] if row['updated_by'] else None,
                 'created': row['created'],
-                'updated': row['updated'],
+                'metadata_updated': row['metadata_updated'],
                 'tags': Tags(self._json_to_dict(row['tags'])),
                 'container': row['container'] if row['container'] else None,
                 'read_only': row['read_only'],
@@ -1299,7 +1298,7 @@ class VASTStore:
                         'created_by': row['created_by'] if row['created_by'] else None,
                         'updated_by': row['updated_by'] if row['updated_by'] else None,
                         'created': row['created'],
-                        'updated': row['updated'],
+                        'metadata_updated': row['metadata_updated'],
                         'tags': Tags(self._json_to_dict(row['tags'])),
                         'container': row['container'] if row['container'] else None,
                         'read_only': row['read_only']
@@ -1671,6 +1670,100 @@ class VASTStore:
             logger.error(f"Failed to get column info for {table_name}.{column_name}: {e}")
             return None
 
+    async def update_source_tags(self, source_id: str, tags: Tags) -> bool:
+        """
+        Update tags for a source.
+        
+        Args:
+            source_id (str): The source ID to update tags for
+            tags (Tags): The new tags to set
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Convert tags to JSON string
+            tags_json = self._dict_to_json(tags.root if tags else {})
+            
+            # Update the tags column in the sources table
+            update_data = {'tags': [tags_json]}  # Wrap in list as expected by VastDBManager
+            result = self.db_manager.update('sources', update_data, predicate={'id': source_id})
+            
+            if result and result > 0:
+                logger.info(f"Successfully updated tags for source {source_id}")
+                return True
+            else:
+                logger.error(f"Failed to update tags for source {source_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating tags for source {source_id}: {e}")
+            return False
+
+    async def update_source_property(self, source_id: str, property_name: str, property_value: Any) -> bool:
+        """
+        Update a specific property of a source.
+        
+        Args:
+            source_id (str): The source ID to update
+            property_name (str): The property name to update
+            property_value (Any): The new property value
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Update the specific property in the sources table
+            update_data = {property_name: [property_value], 'metadata_updated': [datetime.now(timezone.utc)]}
+            result = self.db_manager.update('sources', update_data, predicate={'id': source_id})
+            
+            if result and result > 0:
+                logger.info(f"Successfully updated {property_name} for source {source_id}")
+                return True
+            else:
+                logger.error(f"Failed to update {property_name} for source {source_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating {property_name} for source {source_id}: {e}")
+            return False
+
+    async def update_source(self, source_id: str, source: Source) -> bool:
+        """
+        Update a source with new data.
+        
+        Args:
+            source_id (str): The source ID to update
+            source (Source): The updated source data
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Prepare update data
+            update_data = {
+                'label': [source.label],
+                'description': [source.description],
+                'tags': [self._dict_to_json(source.tags.root if source.tags else {})],
+                'source_collection': [self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else [])],
+                'collected_by': [self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else [])],
+                'metadata_updated': [datetime.now(timezone.utc)]
+            }
+            
+            # Update the source in the database
+            result = self.db_manager.update('sources', update_data, predicate={'id': source_id})
+            
+            if result and result > 0:
+                logger.info(f"Successfully updated source {source_id}")
+                return True
+            else:
+                logger.error(f"Failed to update source {source_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating source {source_id}: {e}")
+            return False
+
     async def check_source_dependencies(self, source_id: str) -> Dict[str, Any]:
         """
         Check for dependencies on a source using direct DB queries.
@@ -1767,6 +1860,142 @@ class VASTStore:
                 'object_count': -1
             }
     
+    async def update_flow_tags(self, flow_id: str, tags: Tags) -> bool:
+        """
+        Update tags for a flow.
+        
+        Args:
+            flow_id (str): The flow ID to update tags for
+            tags (Tags): The new tags to set
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Convert tags to JSON string
+            tags_json = self._dict_to_json(tags.root if tags else {})
+            
+            # Update the tags column in the flows table
+            update_data = {'tags': [tags_json]}  # Wrap in list as expected by VastDBManager
+            result = self.db_manager.update('flows', update_data, predicate={'id': flow_id})
+            
+            if result and result > 0:
+                logger.info(f"Successfully updated tags for flow {flow_id}")
+                return True
+            else:
+                logger.error(f"Failed to update tags for flow {flow_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating tags for flow {flow_id}: {e}")
+            return False
+
+    async def update_flow_property(self, flow_id: str, property_name: str, property_value: Any) -> bool:
+        """
+        Update a specific property of a flow.
+        
+        Args:
+            flow_id (str): The flow ID to update
+            property_name (str): The property name to update
+            property_value (Any): The new property value
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Get the actual table schema to know which columns exist
+            table_schema = self.db_manager.cache_manager.get_table_columns('flows')
+            if table_schema is None:
+                logger.error(f"Could not get schema for flows table")
+                return False
+            
+            available_columns = [f.name for f in table_schema]
+            
+            # Check if the property exists in the schema
+            if property_name not in available_columns:
+                logger.error(f"Property {property_name} does not exist in flows table schema")
+                return False
+            
+            # Update the specific property in the flows table
+            update_data = {property_name: [property_value], 'metadata_updated': [datetime.now(timezone.utc)]}
+            result = self.db_manager.update('flows', update_data, predicate={'id': flow_id})
+            
+            if result and result > 0:
+                logger.info(f"Successfully updated {property_name} for flow {flow_id}")
+                return True
+            else:
+                logger.error(f"Failed to update {property_name} for flow {flow_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating {property_name} for flow {flow_id}: {e}")
+            return False
+
+    async def update_flow(self, flow_id: str, flow: Flow) -> bool:
+        """
+        Update a flow with new data.
+        
+        Args:
+            flow_id (str): The flow ID to update
+            flow (Flow): The updated flow data
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Get the actual table schema to know which columns exist
+            table_schema = self.db_manager.cache_manager.get_table_columns('flows')
+            if table_schema is None:
+                logger.error(f"Could not get schema for flows table")
+                return False
+            
+            available_columns = [f.name for f in table_schema]
+            
+            # Prepare update data based on flow type - only include existing columns
+            update_data = {}
+            
+            # Basic fields that should always exist
+            if 'label' in available_columns and flow.label is not None:
+                update_data['label'] = [flow.label]
+            if 'description' in available_columns and flow.description is not None:
+                update_data['description'] = [flow.description]
+            if 'tags' in available_columns:
+                update_data['tags'] = [self._dict_to_json(flow.tags.root if flow.tags else {})]
+            if 'metadata_updated' in available_columns:
+                update_data['metadata_updated'] = [datetime.now(timezone.utc)]
+            
+            # Add type-specific fields only if they exist in the schema
+            if 'frame_width' in available_columns and hasattr(flow, 'frame_width') and flow.frame_width is not None:
+                update_data['frame_width'] = [flow.frame_width]
+            if 'frame_height' in available_columns and hasattr(flow, 'frame_height') and flow.frame_height is not None:
+                update_data['frame_height'] = [flow.frame_height]
+            if 'frame_rate' in available_columns and hasattr(flow, 'frame_rate') and flow.frame_rate is not None:
+                update_data['frame_rate'] = [flow.frame_rate]
+            if 'read_only' in available_columns and hasattr(flow, 'read_only') and flow.read_only is not None:
+                update_data['read_only'] = [flow.read_only]
+            if 'flow_collection' in available_columns and hasattr(flow, 'flow_collection') and flow.flow_collection is not None:
+                update_data['flow_collection'] = [self._dict_to_json([item.model_dump() for item in flow.flow_collection] if flow.flow_collection else [])]
+            
+            # Don't include max_bit_rate and avg_bit_rate as they don't exist in the schema
+            
+            if not update_data:
+                logger.warning(f"No valid fields to update for flow {flow_id}")
+                return False
+            
+            # Update the flow in the database
+            result = self.db_manager.update('flows', update_data, predicate={'id': flow_id})
+            
+            if result and result > 0:
+                logger.info(f"Successfully updated flow {flow_id}")
+                return True
+            else:
+                logger.error(f"Failed to update flow {flow_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating flow {flow_id}: {e}")
+            return False
+
     async def check_flow_dependencies(self, flow_id: str) -> Dict[str, Any]:
         """
         Efficiently check for dependencies on a flow using direct DB queries.

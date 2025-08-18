@@ -243,7 +243,7 @@ class Source(BaseModel):
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
     created: Optional[datetime] = None
-    updated: Optional[datetime] = None
+    metadata_updated: Optional[datetime] = None
     tags: Optional[Tags] = None
     source_collection: Optional[List[CollectionItem]] = None
     collected_by: Optional[List[UUID4]] = None
@@ -262,16 +262,9 @@ class Source(BaseModel):
                     raise ValueError('Source collection items must be CollectionItem instances')
         return v
     
-    @field_validator('collected_by')
-    @classmethod
-    def validate_collected_by(cls, v: Optional[List[UUID4]]) -> Optional[List[UUID4]]:
-        if v is not None:
-            for uuid_val in v:
-                if not isinstance(uuid_val, UUID4):
-                    raise ValueError('Collected by must contain valid UUIDs')
-        return v
+    # Note: Pydantic automatically validates UUID4 types, so no custom validator needed
     
-    @field_serializer('created', 'updated')
+    @field_serializer('created', 'metadata_updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
@@ -641,10 +634,17 @@ class PreAction(BaseModel):
 
 class MediaObject(BaseModel):
     """Media object storage information"""
-    object_id: str = Field(..., description="The object store identifier for the media object")
+    id: str = Field(..., description="The object store identifier for the media object")
     put_url: HttpRequest = Field(..., description="PUT URL for uploading the media object")
     put_cors_url: Optional[HttpRequest] = None
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata including storage path")
+    
+    @field_validator('id')
+    @classmethod
+    def validate_id(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Object ID cannot be empty')
+        return v.strip()
 
 
 class FlowStorage(BaseModel):

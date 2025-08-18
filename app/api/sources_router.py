@@ -276,10 +276,11 @@ async def delete_source_tag(
             raise HTTPException(status_code=404, detail="Source not found")
         
         # Remove specific tag
-        current_tags = source.tags or {}
+        current_tags = source.tags.root if source.tags else {}
         if name in current_tags:
-            del current_tags[name]
-            success = await store.update_source_tags(source_id, Tags(**current_tags))
+            # Create a new dictionary without the tag to delete
+            new_tags = {k: v for k, v in current_tags.items() if k != name}
+            success = await store.update_source_tags(source_id, Tags(**new_tags))
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to delete source tag")
         

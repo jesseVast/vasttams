@@ -1,5 +1,83 @@
 # BBC TAMS Project - Code Changes Tracking
 
+## Fix #30: Tag Functionality - Fix 500 Errors and Implement Missing Methods (August 18, 2025)
+
+### **Problem Identified:**
+Tag-related API endpoints were returning 500 Internal Server Error due to missing methods in VASTStore:
+- **Missing Methods**: `update_source_tags`, `update_flow_tags`, `update_source`, `update_flow` methods were not implemented
+- **Async/Await Mismatch**: Methods were trying to await synchronous VastDBManager.update() calls
+- **Predicate Format**: String predicates were being passed instead of dictionary format expected by PredicateBuilder
+- **Schema Mismatch**: Flow update was trying to update non-existent columns (`max_bit_rate`, `avg_bit_rate`)
+
+### **Root Cause:**
+The tag update functionality was incomplete in the VASTStore implementation, and the update methods were designed with incorrect assumptions about the VastDBManager API and database schema.
+
+### **Files Modified:**
+
+#### **1. `app/storage/vast_store.py`**
+- **Lines 1670-1750**: Added missing tag and update methods
+  ```python
+  async def update_source_tags(self, source_id: str, tags: Tags) -> bool:
+      """Update tags for a source"""
+      # Converts tags to JSON and updates database
+      
+  async def update_source(self, source_id: str, source: Source) -> bool:
+      """Update a source with new data"""
+      # Updates source properties in database
+      
+  async def update_flow_tags(self, flow_id: str, tags: Tags) -> bool:
+      """Update tags for a flow"""
+      # Converts tags to JSON and updates database
+      
+  async def update_flow(self, flow_id: str, flow: Flow) -> bool:
+      """Update a flow with new data"""
+      # Updates flow properties with schema validation
+      
+  async def update_source_property(self, source_id: str, property_name: str, property_value: Any) -> bool:
+      """Update a specific property of a source"""
+      # Updates individual source properties
+      
+  async def update_flow_property(self, flow_id: str, property_name: str, property_value: Any) -> bool:
+      """Update a specific property of a flow"""
+      # Updates individual flow properties with schema validation
+  ```
+
+#### **2. `app/api/sources_router.py`**
+- **Lines 280-290**: Fixed tag deletion logic
+  ```python
+  # Before: Modified Pydantic model dictionary directly
+  # After: Creates new dictionary without the tag to delete
+  current_tags = source.tags.root if source.tags else {}
+  if name in current_tags:
+      new_tags = {k: v for k, v in current_tags.items() if k != name}
+      success = await store.update_source_tags(source_id, Tags(**new_tags))
+  ```
+
+### **Technical Fixes Applied:**
+1. **Removed await**: Changed `await self.db_manager.update()` to `self.db_manager.update()` (synchronous)
+2. **Fixed Predicates**: Changed string predicates `f"id = '{id}'"` to dictionary format `{'id': id}`
+3. **Schema Validation**: Added runtime schema validation to only update existing columns
+4. **Data Format**: Wrapped single values in lists as expected by VastDBManager: `{'field': [value]}`
+5. **Tags Handling**: Fixed Tags model access using `.root` property for dictionary operations
+
+### **API Endpoints Now Working:**
+- ✅ `PUT /sources/{id}/tags` - Update all source tags
+- ✅ `PUT /sources/{id}/tags/{name}` - Update individual source tag
+- ✅ `DELETE /sources/{id}/tags/{name}` - Delete source tag
+- ✅ `PUT /flows/{id}/tags` - Update all flow tags
+- ✅ `PUT /flows/{id}/tags/{name}` - Update individual flow tag
+- ✅ `DELETE /flows/{id}/tags/{name}` - Delete flow tag
+
+### **Test Results:**
+- Source tag creation: ✅ Working
+- Source tag updates: ✅ Working
+- Source tag deletion: ✅ Working
+- Flow tag creation: ✅ Working
+- Flow tag updates: ✅ Working
+- Flow tag deletion: ✅ Working
+
+---
+
 ## Fix #22: TAMS API Compliance - Object Model and Database Schema (August 17, 2025)
 
 ### **Problem Identified:**

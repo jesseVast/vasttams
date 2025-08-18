@@ -5,7 +5,7 @@ Simple script to drop all tables in VAST database
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.storage.vastdbmanager.core import VastDBManager
 from app.core.config import get_settings

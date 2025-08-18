@@ -52,7 +52,7 @@ async def create_flow(store: VASTStore, flow: Flow) -> bool:
     try:
         now = datetime.now(timezone.utc)
         flow.created = now
-        flow.updated = now
+        flow.metadata_updated = now
         success = await store.create_flow(flow)
         return success
     except Exception as e:
@@ -62,7 +62,7 @@ async def create_flow(store: VASTStore, flow: Flow) -> bool:
 async def update_flow(store: VASTStore, flow_id: str, flow: Flow) -> Optional[Flow]:
     """Update a flow"""
     try:
-        flow.updated = datetime.now(timezone.utc)
+        flow.metadata_updated = datetime.now(timezone.utc)
         success = await store.update_flow(flow_id, flow)
         if success:
             return flow
@@ -153,7 +153,7 @@ class FlowManager:
         try:
             now = datetime.now(timezone.utc)
             flow.created = now
-            flow.updated = now
+            flow.metadata_updated = now
             success = await store.create_flow(flow)
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create flow")
@@ -172,7 +172,7 @@ class FlowManager:
             # Check if flow is read-only before updating
             await self._check_flow_read_only(flow_id, store)
             
-            flow.updated = datetime.now(timezone.utc)
+            flow.metadata_updated = datetime.now(timezone.utc)
             success = await store.update_flow(flow_id, flow)
             if not success:
                 raise HTTPException(status_code=404, detail="Flow not found")

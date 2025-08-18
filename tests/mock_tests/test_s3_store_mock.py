@@ -171,8 +171,8 @@ class TestS3StoreFlowSegmentOperations:
         
         flow_id = str(uuid.uuid4())
         segment = FlowSegment(
-            object_id=str(uuid.uuid4()),
-            timerange="2024-01-01T00:00:00Z/2024-01-01T01:00:00Z",
+            id=str(uuid.uuid4()),
+            timerange="[0:0_10:0)",
             sample_offset=0,
             sample_count=1000,
             key_frame_count=10
@@ -310,8 +310,8 @@ class TestS3StoreErrorHandling:
         
         flow_id = str(uuid.uuid4())
         segment = FlowSegment(
-            object_id=str(uuid.uuid4()),
-            timerange="2024-01-01T00:00:00Z/2024-01-01T01:00:00Z",
+            id=str(uuid.uuid4()),
+            timerange="[0:0_10:0)",
             sample_offset=0,
             sample_count=1000,
             key_frame_count=10
@@ -330,8 +330,8 @@ class TestS3StoreErrorHandling:
         
         flow_id = str(uuid.uuid4())
         segment = FlowSegment(
-            object_id=str(uuid.uuid4()),
-            timerange="2024-01-01T00:00:00Z/2024-01-01T01:00:00Z",
+            id=str(uuid.uuid4()),
+            timerange="[0:0_10:0)",
             sample_offset=0,
             sample_count=1000,
             key_frame_count=10

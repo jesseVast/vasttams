@@ -63,20 +63,14 @@ async def lifespan(app: FastAPI):
     """Lifespan event handler for startup and shutdown"""
     # Startup
     settings = get_settings()
-    # Convert single endpoint to list for multi-endpoint support
-    vast_endpoints = [settings.vast_endpoint]  # For now, use single endpoint as list
+    # Initialize VAST store with single endpoint
     
     vast_store = VASTStore(
-        endpoints=vast_endpoints,  # Use the endpoints list
+        endpoint=settings.vast_endpoint,  # Use single endpoint
         access_key=settings.vast_access_key,
         secret_key=settings.vast_secret_key,
         bucket=settings.vast_bucket,
-        schema=settings.vast_schema,
-        s3_endpoint_url=settings.s3_endpoint_url,
-        s3_access_key_id=settings.s3_access_key_id,
-        s3_secret_access_key=settings.s3_secret_access_key,
-        s3_bucket_name=settings.s3_bucket_name,
-        s3_use_ssl=settings.s3_use_ssl
+        schema=settings.vast_schema
     )
     set_vast_store(vast_store)  # Set the global store instance
     logger.info("TAMS API started with VAST store using vastdbmanager and S3 for segments")

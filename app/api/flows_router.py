@@ -762,7 +762,7 @@ async def allocate_flow_storage(
             
             # Create MediaObject with the hierarchical path
             media_object = MediaObject(
-                object_id=object_id,
+                id=object_id,
                 put_url=HttpRequest(
                     url=put_url,
                     headers={}  # No custom headers for S3 compatibility

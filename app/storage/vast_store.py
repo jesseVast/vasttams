@@ -450,31 +450,7 @@ class VASTStore:
         settings = get_settings()
         
         # Define desired projections per table. Only columns present in the schema will be used.
-        desired_table_projections = {
-            'sources': [
-                    ('id',),  # Primary key projection
-                ],
-                'flows': [
-                    ('id',),  # Primary key projection
-                    ('id', 'source_id'),  # Composite key for source-based queries
-                    ('id', 'start_time', 'end_time'),  # Time range projection
-                ],
-                'segments': [
-                    ('id',),  # Primary key projection
-                    ('id', 'flow_id'),  # Composite projection for flow-based queries
-                    ('id', 'flow_id', 'object_id'),  # Composite key for segment queries
-                    ('id', 'object_id'),  # Composite projection for object-based queries
-                    ('id', 'start_time', 'end_time'),  # Time range projection
-                ],
-                'objects': [
-                    ('id',),  # Primary key projection
-                ],
-                'flow_object_references': [
-                    ('object_id',),  # Primary key projection
-                    ('object_id', 'flow_id'),  # Composite key for object-flow queries
-                    ('flow_id', 'object_id'),  # Composite key for flow-object queries
-    ]
-        }
+        desired_table_projections = VASTStore._get_desired_table_projections()
         
         def _projection_name(table: str, cols: tuple) -> str:
             return f"{table}_{'_'.join(cols)}_proj"
@@ -506,6 +482,35 @@ class VASTStore:
             except Exception as e:
                 logger.error("Failed to setup table '%s': %s", table_name, e)
                 raise
+    
+    @staticmethod
+    def _get_desired_table_projections():
+        """Get the desired table projections configuration"""
+        return {
+            'sources': [
+                ('id',),  # Primary key projection
+            ],
+            'flows': [
+                ('id',),  # Primary key projection
+                ('id', 'source_id'),  # Composite key for source-based queries
+                ('id', 'start_time', 'end_time'),  # Time range projection
+            ],
+            'segments': [
+                ('id',),  # Primary key projection
+                ('id', 'flow_id'),  # Composite projection for flow-based queries
+                ('id', 'flow_id', 'object_id'),  # Composite key for segment queries
+                ('id', 'object_id'),  # Composite projection for object-based queries
+                ('id', 'start_time', 'end_time'),  # Time range projection
+            ],
+            'objects': [
+                ('id',),  # Primary key projection
+            ],
+            'flow_object_references': [
+                ('object_id',),  # Primary key projection
+                ('object_id', 'flow_id'),  # Composite key for object-flow queries
+                ('flow_id', 'object_id'),  # Composite key for flow-object queries
+            ]
+        }
     
     def _parse_timerange(self, timerange: str) -> Tuple[datetime, datetime, float]:
         """

@@ -287,6 +287,15 @@ class VASTStore:
             ('api_key_name', pa.string()),
             ('api_key_value', pa.string()),
             ('events', pa.string()),  # JSON string
+            # TAMS-specific filtering fields
+            ('flow_ids', pa.string()),  # JSON string
+            ('source_ids', pa.string()),  # JSON string
+            ('flow_collected_by_ids', pa.string()),  # JSON string
+            ('source_collected_by_ids', pa.string()),  # JSON string
+            ('accept_get_urls', pa.string()),  # JSON string
+            ('accept_storage_ids', pa.string()),  # JSON string
+            ('presigned', pa.bool_()),
+            ('verbose_storage', pa.bool_()),
             # Ownership fields for TAMS API v7.0 compliance
             ('owner_id', pa.string()),
             ('created_by', pa.string()),
@@ -1698,6 +1707,97 @@ class VASTStore:
                 
         except Exception as e:
             logger.error(f"Error updating tags for source {source_id}: {e}")
+            return False
+
+    async def list_webhooks(self) -> List[Webhook]:
+        """
+        List all webhooks.
+        
+        Returns:
+            List of webhook configurations
+        """
+        try:
+            # Get all webhooks from the database
+            results = self.db_manager.select('webhooks')
+            
+            if not results:
+                return []
+            
+            webhooks = []
+            for row in results:
+                webhook = Webhook(
+                    url=row['url'],
+                    api_key_name=row['api_key_name'],
+                    api_key_value=row.get('api_key_value'),
+                    events=self._json_to_list(row['events']),
+                    flow_ids=self._json_to_list(row.get('flow_ids')),
+                    source_ids=self._json_to_list(row.get('source_ids')),
+                    flow_collected_by_ids=self._json_to_list(row.get('flow_collected_by_ids')),
+                    source_collected_by_ids=self._json_to_list(row.get('source_collected_by_ids')),
+                    accept_get_urls=self._json_to_list(row.get('accept_get_urls')),
+                    accept_storage_ids=self._json_to_list(row.get('accept_storage_ids')),
+                    presigned=row.get('presigned'),
+                    verbose_storage=row.get('verbose_storage'),
+                    owner_id=row.get('owner_id'),
+                    created_by=row.get('created_by'),
+                    created=row['created'] if 'created' in row else None
+                )
+                webhooks.append(webhook)
+            
+            return webhooks
+            
+        except Exception as e:
+            logger.error(f"Failed to list webhooks: {e}")
+            return []
+
+    async def create_webhook(self, webhook: WebhookPost) -> bool:
+        """
+        Create a new webhook.
+        
+        Args:
+            webhook: Webhook configuration to create
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Generate a unique ID for the webhook
+            webhook_id = str(uuid.uuid4())
+            now = datetime.now(timezone.utc)
+            
+            # Prepare webhook data
+            webhook_data = {
+                'id': [webhook_id],
+                'url': [webhook.url],
+                'api_key_name': [webhook.api_key_name],
+                'api_key_value': [webhook.api_key_value],
+                'events': [self._dict_to_json(webhook.events)],
+                'flow_ids': [self._dict_to_json(webhook.flow_ids) if webhook.flow_ids else None],
+                'source_ids': [self._dict_to_json(webhook.source_ids) if webhook.source_ids else None],
+                'flow_collected_by_ids': [self._dict_to_json(webhook.flow_collected_by_ids) if webhook.flow_collected_by_ids else None],
+                'source_collected_by_ids': [self._dict_to_json(webhook.source_collected_by_ids) if webhook.source_collected_by_ids else None],
+                'accept_get_urls': [self._dict_to_json(webhook.accept_get_urls) if webhook.accept_get_urls else None],
+                'accept_storage_ids': [self._dict_to_json(webhook.accept_storage_ids) if webhook.accept_storage_ids else None],
+                'presigned': [webhook.presigned if webhook.presigned is not None else True],
+                'verbose_storage': [webhook.verbose_storage if webhook.verbose_storage is not None else False],
+                'owner_id': [webhook.owner_id],
+                'created_by': [webhook.created_by],
+                'created': [now],
+                'updated': [now]
+            }
+            
+            # Insert the webhook
+            result = self.db_manager.insert('webhooks', webhook_data)
+            
+            if result:
+                logger.info(f"Successfully created webhook {webhook_id} for {webhook.url}")
+                return True
+            else:
+                logger.error(f"Failed to create webhook for {webhook.url}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error creating webhook: {e}")
             return False
 
     async def update_source_property(self, source_id: str, property_name: str, property_value: Any) -> bool:

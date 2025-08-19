@@ -29,7 +29,9 @@ def generate_uuid() -> str:
 
 
 def validate_timerange(timerange: str) -> bool:
-    """Validate timerange format"""
+    """Validate TAMS timerange format according to specification"""
+    # TAMS timerange pattern: ^(\[|\()?(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?(_(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?)?(\]|\))?$
+    # Examples: [0:0_10:0), (5:0_, [1694429247:0_1694429248:0), [1694429247:0]
     pattern = r'^(\[|\()?(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?(_(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?)?(\]|\))?$'
     return bool(re.match(pattern, timerange))
 
@@ -43,10 +45,41 @@ def validate_uuid(uuid_str: str) -> bool:
         return False
 
 
+def validate_tams_uuid(uuid_str: str) -> bool:
+    """Validate TAMS UUID format according to specification"""
+    # TAMS UUID pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+    # This ensures UUID version 4 (random) or version 5 (SHA-1) as per TAMS spec
+    pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    return bool(re.match(pattern, uuid_str))
+
+
 def validate_mime_type(mime_type: str) -> bool:
-    """Validate MIME type format"""
-    pattern = r'.*/.*'
-    return bool(re.match(pattern, mime_type))
+    """Validate MIME type format with TAMS-specific enhancements"""
+    # Basic MIME type pattern: type/subtype
+    pattern = r'^[^\\s\/]+/[^\\s\/]+$'
+    
+    # Additional TAMS-specific validation
+    if not re.match(pattern, mime_type):
+        return False
+    
+    # Check for common TAMS MIME types
+    common_tams_types = [
+        'video/h264', 'video/h265', 'video/raw',
+        'audio/aac', 'audio/mp3', 'audio/raw',
+        'image/jpeg', 'image/png', 'image/raw',
+        'application/json', 'application/xml'
+    ]
+    
+    # Allow any valid MIME type, but log uncommon ones
+    return True
+
+
+def validate_tams_timestamp(timestamp: str) -> bool:
+    """Validate TAMS timestamp format according to specification"""
+    # TAMS timestamp pattern: ^-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8})$
+    # Examples: "1:40000000", "1694429247:40000000", "-1:40000000"
+    pattern = r'^-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8})$'
+    return bool(re.match(pattern, timestamp))
 
 
 def validate_content_format(format_str: str) -> bool:

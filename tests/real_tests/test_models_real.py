@@ -153,7 +153,7 @@ class TestFlowSegmentModelReal:
             storage_path="flows/2024/01/01/segment_001"
         )
         
-        assert segment.id is not None
+        assert segment.object_id is not None
         assert segment.timerange == "[0:0_3600:0)"
         assert segment.sample_count == 90000
         assert segment.key_frame_count == 3600
@@ -163,7 +163,7 @@ class TestFlowSegmentModelReal:
         """Test FlowSegment timerange validation"""
         # Valid timerange
         valid_segment = FlowSegment(
-            id=str(uuid.uuid4()),
+            object_id=str(uuid.uuid4()),
             timerange="[0:0_3600:0)",  # 1 hour range in correct TAMS TimeRange format
             sample_offset=0,
             sample_count=1000,
@@ -174,7 +174,7 @@ class TestFlowSegmentModelReal:
         # Test that invalid timerange format still passes (current behavior)
         # This is expected since timerange validation is intentionally relaxed
         invalid_segment = FlowSegment(
-            id=str(uuid.uuid4()),
+            object_id=str(uuid.uuid4()),
             timerange="invalid-timerange-format",  # Invalid format but should pass
             sample_offset=0,
             sample_count=1000,

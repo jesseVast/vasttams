@@ -135,7 +135,7 @@ class TestFlowSegmentModel:
             key_frame_count=10
         )
         
-        assert segment.id is not None
+        assert segment.object_id is not None
         assert segment.timerange == "[0:0_10:0)"
         assert segment.sample_offset == 0
         assert segment.sample_count == 1000
@@ -152,7 +152,7 @@ class TestFlowSegmentModel:
         
         for timerange in valid_timeranges:
             segment = FlowSegment(
-                id=str(uuid.uuid4()),
+                object_id=str(uuid.uuid4()),
                 timerange=timerange,
                 sample_offset=0,
                 sample_count=1000,
@@ -333,7 +333,7 @@ class TestModelRelationships:
         )
         
         segment = FlowSegment(
-            id=str(uuid.uuid4()),
+            object_id=str(uuid.uuid4()),
             timerange="[0:0_10:0)",
             sample_offset=0,
             sample_count=1000,
@@ -341,7 +341,7 @@ class TestModelRelationships:
         )
         
         # Test that segment can reference flow
-        assert segment.id is not None
+        assert segment.object_id is not None
         assert segment.timerange is not None
 
 

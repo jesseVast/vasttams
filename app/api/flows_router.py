@@ -534,19 +534,15 @@ async def get_flow_collection(
     flow_id: str,
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Get flow collection"""
+    """Get flow collection - now dynamically computed from flow_collections table"""
     try:
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
+        # Get collections dynamically from the flow_collections table
+        collections = await store.get_flow_collections(flow_id)
         
-        # Only MultiFlow has flow_collection
-        if hasattr(flow, 'flow_collection'):
-            return flow.flow_collection
-        else:
-            return []
-    except HTTPException:
-        raise
+        # Return collection IDs for backward compatibility
+        collection_ids = [col.collection_id for col in collections]
+        return collection_ids
+        
     except Exception as e:
         logger.error("Failed to get flow collection for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -557,27 +553,107 @@ async def update_flow_collection(
     flow_collection: List[str],
     store: VASTStore = Depends(get_vast_store)
 ):
-    """Update flow collection"""
+    """Update flow collection - now managed dynamically via flow_collections table"""
     try:
         await check_flow_read_only(store, flow_id)
+        
+        # Check if flow exists
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
         
-        # Only MultiFlow can have flow_collection
-        if hasattr(flow, 'flow_collection'):
-            flow.flow_collection = flow_collection
-            success = await store.update_flow(flow_id, flow)
-            if not success:
-                raise HTTPException(status_code=500, detail="Failed to update flow collection")
-            return {"message": "Flow collection updated successfully"}
-        else:
-            raise HTTPException(status_code=400, detail="Flow type does not support flow collection")
+        # Get current collections
+        current_collections = await store.get_flow_collections(flow_id)
+        current_collection_ids = [col.collection_id for col in current_collections]
+        
+        # Remove flows from collections they're no longer in
+        for collection_id in current_collection_ids:
+            if collection_id not in flow_collection:
+                await store.remove_flow_from_collection(collection_id, flow_id)
+        
+        # Add flows to new collections
+        for collection_id in flow_collection:
+            if collection_id not in current_collection_ids:
+                # Generate a default label and description
+                label = f"Collection {collection_id[:8]}"
+                description = f"Auto-generated collection for flow {flow_id[:8]}"
+                await store.add_flow_to_collection(collection_id, flow_id, label, description)
+        
+        return {"message": "Flow collection updated successfully"}
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Failed to update flow collection for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+# Collection management endpoints
+@router.post("/collections")
+async def create_collection(
+    collection_id: str,
+    label: str,
+    description: Optional[str] = None,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Create a new collection"""
+    try:
+        # Add a dummy flow to create the collection (will be removed if no flows)
+        dummy_flow_id = str(uuid.uuid4())
+        success = await store.add_flow_to_collection(
+            collection_id, 
+            dummy_flow_id, 
+            label, 
+            description
+        )
+        
+        if success:
+            # Remove the dummy flow
+            await store.remove_flow_from_collection(collection_id, dummy_flow_id)
+            return {"message": f"Collection {collection_id} created successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to create collection")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to create collection %s: %s", collection_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/collections/{collection_id}/flows")
+async def get_collection_flows(
+    collection_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get all flows in a collection"""
+    try:
+        flows = await store.get_collection_flows(collection_id)
+        return {"collection_id": collection_id, "flows": flows}
+        
+    except Exception as e:
+        logger.error("Failed to get flows for collection %s: %s", collection_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/collections/{collection_id}")
+async def delete_collection(
+    collection_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete a collection and remove all flow associations"""
+    try:
+        success = await store.delete_collection(collection_id)
+        if success:
+            return {"message": f"Collection {collection_id} deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Collection not found")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to delete collection %s: %s", collection_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 
 @router.head("/flows/{flow_id}/max_bit_rate")
 async def head_flow_max_bit_rate(flow_id: str):

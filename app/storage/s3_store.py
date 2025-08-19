@@ -176,7 +176,7 @@ class S3Store:
         """
         try:
             # Generate unique segment ID if not provided
-            segment_id = segment.id if segment.id else str(uuid.uuid4())
+            segment_id = segment.object_id if segment.object_id else str(uuid.uuid4())
             
             # Generate S3 object key
             object_key = self._generate_segment_key(flow_id, segment_id, segment.timerange)

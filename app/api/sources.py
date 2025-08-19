@@ -42,7 +42,7 @@ async def create_source(store: VASTStore, source: Source) -> bool:
     try:
         now = datetime.now(timezone.utc)
         source.created = now
-        source.metadata_updated = now
+        source.updated = now
         success = await store.create_source(source)
         return success
     except Exception as e:
@@ -103,7 +103,7 @@ class SourceManager:
         try:
             now = datetime.now(timezone.utc)
             source.created = now
-            source.metadata_updated = now
+            source.updated = now
             success = await store.create_source(source)
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create source")
@@ -156,7 +156,7 @@ class SourceManager:
         
         try:
             # Update the timestamp
-            source.metadata_updated = datetime.now(timezone.utc)
+            source.updated = datetime.now(timezone.utc)
             
             # Update in store
             success = await store.update_source(source_id, source)

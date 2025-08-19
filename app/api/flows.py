@@ -76,6 +76,10 @@ async def delete_flow(store: VASTStore, flow_id: str, cascade: bool = True) -> b
     try:
         success = await store.delete_flow(flow_id, cascade=cascade)
         return success
+    except ValueError as e:
+        # Handle constraint violations properly (cascade=False with dependencies)
+        logger.warning("Constraint violation deleting flow %s: %s", flow_id, e)
+        raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
         logger.error("Failed to delete flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -55,9 +55,9 @@ async def delete_source(store: VASTStore, source_id: str, cascade: bool = True) 
         success = await store.delete_source(source_id, cascade=cascade)
         return success
     except ValueError as e:
-        # Handle the case where source deletion is not allowed (immutable)
-        logger.warning("Source deletion not allowed: %s", e)
-        raise HTTPException(status_code=403, detail=str(e))
+        # Handle constraint violations properly (cascade=False with dependencies)
+        logger.warning("Constraint violation deleting source %s: %s", source_id, e)
+        raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
         logger.error("Failed to delete source %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")

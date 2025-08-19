@@ -75,7 +75,7 @@ class TestVideoFlowModelReal:
             codec="video/h264",
             frame_width=1920,
             frame_height=1080,
-            frame_rate="25/1",
+            frame_rate={"numerator": 25, "denominator": 1},  # Fixed: TAMS object format
             label="BBC News Evening Broadcast",
             description="Evening news program"
         )
@@ -84,7 +84,8 @@ class TestVideoFlowModelReal:
         assert flow.label == "BBC News Evening Broadcast"
         assert flow.frame_width == 1920
         assert flow.frame_height == 1080
-        assert flow.frame_rate == "25/1"
+        assert flow.frame_rate.numerator == 25  # Fixed: Check numerator
+        assert flow.frame_rate.denominator == 1  # Fixed: Check denominator
         assert flow.codec == "video/h264"
     
     def test_video_flow_validation_with_invalid_dimensions(self):
@@ -97,7 +98,7 @@ class TestVideoFlowModelReal:
                 codec="video/h264",
                 frame_width=0,  # Invalid width
                 frame_height=1080,
-                frame_rate="25/1"
+                frame_rate={"numerator": 25, "denominator": 1}  # Fixed: TAMS object format
             )
         
         # Test that valid dimensions work
@@ -107,7 +108,7 @@ class TestVideoFlowModelReal:
             codec="video/h264",
             frame_width=1920,  # Valid width
             frame_height=1080,
-            frame_rate="25/1"
+            frame_rate={"numerator": 25, "denominator": 1}  # Fixed: TAMS object format
         )
         assert valid_flow.frame_width == 1920
         assert valid_flow.frame_height == 1080
@@ -129,7 +130,7 @@ class TestVideoFlowModelReal:
             codec="video/h264",
             frame_width=1920,
             frame_height=1080,
-            frame_rate="25/1",
+            frame_rate={"numerator": 25, "denominator": 1},  # Fixed: TAMS object format
             label="Test Flow",
             description="Test description"
         )
@@ -144,12 +145,13 @@ class TestFlowSegmentModelReal:
         """Test creating a FlowSegment with realistic data"""
         segment = FlowSegment(
             id=str(uuid.uuid4()),
+            object_id=str(uuid.uuid4()),  # Fixed: Added missing object_id field
             timerange="[0:0_3600:0)",  # 1 hour range in correct TAMS TimeRange format
             sample_offset=0,
             sample_count=90000,  # 1 hour at 25fps
             key_frame_count=3600,  # 1 keyframe per second
-            ts_offset="0",
-            last_duration="3600.0",
+            ts_offset="0:0",  # Fixed: TAMS timestamp format
+            last_duration="3600:0",  # Fixed: TAMS timestamp format
             storage_path="flows/2024/01/01/segment_001"
         )
         
@@ -157,7 +159,7 @@ class TestFlowSegmentModelReal:
         assert segment.timerange == "[0:0_3600:0)"
         assert segment.sample_count == 90000
         assert segment.key_frame_count == 3600
-        assert segment.last_duration == "3600.0"
+        assert segment.last_duration == "3600:0"  # Fixed: TAMS timestamp format
     
     def test_flow_segment_timerange_validation(self):
         """Test FlowSegment timerange validation"""
@@ -358,7 +360,7 @@ class TestModelRelationshipsReal:
             codec="video/h264",
             frame_width=1920,
             frame_height=1080,
-            frame_rate="25"
+            frame_rate={"numerator": 25, "denominator": 1}
         )
         
         assert flow.source_id == source.id
@@ -371,7 +373,7 @@ class TestModelRelationshipsReal:
             codec="video/h264",
             frame_width=1920,
             frame_height=1080,
-            frame_rate="25"
+            frame_rate={"numerator": 25, "denominator": 1}
         )
         
         segment = FlowSegment(

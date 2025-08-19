@@ -191,7 +191,7 @@ class TestLargeFlowStress:
                     "codec": "video/h264",
                     "frame_width": 1920,
                     "frame_height": 1080,
-                    "frame_rate": "25/1",
+                    "frame_rate": {"numerator": 25, "denominator": 1},  # Fixed: TAMS object format
                     "label": flow_name,
                     "description": "Flow for large flow stress test"
                 }

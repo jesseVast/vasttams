@@ -234,7 +234,7 @@ class TestDataGenerator:
                 "description": f"Test video flow {index}",
                 "frame_width": random.choice([1920, 1280, 3840, 2560]),
                 "frame_height": random.choice([1080, 720, 2160, 1440]),
-                "frame_rate": random.choice(["25/1", "30/1", "50/1", "60/1"]),
+                "frame_rate": random.choice([{"numerator": 25, "denominator": 1}, {"numerator": 30, "denominator": 1}, {"numerator": 50, "denominator": 1}, {"numerator": 60, "denominator": 1}]),  # Fixed: TAMS object format
                 "tags": {
                     "test_type": "comprehensive",
                     "generated_at": datetime.now(timezone.utc).isoformat(),

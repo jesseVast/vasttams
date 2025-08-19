@@ -31,7 +31,7 @@ from .models.models import (
     DeletionRequestsList, StorageBackend, StorageBackendsList, HttpRequest, MediaObject
 )
 from .storage.vast_store import VASTStore
-from .core.config import get_settings
+from .core.config import get_settings, update_settings
 from .api.segments import SegmentManager
 from .api.flows import FlowManager
 from .api.sources import SourceManager
@@ -439,7 +439,6 @@ async def get_metrics():
 @app.get("/config/async-deletion-threshold")
 async def get_async_deletion_threshold():
     """Get current async deletion threshold"""
-    from .config import get_settings
     settings = get_settings()
     return {
         "async_deletion_threshold": settings.async_deletion_threshold,
@@ -459,8 +458,7 @@ async def update_async_deletion_threshold(threshold: int):
     if threshold < 1:
         raise HTTPException(status_code=400, detail="Async deletion threshold must be at least 1")
     
-    from .config import update_async_deletion_threshold
-    update_async_deletion_threshold(threshold)
+    update_settings(async_deletion_threshold=threshold)
     
     return {
         "message": f"Async deletion threshold updated to {threshold} segments",

@@ -4,6 +4,7 @@ from ..models.models import Object
 from .objects import get_object, create_object, delete_object
 from ..storage.vast_store import VASTStore
 from ..core.dependencies import get_vast_store
+from ..core.event_manager import EventManager
 import logging
 from datetime import datetime, timezone
 
@@ -51,6 +52,14 @@ async def create_new_object(
         success = await create_object(store, obj)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to create object")
+        
+        # Emit object created event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_object_event('objects/created', obj)
+        except Exception as e:
+            logger.warning("Failed to emit object created event: %s", e)
+        
         return obj
     except HTTPException:
         raise
@@ -78,6 +87,15 @@ async def create_objects_batch(
             created_objects.append(obj)
         
         logger.info("Successfully created %d objects", len(created_objects))
+        
+        # Emit object created events for batch creation
+        try:
+            event_manager = EventManager(store)
+            for obj in created_objects:
+                await event_manager.emit_object_event('objects/created', obj)
+        except Exception as e:
+            logger.warning("Failed to emit batch object created events: %s", e)
+        
         return created_objects
         
     except HTTPException:
@@ -94,9 +112,21 @@ async def delete_object_by_id(
 ):
     """Delete an object (hard delete only - TAMS compliant)"""
     try:
+        # Get object before deletion for event emission
+        obj = await get_object(store, object_id)
+        
         success = await delete_object(store, object_id)
         if not success:
             raise HTTPException(status_code=404, detail="Object not found")
+        
+        # Emit object deleted event
+        if obj:
+            try:
+                event_manager = EventManager(store)
+                await event_manager.emit_object_event('objects/deleted', obj)
+            except Exception as e:
+                logger.warning("Failed to emit object deleted event: %s", e)
+        
         return {"message": "Object hard deleted successfully"}
     except HTTPException:
         raise

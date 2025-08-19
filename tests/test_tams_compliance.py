@@ -98,7 +98,7 @@ class TestTAMSCompliance:
         assert source.created_by == "test_user"
         assert source.updated_by == "test_user"
         assert source.created is not None
-        assert source.metadata_updated is not None
+        assert source.updated is not None
         assert source.tags is not None
         assert source.source_collection is not None
         assert source.collected_by is not None
@@ -117,14 +117,14 @@ class TestTAMSCompliance:
             storage_path="/path/to/segment"
         )
     
-        assert segment.id == self.valid_uuid
+        assert segment.object_id == self.valid_uuid
         assert segment.timerange == "[0:0_10:0)"
         assert segment.storage_path == "/path/to/segment"
     
         # Test timerange validation - expect Pydantic ValidationError, not ValueError
         with pytest.raises(ValidationError):
             FlowSegment(
-                id=self.valid_uuid,
+                object_id=self.valid_uuid,
                 timerange=123  # Invalid type
             )
 

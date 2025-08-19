@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
+import uuid
 from ..models.models import Source, SourcesResponse, SourceFilters, Tags
 from .sources import get_sources, get_source, create_source, delete_source
 from ..storage.vast_store import VASTStore
@@ -129,8 +130,140 @@ async def create_sources_batch(
         
     except HTTPException:
         raise
+            except Exception as e:
+            logger.error("Failed to create sources batch: %s", e)
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+# Source Collection Management Endpoints
+@router.get("/sources/{source_id}/source_collection")
+async def get_source_collection(
+    source_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get source collection - dynamically computed from source_collections table"""
+    try:
+        # Get collections dynamically from the source_collections table
+        collections = await store.get_source_collections(source_id)
+        
+        # Return collection IDs for backward compatibility
+        collection_ids = [col.collection_id for col in collections]
+        return collection_ids
+        
     except Exception as e:
-        logger.error("Failed to create sources batch: %s", e)
+        logger.error("Failed to get source collection for %s: %s", source_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.put("/sources/{source_id}/source_collection")
+async def update_source_collection(
+    source_id: str,
+    source_collection: List[str],
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update source collection - now managed dynamically via source_collections table"""
+    try:
+        # Check if source exists
+        source = await get_source(store, source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        # Get current collections
+        current_collections = await store.get_source_collections(source_id)
+        current_collection_ids = [col.collection_id for col in current_collections]
+        
+        # Remove sources from collections they're no longer in
+        for collection_id in current_collection_ids:
+            if collection_id not in source_collection:
+                await store.remove_source_from_collection(collection_id, source_id)
+        
+        # Add sources to new collections
+        for collection_id in source_collection:
+            if collection_id not in current_collection_ids:
+                # Generate a default label and description
+                label = f"Collection {collection_id[:8]}"
+                description = f"Auto-generated collection for source {source_id[:8]}"
+                await store.add_source_to_collection(collection_id, source_id, label, description)
+        
+        return {"message": "Source collection updated successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to update source collection for %s: %s", source_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.head("/sources/{source_id}/source_collection")
+async def head_source_collection(source_id: str):
+    """Return source collection path headers"""
+    return {}
+
+
+# Source Collection CRUD Endpoints
+@router.post("/source-collections")
+async def create_source_collection(
+    collection_id: str,
+    label: str,
+    description: Optional[str] = None,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Create a new source collection"""
+    try:
+        # Add a dummy source to create the collection (will be removed if no sources)
+        dummy_source_id = str(uuid.uuid4())
+        success = await store.add_source_to_collection(
+            collection_id, 
+            dummy_source_id, 
+            label, 
+            description
+        )
+        
+        if success:
+            # Remove the dummy source
+            await store.remove_source_from_collection(collection_id, dummy_source_id)
+            return {"message": f"Source collection {collection_id} created successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to create source collection")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to create source collection %s: %s", collection_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/source-collections/{collection_id}/sources")
+async def get_source_collection_sources(
+    collection_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get all sources in a source collection"""
+    try:
+        sources = await store.get_collection_sources(collection_id)
+        return {"collection_id": collection_id, "sources": sources}
+        
+    except Exception as e:
+        logger.error("Failed to get sources for collection %s: %s", collection_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/source-collections/{collection_id}")
+async def delete_source_collection(
+    collection_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete a source collection and remove all source associations"""
+    try:
+        success = await store.delete_source_collection(collection_id)
+        if success:
+            return {"message": f"Source collection {collection_id} deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Source collection not found")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to delete source collection %s: %s", collection_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # DELETE endpoint

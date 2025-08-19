@@ -228,6 +228,96 @@ class Tags(RootModel[Dict[str, str]]):
         self.root.update(other_dict)
 
 
+class SegmentDuration(BaseModel):
+    """TAMS segment duration structure with numerator/denominator"""
+    numerator: int = Field(..., exclusiveMinimum=0, description="Segment duration numerator")
+    denominator: int = Field(default=1, exclusiveMinimum=0, description="Segment duration denominator")
+    
+    @field_validator('numerator')
+    @classmethod
+    def validate_numerator(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError('Numerator must be greater than 0')
+        return v
+    
+    @field_validator('denominator')
+    @classmethod
+    def validate_denominator(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError('Denominator must be greater than 0')
+        return v
+
+
+class FlowCollection(BaseModel):
+    """TAMS flow collection model for dynamic collection management"""
+    collection_id: str = Field(..., description="Unique collection identifier")
+    flow_id: str = Field(..., description="Flow ID that is part of this collection")
+    label: str = Field(..., description="Collection label for identification")
+    description: Optional[str] = Field(None, description="Collection description")
+    created: Optional[datetime] = Field(None, description="When flow was added to collection")
+    created_by: Optional[str] = Field(None, description="Who added the flow to collection")
+    
+    @field_validator('collection_id')
+    @classmethod
+    def validate_collection_id(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Collection ID cannot be empty')
+        return v.strip()
+    
+    @field_validator('flow_id')
+    @classmethod
+    def validate_flow_id(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Flow ID cannot be empty')
+        return v.strip()
+    
+    @field_validator('label')
+    @classmethod
+    def validate_label(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Collection label cannot be empty')
+        return v.strip()
+    
+    @field_serializer('created')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
+
+
+class SourceCollection(BaseModel):
+    """TAMS source collection model for dynamic collection management"""
+    collection_id: str = Field(..., description="Unique collection identifier")
+    source_id: str = Field(..., description="Source ID that is part of this collection")
+    label: str = Field(..., description="Collection label for identification")
+    description: Optional[str] = Field(None, description="Collection description")
+    created: Optional[datetime] = Field(None, description="When source was added to collection")
+    created_by: Optional[str] = Field(None, description="Who added the source to collection")
+    
+    @field_validator('collection_id')
+    @classmethod
+    def validate_collection_id(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Collection ID cannot be empty')
+        return v.strip()
+    
+    @field_validator('source_id')
+    @classmethod
+    def validate_source_id(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Source ID cannot be empty')
+        return v.strip()
+    
+    @field_validator('label')
+    @classmethod
+    def validate_label(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Collection label cannot be empty')
+        return v.strip()
+    
+    @field_serializer('created')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return value.isoformat() if value else None
+
+
 class CollectionItem(BaseModel):
     """Collection item for source collections"""
     id: UUID4
@@ -243,28 +333,21 @@ class Source(BaseModel):
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
     created: Optional[datetime] = None
-    metadata_updated: Optional[datetime] = None
+    updated: Optional[datetime] = None  # TAMS spec requires 'updated' field name
     tags: Optional[Tags] = None
-    source_collection: Optional[List[CollectionItem]] = None
-    collected_by: Optional[List[UUID4]] = None
+    # Note: source_collection and collected_by are computed dynamically from source_collections table
+    # They are not stored as fields but computed at runtime
     
     @field_validator('format')
     @classmethod
     def validate_format(cls, v: str) -> str:
         return validate_content_format(v)
     
-    @field_validator('source_collection')
-    @classmethod
-    def validate_source_collection(cls, v: Optional[List[CollectionItem]]) -> Optional[List[CollectionItem]]:
-        if v is not None:
-            for item in v:
-                if not isinstance(item, CollectionItem):
-                    raise ValueError('Source collection items must be CollectionItem instances')
-        return v
+    # Note: source_collection validation is no longer needed as it's computed dynamically
     
     # Note: Pydantic automatically validates UUID4 types, so no custom validator needed
     
-    @field_serializer('created', 'metadata_updated')
+    @field_serializer('created', 'updated')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
 
@@ -289,10 +372,10 @@ class GetUrl(BaseModel):
 
 class FlowSegment(BaseModel):
     """Flow segment model - TAMS compliant"""
-    id: str = Field(..., description="The object store identifier for the media object")  # Changed from object_id to id for TAMS compliance
-    timerange: str = Field(description="Time range")
-    ts_offset: Optional[str] = Field(None, description="Timestamp offset between sample timestamps and segment timestamps")  # Fixed description
-    last_duration: Optional[str] = Field(None, description="Difference between exclusive end of timerange and last sample timestamp")  # Fixed description
+    object_id: str = Field(..., description="The object store identifier for the media object")  # TAMS spec requires object_id field
+    timerange: str = Field(description="Time range", pattern=r'^(\[|\()?(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?(_(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?)?(\]|\))?$')
+    ts_offset: Optional[str] = Field(None, description="Timestamp offset between sample timestamps and segment timestamps", pattern=r'^-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8})$')  # TAMS timestamp format
+    last_duration: Optional[str] = Field(None, description="Difference between exclusive end of timerange and last sample timestamp", pattern=r'^-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8})$')  # TAMS timestamp format
     sample_offset: Optional[int] = Field(None, description="Start of segment as count of samples from start of object")
     sample_count: Optional[int] = Field(None, description="Count of samples in the segment")
     get_urls: Optional[List[GetUrl]] = Field(None, description="List of URLs for direct segment retrieval")
@@ -327,12 +410,12 @@ class VideoFlow(BaseModel):
     # TAMS required fields
     metadata_version: Optional[str] = Field(None, description="Flow metadata version for change tracking")  # Added missing required field
     generation: Optional[int] = Field(None, ge=0, description="Number of lossy encodings the flow content has been through")  # Added missing required field
-    segment_duration: Optional[Dict[str, int]] = Field(None, description="Target flow segment duration as numerator/denominator")  # Added missing required field
+    segment_duration: Optional[SegmentDuration] = Field(None, description="Target flow segment duration as numerator/denominator")  # TAMS structured format
     
     # Video-specific fields
     frame_width: int = Field(gt=0, description="Frame width must be positive")
     frame_height: int = Field(gt=0, description="Frame height must be positive")
-    frame_rate: str = Field(description="Frame rate in timestamp format")  # Kept for backward compatibility
+    frame_rate: str = Field(description="Frame rate in TAMS timestamp format", pattern=r'^-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8})$')  # TAMS timestamp format
     interlace_mode: Optional[str] = Field(None, description="Interlacing mode")
     color_sampling: Optional[str] = Field(None, description="Color sampling format")
     color_space: Optional[str] = Field(None, description="Color space")
@@ -376,10 +459,10 @@ class AudioFlow(BaseModel):
     # TAMS required fields
     metadata_version: Optional[str] = Field(None, description="Flow metadata version for change tracking")  # Added missing required field
     generation: Optional[int] = Field(None, ge=0, description="Number of lossy encodings the flow content has been through")  # Added missing required field
-    segment_duration: Optional[Dict[str, int]] = Field(None, description="Target flow segment duration as numerator/denominator")  # Added missing required field
+    segment_duration: Optional[SegmentDuration] = Field(None, description="Target flow segment duration as numerator/denominator")  # TAMS structured format
     
     # Audio-specific fields
-    sample_rate: int = Field(gt=0, description="Audio sample rate in Hz")
+    sample_rate: str = Field(description="Audio sample rate in TAMS timestamp format", pattern=r'^-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8})$')  # TAMS timestamp format
     bits_per_sample: int = Field(gt=0, description="Bits per audio sample")
     channels: int = Field(gt=0, description="Number of audio channels")
     container: Optional[str] = Field(None, description="Container MIME type for flow segments")
@@ -410,7 +493,7 @@ class DataFlow(BaseModel):
     # TAMS required fields
     metadata_version: Optional[str] = Field(None, description="Flow metadata version for change tracking")  # Added missing required field
     generation: Optional[int] = Field(None, ge=0, description="Number of lossy encodings the flow content has been through")  # Added missing required field
-    segment_duration: Optional[Dict[str, int]] = Field(None, description="Target flow segment duration as numerator/denominator")  # Added missing required field
+    segment_duration: Optional[SegmentDuration] = Field(None, description="Target flow segment duration as numerator/denominator")  # TAMS structured format
     
     # Data-specific fields
     container: Optional[str] = Field(None, description="Container MIME type for flow segments")
@@ -439,7 +522,7 @@ class ImageFlow(BaseModel):
     # TAMS required fields
     metadata_version: Optional[str] = Field(None, description="Flow metadata version for change tracking")  # Added missing required field
     generation: Optional[int] = Field(None, ge=0, description="Number of lossy encodings the flow content has been through")  # Added missing required field
-    segment_duration: Optional[Dict[str, int]] = Field(None, description="Target flow segment duration as numerator/denominator")  # Added missing required field
+    segment_duration: Optional[SegmentDuration] = Field(None, description="Target flow segment duration as numerator/denominator")  # TAMS structured format
     
     # Image-specific fields
     frame_width: int = Field(gt=0, description="Image frame width in pixels")
@@ -472,11 +555,11 @@ class MultiFlow(BaseModel):
     # TAMS required fields
     metadata_version: Optional[str] = Field(None, description="Flow metadata version for change tracking")  # Added missing required field
     generation: Optional[int] = Field(None, ge=0, description="Number of lossy encodings the flow content has been through")  # Added missing required field
-    segment_duration: Optional[Dict[str, int]] = Field(None, description="Target flow segment duration as numerator/denominator")  # Added missing required field
+    segment_duration: Optional[SegmentDuration] = Field(None, description="Target flow segment duration as numerator/denominator")  # TAMS structured format
     
     # Multi-specific fields
-    flow_collection: Optional[List[str]] = Field(None, description="List of Flow IDs that are collected together by this Flow")  # Added missing required field
-    collected_by: Optional[List[str]] = Field(None, description="Flows that reference this Flow to include it in a collection")  # Added missing required field
+    # Note: flow_collection and collected_by are computed dynamically from flow_collections table
+    # They are not stored as fields but computed at runtime
     container: Optional[str] = Field(None, description="Container MIME type for flow segments")
     read_only: Optional[bool] = Field(False, description="Whether flow is read-only")
     max_bit_rate: Optional[int] = Field(None, ge=0, description="Maximum bit rate in 1000 bits/second")

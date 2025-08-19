@@ -65,7 +65,7 @@ class TestS3StoreRealOperations:
             # If successful, try to retrieve the data
             retrieved_data = await s3_store_real.get_flow_segment_data(
                 flow_id, 
-                sample_flow_segment.id, 
+                sample_flow_segment.object_id, 
                 sample_flow_segment.timerange
             )
             
@@ -89,7 +89,7 @@ class TestS3StoreRealOperations:
         # Then retrieve it
         retrieved_data = await s3_store_real.get_flow_segment_data(
             flow_id, 
-            sample_flow_segment.id, 
+            sample_flow_segment.object_id, 
             sample_flow_segment.timerange
         )
         
@@ -110,7 +110,7 @@ class TestS3StoreRealOperations:
         # Then delete it
         deletion_result = await s3_store_real.delete_flow_segment(
             flow_id, 
-            sample_flow_segment.id, 
+            sample_flow_segment.object_id, 
             sample_flow_segment.timerange
         )
         
@@ -119,7 +119,7 @@ class TestS3StoreRealOperations:
         # Verify it's deleted by trying to retrieve it
         retrieved_data = await s3_store_real.get_flow_segment_data(
             flow_id, 
-            sample_flow_segment.id, 
+            sample_flow_segment.object_id, 
             sample_flow_segment.timerange
         )
         
@@ -250,7 +250,7 @@ class TestS3StoreIntegrationReal:
         # Store all segments
         storage_results = []
         for segment in segments:
-            data = f"Segment data for {segment.id}".encode()
+            data = f"Segment data for {segment.object_id}".encode()
             result = await s3_store_integration.store_flow_segment(flow_id, segment, data)
             storage_results.append(result)
         
@@ -260,10 +260,10 @@ class TestS3StoreIntegrationReal:
             for i, segment in enumerate(segments):
                 if storage_results[i]:
                     retrieved_data = await s3_store_integration.get_flow_segment_data(
-                        flow_id, segment.id, segment.timerange
+                        flow_id, segment.object_id, segment.timerange
                     )
                     if retrieved_data:
-                        assert retrieved_data == f"Segment data for {segment.id}".encode()
+                        assert retrieved_data == f"Segment data for {segment.object_id}".encode()
                         break
         else:
             pytest.skip("S3 service not available for integration testing")
@@ -282,7 +282,7 @@ class TestS3StoreIntegrationReal:
         # Try to get metadata
         metadata = await s3_store_integration.get_flow_segment_metadata(
             flow_id, 
-            sample_flow_segment.id, 
+            sample_flow_segment.object_id, 
             sample_flow_segment.timerange
         )
         

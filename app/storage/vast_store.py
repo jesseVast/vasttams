@@ -56,7 +56,7 @@ from ..core.telemetry import telemetry_manager, trace_operation
 from ..models.models import (
     Source, Flow, FlowSegment, Object, DeletionRequest, 
     TimeRange, Tags, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow,
-    CollectionItem, GetUrl, Webhook, WebhookPost, User, ApiToken, AuthLog
+    CollectionItem, GetUrl, Webhook, WebhookPost, User, ApiToken, AuthLog, SegmentDuration, FlowCollection, SourceCollection
 )
 from .s3_store import S3Store
 from .storage_backend_manager import StorageBackendManager
@@ -205,7 +205,7 @@ class VASTStore:
             ('created_by', pa.string()),
             ('updated_by', pa.string()),
             ('created', pa.timestamp('us')),
-            ('metadata_updated', pa.timestamp('us')),
+            ('updated', pa.timestamp('us')),  # TAMS spec requires 'updated' field name
             ('tags', pa.string()),  # JSON string
             ('source_collection', pa.string()),  # JSON string
             ('collected_by', pa.string()),  # JSON string
@@ -223,22 +223,30 @@ class VASTStore:
             ('updated_by', pa.string()),
             ('created', pa.timestamp('us')),
             ('metadata_updated', pa.timestamp('us')),
+            ('segments_updated', pa.timestamp('us')),  # TAMS required field
             ('tags', pa.string()),  # JSON string
             ('container', pa.string()),
             ('read_only', pa.bool_()),
+            # TAMS required fields
+            ('metadata_version', pa.string()),  # TAMS required field
+            ('generation', pa.int32()),  # TAMS required field
+            ('segment_duration', pa.string()),  # JSON string with numerator/denominator
             # Video specific
             ('frame_width', pa.int32()),
             ('frame_height', pa.int32()),
-            ('frame_rate', pa.string()),
+                             ('frame_rate', pa.string()),  # TAMS timestamp format
             ('interlace_mode', pa.string()),
             ('color_sampling', pa.string()),
             ('color_space', pa.string()),
             ('transfer_characteristics', pa.string()),
             ('color_primaries', pa.string()),
             # Audio specific
-            ('sample_rate', pa.int32()),
+                             ('sample_rate', pa.string()),  # Changed to string for TAMS timestamp format
             ('bits_per_sample', pa.int32()),
             ('channels', pa.int32()),
+            # Bit rate fields
+            ('max_bit_rate', pa.int32()),  # Maximum bit rate in 1000 bits/second
+            ('avg_bit_rate', pa.int32()),  # Average bit rate in 1000 bits/second
             # Multi flow specific
             ('flow_collection', pa.string()),  # JSON string
         ])
@@ -265,10 +273,13 @@ class VASTStore:
         ])
         
         # Object table schema - TAMS compliant
+        # Note: referenced_by_flows and first_referenced_by_flow are computed dynamically
+        # from the flow_object_references table, not stored as columns
         object_schema = pa.schema([
-            ('id', pa.string()),  # Changed from object_id to id
+            ('id', pa.string()),  # TAMS spec requires 'id' field
             ('size', pa.int64()),
             ('created', pa.timestamp('us')),
+            # Additional fields for performance and monitoring
             ('last_accessed', pa.timestamp('us')),
             ('access_count', pa.int32()),
         ])
@@ -278,6 +289,26 @@ class VASTStore:
             ('object_id', pa.string()),
             ('flow_id', pa.string()),
             ('created', pa.timestamp('us')),
+        ])
+        
+        # Flow collections table - TAMS compliant (dynamic collection management)
+        flow_collections_schema = pa.schema([
+            ('collection_id', pa.string()),  # Unique collection identifier
+            ('flow_id', pa.string()),        # References flows.id
+            ('label', pa.string()),          # Collection label
+            ('description', pa.string()),    # Collection description
+            ('created', pa.timestamp('us')), # When flow was added to collection
+            ('created_by', pa.string()),     # Who added the flow to collection
+        ])
+        
+        # Source collections table - TAMS compliant (dynamic collection management)
+        source_collections_schema = pa.schema([
+            ('collection_id', pa.string()),  # Unique collection identifier
+            ('source_id', pa.string()),      # References sources.id
+            ('label', pa.string()),          # Collection label
+            ('description', pa.string()),    # Collection description
+            ('created', pa.timestamp('us')), # When source was added to collection
+            ('created_by', pa.string()),     # Who added the source to collection
         ])
         
         # Webhook table schema
@@ -439,6 +470,8 @@ class VASTStore:
             'segments': segment_schema,
             'objects': object_schema,
             'flow_object_references': flow_object_references_schema,
+            'flow_collections': flow_collections_schema,
+            'source_collections': source_collections_schema,
             'webhooks': webhook_schema,
             'deletion_requests': deletion_request_schema,
             'users': users_schema,
@@ -494,7 +527,7 @@ class VASTStore:
                 ('id',),  # Primary key projection
                 ('id', 'source_id'),  # Composite key for source-based queries
                 ('source_id', 'created'),  # Source-based creation time queries
-                ('source_id', 'metadata_updated'),  # Source-based update time queries
+                ('source_id', 'updated'),  # Source-based update time queries (TAMS spec field name)
             ],
             'segments': [
                 ('id',),  # Primary key projection
@@ -514,6 +547,28 @@ class VASTStore:
                 ('object_id',),  # Primary key projection
                 ('object_id', 'flow_id'),  # Composite key for object-flow queries
                 ('flow_id', 'object_id'),  # Composite key for flow-object queries
+            ],
+            'flow_collections': [
+                ('collection_id',),  # Primary key projection
+                ('collection_id', 'flow_id'),  # Composite key for collection-flow queries
+                ('flow_id', 'collection_id'),  # Composite key for flow-collection queries
+                ('collection_id', 'label'),  # Collection label queries
+                ('collection_id', 'created'),  # Collection creation time queries
+                ('collection_id', 'created_by'),  # Collection creator queries
+                ('flow_id', 'created'),  # Flow collection membership time queries
+                ('label', 'created'),  # Label-based creation time queries
+                ('collection_id', 'flow_id', 'created'),  # Full collection membership queries
+            ],
+            'source_collections': [
+                ('collection_id',),  # Primary key projection
+                ('collection_id', 'source_id'),  # Composite key for collection-source queries
+                ('source_id', 'collection_id'),  # Composite key for source-collection queries
+                ('collection_id', 'label'),  # Collection label queries
+                ('collection_id', 'created'),  # Collection creation time queries
+                ('collection_id', 'created_by'),  # Collection creator queries
+                ('source_id', 'created'),  # Source collection membership time queries
+                ('label', 'created'),  # Label-based creation time queries
+                ('collection_id', 'source_id', 'created'),  # Full collection membership queries
             ]
         }
     
@@ -663,7 +718,7 @@ class VASTStore:
                 'created_by': source.created_by or "",
                 'updated_by': source.updated_by or "",
                 'created': source.created or datetime.now(timezone.utc),
-                'metadata_updated': source.metadata_updated or datetime.now(timezone.utc),
+                'updated': source.updated or datetime.now(timezone.utc),
                 'tags': self._dict_to_json(source.tags.root if source.tags else {}),
                 'source_collection': self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else []),
                 'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else []),
@@ -694,6 +749,19 @@ class VASTStore:
             else:
                 return None
             
+            # Compute source_collection and collected_by dynamically from source_collections table
+            source_collections = await self.get_source_collections(source_id)
+            source_collection_items = [CollectionItem(id=col.collection_id, label=col.label) for col in source_collections]
+            
+            # Get sources that reference this source (collected_by)
+            collected_by_ids = []
+            for collection in source_collections:
+                collection_sources = await self.get_collection_sources(collection.collection_id)
+                collected_by_ids.extend([sid for sid in collection_sources if sid != source_id])
+            
+            # Remove duplicates
+            collected_by_ids = list(set(collected_by_ids))
+            
             source_data = {
                 'id': row['id'],
                 'format': row['format'],
@@ -702,10 +770,10 @@ class VASTStore:
                 'created_by': row['created_by'] if row['created_by'] else None,
                 'updated_by': row['updated_by'] if row['updated_by'] else None,
                 'created': row['created'],
-                'metadata_updated': row['metadata_updated'],
+                'updated': row['updated'],
                 'tags': Tags(self._json_to_dict(row['tags'])),
-                'source_collection': [CollectionItem(id=item.get('id', str(uuid.uuid4())), label=item.get('label', '')) if isinstance(item, dict) else CollectionItem(id=str(uuid.uuid4()), label=str(item)) for item in self._json_to_dict(row['source_collection'])],
-                'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])],
+                'source_collection': source_collection_items,
+                'collected_by': collected_by_ids,
             }
             
             return Source(**source_data)
@@ -745,6 +813,19 @@ class VASTStore:
             sources = []
             if isinstance(results, list):
                 for row in results:
+                    # Compute source_collection and collected_by dynamically from source_collections table
+                    source_collections = await self.get_source_collections(row['id'])
+                    source_collection_items = [CollectionItem(id=col.collection_id, label=col.label) for col in source_collections]
+                    
+                    # Get sources that reference this source (collected_by)
+                    collected_by_ids = []
+                    for collection in source_collections:
+                        collection_sources = await self.get_collection_sources(collection.collection_id)
+                        collected_by_ids.extend([sid for sid in collection_sources if sid != row['id']])
+                    
+                    # Remove duplicates
+                    collected_by_ids = list(set(collected_by_ids))
+                    
                     source_data = {
                         'id': row['id'],
                         'format': row['format'],
@@ -753,10 +834,10 @@ class VASTStore:
                         'created_by': row['created_by'] if row['created_by'] else None,
                         'updated_by': row['updated_by'] if row['updated_by'] else None,
                         'created': row['created'],
-                        'metadata_updated': row['metadata_updated'],
+                        'updated': row['updated'],
                         'tags': Tags(self._json_to_dict(row['tags'])),
-                        'source_collection': [CollectionItem(id=item.get('id', str(uuid.uuid4())), label=item.get('label', '')) if isinstance(item, dict) else CollectionItem(id=str(uuid.uuid4()), label=str(item)) for item in self._json_to_dict(row['source_collection'])],
-                        'collected_by': [uuid for uuid in self._json_to_dict(row['collected_by'])],
+                        'source_collection': source_collection_items,
+                        'collected_by': collected_by_ids,
                     }
                     sources.append(Source(**source_data))
             
@@ -781,21 +862,29 @@ class VASTStore:
                 'updated_by': flow.updated_by or "",
                 'created': flow.created or datetime.now(timezone.utc),
                 'metadata_updated': flow.metadata_updated or datetime.now(timezone.utc),
+                'segments_updated': getattr(flow, 'segments_updated', None),
                 'tags': self._dict_to_json(flow.tags.root if flow.tags else {}),
                 'container': flow.container or "",
                 'read_only': flow.read_only or False,
+                # TAMS required fields
+                'metadata_version': getattr(flow, 'metadata_version', "1.0"),
+                'generation': getattr(flow, 'generation', 0),
+                'segment_duration': self._dict_to_json(getattr(flow, 'segment_duration', {"numerator": 1, "denominator": 30}).model_dump() if hasattr(getattr(flow, 'segment_duration', None), 'model_dump') else getattr(flow, 'segment_duration', {"numerator": 1, "denominator": 30})),
                 'frame_width': getattr(flow, 'frame_width', 0),
                 'frame_height': getattr(flow, 'frame_height', 0),
-                'frame_rate': getattr(flow, 'frame_rate', ""),
+                                 'frame_rate': str(getattr(flow, 'frame_rate', "25:1")),  # TAMS timestamp format
                 'interlace_mode': getattr(flow, 'interlace_mode', ""),
                 'color_sampling': getattr(flow, 'color_sampling', ""),
                 'color_space': getattr(flow, 'color_space', ""),
                 'transfer_characteristics': getattr(flow, 'transfer_characteristics', ""),
                 'color_primaries': getattr(flow, 'color_primaries', ""),
-                'sample_rate': getattr(flow, 'sample_rate', 0),
+                                 'sample_rate': str(getattr(flow, 'sample_rate', "48000:1")),  # Convert to TAMS timestamp format
                 'bits_per_sample': getattr(flow, 'bits_per_sample', 0),
                 'channels': getattr(flow, 'channels', 0),
-                'flow_collection': self._dict_to_json([str(uuid) for uuid in getattr(flow, 'flow_collection', [])]),
+                # Bit rate fields
+                'max_bit_rate': getattr(flow, 'max_bit_rate', None),
+                'avg_bit_rate': getattr(flow, 'avg_bit_rate', None),
+                                 # Note: flow_collection is now managed dynamically via flow_collections table
             }
             # Insert into VAST database as dict of lists
             self.db_manager.insert('flows', {k: [v] for k, v in flow_data.items()})
@@ -834,9 +923,17 @@ class VASTStore:
                 'updated_by': row['updated_by'] if row['updated_by'] else None,
                 'created': row['created'],
                 'metadata_updated': row['metadata_updated'],
+                'segments_updated': row.get('segments_updated'),
                 'tags': Tags(self._json_to_dict(row['tags'])),
                 'container': row['container'] if row['container'] else None,
                 'read_only': row['read_only'],
+                # TAMS required fields
+                'metadata_version': row.get('metadata_version'),
+                'generation': row.get('generation'),
+                'segment_duration': SegmentDuration(**self._json_to_dict(row.get('segment_duration', '{"numerator": 1, "denominator": 30}'))) if row.get('segment_duration') else None,
+                # Bit rate fields
+                'max_bit_rate': row.get('max_bit_rate'),
+                'avg_bit_rate': row.get('avg_bit_rate'),
             }
             
             # Add format-specific fields
@@ -845,7 +942,7 @@ class VASTStore:
                 flow_data.update({
                     'frame_width': row['frame_width'],
                     'frame_height': row['frame_height'],
-                    'frame_rate': row['frame_rate'],
+                    'frame_rate': row['frame_rate'] if row['frame_rate'] else "25:1",  # TAMS timestamp format
                     'interlace_mode': row['interlace_mode'] if row['interlace_mode'] else None,
                     'color_sampling': row['color_sampling'] if row['color_sampling'] else None,
                     'color_space': row['color_space'] if row['color_space'] else None,
@@ -855,7 +952,7 @@ class VASTStore:
                 return VideoFlow(**flow_data)
             elif format_type == "urn:x-nmos:format:audio":
                 flow_data.update({
-                    'sample_rate': row['sample_rate'],
+                    'sample_rate': row['sample_rate'] if row['sample_rate'] else "48000:1",  # TAMS timestamp format
                     'bits_per_sample': row['bits_per_sample'],
                     'channels': row['channels'],
                 })
@@ -867,8 +964,22 @@ class VASTStore:
                 })
                 return ImageFlow(**flow_data)
             elif format_type == "urn:x-nmos:format:multi":
+                # For MultiFlow, compute flow_collection and collected_by dynamically
+                flow_collections = await self.get_flow_collections(flow_id)
+                flow_collection_ids = [col.collection_id for col in flow_collections]
+                
+                # Get flows that reference this flow (collected_by)
+                collected_by_ids = []
+                for collection_id in flow_collection_ids:
+                    collection_flows = await self.get_collection_flows(collection_id)
+                    collected_by_ids.extend([fid for fid in collection_flows if fid != flow_id])
+                
+                # Remove duplicates
+                collected_by_ids = list(set(collected_by_ids))
+                
                 flow_data.update({
-                    'flow_collection': [uuid for uuid in self._json_to_dict(row['flow_collection'])],
+                    'flow_collection': flow_collection_ids,
+                    'collected_by': collected_by_ids,
                 })
                 return MultiFlow(**flow_data)
             else:
@@ -895,16 +1006,16 @@ class VASTStore:
             # Generate storage_path if not provided to ensure consistency
             if not segment.storage_path:
                 # Generate the same hierarchical path that would be used in storage allocation
-                storage_path = self.s3_store.generate_segment_key(flow_id, segment.id, segment.timerange)  # Changed from object_id to id
-                logger.info(f"Generated storage_path for segment {segment.id}: {storage_path}")  # Changed from object_id to id
+                storage_path = self.s3_store.generate_segment_key(flow_id, segment.object_id, segment.timerange)  # TAMS spec requires object_id field
+                logger.info(f"Generated storage_path for segment {segment.object_id}: {storage_path}")  # TAMS spec requires object_id field
             else:
                 storage_path = segment.storage_path
-                logger.info(f"Using provided storage_path for segment {segment.id}: {storage_path}")  # Changed from object_id to id
+                logger.info(f"Using provided storage_path for segment {segment.object_id}: {storage_path}")  # TAMS spec requires object_id field
             
             # Generate TAMS-compliant get_urls using the new method
             get_urls_objs = await self.s3_store.create_tams_compliant_get_urls(
                 flow_id=flow_id,
-                segment_id=segment.id,  # Changed from object_id to id
+                segment_id=segment.object_id,  # TAMS spec requires object_id field
                 timerange=segment.timerange,
                 storage_path=storage_path
             )
@@ -912,7 +1023,7 @@ class VASTStore:
             segment_data = {
                 'id': str(uuid.uuid4()),
                 'flow_id': flow_id,
-                'object_id': segment.id,  # Changed from object_id to id
+                'object_id': segment.object_id,  # TAMS spec requires object_id field
                 'timerange': segment.timerange,
                 'ts_offset': segment.ts_offset or "",
                 'last_duration': segment.last_duration or "",
@@ -1139,10 +1250,16 @@ class VASTStore:
                             total_storage += pixels
                     elif row['format'] == "urn:x-nmos:format:audio":
                         # Convert numpy types to native Python types and handle None values
-                        sample_rate = int(row['sample_rate']) if hasattr(row['sample_rate'], 'item') else row['sample_rate']
+                        sample_rate_str = row['sample_rate'] if hasattr(row['sample_rate'], 'item') else row['sample_rate']
                         channels = int(row['channels']) if hasattr(row['channels'], 'item') else row['channels']
-                        if sample_rate is not None and channels is not None:
-                            total_storage += sample_rate * channels * 2
+                        if sample_rate_str is not None and channels is not None:
+                            # Parse TAMS timestamp format (e.g., "48000:1" -> 48000)
+                            try:
+                                sample_rate = int(sample_rate_str.split(':')[0]) if ':' in str(sample_rate_str) else int(sample_rate_str)
+                                total_storage += sample_rate * channels * 2
+                            except (ValueError, IndexError):
+                                logger.warning(f"Invalid sample_rate format: {sample_rate_str}")
+                                continue
                 except (KeyError, TypeError) as e:
                     logger.warning(f"Could not calculate storage for flow: {e}")
                     continue
@@ -1381,12 +1498,12 @@ class VASTStore:
                         flow_data.update({
                             'frame_width': row['frame_width'],
                             'frame_height': row['frame_height'],
-                            'frame_rate': row['frame_rate'],
+                            'frame_rate': row['frame_rate'] if row['frame_rate'] else "25:1",  # TAMS timestamp format
                         })
                         flow = VideoFlow(**flow_data)
                     elif format_type == "urn:x-nmos:format:audio":
                         flow_data.update({
-                            'sample_rate': row['sample_rate'],
+                            'sample_rate': row['sample_rate'] if row['sample_rate'] else "48000:1",  # TAMS timestamp format
                             'bits_per_sample': row['bits_per_sample'],
                             'channels': row['channels'],
                         })
@@ -1441,6 +1558,333 @@ class VASTStore:
             "Use flow and segment management instead."
         )
     
+    async def get_flow_collections(self, flow_id: str) -> List[FlowCollection]:
+        """
+        Get all collections that a flow belongs to
+        
+        Args:
+            flow_id (str): The flow ID to get collections for
+            
+        Returns:
+            List[FlowCollection]: List of collections the flow belongs to
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            predicate = (ibis_.flow_id == flow_id)
+            results = self.db_manager.select('flow_collections', predicate=predicate, output_by_row=True)
+            
+            if not results:
+                return []
+            
+            collections = []
+            for row in results:
+                collection = FlowCollection(
+                    collection_id=row['collection_id'],
+                    flow_id=row['flow_id'],
+                    label=row['label'],
+                    description=row.get('description'),
+                    created=row.get('created'),
+                    created_by=row.get('created_by')
+                )
+                collections.append(collection)
+            
+            return collections
+            
+        except Exception as e:
+            logger.error(f"Failed to get flow collections for flow {flow_id}: {e}")
+            return []
+    
+    async def get_collection_flows(self, collection_id: str) -> List[str]:
+        """
+        Get all flow IDs that belong to a specific collection
+        
+        Args:
+            collection_id (str): The collection ID to get flows for
+            
+        Returns:
+            List[str]: List of flow IDs in the collection
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            predicate = (ibis_.collection_id == collection_id)
+            results = self.db_manager.select('flow_collections', predicate=predicate, output_by_row=True)
+            
+            if not results:
+                return []
+            
+            return [row['flow_id'] for row in results]
+            
+        except Exception as e:
+            logger.error(f"Failed to get flows for collection {collection_id}: {e}")
+            return []
+    
+    async def add_flow_to_collection(self, collection_id: str, flow_id: str, label: str, description: Optional[str] = None, created_by: Optional[str] = None) -> bool:
+        """
+        Add a flow to a collection
+        
+        Args:
+            collection_id (str): The collection ID
+            flow_id (str): The flow ID to add
+            label (str): Collection label
+            description (str, optional): Collection description
+            created_by (str, optional): Who is adding the flow
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Check if flow exists
+            flow = await self.get_flow(flow_id)
+            if not flow:
+                logger.warning(f"Flow {flow_id} not found when adding to collection {collection_id}")
+                return False
+            
+            # Check if already in collection
+            existing = await self.get_flow_collections(flow_id)
+            for collection in existing:
+                if collection.collection_id == collection_id:
+                    logger.info(f"Flow {flow_id} already in collection {collection_id}")
+                    return True
+            
+            # Add to collection
+            collection_data = {
+                'collection_id': collection_id,
+                'flow_id': flow_id,
+                'label': label,
+                'description': description or "",
+                'created': datetime.now(timezone.utc),
+                'created_by': created_by or "system"
+            }
+            
+            self.db_manager.insert('flow_collections', {k: [v] for k, v in collection_data.items()})
+            logger.info(f"Added flow {flow_id} to collection {collection_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to add flow {flow_id} to collection {collection_id}: {e}")
+            return False
+    
+    async def remove_flow_from_collection(self, collection_id: str, flow_id: str) -> bool:
+        """
+        Remove a flow from a collection
+        
+        Args:
+            collection_id (str): The collection ID
+            flow_id (str): The flow ID to remove
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            predicate = (ibis_.collection_id == collection_id) & (ibis_.flow_id == flow_id)
+            deleted_count = self.db_manager.delete('flow_collections', predicate)
+            
+            if deleted_count > 0:
+                logger.info(f"Removed flow {flow_id} from collection {collection_id}")
+                return True
+            else:
+                logger.warning(f"Flow {flow_id} not found in collection {collection_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to remove flow {flow_id} from collection {collection_id}: {e}")
+            return False
+    
+    async def delete_collection(self, collection_id: str) -> bool:
+        """
+        Delete an entire collection and remove all flow associations
+        
+        Args:
+            collection_id (str): The collection ID to delete
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            predicate = (ibis_.collection_id == collection_id)
+            deleted_count = self.db_manager.delete('flow_collections', predicate)
+            
+            if deleted_count > 0:
+                logger.info(f"Deleted collection {collection_id} with {deleted_count} flow associations")
+                return True
+            else:
+                logger.warning(f"Collection {collection_id} not found")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to delete collection {collection_id}: {e}")
+            return False
+
+    # Source Collection Management Methods
+    async def get_source_collections(self, source_id: str) -> List[SourceCollection]:
+        """
+        Get all collections that a source belongs to
+        
+        Args:
+            source_id (str): The source ID to get collections for
+            
+        Returns:
+            List[SourceCollection]: List of collections the source belongs to
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            predicate = (ibis_.source_id == source_id)
+            results = self.db_manager.select('source_collections', predicate=predicate, output_by_row=True)
+            
+            if not results:
+                return []
+            
+            collections = []
+            for row in results:
+                collection = SourceCollection(
+                    collection_id=row['collection_id'],
+                    source_id=row['source_id'],
+                    label=row['label'],
+                    description=row.get('description'),
+                    created=row.get('created'),
+                    created_by=row.get('created_by')
+                )
+                collections.append(collection)
+            
+            return collections
+            
+        except Exception as e:
+            logger.error(f"Failed to get source collections for source {source_id}: {e}")
+            return []
+    
+    async def get_collection_sources(self, collection_id: str) -> List[str]:
+        """
+        Get all source IDs that belong to a specific collection
+        
+        Args:
+            collection_id (str): The collection ID to get sources for
+            
+        Returns:
+            List[str]: List of source IDs in the collection
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            predicate = (ibis_.collection_id == collection_id)
+            results = self.db_manager.select('source_collections', predicate=predicate, output_by_row=True)
+            
+            if not results:
+                return []
+            
+            return [row['source_id'] for row in results]
+            
+        except Exception as e:
+            logger.error(f"Failed to get sources for collection {collection_id}: {e}")
+            return []
+    
+    async def add_source_to_collection(self, collection_id: str, source_id: str, label: str, description: Optional[str] = None, created_by: Optional[str] = None) -> bool:
+        """
+        Add a source to a collection
+        
+        Args:
+            collection_id (str): The collection ID
+            source_id (str): The source ID to add
+            label (str): Collection label
+            description (str, optional): Collection description
+            created_by (str, optional): Who is adding the source
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Check if source exists
+            source = await self.get_source(source_id)
+            if not source:
+                logger.warning(f"Source {source_id} not found when adding to collection {collection_id}")
+                return False
+            
+            # Check if already in collection
+            existing = await self.get_source_collections(source_id)
+            for collection in existing:
+                if collection.collection_id == collection_id:
+                    logger.info(f"Source {source_id} already in collection {collection_id}")
+                    return True
+            
+            # Add to collection
+            collection_data = {
+                'collection_id': collection_id,
+                'source_id': source_id,
+                'label': label,
+                'description': description or "",
+                'created': datetime.now(timezone.utc),
+                'created_by': created_by or "system"
+            }
+            
+            self.db_manager.insert('source_collections', {k: [v] for k, v in collection_data.items()})
+            logger.info(f"Added source {source_id} to collection {collection_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to add source {source_id} to collection {collection_id}: {e}")
+            return False
+    
+    async def remove_source_from_collection(self, collection_id: str, source_id: str) -> bool:
+        """
+        Remove a source from a collection
+        
+        Args:
+            collection_id (str): The collection ID
+            source_id (str): The source ID to remove
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            predicate = (ibis_.collection_id == collection_id) & (ibis_.source_id == source_id)
+            deleted_count = self.db_manager.delete('source_collections', predicate)
+            
+            if deleted_count > 0:
+                logger.info(f"Removed source {source_id} from collection {collection_id}")
+                return True
+            else:
+                logger.warning(f"Source {source_id} not found in collection {collection_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to remove source {source_id} from collection {collection_id}: {e}")
+            return False
+    
+    async def delete_source_collection(self, collection_id: str) -> bool:
+        """
+        Delete an entire source collection and remove all source associations
+        
+        Args:
+            collection_id (str): The collection ID to delete
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            predicate = (ibis_.collection_id == collection_id)
+            deleted_count = self.db_manager.delete('source_collections', predicate)
+            
+            if deleted_count > 0:
+                logger.info(f"Deleted source collection {collection_id} with {deleted_count} source associations")
+                return True
+            else:
+                logger.warning(f"Source collection {collection_id} not found")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to delete source collection {collection_id}: {e}")
+            return False
+
     async def delete_flow(self, flow_id: str, cascade: bool = True) -> bool:
         """
         Delete a flow from the VAST store by its unique identifier.
@@ -2140,8 +2584,8 @@ class VASTStore:
                 update_data['frame_rate'] = [flow.frame_rate]
             if 'read_only' in available_columns and hasattr(flow, 'read_only') and flow.read_only is not None:
                 update_data['read_only'] = [flow.read_only]
-            if 'flow_collection' in available_columns and hasattr(flow, 'flow_collection') and flow.flow_collection is not None:
-                update_data['flow_collection'] = [self._dict_to_json([item.model_dump() for item in flow.flow_collection] if flow.flow_collection else [])]
+                            # Note: flow_collection is now managed dynamically via flow_collections table
+                # Use add_flow_to_collection() and remove_flow_from_collection() methods instead
             
             # Don't include max_bit_rate and avg_bit_rate as they don't exist in the schema
             

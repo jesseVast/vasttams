@@ -138,7 +138,7 @@ class TestHarness:
             "codec": "video/h264",
             "frame_width": 1920,
             "frame_height": 1080,
-            "frame_rate": "25/1"
+            "frame_rate": {"numerator": 25, "denominator": 1}  # Fixed: TAMS object structure with numerator/denominator
         }
         defaults.update(kwargs)
         return VideoFlow(**defaults)
@@ -147,7 +147,10 @@ class TestHarness:
         """Create a sample flow segment with consistent data"""
         defaults = {
             "id": self.test_segment_id,
+            "object_id": str(uuid.uuid4()),  # Fixed: Added missing object_id field
             "timerange": "[0:0_3600:0)",  # Correct TAMS TimeRange format
+            "ts_offset": "0:0",  # Fixed: TAMS format should be "0:0" not 0
+            "last_duration": "3600:0",  # Fixed: TAMS format should be "3600:0" not 3600.0
             "sample_offset": 0,
             "sample_count": 90000,
             "key_frame_count": 3600

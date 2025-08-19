@@ -100,7 +100,7 @@ class TestEndToEndWorkflow:
                     "codec": "video/h264",
                     "frame_width": 1920,
                     "frame_height": 1080,
-                    "frame_rate": "25/1",
+                    "frame_rate": {"numerator": 25, "denominator": 1},
                     "label": "Flow 1",
                     "description": "First flow for workflow test"
                 }
@@ -256,7 +256,7 @@ class TestEndToEndWorkflow:
                     "codec": "video/h264",
                     "frame_width": 1920,
                     "frame_height": 1080,
-                    "frame_rate": "25/1",
+                    "frame_rate": {"numerator": 25, "denominator": 1},
                     "label": "Flow 2",
                     "description": "Second flow using obj-1"
                 }
@@ -437,15 +437,17 @@ class TestEndToEndWorkflow:
                 # Step 2: Create a flow
                 print("\n📝 Step 2: Creating flow")
                 flow_id = str(uuid.uuid4())
+                # Create flow data
                 flow_data = {
                     "id": flow_id,
                     "source_id": source_id,
+                    "format": "urn:x-nmos:format:video",
                     "codec": "video/h264",
                     "frame_width": 1920,
                     "frame_height": 1080,
-                    "frame_rate": "25/1",
-                    "label": "API Test Flow",
-                    "description": "Flow for API workflow test"
+                    "frame_rate": {"numerator": 25, "denominator": 1},  # Fixed: TAMS object format
+                    "label": "Test Video Flow",
+                    "description": "Test flow for end-to-end workflow"
                 }
                 
                 print(f"   📤 POST /flows")
@@ -585,7 +587,7 @@ class TestEndToEndWorkflow:
                     "codec": "video/h264",
                     "frame_width": 1920,
                     "frame_height": 1080,
-                    "frame_rate": "25/1",
+                    "frame_rate": {"numerator": 25, "denominator": 1},
                     "label": "Test Flow",
                     "description": "Flow for testing deletion workflow"
                 }
@@ -606,7 +608,7 @@ class TestEndToEndWorkflow:
                     "codec": "video/h264",
                     "frame_width": 1920,
                     "frame_height": 1080,
-                    "frame_rate": "25/1",
+                    "frame_rate": {"numerator": 25, "denominator": 1},
                     "label": "New Test Flow",
                     "description": "New flow using existing source"
                 }

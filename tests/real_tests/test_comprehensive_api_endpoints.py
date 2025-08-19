@@ -87,7 +87,7 @@ class TestComprehensiveAPIEndpoints:
                 "codec": "video/h264",
                 "frame_width": 1920,
                 "frame_height": 1080,
-                "frame_rate": "25/1",
+                "frame_rate": {"numerator": 25, "denominator": 1},  # Fixed: TAMS object format
                 "label": "Storage Test Flow",
                 "description": "Flow for testing storage allocation"
             }
@@ -162,9 +162,9 @@ class TestComprehensiveAPIEndpoints:
                 "codec": "video/h264",
                 "frame_width": 1920,
                 "frame_height": 1080,
-                "frame_rate": "25/1",
-                "label": "Tags Test Flow",
-                "description": "Flow for testing tags"
+                "frame_rate": {"numerator": 25, "denominator": 1},  # Fixed: TAMS object format
+                "label": "Test Flow for Tags",
+                "description": "Flow for testing tag operations"
             }
             
             async with session.post(f"{self.base_url}/flows", json=flow_data) as response:
@@ -266,7 +266,7 @@ class TestComprehensiveAPIEndpoints:
                 "codec": "video/h264",
                 "frame_width": 1920,
                 "frame_height": 1080,
-                "frame_rate": "25/1",
+                "frame_rate": {"numerator": 25, "denominator": 1},  # Fixed: TAMS object format
                 "label": "Properties Test Flow",
                 "description": "Flow for testing properties"
             }
@@ -511,7 +511,7 @@ class TestComprehensiveAPIEndpoints:
                         "codec": "video/h264",
                         "frame_width": 1920,
                         "frame_height": 1080,
-                        "frame_rate": "25/1",
+                        "frame_rate": {"numerator": 25, "denominator": 1},  # Fixed: TAMS object format
                         "label": f"Batch Flow {i}",
                         "description": f"Batch test flow {i}"
                     }

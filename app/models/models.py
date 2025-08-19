@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any, Union, Annotated
 from pydantic import BaseModel, Field, RootModel, UUID4, field_validator, field_serializer, validator
 import uuid
 import re
 from enum import Enum
+# Note: generate_uuid imported via string to avoid circular import
 
 
 class PathTemplateType(str, Enum):
@@ -582,7 +583,97 @@ class MediaStore(BaseModel):
 class EventStreamMechanism(BaseModel):
     """Event stream mechanism"""
     name: str
+    docs: Optional[str] = None
     description: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+
+
+# Event Models for TAMS Event Streaming
+class EventData(BaseModel):
+    """Base event data structure"""
+    entity_id: str = Field(..., description="ID of the entity that triggered the event")
+    entity_type: str = Field(..., description="Type of entity (source, flow, segment, object, collection)")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Event timestamp")
+    user_id: Optional[str] = Field(None, description="User who triggered the event")
+    source: str = Field(default="tams-api", description="Source of the event")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional event metadata")
+
+
+class SourceEventData(EventData):
+    """Source-specific event data"""
+    entity_type: str = Field(default="source", description="Entity type")
+    source_id: str = Field(..., description="Source ID")
+    label: Optional[str] = Field(None, description="Source label")
+    format: Optional[str] = Field(None, description="Source format")
+    tags: Optional[Dict[str, str]] = Field(None, description="Source tags")
+
+
+class FlowEventData(EventData):
+    """Flow-specific event data"""
+    entity_type: str = Field(default="flow", description="Entity type")
+    flow_id: str = Field(..., description="Flow ID")
+    source_id: str = Field(..., description="Source ID")
+    label: Optional[str] = Field(None, description="Flow label")
+    format: Optional[str] = Field(None, description="Flow format")
+    codec: Optional[str] = Field(None, description="Flow codec")
+    tags: Optional[Dict[str, str]] = Field(None, description="Flow tags")
+
+
+class FlowSegmentEventData(EventData):
+    """Flow segment-specific event data"""
+    entity_type: str = Field(default="segment", description="Entity type")
+    segment_id: str = Field(..., description="Segment ID")
+    flow_id: str = Field(..., description="Flow ID")
+    object_id: str = Field(..., description="Object ID")
+    timerange: Optional[str] = Field(None, description="Segment timerange")
+    tags: Optional[Dict[str, str]] = Field(None, description="Segment tags")
+
+
+class ObjectEventData(EventData):
+    """Object-specific event data"""
+    entity_type: str = Field(default="object", description="Entity type")
+    object_id: str = Field(..., description="Object ID")
+    size: Optional[int] = Field(None, description="Object size in bytes")
+    referenced_by_flows: Optional[List[str]] = Field(None, description="Flows that reference this object")
+    tags: Optional[Dict[str, str]] = Field(None, description="Object tags")
+
+
+class CollectionEventData(EventData):
+    """Collection-specific event data"""
+    entity_type: str = Field(default="collection", description="Entity type")
+    collection_id: str = Field(..., description="Collection ID")
+    collection_type: str = Field(..., description="Type of collection (flow, source)")
+    label: Optional[str] = Field(None, description="Collection label")
+    member_count: Optional[int] = Field(None, description="Number of members in collection")
+    tags: Optional[Dict[str, str]] = Field(None, description="Collection tags")
+
+
+class Event(BaseModel):
+    """TAMS event structure"""
+    event_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Unique event identifier")
+    event_type: str = Field(..., description="Event type (e.g., 'flows/created', 'sources/updated')")
+    event_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Event timestamp")
+    data: EventData = Field(..., description="Event data")
+    
+    @field_validator('event_type')
+    @classmethod
+    def validate_event_type(cls, v: str) -> str:
+        valid_types = [
+            # Source events
+            'sources/created', 'sources/updated', 'sources/deleted',
+            # Flow events  
+            'flows/created', 'flows/updated', 'flows/deleted',
+            # Segment events
+            'flows/segments_added', 'flows/segments_updated', 'flows/segments_deleted',
+            # Object events
+            'objects/created', 'objects/updated', 'objects/deleted',
+            # Collection events
+            'collections/created', 'collections/updated', 'collections/deleted',
+            'collections/members_added', 'collections/members_removed'
+        ]
+        if v not in valid_types:
+            raise ValueError(f'Invalid event type. Must be one of: {", ".join(valid_types)}')
+        return v
 
 
 class Service(BaseModel):

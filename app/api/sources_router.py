@@ -5,6 +5,7 @@ from ..models.models import Source, SourcesResponse, SourceFilters, Tags
 from .sources import get_sources, get_source, create_source, delete_source
 from ..storage.vast_store import VASTStore
 from ..core.dependencies import get_vast_store
+from ..core.event_manager import EventManager
 import logging
 
 logger = logging.getLogger(__name__)
@@ -73,6 +74,14 @@ async def create_new_source(
         success = await create_source(store, source)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to create source")
+        
+        # Emit source created event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_source_event('sources/created', source)
+        except Exception as e:
+            logger.warning("Failed to emit source created event: %s", e)
+        
         return source
     except HTTPException:
         raise
@@ -126,13 +135,22 @@ async def create_sources_batch(
             raise HTTPException(status_code=500, detail="Failed to insert sources batch")
         
         logger.info("Successfully created %d sources using VAST batch insert", rows_inserted)
+        
+        # Emit source created events for batch creation
+        try:
+            event_manager = EventManager(store)
+            for source in sources:
+                await event_manager.emit_source_event('sources/created', source)
+        except Exception as e:
+            logger.warning("Failed to emit batch source created events: %s", e)
+        
         return sources
         
     except HTTPException:
         raise
-            except Exception as e:
-            logger.error("Failed to create sources batch: %s", e)
-            raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as e:
+        logger.error("Failed to create sources batch: %s", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # Source Collection Management Endpoints
 @router.get("/sources/{source_id}/source_collection")
@@ -275,9 +293,21 @@ async def delete_source_by_id(
 ):
     """Delete a source (hard delete only - TAMS compliant)"""
     try:
+        # Get source before deletion for event emission
+        source = await get_source(store, source_id)
+        
         success = await delete_source(store, source_id, cascade)
         if not success:
             raise HTTPException(status_code=404, detail="Source not found")
+        
+        # Emit source deleted event
+        if source:
+            try:
+                event_manager = EventManager(store)
+                await event_manager.emit_source_event('sources/deleted', source)
+            except Exception as e:
+                logger.warning("Failed to emit source deleted event: %s", e)
+        
         return {"message": "Source hard deleted successfully"}
     except HTTPException:
         raise
@@ -329,6 +359,13 @@ async def update_source_tags(
         success = await store.update_source_tags(source_id, tags)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update source tags")
+        
+        # Emit source updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_source_event('sources/updated', source)
+        except Exception as e:
+            logger.warning("Failed to emit source updated event: %s", e)
         
         return tags
         
@@ -388,6 +425,13 @@ async def update_source_tag(
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update source tag")
         
+        # Emit source updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_source_event('sources/updated', source)
+        except Exception as e:
+            logger.warning("Failed to emit source updated event: %s", e)
+        
         return  # 204 No Content
         
     except HTTPException:
@@ -416,6 +460,13 @@ async def delete_source_tag(
             success = await store.update_source_tags(source_id, Tags(**new_tags))
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to delete source tag")
+            
+            # Emit source updated event
+            try:
+                event_manager = EventManager(store)
+                await event_manager.emit_source_event('sources/updated', source)
+            except Exception as e:
+                logger.warning("Failed to emit source updated event: %s", e)
         
         return  # 204 No Content
         
@@ -466,6 +517,13 @@ async def update_source_description(
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update source description")
         
+        # Emit source updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_source_event('sources/updated', source)
+        except Exception as e:
+            logger.warning("Failed to emit source updated event: %s", e)
+        
         return {"message": "Description updated successfully"}
     except HTTPException:
         raise
@@ -490,6 +548,13 @@ async def delete_source_description(
         success = await store.update_source(source_id, source)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete source description")
+        
+        # Emit source updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_source_event('sources/updated', source)
+        except Exception as e:
+            logger.warning("Failed to emit source updated event: %s", e)
         
         return {"message": "Description deleted successfully"}
     except HTTPException:
@@ -537,6 +602,13 @@ async def update_source_label(
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update source label")
         
+        # Emit source updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_source_event('sources/updated', source)
+        except Exception as e:
+            logger.warning("Failed to emit source updated event: %s", e)
+        
         return {"message": "Label updated successfully"}
     except HTTPException:
         raise
@@ -561,6 +633,13 @@ async def delete_source_label(
         success = await store.update_source(source_id, source)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete source label")
+        
+        # Emit source updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_source_event('sources/updated', source)
+        except Exception as e:
+            logger.warning("Failed to emit source updated event: %s", e)
         
         return {"message": "Label deleted successfully"}
     except HTTPException:

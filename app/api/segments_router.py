@@ -5,6 +5,7 @@ from .segments import get_flow_segments, create_flow_segment, delete_flow_segmen
 from ..storage.vast_store import VASTStore
 from ..core.dependencies import get_vast_store
 from ..core.timerange_utils import get_storage_timerange
+from ..core.event_manager import EventManager
 import logging
 import json
 
@@ -101,6 +102,13 @@ async def create_new_flow_segment(
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create segment")
             
+            # Emit segment created event
+            try:
+                event_manager = EventManager(store)
+                await event_manager.emit_segment_event('flows/segments_added', segment_obj)
+            except Exception as e:
+                logger.warning("Failed to emit segment created event: %s", e)
+            
             return segment_obj
         
         # Handle JSON data
@@ -116,6 +124,14 @@ async def create_new_flow_segment(
             success = await create_flow_segment(store, flow_id, segment)
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create segment")
+            
+            # Emit segment created event
+            try:
+                event_manager = EventManager(store)
+                await event_manager.emit_segment_event('flows/segments_added', segment)
+            except Exception as e:
+                logger.warning("Failed to emit segment created event: %s", e)
+            
             return segment
         
         # Handle form data without file (segment_data only)
@@ -142,6 +158,13 @@ async def create_new_flow_segment(
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create segment")
             
+            # Emit segment created event
+            try:
+                event_manager = EventManager(store)
+                await event_manager.emit_segment_event('flows/segments_added', segment_obj)
+            except Exception as e:
+                logger.warning("Failed to emit segment created event: %s", e)
+            
             return segment_obj
         else:
             raise HTTPException(status_code=400, detail="Either segment JSON or file upload with segment data is required")
@@ -164,9 +187,23 @@ async def delete_flow_segments_by_id(
     """Delete segments for a flow (hard delete only - TAMS compliant)"""
     try:
         await check_flow_read_only(store, flow_id)
+        
+        # Get segments before deletion for event emission
+        segments = await get_flow_segments(store, flow_id, timerange)
+        
         success = await delete_flow_segments(store, flow_id, timerange)
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")
+        
+        # Emit segment deleted events
+        if segments:
+            try:
+                event_manager = EventManager(store)
+                for segment in segments:
+                    await event_manager.emit_segment_event('flows/segments_deleted', segment)
+            except Exception as e:
+                logger.warning("Failed to emit segment deleted events: %s", e)
+        
         return {"message": "Segments hard deleted successfully"}
     except HTTPException:
         raise

@@ -7,6 +7,7 @@ from ..storage.vast_store import VASTStore
 from ..core.dependencies import get_vast_store
 from ..core.config import get_settings
 from ..core.timerange_utils import get_storage_timerange
+from ..core.event_manager import EventManager
 import logging
 
 logger = logging.getLogger(__name__)
@@ -123,6 +124,14 @@ async def update_flow_by_id(
         updated_flow = await update_flow(store, flow_id, flow)
         if not updated_flow:
             raise HTTPException(status_code=404, detail="Flow not found")
+        
+        # Emit flow updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_flow_event('flows/updated', updated_flow)
+        except Exception as e:
+            logger.warning("Failed to emit flow updated event: %s", e)
+        
         return updated_flow
     except HTTPException:
         raise
@@ -140,9 +149,22 @@ async def delete_flow_by_id(
     """Delete a flow (hard delete only - TAMS compliant)"""
     try:
         await check_flow_read_only(store, flow_id)
+        
+        # Get flow before deletion for event emission
+        flow = await get_flow(store, flow_id)
+        
         success = await delete_flow(store, flow_id, cascade)
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")
+        
+        # Emit flow deleted event
+        if flow:
+            try:
+                event_manager = EventManager(store)
+                await event_manager.emit_flow_event('flows/deleted', flow)
+            except Exception as e:
+                logger.warning("Failed to emit flow deleted event: %s", e)
+        
         return {"message": "Flow hard deleted successfully"}
     except HTTPException:
         raise
@@ -161,6 +183,14 @@ async def create_new_flow(
         success = await create_flow(store, flow)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to create flow")
+        
+        # Emit flow created event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_flow_event('flows/created', flow)
+        except Exception as e:
+            logger.warning("Failed to emit flow created event: %s", e)
+        
         return flow
     except HTTPException:
         raise
@@ -203,6 +233,15 @@ async def create_flows_batch(
             raise HTTPException(status_code=500, detail="Failed to insert flows batch")
         
         logger.info("Successfully created %d flows using VAST batch insert", rows_inserted)
+        
+        # Emit flow created events for batch creation
+        try:
+            event_manager = EventManager(store)
+            for flow in flows:
+                await event_manager.emit_flow_event('flows/created', flow)
+        except Exception as e:
+            logger.warning("Failed to emit batch flow created events: %s", e)
+        
         return flows
         
     except HTTPException:
@@ -280,6 +319,13 @@ async def update_flow_tags(
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update flow tags")
         
+        # Emit flow updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_flow_event('flows/updated', flow)
+        except Exception as e:
+            logger.warning("Failed to emit flow updated event: %s", e)
+        
         return tags
         
     except HTTPException:
@@ -311,6 +357,13 @@ async def update_flow_tag(
         success = await store.update_flow(flow_id, flow)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update flow tag")
+        
+        # Emit flow updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_flow_event('flows/updated', flow)
+        except Exception as e:
+            logger.warning("Failed to emit flow updated event: %s", e)
         
         return {"message": "Tag updated successfully"}
     except HTTPException:
@@ -346,6 +399,13 @@ async def delete_flow_tag(
         success = await store.update_flow(flow_id, flow)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete flow tag")
+        
+        # Emit flow updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_flow_event('flows/updated', flow)
+        except Exception as e:
+            logger.warning("Failed to emit flow updated event: %s", e)
         
         return {"message": "Tag deleted successfully"}
     except HTTPException:
@@ -394,6 +454,13 @@ async def update_flow_description(
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update flow description")
         
+        # Emit flow updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_flow_event('flows/updated', flow)
+        except Exception as e:
+            logger.warning("Failed to emit flow updated event: %s", e)
+        
         return {"message": "Description updated successfully"}
     except HTTPException:
         raise
@@ -419,6 +486,13 @@ async def delete_flow_description(
         success = await store.update_flow(flow_id, flow)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete flow description")
+        
+        # Emit flow updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_flow_event('flows/updated', flow)
+        except Exception as e:
+            logger.warning("Failed to emit flow updated event: %s", e)
         
         return {"message": "Description deleted successfully"}
     except HTTPException:
@@ -467,6 +541,13 @@ async def update_flow_label(
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update flow label")
         
+        # Emit flow updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_flow_event('flows/updated', flow)
+        except Exception as e:
+            logger.warning("Failed to emit flow updated event: %s", e)
+        
         return {"message": "Label updated successfully"}
     except HTTPException:
         raise
@@ -492,6 +573,13 @@ async def delete_flow_label(
         success = await store.update_flow(flow_id, flow)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete flow label")
+        
+        # Emit flow updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_flow_event('flows/updated', flow)
+        except Exception as e:
+            logger.warning("Failed to emit flow updated event: %s", e)
         
         return {"message": "Label deleted successfully"}
     except HTTPException:

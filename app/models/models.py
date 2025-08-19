@@ -416,7 +416,7 @@ class VideoFlow(BaseModel):
     # Video-specific fields
     frame_width: int = Field(gt=0, description="Frame width must be positive")
     frame_height: int = Field(gt=0, description="Frame height must be positive")
-    frame_rate: str = Field(description="Frame rate in TAMS timestamp format", pattern=r'^-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8})$')  # TAMS timestamp format
+    frame_rate: Optional[SegmentDuration] = Field(None, description="Frame rate as numerator/denominator (e.g., 25:1 for 25 fps)")  # Fixed: TAMS object structure
     interlace_mode: Optional[str] = Field(None, description="Interlacing mode")
     color_sampling: Optional[str] = Field(None, description="Color sampling format")
     color_space: Optional[str] = Field(None, description="Color space")
@@ -463,7 +463,7 @@ class AudioFlow(BaseModel):
     segment_duration: Optional[SegmentDuration] = Field(None, description="Target flow segment duration as numerator/denominator")  # TAMS structured format
     
     # Audio-specific fields
-    sample_rate: str = Field(description="Audio sample rate in TAMS timestamp format", pattern=r'^-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8})$')  # TAMS timestamp format
+    sample_rate: int = Field(gt=0, description="Audio sample rate in samples per second")  # Fixed: TAMS integer format
     bits_per_sample: int = Field(gt=0, description="Bits per audio sample")
     channels: int = Field(gt=0, description="Number of audio channels")
     container: Optional[str] = Field(None, description="Container MIME type for flow segments")

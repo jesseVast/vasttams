@@ -3,6 +3,7 @@
 import logging
 import time
 import asyncio
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 import aiohttp
@@ -195,18 +196,15 @@ class TelemetryManager:
         
         # Set global providers
         trace.set_tracer_provider(self.tracer_provider)
-        from opentelemetry import metrics as otel_metrics
-        otel_metrics.set_meter_provider(self.meter_provider)
+        metrics.set_meter_provider(self.meter_provider)
         self.tracer = trace.get_tracer(__name__)
     
     def _get_jaeger_endpoint(self) -> Optional[str]:
         """Get Jaeger endpoint from environment"""
-        import os
         return os.getenv("JAEGER_ENDPOINT")
     
     def _get_otlp_endpoint(self) -> Optional[str]:
         """Get OTLP endpoint from environment"""
-        import os
         return os.getenv("OTLP_ENDPOINT")
     
     def instrument_fastapi(self, app):

@@ -53,6 +53,7 @@ from pyarrow import Table, Schema, RecordBatch
 
 from .vastdbmanager import VastDBManager
 from ..core.telemetry import telemetry_manager, trace_operation
+from ..core.timerange_utils import timeranges_overlap
 from ..models.models import (
     Source, Flow, FlowSegment, Object, DeletionRequest, 
     TimeRange, Tags, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow,
@@ -652,7 +653,6 @@ class VASTStore:
             True if timeranges overlap, False otherwise
         """
         try:
-            from ..core.timerange_utils import timeranges_overlap
             return timeranges_overlap(stored_timerange, query_timerange)
         except ImportError:
             # Fallback to basic string comparison if timerange_utils not available
@@ -1569,8 +1569,6 @@ class VASTStore:
             List[FlowCollection]: List of collections the flow belongs to
         """
         try:
-            from ibis import _ as ibis_
-            
             predicate = (ibis_.flow_id == flow_id)
             results = self.db_manager.select('flow_collections', predicate=predicate, output_by_row=True)
             
@@ -1606,8 +1604,6 @@ class VASTStore:
             List[str]: List of flow IDs in the collection
         """
         try:
-            from ibis import _ as ibis_
-            
             predicate = (ibis_.collection_id == collection_id)
             results = self.db_manager.select('flow_collections', predicate=predicate, output_by_row=True)
             
@@ -1678,8 +1674,6 @@ class VASTStore:
             bool: True if successful, False otherwise
         """
         try:
-            from ibis import _ as ibis_
-            
             predicate = (ibis_.collection_id == collection_id) & (ibis_.flow_id == flow_id)
             deleted_count = self.db_manager.delete('flow_collections', predicate)
             
@@ -1705,7 +1699,6 @@ class VASTStore:
             bool: True if successful, False otherwise
         """
         try:
-            from ibis import _ as ibis_
             
             predicate = (ibis_.collection_id == collection_id)
             deleted_count = self.db_manager.delete('flow_collections', predicate)
@@ -1733,7 +1726,6 @@ class VASTStore:
             List[SourceCollection]: List of collections the source belongs to
         """
         try:
-            from ibis import _ as ibis_
             
             predicate = (ibis_.source_id == source_id)
             results = self.db_manager.select('source_collections', predicate=predicate, output_by_row=True)
@@ -1770,7 +1762,6 @@ class VASTStore:
             List[str]: List of source IDs in the collection
         """
         try:
-            from ibis import _ as ibis_
             
             predicate = (ibis_.collection_id == collection_id)
             results = self.db_manager.select('source_collections', predicate=predicate, output_by_row=True)
@@ -1842,7 +1833,6 @@ class VASTStore:
             bool: True if successful, False otherwise
         """
         try:
-            from ibis import _ as ibis_
             
             predicate = (ibis_.collection_id == collection_id) & (ibis_.source_id == source_id)
             deleted_count = self.db_manager.delete('source_collections', predicate)
@@ -1869,7 +1859,6 @@ class VASTStore:
             bool: True if successful, False otherwise
         """
         try:
-            from ibis import _ as ibis_
             
             predicate = (ibis_.collection_id == collection_id)
             deleted_count = self.db_manager.delete('source_collections', predicate)
@@ -1904,7 +1893,6 @@ class VASTStore:
             ValueError: If cascade=False and segments exist
         """
         try:
-            from ibis import _ as ibis_
             
             # First check if flow exists
             predicate = (ibis_.id == flow_id)
@@ -1926,7 +1914,6 @@ class VASTStore:
             
             if cascade and deps['has_dependencies']:
                 # Check if this is a large deletion that needs async handling
-                from ..core.config import get_settings
                 settings = get_settings()
                 threshold = settings.async_deletion_threshold
                 
@@ -1967,7 +1954,6 @@ class VASTStore:
             bool: True if segments were deleted, False if deletion failed.
         """
         try:
-            from ibis import _ as ibis_
             
             # Get segments to delete
             segments = await self.get_flow_segments(flow_id, timerange)
@@ -2012,7 +1998,6 @@ class VASTStore:
             bool: True if the object was deleted, False if not found or deletion failed.
         """
         try:
-            from ibis import _ as ibis_
             
             # First check if object exists
             predicate = (ibis_.id == object_id)  # Changed from object_id to id
@@ -2396,7 +2381,6 @@ class VASTStore:
             }
         """
         try:
-            from ibis import _ as ibis_
             
             # Check for dependent flows (most direct dependency)
             flow_predicate = (ibis_.source_id == source_id)
@@ -2623,7 +2607,6 @@ class VASTStore:
             }
         """
         try:
-            from ibis import _ as ibis_
             
             # Check for dependent segments
             segment_predicate = (ibis_.flow_id == flow_id)
@@ -2680,7 +2663,6 @@ class VASTStore:
             }
         """
         try:
-            from ibis import _ as ibis_
             
             # Check for dependent objects that reference the flow containing this segment
             # Since objects are immutable and linked through segments, we check if this segment
@@ -2763,7 +2745,6 @@ class VASTStore:
                 raise ValueError(f"Flow {flow_id} has no segments to delete")
             
             # Get configurable threshold
-            from ..core.config import get_settings
             settings = get_settings()
             threshold = settings.async_deletion_threshold
             
@@ -2809,7 +2790,6 @@ class VASTStore:
             bool: True if created successfully, False otherwise
         """
         try:
-            from ibis import _ as ibis_
             
             # Insert deletion request
             rows_inserted = self.db_manager.insert_batch_efficient(
@@ -2835,7 +2815,6 @@ class VASTStore:
             Optional[Dict[str, Any]]: Deletion request data or None if not found
         """
         try:
-            from ibis import _ as ibis_
             
             predicate = (ibis_.id == request_id)
             results = self.db_manager.select('deletion_requests', predicate=predicate, output_by_row=True)
@@ -2895,7 +2874,6 @@ class VASTStore:
             bool: True if updated successfully, False otherwise
         """
         try:
-            from ibis import _ as ibis_
             
             # Update status and timestamp
             update_data = {
@@ -2958,7 +2936,6 @@ class VASTStore:
             bool: True if reference was removed successfully, False otherwise
         """
         try:
-            from ibis import _ as ibis_
             
             predicate = (ibis_.object_id == object_id) & (ibis_.flow_id == flow_id)
             deleted_count = self.db_manager.delete('flow_object_references', predicate)
@@ -2985,7 +2962,6 @@ class VASTStore:
             List[str]: List of flow IDs that reference this object
         """
         try:
-            from ibis import _ as ibis_
             
             predicate = (ibis_.object_id == object_id)
             results = self.db_manager.select('flow_object_references', predicate=predicate, output_by_row=True)
@@ -3019,7 +2995,6 @@ class VASTStore:
             List[str]: List of object IDs referenced by this flow
         """
         try:
-            from ibis import _ as ibis_
             
             predicate = (ibis_.flow_id == flow_id)
             results = self.db_manager.select('flow_object_references', predicate=predicate, output_by_row=True)

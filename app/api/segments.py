@@ -41,6 +41,10 @@ async def delete_flow_segments(store: VASTStore, flow_id: str, timerange: Option
     try:
         success = await store.delete_flow_segments(flow_id, timerange=timerange)
         return success
+    except ValueError as e:
+        # Handle constraint violations properly (segments with dependent objects)
+        logger.warning("Constraint violation deleting segments for flow %s: %s", flow_id, e)
+        raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
         logger.error("Failed to delete flow segments for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")

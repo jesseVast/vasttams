@@ -167,6 +167,7 @@ async def delete_flow_by_id(
         
         return {"message": "Flow hard deleted successfully"}
     except HTTPException:
+        # Re-raise HTTP exceptions (including 409 Conflict from constraint violations)
         raise
     except Exception as e:
         logger.error("Failed to delete flow %s: %s", flow_id, e)

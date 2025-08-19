@@ -25,13 +25,23 @@ class TestSourceModelReal:
     
     def test_source_validation_with_invalid_format(self):
         """Test Source validation with invalid format"""
-        with pytest.raises(ValueError):
+        # Test that invalid format raises ValueError
+        with pytest.raises(ValueError, match="Invalid content format"):
             Source(
                 id=uuid.uuid4(),
                 format="invalid-format",
                 label="Test Source",
                 description="Test description"
             )
+        
+        # Test that valid format works
+        valid_source = Source(
+            id=uuid.uuid4(),
+            format="urn:x-nmos:format:video",
+            label="Test Source",
+            description="Test description"
+        )
+        assert valid_source.format == "urn:x-nmos:format:video"
     
     def test_source_serialization_roundtrip(self):
         """Test Source serialization and deserialization"""
@@ -79,7 +89,8 @@ class TestVideoFlowModelReal:
     
     def test_video_flow_validation_with_invalid_dimensions(self):
         """Test VideoFlow validation with invalid dimensions"""
-        with pytest.raises(ValueError):
+        # Test that invalid dimensions raise ValueError
+        with pytest.raises(ValueError, match="greater than 0"):
             VideoFlow(
                 id=uuid.uuid4(),
                 source_id=uuid.uuid4(),
@@ -88,6 +99,18 @@ class TestVideoFlowModelReal:
                 frame_height=1080,
                 frame_rate="25/1"
             )
+        
+        # Test that valid dimensions work
+        valid_flow = VideoFlow(
+            id=uuid.uuid4(),
+            source_id=uuid.uuid4(),
+            codec="video/h264",
+            frame_width=1920,  # Valid width
+            frame_height=1080,
+            frame_rate="25/1"
+        )
+        assert valid_flow.frame_width == 1920
+        assert valid_flow.frame_height == 1080
     
     def test_video_flow_relationships(self):
         """Test VideoFlow relationship with Source"""
@@ -147,6 +170,17 @@ class TestFlowSegmentModelReal:
             key_frame_count=10
         )
         assert valid_segment.timerange is not None
+        
+        # Test that invalid timerange format still passes (current behavior)
+        # This is expected since timerange validation is intentionally relaxed
+        invalid_segment = FlowSegment(
+            id=str(uuid.uuid4()),
+            timerange="invalid-timerange-format",  # Invalid format but should pass
+            sample_offset=0,
+            sample_count=1000,
+            key_frame_count=10
+        )
+        assert invalid_segment.timerange == "invalid-timerange-format"
         
         # Note: Since timerange is just a string field without custom validation,
         # invalid formats will still pass validation. This is expected behavior.
@@ -212,14 +246,23 @@ class TestWebhookModelReal:
         )
         assert valid_webhook.url is not None
         
-        # Invalid URL - this will fail at Pydantic validation level
-        with pytest.raises(ValueError):
+        # Test that invalid URL raises ValueError
+        with pytest.raises(ValueError, match="must start with http:// or https://"):
             Webhook(
                 url="not-a-valid-url",
                 api_key_name="test_key",
                 api_key_value="test_value",
                 events=["test_event"]
             )
+        
+        # Test that HTTP URLs work
+        http_webhook = Webhook(
+            url="http://example.com/webhook",
+            api_key_name="test_key",
+            api_key_value="test_value",
+            events=["test_event"]
+        )
+        assert http_webhook.url == "http://example.com/webhook"
 
 
 class TestUserModelReal:

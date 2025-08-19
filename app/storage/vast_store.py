@@ -492,7 +492,9 @@ class VASTStore:
             ],
             'flows': [
                 ('id',),  # Primary key projection
-                ('id', 'source_id')  # Composite key for source-based quer
+                ('id', 'source_id'),  # Composite key for source-based queries
+                ('source_id', 'created'),  # Source-based creation time queries
+                ('source_id', 'metadata_updated'),  # Source-based update time queries
             ],
             'segments': [
                 ('id',),  # Primary key projection
@@ -500,6 +502,10 @@ class VASTStore:
                 ('id', 'flow_id', 'object_id'),  # Composite key for segment queries
                 ('id', 'object_id'),  # Composite projection for object-based queries
                 ('id', 'start_time', 'end_time'),  # Time range projection
+                ('source_id', 'start_time', 'end_time'),  # Source-based time range queries
+                ('flow_id', 'start_time', 'end_time'),  # Flow-based time range queries
+                ('object_id', 'start_time', 'end_time'),  # Object-based time range queries
+                ('source_id', 'flow_id', 'start_time', 'end_time'),  # Composite source+flow time range queries
             ],
             'objects': [
                 ('id',),  # Primary key projection

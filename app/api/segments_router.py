@@ -3,6 +3,7 @@ from typing import List, Optional
 from ..models.models import FlowSegment, FlowStorage, FlowStoragePost
 from .segments import get_flow_segments, create_flow_segment, delete_flow_segments, create_flow_storage, SegmentManager
 from ..storage.vast_store import VASTStore
+from ..storage.s3_store import S3Store
 from ..core.dependencies import get_vast_store
 from ..core.timerange_utils import get_storage_timerange
 from ..core.event_manager import EventManager
@@ -83,7 +84,6 @@ async def create_new_flow_segment(
                 
                 # Generate storage_path if not provided to ensure consistency
                 if not segment_obj.storage_path:
-                    from ..storage.s3_store import S3Store
                     s3_store = S3Store()
                     storage_path = s3_store.generate_segment_key(flow_id, segment_obj.id, segment_obj.timerange)
                     segment_obj.storage_path = storage_path
@@ -115,7 +115,6 @@ async def create_new_flow_segment(
         elif segment:
             # Generate storage_path if not provided to ensure consistency
             if not segment.storage_path:
-                from ..storage.s3_store import S3Store
                 s3_store = S3Store()
                 storage_path = s3_store.generate_segment_key(flow_id, segment.object_id, segment.timerange)
                 segment.storage_path = storage_path
@@ -142,7 +141,6 @@ async def create_new_flow_segment(
                 
                 # Generate storage_path if not provided to ensure consistency
                 if not segment_obj.storage_path:
-                    from ..storage.s3_store import S3Store
                     s3_store = S3Store()
                     storage_path = s3_store.generate_segment_key(flow_id, segment_obj.object_id, segment_obj.timerange)
                     segment_obj.storage_path = storage_path

@@ -27,7 +27,7 @@ from prometheus_client import (
     generate_latest, CONTENT_TYPE_LATEST,
     CollectorRegistry, multiprocess
 )
-from opentelemetry import trace, metrics
+from opentelemetry import trace, metrics as otel_metrics
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -196,7 +196,7 @@ class TelemetryManager:
         
         # Set global providers
         trace.set_tracer_provider(self.tracer_provider)
-        metrics.set_meter_provider(self.meter_provider)
+        otel_metrics.set_meter_provider(self.meter_provider)
         self.tracer = trace.get_tracer(__name__)
     
     def _get_jaeger_endpoint(self) -> Optional[str]:

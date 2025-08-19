@@ -144,7 +144,6 @@ class TestFlowSegmentModelReal:
     def test_flow_segment_creation_with_real_data(self):
         """Test creating a FlowSegment with realistic data"""
         segment = FlowSegment(
-            id=str(uuid.uuid4()),
             object_id=str(uuid.uuid4()),  # Fixed: Added missing object_id field
             timerange="[0:0_3600:0)",  # 1 hour range in correct TAMS TimeRange format
             sample_offset=0,
@@ -173,20 +172,19 @@ class TestFlowSegmentModelReal:
         )
         assert valid_segment.timerange is not None
         
-        # Test that invalid timerange format still passes (current behavior)
-        # This is expected since timerange validation is intentionally relaxed
-        invalid_segment = FlowSegment(
-            object_id=str(uuid.uuid4()),
-            timerange="invalid-timerange-format",  # Invalid format but should pass
-            sample_offset=0,
-            sample_count=1000,
-            key_frame_count=10
-        )
-        assert invalid_segment.timerange == "invalid-timerange-format"
+        # Test that invalid timerange format raises validation error (strict validation)
+        # This is expected since timerange has strict TAMS pattern validation
+        with pytest.raises(ValueError, match="String should match pattern"):
+            FlowSegment(
+                object_id=str(uuid.uuid4()),
+                timerange="invalid-timerange-format",  # Invalid format should fail validation
+                sample_offset=0,
+                sample_count=1000,
+                key_frame_count=10
+            )
         
-        # Note: Since timerange is just a string field without custom validation,
-        # invalid formats will still pass validation. This is expected behavior.
-        # If strict timerange validation is needed, it should be added to the model.
+        # Note: Timerange has strict TAMS pattern validation, so invalid formats
+        # will properly fail validation. This ensures TAMS compliance.
 
 
 class TestObjectModelReal:
@@ -377,14 +375,14 @@ class TestModelRelationshipsReal:
         )
         
         segment = FlowSegment(
-            id=str(uuid.uuid4()),
+            object_id=str(uuid.uuid4()),  # Fixed: Added missing object_id field
             timerange="[0:0_3600:0)",  # 1 hour range in correct TAMS TimeRange format
             sample_offset=0,
             sample_count=90000,
             key_frame_count=3600
         )
         
-        assert segment.id is not None
+        assert segment.object_id is not None
 
 
 if __name__ == "__main__":

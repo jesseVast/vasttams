@@ -130,9 +130,9 @@ async def create_sources_batch(
         
     except HTTPException:
         raise
-            except Exception as e:
-            logger.error("Failed to create sources batch: %s", e)
-            raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as e:
+        logger.error("Failed to create sources batch: %s", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # Source Collection Management Endpoints
 @router.get("/sources/{source_id}/source_collection")

@@ -720,8 +720,7 @@ class VASTStore:
                 'created': source.created or datetime.now(timezone.utc),
                 'updated': source.updated or datetime.now(timezone.utc),
                 'tags': self._dict_to_json(source.tags.root if source.tags else {}),
-                'source_collection': self._dict_to_json([item.model_dump() for item in source.source_collection] if source.source_collection else []),
-                'collected_by': self._dict_to_json([str(uuid) for uuid in source.collected_by] if source.collected_by else []),
+                # Note: source_collection and collected_by are dynamic fields computed at runtime, not stored directly
             }
             # Insert into VAST database as dict of lists
             self.db_manager.insert('sources', {k: [v] for k, v in source_data.items()})

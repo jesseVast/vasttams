@@ -87,7 +87,7 @@ class TestComprehensiveAPIEndpoints:
                 "codec": "video/h264",
                 "frame_width": 1920,
                 "frame_height": 1080,
-                "frame_rate": "25/1",
+                "frame_rate": "25:1",
                 "label": "Storage Test Flow",
                 "description": "Flow for testing storage allocation"
             }
@@ -162,7 +162,7 @@ class TestComprehensiveAPIEndpoints:
                 "codec": "video/h264",
                 "frame_width": 1920,
                 "frame_height": 1080,
-                "frame_rate": "25/1",
+                "frame_rate": "25:1",
                 "label": "Tags Test Flow",
                 "description": "Flow for testing tags"
             }
@@ -266,7 +266,7 @@ class TestComprehensiveAPIEndpoints:
                 "codec": "video/h264",
                 "frame_width": 1920,
                 "frame_height": 1080,
-                "frame_rate": "25/1",
+                "frame_rate": "25:1",
                 "label": "Properties Test Flow",
                 "description": "Flow for testing properties"
             }
@@ -511,7 +511,7 @@ class TestComprehensiveAPIEndpoints:
                         "codec": "video/h264",
                         "frame_width": 1920,
                         "frame_height": 1080,
-                        "frame_rate": "25/1",
+                        "frame_rate": "25:1",
                         "label": f"Batch Flow {i}",
                         "description": f"Batch test flow {i}"
                     }

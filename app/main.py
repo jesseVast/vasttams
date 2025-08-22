@@ -155,15 +155,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     except Exception as body_error:
         request_body = f"Error reading request body: {str(body_error)}"
     
-    # Create a simplified ValidationError for our logging function
-    validation_error = ValidationError.from_exception_data(
-        "RequestValidationError", 
-        exc.errors()
-    )
-    
-    # Log the detailed validation error
+    # Log the detailed validation error directly from the RequestValidationError
     error_msg = log_pydantic_validation_error(
-        error=validation_error,
+        error=exc,
         context=f"{method} {url}",
         input_data={"request_body": request_body} if request_body else None,
         model_name="Request"

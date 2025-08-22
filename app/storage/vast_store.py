@@ -437,11 +437,33 @@ class VASTStore:
 
     async def update_source(self, source_id: str, source: Source) -> bool:
         """Update source - delegated to SourcesStorage"""
-        return await self.sources_storage.update_source(source_id, {})
+        # Convert Source object to dictionary for updates
+        updates = {}
+        if source.label is not None:
+            updates['label'] = str(source.label)
+        if source.description is not None:
+            updates['description'] = str(source.description)
+        if source.tags is not None:
+            updates['tags'] = source.tags.model_dump() if hasattr(source.tags, 'model_dump') else dict(source.tags)
+        return await self.sources_storage.update_source(source_id, updates)
     
     async def update_flow(self, flow_id: str, flow: Flow) -> bool:
         """Update flow - delegated to FlowsStorage"""
-        return await self.flows_storage.update_flow(flow_id, {})
+        # Convert Flow object to dictionary for updates
+        updates = {}
+        if hasattr(flow, 'label') and flow.label is not None:
+            updates['label'] = str(flow.label)
+        if hasattr(flow, 'description') and flow.description is not None:
+            updates['description'] = str(flow.description)
+        if hasattr(flow, 'tags') and flow.tags is not None:
+            updates['tags'] = flow.tags.model_dump() if hasattr(flow.tags, 'model_dump') else dict(flow.tags)
+        if hasattr(flow, 'read_only') and flow.read_only is not None:
+            updates['read_only'] = flow.read_only
+        if hasattr(flow, 'max_bit_rate') and flow.max_bit_rate is not None:
+            updates['max_bit_rate'] = flow.max_bit_rate
+        if hasattr(flow, 'avg_bit_rate') and flow.avg_bit_rate is not None:
+            updates['avg_bit_rate'] = flow.avg_bit_rate
+        return await self.flows_storage.update_flow(flow_id, updates)
     
     async def update_source_tags(self, source_id: str, tags: Tags) -> bool:
         """Update source tags - delegated to SourcesStorage"""

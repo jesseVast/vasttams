@@ -681,7 +681,7 @@ async def update_flow_collection(
         if not collection_id:
             raise HTTPException(status_code=400, detail="collection_id is required")
         
-        success = await store.add_flow_to_collection(flow_id, collection_id)
+        success = await store.add_flow_to_collection(collection_id, flow_id, "Default Label", "Auto-generated collection")
         if success:
             return {"message": f"Flow {flow_id} added to collection {collection_id}"}
         else:
@@ -903,6 +903,20 @@ async def allocate_flow_storage(
             )
             
             media_objects.append(media_object)
+            
+            # Create Object record in database for TAMS compliance
+            try:
+                from ..models.models import Object
+                obj = Object(
+                    id=object_id,
+                    size=0,  # Size unknown until actually uploaded
+                    referenced_by_flows=[flow_id]
+                )
+                await store.create_object(obj)
+                logger.info("Created Object record for %s", object_id)
+            except Exception as e:
+                logger.warning("Failed to create Object record for %s: %s", object_id, e)
+                # Don't fail the entire request, just log the warning
         
         return FlowStorage(media_objects=media_objects)
         

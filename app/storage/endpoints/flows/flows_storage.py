@@ -210,8 +210,13 @@ class FlowsStorage:
         try:
             logger.info("Updating TAMS flow %s with: %s", flow_id, updates)
             
+            # Convert updates to VAST columnar format (Dict[str, List[Any]])
+            vast_updates = {}
+            for key, value in updates.items():
+                vast_updates[key] = [value]  # Convert single value to list
+            
             # Use VAST's update capabilities via db_manager
-            result = self.vast.db_manager.update('flows', updates, predicate={'id': flow_id})
+            result = self.vast.db_manager.update('flows', vast_updates, predicate={'id': flow_id})
             
             if result and result > 0:
                 logger.info("Successfully updated TAMS flow %s", flow_id)

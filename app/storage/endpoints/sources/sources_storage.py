@@ -175,8 +175,13 @@ class SourcesStorage:
         try:
             logger.info("Updating TAMS source %s with: %s", source_id, updates)
             
+            # Convert updates to VAST columnar format (Dict[str, List[Any]])
+            vast_updates = {}
+            for key, value in updates.items():
+                vast_updates[key] = [value]  # Convert single value to list
+            
             # Use VAST's update capabilities via db_manager
-            result = self.vast.db_manager.update('sources', updates, predicate={'id': source_id})
+            result = self.vast.db_manager.update('sources', vast_updates, predicate={'id': source_id})
             
             if result and result > 0:
                 logger.info("Successfully updated TAMS source %s", source_id)

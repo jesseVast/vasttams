@@ -18,6 +18,21 @@ Based on the official `api/TimeAddressableMediaStore.yaml` specification, here's
 - [x] **FIXED**: `'VASTStore' object has no attribute 'list_webhooks'` - ✅ RESOLVED
 - [ ] **CURRENT ISSUE**: Collection creation methods need proper VAST integration - ❌ NEEDS FIX
 
+### 3. **Webhook Endpoints - Complete Analysis**
+- [x] **FIXED**: `'VASTStore' object has no attribute 'create_webhook'` - ✅ RESOLVED
+- [ ] **CURRENT ISSUE**: Webhook storage table doesn't exist in VAST database - ❌ NEEDS FIX
+- [ ] **CURRENT ISSUE**: Webhook operations return empty lists (no persistent storage) - ❌ NEEDS FIX
+- [ ] **CURRENT ISSUE**: Webhook CRUD operations not implemented in VAST database - ❌ NEEDS FIX
+
+**Webhook Implementation Status:**
+- ✅ **API Endpoints**: All 3 TAMS webhook endpoints implemented in `app/main.py`
+- ✅ **Models**: Complete Pydantic models in `app/models/models.py`
+- ✅ **Event Manager**: Webhook notification system in `app/core/event_manager.py`
+- ✅ **Basic Methods**: `list_webhooks()` and `create_webhook()` in VASTStore
+- ❌ **Storage**: No webhooks table in VAST database
+- ❌ **Persistence**: Webhooks not stored between server restarts
+- ❌ **CRUD**: No update/delete webhook operations
+
 ## 📊 **TAMS API 7.0 COMPLIANCE STATUS**
 
 ### **✅ FULLY IMPLEMENTED ENDPOINTS (89 total)**

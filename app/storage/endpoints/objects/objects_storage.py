@@ -105,26 +105,40 @@ class ObjectsStorage:
         try:
             logger.info("Getting TAMS object by ID: %s", object_id)
             
-            # Get object metadata from VAST
+            # First try to get object metadata from VAST
             metadata = self.vast.query_records('objects', predicate={'id': object_id})
             
-            if not metadata:
-                logger.info("Object not found: %s", object_id)
-                return None
+            if metadata:
+                # Object exists in database
+                logger.info("Object found in database: %s", object_id)
+                referenced_by_flows = await self._get_object_flow_references(object_id)
+                
+                obj = Object(
+                    id=metadata[0]['id'],
+                    size=metadata[0].get('size', 0),
+                    referenced_by_flows=referenced_by_flows,
+                    created=metadata[0].get('created')
+                )
+                return obj
             
-            # Get flow references
+            # If object not in database, check if it's referenced by any flows
+            # This handles the case where storage was allocated but object not yet created
+            logger.info("Object %s not in database, checking flow references", object_id)
             referenced_by_flows = await self._get_object_flow_references(object_id)
             
-            # Convert to Object model
-            obj = Object(
-                id=metadata[0]['id'],
-                size=metadata[0].get('size'),
-                referenced_by_flows=referenced_by_flows,
-                created=metadata[0].get('created')
-            )
+            if referenced_by_flows:
+                # Object is referenced by flows, create a minimal object record
+                logger.info("Object %s referenced by flows, creating minimal record", object_id)
+                obj = Object(
+                    id=object_id,
+                    size=0,  # Size unknown until actually uploaded
+                    referenced_by_flows=referenced_by_flows,
+                    created=datetime.now(timezone.utc)
+                )
+                return obj
             
-            logger.info("Successfully retrieved TAMS object: %s", object_id)
-            return obj
+            logger.info("Object not found: %s", object_id)
+            return None
             
         except Exception as e:
             logger.error("Failed to get TAMS object %s: %s", object_id, e)

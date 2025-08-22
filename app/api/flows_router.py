@@ -637,45 +637,7 @@ async def get_flow_collection(
         logger.error("Failed to get flow collection for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.put("/flows/{flow_id}/flow_collection")
-async def update_flow_collection(
-    flow_id: str,
-    flow_collection: List[str],
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update flow collection - now managed dynamically via flow_collections table"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        # Check if flow exists
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Get current collections
-        current_collections = await store.get_flow_collections(flow_id)
-        current_collection_ids = [col.collection_id for col in current_collections]
-        
-        # Remove flows from collections they're no longer in
-        for collection_id in current_collection_ids:
-            if collection_id not in flow_collection:
-                await store.remove_flow_from_collection(collection_id, flow_id)
-        
-        # Add flows to new collections
-        for collection_id in flow_collection:
-            if collection_id not in current_collection_ids:
-                # Generate a default label and description
-                label = f"Collection {collection_id[:8]}"
-                description = f"Auto-generated collection for flow {flow_id[:8]}"
-                await store.add_flow_to_collection(collection_id, flow_id, label, description)
-        
-        return {"message": "Flow collection updated successfully"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow collection for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
+
 
 # TAMS Flow Collection endpoints
 @router.head("/flows/{flow_id}/flow_collection")

@@ -33,6 +33,28 @@ Based on the official `api/TimeAddressableMediaStore.yaml` specification, here's
 - ❌ **Persistence**: Webhooks not stored between server restarts
 - ❌ **CRUD**: No update/delete webhook operations
 
+### 4. **Observability Stack Issues - Complete Analysis**
+- [ ] **CURRENT ISSUE**: Prometheus metrics endpoint not accessible (server not running) - ❌ NEEDS FIX
+- [ ] **CURRENT ISSUE**: Prometheus configuration uses `host.docker.internal:8000` which may not work in all environments - ❌ NEEDS FIX
+- [ ] **CURRENT ISSUE**: Alertmanager webhook points to `http://127.0.0.1:5001/` which doesn't exist - ❌ NEEDS FIX
+- [ ] **CURRENT ISSUE**: Grafana dashboard provisioning path `/var/lib/grafana/dashboards` may not match actual container path - ❌ NEEDS FIX
+- [ ] **CURRENT ISSUE**: Jaeger tracing configuration depends on `JAEGER_ENDPOINT` env var which is not set - ❌ NEEDS FIX
+- [ ] **CURRENT ISSUE**: OpenTelemetry OTLP endpoint depends on `OTLP_ENDPOINT` env var which is not set - ❌ NEEDS FIX
+- [ ] **CURRENT ISSUE**: Metrics collection in telemetry.py exists but may not be properly integrated with Prometheus - ❌ NEEDS FIX
+- [ ] **CURRENT ISSUE**: No health checks or readiness probes for observability services - ❌ NEEDS FIX
+- [ ] **CURRENT ISSUE**: Observability stack startup script assumes Docker is running but doesn't check service health - ❌ NEEDS FIX
+
+**Observability Implementation Status:**
+- ✅ **Prometheus**: Configuration and Docker setup complete
+- ✅ **Grafana**: Dashboard provisioning and Docker setup complete
+- ✅ **Jaeger**: Tracing infrastructure and Docker setup complete
+- ✅ **Alertmanager**: Alerting configuration and Docker setup complete
+- ✅ **Telemetry**: OpenTelemetry integration and metrics collection implemented
+- ❌ **Connectivity**: TAMS API metrics endpoint not accessible
+- ❌ **Configuration**: Environment variables not set for tracing endpoints
+- ❌ **Health Checks**: No service health monitoring or readiness probes
+- ❌ **Integration**: Metrics collection not properly connected to Prometheus
+
 ## 📊 **TAMS API 7.0 COMPLIANCE STATUS**
 
 ### **✅ FULLY IMPLEMENTED ENDPOINTS (89 total)**
@@ -189,11 +211,15 @@ Based on the official `api/TimeAddressableMediaStore.yaml` specification, here's
 1. Improve database error handling
 2. Add connection pooling
 3. Performance optimization
+4. Fix observability stack connectivity issues
+5. Configure proper environment variables for tracing
 
 ### **LOW PRIORITY (Future Releases)**
 1. Additional analytics features
 2. Advanced monitoring capabilities
 3. Performance benchmarking
+4. Enhance observability dashboards
+5. Implement advanced alerting rules
 
 ## 📊 **CURRENT STATUS SUMMARY**
 

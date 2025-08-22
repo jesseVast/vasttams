@@ -467,11 +467,15 @@ class VASTStore:
     
     async def update_source_tags(self, source_id: str, tags: Tags) -> bool:
         """Update source tags - delegated to SourcesStorage"""
-        return await self.sources_storage.update_source(source_id, {"tags": tags})
+        # Convert Tags object to dictionary for storage
+        tags_dict = tags.model_dump() if hasattr(tags, 'model_dump') else dict(tags)
+        return await self.sources_storage.update_source(source_id, {"tags": tags_dict})
     
     async def update_flow_tags(self, flow_id: str, tags: Tags) -> bool:
         """Update flow tags - delegated to FlowsStorage"""
-        return await self.flows_storage.update_flow(flow_id, {"tags": tags})
+        # Convert Tags object to dictionary for storage
+        tags_dict = tags.model_dump() if hasattr(tags, 'model_dump') else dict(tags)
+        return await self.flows_storage.update_flow(flow_id, {"tags": tags_dict})
 
     async def check_source_dependencies(self, source_id: str) -> Dict[str, Any]:
         """Check source dependencies - delegated to SourcesStorage"""

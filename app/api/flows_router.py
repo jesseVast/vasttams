@@ -910,7 +910,7 @@ async def allocate_flow_storage(
                 obj = Object(
                     id=object_id,
                     size=0,  # Size unknown until actually uploaded
-                    referenced_by_flows=[flow_id]
+                    referenced_by_flows=[str(flow_id)]
                 )
                 await store.create_object(obj)
                 logger.info("Created Object record for %s", object_id)

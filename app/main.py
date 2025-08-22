@@ -146,11 +146,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             try:
                 body_bytes = await request.body()
                 if body_bytes:
-                    request_body = body_bytes.decode('utf-8')
-            except:
-                request_body = "Unable to read request body"
-    except Exception:
-        request_body = "Error reading request body"
+                    try:
+                        request_body = body_bytes.decode('utf-8')
+                    except UnicodeDecodeError:
+                        request_body = f"Binary data (length: {len(body_bytes)})"
+            except Exception as body_error:
+                request_body = f"Unable to read request body: {str(body_error)}"
+    except Exception as body_error:
+        request_body = f"Error reading request body: {str(body_error)}"
     
     # Create a simplified ValidationError for our logging function
     validation_error = ValidationError.from_exception_data(

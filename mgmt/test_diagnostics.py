@@ -10,6 +10,7 @@ import asyncio
 import sys
 import os
 import json
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -21,26 +22,58 @@ from app.storage.diagnostics import (
     TAMSModelValidator, 
     ConnectionTester,
     PerformanceAnalyzer,
-    StorageTroubleshooter
+    StorageTroubleshooter,
+    get_diagnostics_logger
 )
 
 
 async def test_health_monitor():
     """Test the health monitor component"""
     print("\n🔍 Testing Health Monitor...")
+    diag_logger = get_diagnostics_logger()
+    
+    start_time = time.time()
+    diag_logger.log_test_start("health_monitor", "System health monitoring test")
+    
     monitor = StorageHealthMonitor()
     
     try:
         result = await monitor.check_system_health()
+        duration_ms = (time.time() - start_time) * 1000
+        
+        # Log individual health checks
+        for check in result.checks:
+            diag_logger.log_health_check(
+                component=check.name,
+                status=check.status.value,
+                response_time_ms=check.response_time_ms,
+                message=check.message
+            )
+        
+        # Log overall test result
+        success = result.overall_status.value == "healthy"
+        diag_logger.log_test_result(
+            test_name="health_monitor",
+            success=success,
+            duration_ms=duration_ms,
+            details={
+                "overall_status": result.overall_status.value,
+                "checks_performed": len(result.checks),
+                "healthy_checks": len([c for c in result.checks if c.status.value == "healthy"])
+            }
+        )
+        
         print(f"✅ Health Monitor - Status: {result.overall_status.value}")
         print(f"   Checks performed: {len(result.checks)}")
         print(f"   Summary: {result.summary}")
         
         for check in result.checks[:3]:  # Show first 3 checks
-            print(f"   - {check.component}: {check.status.value} ({check.response_time_ms:.2f}ms)")
+            print(f"   - {check.name}: {check.status.value} ({check.response_time_ms:.2f}ms)")
         
         return True
     except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        diag_logger.log_test_result("health_monitor", False, duration_ms, {"error": str(e)})
         print(f"❌ Health Monitor failed: {e}")
         return False
 
@@ -48,19 +81,61 @@ async def test_health_monitor():
 def test_model_validator():
     """Test the model validator component"""
     print("\n🔍 Testing Model Validator...")
+    diag_logger = get_diagnostics_logger()
+    
+    start_time = time.time()
+    diag_logger.log_test_start("model_validator", "TAMS compliance validation test")
+    
     validator = TAMSModelValidator()
     
     try:
         report = validator.generate_compliance_report()
-        print(f"✅ Model Validator - Overall Compliance: {report.get('overall_compliance', 0)}%")
+        duration_ms = (time.time() - start_time) * 1000
+        
+        # Log individual model compliance results
+        models = report.get('models', {})
+        for model_name, model_data in models.items():
+            diag_logger.log_compliance_result(
+                model_name=model_name,
+                compliance_percentage=model_data.get('compliance_percentage', 0),
+                compliance_level=model_data.get('compliance_level', 'unknown'),
+                issues_count=model_data.get('issues_count', 0),
+                critical_issues=model_data.get('critical_issues', 0)
+            )
+        
+        # Log critical issues
+        critical_issues = report.get('critical_issues', [])
+        for issue in critical_issues:
+            diag_logger.log_issue_detected(
+                category="compliance",
+                severity="critical",
+                title=f"{issue['model']}.{issue['field']}",
+                description=issue['issue']
+            )
+        
+        # Log overall test result
+        overall_compliance = report.get('overall_compliance', 0)
+        success = overall_compliance == 100.0
+        diag_logger.log_test_result(
+            test_name="model_validator",
+            success=success,
+            duration_ms=duration_ms,
+            details={
+                "overall_compliance": overall_compliance,
+                "status": report.get('status', 'unknown'),
+                "models_tested": len(models),
+                "critical_issues": len(critical_issues)
+            }
+        )
+        
+        print(f"✅ Model Validator - Overall Compliance: {overall_compliance}%")
         print(f"   Status: {report.get('status', 'unknown')}")
-        print(f"   Models tested: {len(report.get('models', {}))}")
+        print(f"   Models tested: {len(models)}")
         
         summary = report.get('summary', {})
         print(f"   Compliant: {summary.get('compliant', 0)}, Issues: {summary.get('minor_issues', 0) + summary.get('major_issues', 0) + summary.get('non_compliant', 0)}")
         
         # Show critical issues if any
-        critical_issues = report.get('critical_issues', [])
         if critical_issues:
             print(f"   ⚠️  Critical issues: {len(critical_issues)}")
             for issue in critical_issues[:2]:  # Show first 2
@@ -68,6 +143,8 @@ def test_model_validator():
         
         return True
     except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        diag_logger.log_test_result("model_validator", False, duration_ms, {"error": str(e)})
         print(f"❌ Model Validator failed: {e}")
         return False
 
@@ -191,6 +268,11 @@ async def main():
     print("🧪 TAMS Storage Diagnostics System Test")
     print("=" * 50)
     
+    # Initialize diagnostics logger
+    diag_logger = get_diagnostics_logger()
+    diag_logger.log_separator("TAMS Storage Diagnostics Test Session")
+    diag_logger.log_session_start("comprehensive_diagnostics")
+    
     start_time = datetime.utcnow()
     
     # Run all tests
@@ -262,6 +344,11 @@ async def main():
         status = "failure"
     
     test_results["overall_status"] = status
+    
+    # Log session end
+    success_rate = (passed_tests / total_tests) * 100 if total_tests > 0 else 0
+    diag_logger.log_session_end("comprehensive_diagnostics", success_rate, duration)
+    diag_logger.log_separator("Test Session Complete")
     
     # Save results
     save_test_results(test_results)

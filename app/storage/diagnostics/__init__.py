@@ -23,11 +23,15 @@ from .model_validator import TAMSModelValidator
 from .connection_tester import ConnectionTester
 from .performance_analyzer import PerformanceAnalyzer
 from .troubleshooter import StorageTroubleshooter
+from .logger import DiagnosticsLogger, get_diagnostics_logger, log_diagnostic_event
 
 __all__ = [
     "StorageHealthMonitor",
     "TAMSModelValidator", 
     "ConnectionTester",
     "PerformanceAnalyzer",
-    "StorageTroubleshooter"
+    "StorageTroubleshooter",
+    "DiagnosticsLogger",
+    "get_diagnostics_logger",
+    "log_diagnostic_event"
 ]

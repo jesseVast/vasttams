@@ -182,15 +182,15 @@ class StorageTroubleshooter:
                     severity = self._map_health_to_severity(check.status)
                     
                     issues.append(Issue(
-                        issue_id=f"health_{check.component}",
-                        title=f"Health Issue: {check.component}",
+                        issue_id=f"health_{check.name}",
+                        title=f"Health Issue: {check.name}",
                         category=IssueCategory.SYSTEM_HEALTH,
                         severity=severity,
                         description=check.message,
-                        symptoms=[f"{check.component} status: {check.status.value}"],
+                        symptoms=[f"{check.name} status: {check.status.value}"],
                         root_cause=check.details.get("error") if check.details else None,
-                        impact=f"{check.component} not functioning properly",
-                        resolution_steps=self._get_health_resolution_steps(check.component, check.status),
+                        impact=f"{check.name} not functioning properly",
+                        resolution_steps=self._get_health_resolution_steps(check.name, check.status),
                         estimated_fix_time="5-15 minutes"
                     ))
             

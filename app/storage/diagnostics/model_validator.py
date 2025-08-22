@@ -121,6 +121,38 @@ class TAMSModelValidator:
                 },
                 "tams_reference": "api/schemas/flow-audio.json"
             },
+            "DataFlow": {
+                "inherits": "Flow",
+                "additional_fields": ["codec", "container", "read_only"],
+                "field_types": {
+                    "codec": "str",  # MIME type
+                    "container": "Optional[str]",
+                    "read_only": "Optional[bool]"
+                },
+                "tams_reference": "api/schemas/flow-data.json"
+            },
+            "ImageFlow": {
+                "inherits": "Flow",
+                "additional_fields": ["codec", "frame_width", "frame_height", "container", "read_only"],
+                "field_types": {
+                    "codec": "str",  # MIME type
+                    "frame_width": "int",
+                    "frame_height": "int", 
+                    "container": "Optional[str]",
+                    "read_only": "Optional[bool]"
+                },
+                "tams_reference": "api/schemas/flow-image.json"
+            },
+            "MultiFlow": {
+                "inherits": "Flow",
+                "additional_fields": ["codec", "container", "read_only"],
+                "field_types": {
+                    "codec": "str",  # MIME type
+                    "container": "Optional[str]",
+                    "read_only": "Optional[bool]"
+                },
+                "tams_reference": "api/schemas/flow-multi.json"
+            },
             "FlowSegment": {
                 "required_fields": ["object_id", "timerange"],
                 "optional_fields": ["ts_offset", "last_duration", "sample_offset", "sample_count", "get_urls"],
@@ -134,12 +166,11 @@ class TAMSModelValidator:
                 "tams_reference": "api/schemas/flow-segment.json"
             },
             "Object": {
-                "required_fields": ["id", "referenced_by_flows"],
-                "optional_fields": ["first_referenced_by_flow", "size", "created"],
+                "required_fields": ["id"],
+                "optional_fields": ["size", "created"],
+                "dynamic_fields": ["referenced_by_flows", "first_referenced_by_flow"],  # Computed at runtime
                 "field_types": {
                     "id": "str",  # CRITICAL: Must be id not object_id
-                    "referenced_by_flows": "List[str]",  # CRITICAL: List of UUID strings
-                    "first_referenced_by_flow": "Optional[str]",
                     "size": "Optional[int]",
                     "created": "Optional[datetime]"
                 },
@@ -435,6 +466,21 @@ class TAMSModelValidator:
                     tams_reference=spec.get("tams_reference")
                 ))
         
+        # Check for incorrectly stored dynamic fields
+        dynamic_fields = spec.get("dynamic_fields", [])
+        for field_name in dynamic_fields:
+            if field_name in model_fields:
+                issues.append(ValidationIssue(
+                    issue_type=IssueType.TAMS_SPEC_VIOLATION,
+                    field_name=field_name,
+                    severity="medium",
+                    message=f"Dynamic field {field_name} should not be stored in model",
+                    expected="Runtime computation",
+                    actual="Stored field",
+                    suggestion=f"Remove {field_name} from {model_name} model - should be computed at runtime",
+                    tams_reference=spec.get("tams_reference")
+                ))
+        
         return issues
     
     def _check_field_types(self, model_name: str, model_fields: Dict[str, Any], spec: Dict[str, Any]) -> List[ValidationIssue]:
@@ -541,6 +587,24 @@ class TAMSModelValidator:
         
         # Check for dynamic fields that should be computed
         dynamic_fields = ["source_collection", "collected_by", "flow_collection"]
+        
+        # Object model specific dynamic fields
+        if model_name == "Object":
+            object_dynamic_fields = ["referenced_by_flows", "first_referenced_by_flow"]
+            for field in object_dynamic_fields:
+                if field in model_fields:
+                    issues.append(ValidationIssue(
+                        issue_type=IssueType.TAMS_SPEC_VIOLATION,
+                        field_name=field,
+                        severity="medium",
+                        message=f"Object field {field} should be computed dynamically from flow_segments relationships, not stored",
+                        expected="Dynamic computation from flow_segments table",
+                        actual="Static field in model",
+                        suggestion=f"Remove {field} from Object model and compute at runtime from flow_segments relationships",
+                        tams_reference="TAMS object relationships specification"
+                    ))
+        
+        # General dynamic fields for other models
         for field in dynamic_fields:
             if field in model_fields:
                 issues.append(ValidationIssue(

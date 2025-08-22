@@ -150,18 +150,32 @@ class ConnectionTester:
         
         try:
             # Import here to avoid circular dependencies
-            from ...core.dependencies import get_vast_store
+            from ...core.dependencies import get_vast_store, set_vast_store
             from ...core.config import get_settings
+            from ...storage.vast_store import VASTStore
             
             settings = get_settings()
-            store = get_vast_store()
+            
+            # Try to get existing store, or create one for diagnostics
+            try:
+                store = get_vast_store()
+            except Exception:
+                # No store initialized, create one for diagnostics
+                store = VASTStore(
+                    endpoint=settings.vast_endpoint,
+                    access_key=settings.vast_access_key,
+                    secret_key=settings.vast_secret_key,
+                    bucket=settings.vast_bucket,
+                    schema=settings.vast_schema
+                )
+                set_vast_store(store)
             
             if not store:
                 return ConnectionTest(
                     test_name=test_name,
                     status=ConnectionStatus.DISCONNECTED,
                     response_time_ms=(time.time() - start_time) * 1000,
-                    message="VAST store not initialized",
+                    message="VAST store could not be initialized",
                     details={"endpoint": settings.vast_endpoint}
                 )
             

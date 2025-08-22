@@ -912,11 +912,15 @@ async def allocate_flow_storage(
                     size=0,  # Size unknown until actually uploaded
                     referenced_by_flows=[str(flow_id)]
                 )
-                await store.create_object(obj)
-                logger.info("Created Object record for %s", object_id)
+                logger.info("Attempting to create Object record for %s: %s", object_id, obj.model_dump())
+                success = await store.create_object(obj)
+                if success:
+                    logger.info("Successfully created Object record for %s", object_id)
+                else:
+                    logger.error("Failed to create Object record for %s - create_object returned False", object_id)
             except Exception as e:
-                logger.warning("Failed to create Object record for %s: %s", object_id, e)
-                # Don't fail the entire request, just log the warning
+                logger.error("Exception creating Object record for %s: %s", object_id, e)
+                # Don't fail the entire request, just log the error
         
         return FlowStorage(media_objects=media_objects)
         

@@ -175,9 +175,25 @@ class PerformanceAnalyzer:
         metrics = []
         
         try:
-            from ...core.dependencies import get_vast_store
+            from ...core.dependencies import get_vast_store, set_vast_store
+            from ...core.config import get_settings
+            from ...storage.vast_store import VASTStore
             
-            store = get_vast_store()
+            # Try to get existing store, or create one for diagnostics
+            try:
+                store = get_vast_store()
+            except Exception:
+                # No store initialized, create one for diagnostics
+                settings = get_settings()
+                store = VASTStore(
+                    endpoint=settings.vast_endpoint,
+                    access_key=settings.vast_access_key,
+                    secret_key=settings.vast_secret_key,
+                    bucket=settings.vast_bucket,
+                    schema=settings.vast_schema
+                )
+                set_vast_store(store)
+            
             if not store:
                 return {
                     "benchmarks": [PerformanceBenchmark(
@@ -288,9 +304,25 @@ class PerformanceAnalyzer:
         benchmarks = []
         
         try:
-            from ...core.dependencies import get_vast_store
+            from ...core.dependencies import get_vast_store, set_vast_store
+            from ...core.config import get_settings
+            from ...storage.vast_store import VASTStore
             
-            store = get_vast_store()
+            # Try to get existing store, or create one for diagnostics
+            try:
+                store = get_vast_store()
+            except Exception:
+                # No store initialized, create one for diagnostics
+                settings = get_settings()
+                store = VASTStore(
+                    endpoint=settings.vast_endpoint,
+                    access_key=settings.vast_access_key,
+                    secret_key=settings.vast_secret_key,
+                    bucket=settings.vast_bucket,
+                    schema=settings.vast_schema
+                )
+                set_vast_store(store)
+            
             if not store:
                 return [PerformanceBenchmark(
                     benchmark_name="connection_performance",

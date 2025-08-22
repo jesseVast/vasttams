@@ -231,6 +231,8 @@ class VastDBManager:
     def insert_record(self, table_name: str, data: Dict[str, Any]):
         """Insert a single record - compatibility method for storage endpoints"""
         try:
+            logger.info("Core insert_record called with data: %s", data)
+            logger.info("Core insert_record data types: %s", {k: type(v) for k, v in data.items()})
             self.data_operations.insert_single_record(table_name, data)
             return True
         except Exception as e:

@@ -24,7 +24,7 @@ class StorageBackendManager:
         """Initialize with default storage backend information"""
         # Default storage backend for S3-compatible storage
         self.storage_backends["default"] = {
-            "id": "default",
+            "id": "550e8400-e29b-41d4-a716-446655440000",  # Use proper UUID format
             "store_type": "http_object_store",
             "provider": "S3-Compatible",
             "region": "default",

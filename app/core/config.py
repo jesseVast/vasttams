@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     s3_secret_access_key: str = "WkKLxvG7YkAdSMuHjFsZG5Ou7BS1mDQGnr"
     s3_bucket_name: str = "jthaloor-s3"
     s3_use_ssl: bool = False
+    s3_region: str = Field(
+        default="us-east-1",
+        description="S3 region for presigned URL generation (use us-east-1 for custom endpoints)",
+        env="S3_REGION"
+    )
     
     # Presigned URL configuration - Runtime configurable
     s3_presigned_url_upload_timeout: int = Field(
@@ -67,6 +72,13 @@ class Settings(BaseSettings):
         default="default",
         description="Default storage backend ID for get_urls generation",
         env="DEFAULT_STORAGE_BACKEND_ID"
+    )
+    
+    # TAMS storage path configuration
+    tams_storage_path: str = Field(
+        default="tams",
+        description="Base path for TAMS media storage organization",
+        env="TAMS_STORAGE_PATH"
     )
     
     # get_urls configuration

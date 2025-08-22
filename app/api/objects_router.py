@@ -41,68 +41,9 @@ async def get_object_by_id(
         logger.error("Failed to get object %s: %s", object_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# POST endpoint
-@router.post("/objects", response_model=Object, status_code=201)
-async def create_new_object(
-    obj: Object,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Create a new object"""
-    try:
-        success = await create_object(store, obj)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to create object")
-        
-        # Emit object created event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_object_event('objects/created', obj)
-        except Exception as e:
-            logger.warning("Failed to emit object created event: %s", e)
-        
-        return obj
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to create object: %s", e)
-        raise HTTPException(status_code=500, detail="Internal server error")
+# Note: POST /objects endpoint removed - TAMS API uses POST /flows/{flowId}/storage for object allocation
 
-# Batch POST endpoint
-@router.post("/objects/batch", response_model=List[Object], status_code=201)
-async def create_objects_batch(
-    objects: List[Object],
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Create multiple objects in a single batch operation"""
-    try:
-        logger.info("Creating %d objects using individual creation", len(objects))
-        
-        # Create objects one by one using the proper create_object method
-        # This ensures all business logic (timestamps, validation, etc.) is applied
-        created_objects = []
-        for obj in objects:
-            success = await create_object(store, obj)
-            if not success:
-                raise HTTPException(status_code=500, detail=f"Failed to create object {obj.id}")
-            created_objects.append(obj)
-        
-        logger.info("Successfully created %d objects", len(created_objects))
-        
-        # Emit object created events for batch creation
-        try:
-            event_manager = EventManager(store)
-            for obj in created_objects:
-                await event_manager.emit_object_event('objects/created', obj)
-        except Exception as e:
-            logger.warning("Failed to emit batch object created events: %s", e)
-        
-        return created_objects
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to create objects batch: %s", e)
-        raise HTTPException(status_code=500, detail="Internal server error")
+# Note: Batch POST /objects endpoint removed - TAMS API uses POST /flows/{flowId}/storage for object allocation
 
 # DELETE endpoint
 @router.delete("/objects/{object_id}")

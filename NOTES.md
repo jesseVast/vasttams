@@ -1082,43 +1082,6 @@ The 4 previously failed tests have been resolved. The issue was that the tests w
   - **Multipart form data file uploads**
   - **Segment metadata retrieval and validation**
 
-### ✅ **Fix #18 Complete: Sample Workflow Documentation Created**
-- **Status**: COMPLETED ✅
-- **Issues Resolved**:
-  - Created comprehensive sample workflow documentation (`docs/SAMPLE_WORKFLOW.md`)
-  - Documents complete TAMS API workflow with detailed examples
-  - Shows real API calls, requests, and responses from end-to-end test
-  - Includes storage endpoint usage and presigned URL generation
-  - Provides developer reference for API integration
-  - **Enhanced to include complete lifecycle** with all 15 workflow steps
-  - **Enhanced actual test** to include real deletion workflow testing
-- **Results**: Complete API workflow reference with real examples, request/response formats, usage notes, **full lifecycle testing**, and **real deletion workflow validation**
-- **Files Created**: 
-  - `docs/SAMPLE_WORKFLOW.md` - Complete workflow documentation with examples
-- **Documentation Coverage**:
-  - **15 Complete Workflow Steps** with HTTP requests and responses
-  - **Phase 1: Creation & Setup** (Steps 1-8) - Source, flow, segment creation
-  - **Phase 2: Dependency Validation** (Steps 9-11) - Flow management and constraints
-  - **Phase 3: Deletion Workflow** (Steps 12-15) - Cleanup order and dependency testing
-  - **Source Creation** - POST /sources with full response
-  - **Flow Creation** - POST /flows with video metadata
-  - **Storage Allocation** - POST /flows/{flow_id}/storage with presigned URLs
-  - **Segment Creation** - Both JSON-only and file upload methods
-  - **File Upload** - Multipart form data examples
-  - **Data Retrieval** - GET endpoints and responses
-  - **Dependency Testing** - Foreign key constraints and validation
-  - **Cleanup Workflow** - Proper deletion order and dependency resolution
-  - **Real API Examples** - Actual UUIDs, timestamps, and S3 URLs
-  - **Developer Notes** - Usage patterns, error handling, and best practices
-  - **Production Considerations** - Security, scalability, and monitoring
-  - **Test Execution Guide** - How to run the complete workflow test
-- **Test Enhancement**:
-  - **Added `test_complete_deletion_workflow`** method to actual test
-  - **Real HTTP API calls** for deletion workflow testing
-  - **Dependency constraint validation** with actual API responses
-  - **Cleanup order testing** with real deletion operations
-  - **Final state verification** with actual system state checks
-
 ### 🚨 **CRITICAL BUG #1: Referential Integrity Violation in Deletion Operations** ✅ **FIXED**
 
 ### **Status**: ✅ **FIXED** - Referential integrity now fully protected
@@ -3061,3 +3024,42 @@ pytest tests/test_core/ -v
 
 **Status: ✅ COMPLETE - All deprecation warnings hidden, clean test output achieved**
 
+
+## ✅ **TAMS STORAGE PATH IMPLEMENTATION COMPLETED** (2025-01-27)
+
+#### **🔍 Next Steps**
+
+The TAMS storage path implementation is complete and addresses the core issues:
+- ✅ Correct storage path format implemented
+- ✅ Dynamic get_urls generation working
+- ✅ TAMS compliance achieved
+- ✅ Date-based organization implemented
+
+All segment operations now use the correct TAMS path format and generate fresh get_urls on each request.
+
+**Status: ✅ COMPLETE - TAMS storage paths and dynamic get_urls fully implemented**
+
+#### **🔧 Final Implementation Details**
+
+**Storage Path Format**: `{tams_storage_path}/{year}/{month}/{date}/{object_id}`
+- **Example**: `tams/2025/08/22/550e8400-e29b-41d4-a716-446655440004`
+- **Configurable**: Via `TAMS_STORAGE_PATH` environment variable (defaults to "tams")
+
+**Dynamic get_urls Generation**: 
+- **Why Dynamic**: Presigned URLs expire, so they must be generated on each request
+- **Implementation**: `generate_get_urls()` method generates fresh presigned URLs
+- **Expiration**: 1 hour timeout for download URLs
+- **Coverage**: All segment retrieval endpoints generate get_urls dynamically
+
+**UUID Validation Fixed**: 
+- **Issue**: `GetUrl.storage_id` field required proper UUID format
+- **Solution**: Updated `StorageBackendManager` to use valid UUID for default backend
+- **Result**: `get_urls` generation now works correctly
+
+**Complete TAMS Workflow**:
+1. ✅ Flow Creation
+2. ✅ Storage Allocation (TAMS path format)
+3. ✅ Segment Creation (metadata only)
+4. ✅ Dynamic get_urls Generation (fresh presigned URLs)
+
+**Status: ✅ COMPLETE - All TAMS storage requirements implemented and working**

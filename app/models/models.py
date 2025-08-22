@@ -1169,4 +1169,42 @@ class ApiTokensResponse(BaseModel):
 class AuthLogsResponse(BaseModel):
     """Authentication logs response"""
     data: List[AuthLog]
-    paging: Optional[PagingInfo] = None 
+    paging: Optional[PagingInfo] = None
+
+
+# TAMS Flow Storage Models
+class HttpRequest(BaseModel):
+    """HTTP request information for TAMS storage operations"""
+    url: str = Field(..., description="The URL to make the request to")
+    body: Optional[str] = Field(None, description="The text of the body which needs to be included in the request")
+    content_type: Optional[str] = Field(None, alias="content-type", description="The content type which must be used")
+    headers: Optional[Dict[str, str]] = Field(None, description="Additional headers that should be included")
+
+
+class PreAction(BaseModel):
+    """Pre-action for storage preparation"""
+    action: str = Field(..., description="Action type")
+    bucket_id: Optional[str] = Field(None, description="The name of the bucket that needs to be created")
+    put_url: Optional[HttpRequest] = None
+    put_cors_url: Optional[HttpRequest] = None
+
+
+class MediaObject(BaseModel):
+    """Media object storage information"""
+    object_id: str = Field(..., description="The object store identifier for the media object")
+    put_url: HttpRequest = Field(..., description="PUT URL for uploading the media object")
+    put_cors_url: Optional[HttpRequest] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata including storage path")
+
+
+class FlowStorage(BaseModel):
+    """Flow storage response"""
+    pre: Optional[List[PreAction]] = None
+    media_objects: List[MediaObject] = Field(..., description="List of information for identifying and uploading media objects")
+
+
+class FlowStoragePost(BaseModel):
+    """Flow storage allocation request"""
+    limit: Optional[int] = Field(None, description="Limit the number of storage segments in each response page")
+    object_ids: Optional[List[str]] = Field(None, description="Array of object_ids to use")
+    storage_id: Optional[str] = Field(None, description="The storage backend to allocate storage in") 

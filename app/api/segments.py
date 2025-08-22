@@ -28,9 +28,9 @@ async def get_flow_segments(store: VASTStore, flow_id: str, timerange: Optional[
 async def create_flow_segment(store: VASTStore, flow_id: str, segment: FlowSegment) -> bool:
     """Create a new flow segment"""
     try:
-        # For now, we'll create the segment without media data
-        # In a real implementation, you'd handle the media data upload
-        success = await store.create_flow_segment(segment, flow_id, b"", "application/octet-stream")
+        # Create segment with metadata only (no media data)
+        # Media data should be uploaded separately via presigned URL
+        success = await store.create_flow_segment_metadata(segment, flow_id)
         return success
     except Exception as e:
         logger.error("Failed to create flow segment for %s: %s", flow_id, e)

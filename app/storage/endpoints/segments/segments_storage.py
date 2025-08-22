@@ -89,6 +89,34 @@ class SegmentsStorage:
             logger.error("Failed to create TAMS segment %s: %s", segment.object_id, e)
             return False
     
+    async def create_segment_metadata(self, segment: FlowSegment, flow_id: str) -> bool:
+        """
+        Create a TAMS flow segment with metadata only (no media data)
+        Used when media data is uploaded separately via presigned URL
+        
+        Args:
+            segment: FlowSegment model instance
+            flow_id: ID of the flow this segment belongs to
+            
+        Returns:
+            bool: True if creation successful, False otherwise
+        """
+        try:
+            logger.info("Creating TAMS segment metadata for flow %s: %s", flow_id, segment.object_id)
+            
+            # Only store metadata in VAST (media data uploaded separately)
+            vast_success = await self._store_segment_metadata(segment, flow_id)
+            if not vast_success:
+                logger.error("Failed to store segment metadata in VAST for segment %s", segment.object_id)
+                return False
+            
+            logger.info("Successfully created TAMS segment metadata: %s", segment.object_id)
+            return True
+            
+        except Exception as e:
+            logger.error("Failed to create TAMS segment metadata %s: %s", segment.object_id, e)
+            return False
+    
     async def get_segments(self, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
         """
         Get TAMS flow segments with optional timerange filtering
@@ -114,6 +142,22 @@ class SegmentsStorage:
             for metadata in segments_metadata:
                 segment = await self._metadata_to_segment(metadata)
                 if segment:
+                    # Generate get_urls dynamically since presigned URLs expire
+                    if segment.storage_path:
+                        try:
+                            get_urls = await self.s3.generate_get_urls(segment)
+                            segment.get_urls = get_urls
+                            logger.debug("Generated dynamic get_urls for segment %s: %d URLs", 
+                                      segment.object_id, len(get_urls) if get_urls else 0)
+                        except Exception as e:
+                            logger.error("Failed to generate get_urls for segment %s: %s", 
+                                       segment.object_id, e)
+                            segment.get_urls = []
+                    else:
+                        logger.warning("No storage_path for segment %s, cannot generate get_urls", 
+                                     segment.object_id)
+                        segment.get_urls = []
+                    
                     segments.append(segment)
             
             logger.info("Retrieved %d TAMS segments for flow %s", len(segments), flow_id)
@@ -165,16 +209,8 @@ class SegmentsStorage:
     async def _store_segment_metadata(self, segment: FlowSegment, flow_id: str) -> bool:
         """
         Store segment metadata in VAST
-        
-        Args:
-            segment: FlowSegment model instance
-            flow_id: ID of the flow this segment belongs to
-            
-        Returns:
-            bool: True if storage successful, False otherwise
         """
         try:
-            # Convert FlowSegment to VAST-compatible format
             metadata = {
                 'id': segment.object_id,  # Use object_id as the primary key
                 'flow_id': flow_id,
@@ -182,22 +218,18 @@ class SegmentsStorage:
                 'timerange': segment.timerange,
                 'ts_offset': segment.ts_offset,
                 'last_duration': segment.last_duration,
-                'created': datetime.now(timezone.utc).isoformat(),
-                'size': len(segment.get_urls) if segment.get_urls else 0
+                'storage_path': segment.storage_path,  # Store the S3 key used for this segment
+                'size': 0 # FlowSegment does not have a size field, set to 0 for now
             }
-            
-            # Store in VAST
             success = self.vast.insert_record('segments', metadata)
-            
             if success:
-                logger.info("Stored segment metadata in VAST: %s", segment.object_id)
+                logger.info("Successfully stored segment metadata for %s with storage_path: %s", 
+                          segment.object_id, segment.storage_path)
             else:
-                logger.error("Failed to store segment metadata in VAST: %s", segment.object_id)
-            
+                logger.error("Failed to store segment metadata for %s", segment.object_id)
             return success
-            
         except Exception as e:
-            logger.error("Failed to store segment metadata for %s: %s", segment.object_id, e)
+            logger.error("Error storing segment metadata for %s: %s", segment.object_id, e)
             return False
     
     async def _get_segments_metadata(self, flow_id: str, timerange: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -233,31 +265,23 @@ class SegmentsStorage:
     async def _metadata_to_segment(self, metadata: Dict[str, Any]) -> Optional[FlowSegment]:
         """
         Convert VAST metadata to FlowSegment model
-        
-        Args:
-            metadata: Segment metadata from VAST
-            
-        Returns:
-            FlowSegment: FlowSegment model instance or None if failed
+        Note: get_urls are generated dynamically since presigned URLs expire
         """
         try:
-            # Create FlowSegment model
             segment = FlowSegment(
-                object_id=metadata['object_id'],  # Use object_id as the primary identifier
+                object_id=metadata['object_id'],
                 timerange=metadata['timerange'],
                 ts_offset=metadata.get('ts_offset', '0:0'),
-                last_duration=metadata.get('last_duration', '0:0')
+                last_duration=metadata.get('last_duration', '0:0'),
+                storage_path=metadata.get('storage_path')  # Restore the S3 key used for this segment
             )
             
-            # Generate get_urls for TAMS compliance
-            get_urls = await self.s3.generate_get_urls(segment)
-            segment.get_urls = get_urls
-            
+            logger.info("Converted metadata to FlowSegment: %s with storage_path: %s", 
+                      segment.object_id, segment.storage_path)
             return segment
             
         except Exception as e:
-            logger.error("Failed to convert metadata to segment for %s: %s", 
-                        metadata.get('id', 'unknown'), e)
+            logger.error("Failed to convert metadata to FlowSegment: %s", e)
             return None
     
     async def _delete_segment_metadata(self, segment_id: str) -> bool:
@@ -304,6 +328,22 @@ class SegmentsStorage:
             segment = await self._metadata_to_segment(metadata[0])
             
             if segment:
+                # Generate get_urls dynamically since presigned URLs expire
+                if segment.storage_path:
+                    try:
+                        get_urls = await self.s3.generate_get_urls(segment)
+                        segment.get_urls = get_urls
+                        logger.debug("Generated dynamic get_urls for segment %s: %d URLs", 
+                                  segment.object_id, len(get_urls) if get_urls else 0)
+                    except Exception as e:
+                        logger.error("Failed to generate get_urls for segment %s: %s", 
+                                   segment.object_id, e)
+                        segment.get_urls = []
+                else:
+                    logger.warning("No storage_path for segment %s, cannot generate get_urls", 
+                                 segment.object_id)
+                    segment.get_urls = []
+                
                 logger.info("Successfully retrieved TAMS segment: %s", segment_id)
             
             return segment

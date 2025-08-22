@@ -25,7 +25,7 @@ import uuid
 
 from ...vastdbmanager import VastDBManager
 from ...storage_backend_manager import StorageBackendManager
-from ....models.models import Flow, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow, FlowCollection
+from ....models.models import Flow, VideoFlow, AudioFlow, DataFlow, ImageFlow, MultiFlow, FlowCollection, SegmentDuration
 
 logger = logging.getLogger(__name__)
 
@@ -61,19 +61,24 @@ class FlowsStorage:
         """
         try:
             logger.info("Creating TAMS flow: %s", flow.id)
+            logger.info("Flow object frame_width type: %s, value: %s", type(flow.frame_width), flow.frame_width)
+            logger.info("Flow object frame_height type: %s, value: %s", type(flow.frame_height), flow.frame_height)
             
             # Convert Flow to VAST-compatible format
+            # Use simple string fields to avoid data type conversion issues
             metadata = {
                 'id': str(flow.id),
                 'source_id': str(flow.source_id),
-                'format': flow.format,
-                'label': flow.label,
-                'description': flow.description,
-                'created': datetime.now(timezone.utc).isoformat(),
-                'updated': datetime.now(timezone.utc).isoformat()
+                'format': str(flow.format),
+                'label': str(flow.label),
+                'description': str(flow.description)
             }
+            logger.info("Initial metadata created: %s", metadata)
             
             # Add flow-specific fields based on type
+            # Keep numeric fields as numbers, convert string fields to strings
+            if hasattr(flow, 'codec'):
+                metadata['codec'] = str(flow.codec)
             if hasattr(flow, 'frame_width'):
                 metadata['frame_width'] = flow.frame_width
             if hasattr(flow, 'frame_height'):
@@ -86,8 +91,20 @@ class FlowsStorage:
                 metadata['channels'] = flow.channels
             if hasattr(flow, 'bit_rate'):
                 metadata['bit_rate'] = flow.bit_rate
+            if hasattr(flow, 'interlace_mode'):
+                metadata['interlace_mode'] = str(flow.interlace_mode)
+            if hasattr(flow, 'color_sampling'):
+                metadata['color_sampling'] = str(flow.color_sampling)
+            if hasattr(flow, 'color_space'):
+                metadata['color_space'] = str(flow.color_space)
+            if hasattr(flow, 'transfer_characteristics'):
+                metadata['transfer_characteristics'] = str(flow.transfer_characteristics)
+            if hasattr(flow, 'color_primaries'):
+                metadata['color_primaries'] = str(flow.color_primaries)
             
             # Store in VAST
+            logger.info("About to insert flow metadata: %s", metadata)
+            logger.info("Metadata types: %s", {k: type(v) for k, v in metadata.items()})
             success = self.vast.insert_record('flows', metadata)
             
             if success:
@@ -265,6 +282,21 @@ class FlowsStorage:
             
             # Create appropriate flow type
             if 'video' in flow_format.lower():
+                # Convert frame_rate string back to SegmentDuration object if it exists
+                frame_rate = None
+                if metadata.get('frame_rate'):
+                    frame_rate_str = metadata['frame_rate']
+                    if isinstance(frame_rate_str, str) and '/' in frame_rate_str:
+                        try:
+                            numerator, denominator = frame_rate_str.split('/')
+                            frame_rate = SegmentDuration(numerator=int(numerator), denominator=int(denominator))
+                        except (ValueError, TypeError):
+                            logger.warning("Invalid frame_rate format: %s", frame_rate_str)
+                    elif isinstance(frame_rate_str, dict):
+                        frame_rate = SegmentDuration(**frame_rate_str)
+                    elif hasattr(frame_rate_str, 'numerator') and hasattr(frame_rate_str, 'denominator'):
+                        frame_rate = frame_rate_str
+                
                 flow = VideoFlow(
                     id=metadata['id'],
                     source_id=metadata['source_id'],
@@ -274,7 +306,7 @@ class FlowsStorage:
                     description=metadata.get('description'),
                     frame_width=metadata.get('frame_width'),
                     frame_height=metadata.get('frame_height'),
-                    frame_rate=metadata.get('frame_rate')
+                    frame_rate=frame_rate
                 )
             elif 'audio' in flow_format.lower():
                 flow = AudioFlow(
@@ -431,13 +463,13 @@ class FlowsStorage:
             logger.info("Adding flow %s to collection %s", flow_id, collection_id)
             
             # Create collection metadata
+            # Use simple string fields to avoid data type conversion issues
             collection_metadata = {
-                'collection_id': collection_id,
-                'flow_id': flow_id,
-                'label': label,
-                'description': description or '',
-                'created': datetime.now(timezone.utc).isoformat(),
-                'created_by': created_by or 'system'
+                'collection_id': str(collection_id),
+                'flow_id': str(flow_id),
+                'label': str(label),
+                'description': str(description or ''),
+                'created_by': str(created_by or 'system')
             }
             
             # Store in VAST

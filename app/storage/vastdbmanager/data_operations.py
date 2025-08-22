@@ -25,10 +25,72 @@ class DataOperations:
     def insert_single_record(self, table_name: str, data: Dict[str, Any]):
         """Insert a single Python dictionary record into a table"""
         try:
+            logger.info("DataOps insert_single_record called with data: %s", data)
+            logger.info("DataOps insert_single_record data types: %s", {k: type(v) for k, v in data.items()})
+            
             if not self.connection_manager.is_connected():
                 raise RuntimeError("Not connected to VAST database")
             
             start_time = time.time()
+            
+            # Get the table schema from cache or database
+            schema = self.cache_manager.get_table_columns(table_name)
+            if schema is None:
+                # If not cached, fetch from database
+                connection = self.connection_manager.get_connection()
+                bucket = self.connection_manager.get_bucket()
+                schema_name = self.connection_manager.get_schema()
+                
+                with connection.transaction() as tx:
+                    bucket_obj = tx.bucket(bucket)
+                    schema_obj = bucket_obj.schema(schema_name)
+                    vast_table = schema_obj.table(table_name)
+                    schema = vast_table.columns()
+                    # Cache the schema
+                    stats = vast_table.get_stats()
+                    total_rows = getattr(stats, 'total_rows', 0) or 0
+                    self.cache_manager.update_table_cache(table_name, schema, total_rows)
+            
+            # Filter schema to only include columns present in data
+            columns = list(data.keys())
+            schema_fields = [
+                field for field in schema
+                if field.name in columns
+            ]
+            
+            # Convert single record to list format for RecordBatch creation
+            converted_data = {}
+            logger.info(f"Original data for {table_name}: {data}")
+            logger.info(f"Original data types for {table_name}: {[(k, type(v)) for k, v in data.items()]}")
+            
+            for col, value in data.items():
+                # Convert UUIDs to strings recursively
+                original_value = value
+                value = self._convert_uuids_to_strings(value)
+                logger.info(f"Column {col}: {original_value} -> {value} (type: {type(value)})")
+                
+                if isinstance(value, (dict, list)):
+                    # Convert nested dictionaries and lists to JSON strings
+                    import json
+                    converted_data[col] = [json.dumps(value)]
+                    logger.info(f"Column {col} converted to JSON string: {converted_data[col]}")
+                elif hasattr(value, '__class__') and value.__class__.__name__ == 'SegmentDuration':
+                    # Convert SegmentDuration objects to string representation
+                    converted_data[col] = [f"{value.numerator}/{value.denominator}"]
+                    logger.info(f"Column {col} converted from SegmentDuration to string: {converted_data[col]}")
+                else:
+                    converted_data[col] = [value]
+                    logger.info(f"Column {col} wrapped in list: {converted_data[col]} (type: {type(converted_data[col][0])})")
+            
+            logger.info(f"Converted data for {table_name}: {converted_data}")
+            
+            # Create record batch (VAST expects RecordBatch, not Table)
+            logger.info(f"Schema fields for {table_name}: {schema_fields}")
+            logger.info(f"Schema field types: {[(f.name, f.type) for f in schema_fields]}")
+            logger.info(f"Final converted data: {converted_data}")
+            logger.info(f"Final converted data types: {[(k, type(v[0]) if v else None) for k, v in converted_data.items()]}")
+            
+            record_batch = pa.RecordBatch.from_pydict(converted_data, schema=pa.schema(schema_fields))
             
             connection = self.connection_manager.get_connection()
             bucket = self.connection_manager.get_bucket()
@@ -37,8 +99,9 @@ class DataOperations:
             with connection.transaction() as tx:
                 bucket_obj = tx.bucket(bucket)
                 schema_obj = bucket_obj.schema(schema_name)
-                table = schema_obj.table(table_name)
-                table.insert_pydict(data)
+                vast_table = schema_obj.table(table_name)
+                
+                vast_table.insert(record_batch)
             
             execution_time = time.time() - start_time
             
@@ -384,9 +447,11 @@ class DataOperations:
                 return None
     
     def _convert_uuids_to_strings(self, obj):
-        """Recursively convert UUID objects to strings in any data structure"""
+        """Recursively convert UUID objects and SegmentDuration objects to strings in any data structure"""
         if isinstance(obj, uuid.UUID):
             return str(obj)
+        elif hasattr(obj, '__class__') and obj.__class__.__name__ == 'SegmentDuration':
+            return f"{obj.numerator}/{obj.denominator}"
         elif isinstance(obj, dict):
             return {key: self._convert_uuids_to_strings(value) for key, value in obj.items()}
         elif isinstance(obj, list):

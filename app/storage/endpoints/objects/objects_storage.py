@@ -66,8 +66,8 @@ class ObjectsStorage:
             # Convert Object to VAST-compatible format
             metadata = {
                 'id': str(obj.id),
-                'size': obj.size,
-                'created': datetime.now(timezone.utc).isoformat()
+                'size': obj.size
+                # Note: created timestamp is managed by VAST database
             }
             
             # Store object metadata in VAST

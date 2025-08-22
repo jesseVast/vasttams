@@ -37,7 +37,7 @@ class S3Core:
     DEFAULT_MAX_CONCURRENT_PARTS = 10  # Default maximum concurrent parts for multipart uploads
     
     def __init__(self, endpoint_url: str, access_key_id: str, secret_access_key: str, 
-                 bucket_name: str, use_ssl: bool = True):
+                 bucket_name: str, use_ssl: bool = True, region: str = "us-east-1"):
         """
         Initialize S3 Core with connection parameters
         
@@ -47,12 +47,14 @@ class S3Core:
             secret_access_key: S3 secret access key
             bucket_name: S3 bucket name
             use_ssl: Whether to use SSL for connections
+            region: S3 region for presigned URL generation
         """
         self.endpoint_url = endpoint_url
         self.access_key_id = access_key_id
         self.secret_access_key = secret_access_key
         self.bucket_name = bucket_name
         self.use_ssl = use_ssl
+        self.region = region
         
         logger.info("S3Core initialization - Endpoint: %s, Bucket: %s, Access Key: %s", 
                    self.endpoint_url, self.bucket_name, self.access_key_id)
@@ -67,7 +69,11 @@ class S3Core:
                 service_name='s3',
                 aws_access_key_id=self.access_key_id,
                 aws_secret_access_key=self.secret_access_key,
-                endpoint_url=self.endpoint_url
+                endpoint_url=self.endpoint_url,
+                region_name=self.region,
+                config=boto3.session.Config(
+                    s3={'addressing_style': 'path'}
+                )
             )
             logger.info("Created S3 client: %s", self.s3_client)
             

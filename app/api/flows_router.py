@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
 import uuid
+from datetime import datetime
 from ..models.models import Flow, FlowsResponse, FlowFilters, FlowDetailFilters, Tags, FlowStoragePost, FlowStorage, HttpRequest, MediaObject
 from .flows import get_flows, get_flow, create_flow, update_flow, delete_flow
 from ..storage.vast_store import VASTStore
@@ -887,33 +888,28 @@ async def allocate_flow_storage(
         # Generate storage locations with pre-signed URLs
         media_objects = []
         for object_id in object_ids:
-            # Generate hierarchical path for storage allocation
-            # This ensures consistency between storage and retrieval URLs
-            object_key = store.s3_store.generate_segment_key(flow_id, object_id, get_storage_timerange())
+            # Generate TAMS-compliant storage path
+            from datetime import datetime
             
-            logger.info("Generated hierarchical path: %s for object %s", object_key, object_id)
+            now = datetime.now()
+            year = str(now.year)
+            month = f"{now.month:02d}"
+            date = f"{now.day:02d}"
             
+            # Use TAMS path format: {tams_storage_path}/{year}/{month}/{date}/{object_id}
+            storage_path = f"{settings.tams_storage_path}/{year}/{month}/{date}/{object_id}"
+            
+            # Generate presigned URL for upload
             try:
-                # Check if S3Store has the required method
-                if not hasattr(store.s3_store, 'generate_object_presigned_url'):
-                    logger.error("S3Store missing generate_object_presigned_url method")
-                    raise HTTPException(status_code=500, detail="S3Store not properly initialized")
-                
-                # Check if S3Store has a working s3_client
-                if not hasattr(store.s3_store, 's3_client') or not store.s3_store.s3_client:
-                    logger.error("S3Store missing s3_client")
-                    raise HTTPException(status_code=500, detail="S3Store s3_client not initialized")
-                
-                # Generate presigned URL for the hierarchical path
-                put_url = store.s3_store.generate_object_presigned_url(
-                    object_id=object_id,
-                    operation='put_object',
-                    custom_key=object_key  # Use the hierarchical path
+                presigned_url = store.s3_store.generate_object_presigned_url(
+                    storage_path=storage_path,
+                    operation="put_object",
+                    expires=settings.s3_presigned_url_upload_timeout
                 )
                 
-                logger.info("Generated presigned URL: %s", put_url)
+                logger.info("Generated presigned URL: %s", presigned_url)
                 
-                if not put_url:
+                if not presigned_url:
                     logger.error("Failed to generate presigned URL for object %s", object_id)
                     raise HTTPException(status_code=500, detail=f"Failed to generate presigned URL for object {object_id}")
                     
@@ -923,13 +919,13 @@ async def allocate_flow_storage(
             
             # Create MediaObject with the hierarchical path
             media_object = MediaObject(
-                id=object_id,
+                object_id=object_id,
                 put_url=HttpRequest(
-                    url=put_url,
+                    url=presigned_url, # Use the generated presigned URL
                     headers={}  # No custom headers for S3 compatibility
                 ),
                 # Store the hierarchical path for later use
-                metadata={"storage_path": object_key}
+                metadata={"storage_path": storage_path}
             )
             
             media_objects.append(media_object)

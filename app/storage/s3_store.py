@@ -55,7 +55,8 @@ class S3Store:
             access_key_id=self.access_key_id,
             secret_access_key=self.secret_access_key,
             bucket_name=self.bucket_name,
-            use_ssl=self.use_ssl
+            use_ssl=self.use_ssl,
+            region=getattr(settings, 's3_region', 'us-east-1')
         )
         
         # Initialize specialized endpoint modules
@@ -71,25 +72,23 @@ class S3Store:
     
     def _generate_segment_key(self, flow_id: str, segment_id: str, timerange: str) -> str:
         """
-        Generate segment key - delegated to SegmentsS3
-        
-        Args:
-            flow_id: Flow ID
-            segment_id: Segment ID
-            timerange: Timerange string
-            
-        Returns:
-            str: Generated S3 key
+        Generate S3 key for segment storage using TAMS path format
+        Format: {tams_storage_path}/{year}/{month}/{date}/{object_id}
         """
-        # Create a temporary segment object for key generation
-        temp_segment = FlowSegment(
-            id=segment_id,
-            object_id=f"temp_{segment_id}",
-            timerange=timerange
-        )
+        from datetime import datetime
+        from app.core.config import settings
         
-        # Delegate to SegmentsS3 for key generation
-        return self.segments_s3._generate_segment_key(temp_segment)
+        # Get current date for TAMS path organization
+        now = datetime.now()
+        year = str(now.year)
+        month = f"{now.month:02d}"
+        date = f"{now.day:02d}"
+        
+        # Generate TAMS-compliant storage path
+        tams_path = f"{settings.tams_storage_path}/{year}/{month}/{date}/{segment_id}"
+        
+        logger.info("Generated TAMS storage path: %s for segment: %s", tams_path, segment_id)
+        return tams_path
     
     def generate_segment_key(self, flow_id: str, segment_id: str, timerange: str) -> str:
         """

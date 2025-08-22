@@ -9,7 +9,7 @@ This module handles TAMS-specific S3 operations for flow segments including:
 
 import logging
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import uuid
 
 from ...core.s3_core import S3Core
@@ -52,7 +52,7 @@ class SegmentsS3:
             bool: True if storage successful, False otherwise
         """
         try:
-            logger.info("Storing segment media in S3: %s (%d bytes)", segment.id, len(data))
+            logger.info("Storing segment media in S3: %s (%d bytes)", segment.object_id, len(data))
             
             # Generate S3 key for segment
             key = self._generate_segment_key(segment)
@@ -65,14 +65,14 @@ class SegmentsS3:
             )
             
             if success:
-                logger.info("Successfully stored segment media in S3: %s", segment.id)
+                logger.info("Successfully stored segment media in S3: %s", segment.object_id)
             else:
-                logger.error("Failed to store segment media in S3: %s", segment.id)
+                logger.error("Failed to store segment media in S3: %s", segment.object_id)
             
             return success
             
         except Exception as e:
-            logger.error("Failed to store segment media for %s: %s", segment.id, e)
+            logger.error("Failed to store segment media for %s: %s", segment.object_id, e)
             return False
     
     async def retrieve_segment(self, segment: FlowSegment) -> Optional[bytes]:
@@ -86,7 +86,7 @@ class SegmentsS3:
             bytes: Media data or None if failed
         """
         try:
-            logger.info("Retrieving segment media from S3: %s", segment.id)
+            logger.info("Retrieving segment media from S3: %s", segment.object_id)
             
             # Generate S3 key for segment
             key = self._generate_segment_key(segment)
@@ -96,14 +96,14 @@ class SegmentsS3:
             
             if data is not None:
                 logger.info("Successfully retrieved segment media from S3: %s (%d bytes)", 
-                           segment.id, len(data))
+                           segment.object_id, len(data))
             else:
-                logger.error("Failed to retrieve segment media from S3: %s", segment.id)
+                logger.error("Failed to retrieve segment media from S3: %s", segment.object_id)
             
             return data
             
         except Exception as e:
-            logger.error("Failed to retrieve segment media for %s: %s", segment.id, e)
+            logger.error("Failed to retrieve segment media for %s: %s", segment.object_id, e)
             return None
     
     async def delete_segment(self, segment: FlowSegment) -> bool:
@@ -117,7 +117,7 @@ class SegmentsS3:
             bool: True if deletion successful, False otherwise
         """
         try:
-            logger.info("Deleting segment media from S3: %s", segment.id)
+            logger.info("Deleting segment media from S3: %s", segment.object_id)
             
             # Generate S3 key for segment
             key = self._generate_segment_key(segment)
@@ -126,93 +126,88 @@ class SegmentsS3:
             success = self.s3.delete_object(key)
             
             if success:
-                logger.info("Successfully deleted segment media from S3: %s", segment.id)
+                logger.info("Successfully deleted segment media from S3: %s", segment.object_id)
             else:
-                logger.error("Failed to delete segment media from S3: %s", segment.id)
+                logger.error("Failed to delete segment media from S3: %s", segment.object_id)
             
             return success
             
         except Exception as e:
-            logger.error("Failed to delete segment media for %s: %s", segment.id, e)
+            logger.error("Failed to delete segment media for %s: %s", segment.object_id, e)
             return False
     
     async def generate_get_urls(self, segment: FlowSegment) -> List[GetUrl]:
         """
         Generate TAMS-compliant get_urls for a segment
-        
-        Args:
-            segment: FlowSegment model instance
-            
-        Returns:
-            List[GetUrl]: List of TAMS-compliant get_urls
+        Since presigned URLs expire, we generate them dynamically on each request
         """
         try:
-            logger.info("Generating TAMS-compliant get_urls for segment: %s", segment.id)
+            logger.info("Generating TAMS-compliant get_urls for segment: %s", segment.object_id)
             
-            # Generate S3 key for segment
-            key = self._generate_segment_key(segment)
+            # Use stored storage_path if available, otherwise generate key
+            key = segment.storage_path if segment.storage_path else self._generate_segment_key(segment)
+            logger.info("Using S3 key for segment %s: %s", segment.object_id, key)
             
             # Get storage backend information for TAMS compliance
-            storage_backend = self.storage_backend_manager.get_default_backend()
+            storage_backend = self.storage_backend_manager.get_storage_backend_info("default")
+            logger.info("Storage backend info: %s", storage_backend)
             
-            # Generate presigned URL for download
+            # Generate dynamic presigned URL for download (expires in 1 hour)
+            logger.info("Generating presigned URL for key: %s", key)
             presigned_url = self.s3.generate_presigned_url(
                 key=key,
                 operation="get_object",
                 expires=3600  # 1 hour expiration
             )
+            logger.info("Presigned URL result: %s", presigned_url)
             
             if not presigned_url:
-                logger.error("Failed to generate presigned URL for segment: %s", segment.id)
+                logger.error("Failed to generate presigned URL for segment %s", segment.object_id)
                 return []
             
-            # Create TAMS-compliant GetUrl
+            # Create TAMS-compliant GetUrl object
             get_url = GetUrl(
                 store_type="http_object_store",
-                provider=storage_backend.get('provider', 'unknown'),
-                region=storage_backend.get('region', 'unknown'),
-                availability_zone=storage_backend.get('availability_zone'),
-                store_product=storage_backend.get('store_product', 'unknown'),
+                provider=storage_backend.get("provider", "unknown"),
+                region=storage_backend.get("region", "unknown"),
+                availability_zone=storage_backend.get("availability_zone"),
+                store_product=storage_backend.get("store_product", "unknown"),
                 url=presigned_url,
-                storage_id=storage_backend.get('id', 'default'),
+                storage_id=storage_backend.get("id", "default"),
                 presigned=True,
                 label="default",
                 controlled=True
             )
             
-            logger.info("Generated TAMS-compliant get_urls for segment: %s", segment.id)
+            logger.info("Generated get_url for segment %s: %s", segment.object_id, presigned_url)
             return [get_url]
             
         except Exception as e:
-            logger.error("Failed to generate get_urls for segment %s: %s", segment.id, e)
+            logger.error("Error generating get_urls for segment %s: %s", segment.object_id, e)
+            import traceback
+            logger.error("Traceback: %s", traceback.format_exc())
             return []
     
     def _generate_segment_key(self, segment: FlowSegment) -> str:
         """
-        Generate S3 key for segment storage
-        
-        Args:
-            segment: FlowSegment model instance
-            
-        Returns:
-            str: S3 key for segment storage
+        Generate S3 key for segment storage using TAMS path format
+        Format: {tams_storage_path}/{year}/{month}/{date}/{object_id}
         """
-        try:
-            # Extract flow_id from segment context
-            # This assumes the segment has flow_id context available
-            # In practice, you might need to pass this separately
-            
-            # For now, use a simple key format
-            # TODO: Implement proper key generation based on TAMS requirements
-            key = f"segments/{segment.id}/{segment.object_id}"
-            
-            logger.debug("Generated S3 key for segment %s: %s", segment.id, key)
-            return key
-            
-        except Exception as e:
-            logger.error("Failed to generate S3 key for segment %s: %s", segment.id, e)
-            # Fallback key
-            return f"segments/{segment.id}/fallback"
+        from datetime import datetime
+        from app.core.config import get_settings
+        
+        # Get current date for TAMS path organization
+        now = datetime.now()
+        year = str(now.year)
+        month = f"{now.month:02d}"
+        date = f"{now.day:02d}"
+        
+        # Generate TAMS-compliant storage path
+        settings = get_settings()
+        tams_path = f"{settings.tams_storage_path}/{year}/{month}/{date}/{segment.object_id}"
+        
+        logger.info("Generated TAMS storage path: %s for segment: %s", tams_path, segment.object_id)
+        return tams_path
     
     def segment_exists(self, segment: FlowSegment) -> bool:
         """
@@ -229,7 +224,7 @@ class SegmentsS3:
             return self.s3.object_exists(key)
             
         except Exception as e:
-            logger.error("Failed to check segment existence for %s: %s", segment.id, e)
+            logger.error("Failed to check segment existence for %s: %s", segment.object_id, e)
             return False
     
     def get_segment_metadata(self, segment: FlowSegment) -> Optional[Dict[str, Any]]:
@@ -247,7 +242,7 @@ class SegmentsS3:
             return self.s3.get_object_metadata(key)
             
         except Exception as e:
-            logger.error("Failed to get segment metadata for %s: %s", segment.id, e)
+            logger.error("Failed to get segment metadata for %s: %s", segment.object_id, e)
             return None
     
     def copy_segment(self, source_segment: FlowSegment, destination_segment: FlowSegment) -> bool:
@@ -262,7 +257,7 @@ class SegmentsS3:
             bool: True if copy successful, False otherwise
         """
         try:
-            logger.info("Copying segment media from %s to %s", source_segment.id, destination_segment.id)
+            logger.info("Copying segment media from %s to %s", source_segment.object_id, destination_segment.object_id)
             
             source_key = self._generate_segment_key(source_segment)
             destination_key = self._generate_segment_key(destination_segment)
@@ -271,16 +266,16 @@ class SegmentsS3:
             
             if success:
                 logger.info("Successfully copied segment media from %s to %s", 
-                           source_segment.id, destination_segment.id)
+                           source_segment.object_id, destination_segment.object_id)
             else:
                 logger.error("Failed to copy segment media from %s to %s", 
-                            source_segment.id, destination_segment.id)
+                           source_segment.object_id, destination_segment.object_id)
             
             return success
             
         except Exception as e:
             logger.error("Failed to copy segment media from %s to %s: %s", 
-                        source_segment.id, destination_segment.id, e)
+                       source_segment.object_id, destination_segment.object_id, e)
             return False
     
     def list_segments_by_prefix(self, prefix: str = "segments/") -> List[str]:
@@ -317,5 +312,5 @@ class SegmentsS3:
             return None
             
         except Exception as e:
-            logger.error("Failed to get segment size for %s: %s", segment.id, e)
+            logger.error("Failed to get segment size for %s: %s", segment.object_id, e)
             return None

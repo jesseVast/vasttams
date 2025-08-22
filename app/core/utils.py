@@ -30,39 +30,43 @@ def generate_uuid() -> str:
     return str(uuid.uuid4())
 
 
-def validate_timerange(timerange: str) -> bool:
+def validate_timerange(timerange: str) -> str:
     """Validate TAMS timerange format according to specification"""
     # TAMS timerange pattern: ^(\[|\()?(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?(_(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?)?(\]|\))?$
     # Examples: [0:0_10:0), (5:0_, [1694429247:0_1694429248:0), [1694429247:0]
     pattern = r'^(\[|\()?(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?(_(-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8}))?)?(\]|\))?$'
-    return bool(re.match(pattern, timerange))
+    if not re.match(pattern, timerange):
+        raise ValueError(f"Invalid timerange format: {timerange}. Must match TAMS timerange pattern.")
+    return timerange
 
 
-def validate_uuid(uuid_str: str) -> bool:
+def validate_uuid(uuid_str: str) -> str:
     """Validate UUIDv4 format only"""
     try:
         UUID(uuid_str)
-        return True
+        return uuid_str
     except Exception:
-        return False
+        raise ValueError(f"Invalid UUID format: {uuid_str}")
 
 
-def validate_tams_uuid(uuid_str: str) -> bool:
+def validate_tams_uuid(uuid_str: str) -> str:
     """Validate TAMS UUID format according to specification"""
     # TAMS UUID pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
     # This ensures UUID version 4 (random) or version 5 (SHA-1) as per TAMS spec
     pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-    return bool(re.match(pattern, uuid_str))
+    if not re.match(pattern, uuid_str):
+        raise ValueError(f"Invalid TAMS UUID format: {uuid_str}. Must match TAMS UUID pattern.")
+    return uuid_str
 
 
-def validate_mime_type(mime_type: str) -> bool:
+def validate_mime_type(mime_type: str) -> str:
     """Validate MIME type format with TAMS-specific enhancements"""
     # Basic MIME type pattern: type/subtype
     pattern = r'^[^\\s\/]+/[^\\s\/]+$'
     
     # Additional TAMS-specific validation
     if not re.match(pattern, mime_type):
-        return False
+        raise ValueError(f"Invalid MIME type format: {mime_type}. Must be in format 'type/subtype'")
     
     # Check for common TAMS MIME types
     common_tams_types = [
@@ -73,18 +77,20 @@ def validate_mime_type(mime_type: str) -> bool:
     ]
     
     # Allow any valid MIME type, but log uncommon ones
-    return True
+    return mime_type
 
 
-def validate_tams_timestamp(timestamp: str) -> bool:
+def validate_tams_timestamp(timestamp: str) -> str:
     """Validate TAMS timestamp format according to specification"""
     # TAMS timestamp pattern: ^-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8})$
     # Examples: "1:40000000", "1694429247:40000000", "-1:40000000"
     pattern = r'^-?(0|[1-9][0-9]*):(0|[1-9][0-9]{0,8})$'
-    return bool(re.match(pattern, timestamp))
+    if not re.match(pattern, timestamp):
+        raise ValueError(f"Invalid TAMS timestamp format: {timestamp}. Must match TAMS timestamp pattern.")
+    return timestamp
 
 
-def validate_content_format(format_str: str) -> bool:
+def validate_content_format(format_str: str) -> str:
     """Validate content format URN"""
     valid_formats = [
         "urn:x-nmos:format:video",
@@ -93,7 +99,9 @@ def validate_content_format(format_str: str) -> bool:
         "urn:x-nmos:format:data",
         "urn:x-nmos:format:multi"
     ]
-    return format_str in valid_formats
+    if format_str not in valid_formats:
+        raise ValueError(f"Invalid content format: {format_str}. Must be one of: {', '.join(valid_formats)}")
+    return format_str
 
 
 async def send_webhook_notification(

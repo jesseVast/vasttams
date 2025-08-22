@@ -227,18 +227,14 @@ async def create_source_collection(
 ):
     """Create a new source collection"""
     try:
-        # Add a dummy source to create the collection (will be removed if no sources)
-        dummy_source_id = str(uuid.uuid4())
-        success = await store.add_source_to_collection(
+        # Create the collection directly
+        success = await store.create_source_collection(
             collection_id, 
-            dummy_source_id, 
             label, 
             description
         )
         
         if success:
-            # Remove the dummy source
-            await store.remove_source_from_collection(collection_id, dummy_source_id)
             return {"message": f"Source collection {collection_id} created successfully"}
         else:
             raise HTTPException(status_code=500, detail="Failed to create source collection")

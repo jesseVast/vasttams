@@ -180,16 +180,23 @@ class DataOperations:
                     else:
                         result = vast_table.select(columns=columns, config=query_config)
                 
-                # Apply limit if specified
-                if limit:
-                    result = result.limit(limit)
-                
                 # Execute the query to get the actual data
                 result = result.read_all()
                 
                 # Convert to dictionary format
                 if hasattr(result, 'to_pydict'):
                     data = result.to_pydict()
+                    
+                    # Apply limit if specified (after converting to dict)
+                    if limit and data and any(isinstance(v, list) for v in data.values()):
+                        keys = list(data.keys())
+                        if keys:
+                            first_key = keys[0]
+                            if isinstance(data[first_key], list) and len(data[first_key]) > limit:
+                                # Truncate all columns to limit
+                                for key in keys:
+                                    if isinstance(data[key], list):
+                                        data[key] = data[key][:limit]
                 else:
                     logger.warning(f"Result does not have to_pydict method: {result}")
                     data = {}

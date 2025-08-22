@@ -686,18 +686,14 @@ async def create_collection(
 ):
     """Create a new collection"""
     try:
-        # Add a dummy flow to create the collection (will be removed if no flows)
-        dummy_flow_id = str(uuid.uuid4())
-        success = await store.add_flow_to_collection(
+        # Create the collection directly
+        success = await store.create_flow_collection(
             collection_id, 
-            dummy_flow_id, 
             label, 
             description
         )
         
         if success:
-            # Remove the dummy flow
-            await store.remove_flow_from_collection(collection_id, dummy_flow_id)
             return {"message": f"Collection {collection_id} created successfully"}
         else:
             raise HTTPException(status_code=500, detail="Failed to create collection")

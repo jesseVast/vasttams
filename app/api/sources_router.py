@@ -18,6 +18,8 @@ async def head_sources():
     """Return sources path headers"""
     return {}
 
+
+
 @router.options("/sources")
 async def options_sources():
     """Sources endpoint OPTIONS method for CORS preflight"""
@@ -644,4 +646,187 @@ async def delete_source_label(
         logger.error("Failed to delete source label for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
- 
+# Tags management endpoints
+@router.head("/sources/{source_id}/tags")
+async def head_source_tags(source_id: str):
+    """Return source tags path headers"""
+    return {}
+
+@router.get("/sources/{source_id}/tags")
+async def get_source_tags(
+    source_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get source tags"""
+    try:
+        source = await get_source(store, source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        return source.tags or {}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to get source tags for %s: %s", source_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/sources/{source_id}/tags")
+async def create_source_tags(
+    source_id: str,
+    tags: Tags,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Create or update source tags"""
+    try:
+        source = await get_source(store, source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        # Merge new tags with existing ones
+        if source.tags:
+            source.tags.update(tags)
+        else:
+            source.tags = tags
+        
+        success = await store.update_source(source_id, source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update source tags")
+        
+        # Emit source updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_source_event('sources/updated', source)
+        except Exception as e:
+            logger.warning("Failed to emit source updated event: %s", e)
+        
+        return {"message": "Tags updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to update source tags for %s: %s", source_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.delete("/sources/{source_id}/tags")
+async def delete_source_tags(
+    source_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete all source tags"""
+    try:
+        source = await get_source(store, source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        source.tags = {}
+        success = await store.update_source(source_id, source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete source tags")
+        
+        # Emit source updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_source_event('sources/updated', source)
+        except Exception as e:
+            logger.warning("Failed to emit source updated event: %s", e)
+        
+        return {"message": "All tags deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to delete source tags for %s: %s", source_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.head("/sources/{source_id}/tags/{name}")
+async def head_source_tag(source_id: str, name: str):
+    """Return source tag path headers"""
+    return {}
+
+@router.get("/sources/{source_id}/tags/{name}")
+async def get_source_tag(
+    source_id: str,
+    name: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get a specific source tag"""
+    try:
+        source = await get_source(store, source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        if not source.tags or name not in source.tags:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        return {name: source.tags[name]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to get source tag %s for %s: %s", name, source_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.put("/sources/{source_id}/tags/{name}")
+async def update_source_tag(
+    source_id: str,
+    name: str,
+    value: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Update a specific source tag"""
+    try:
+        source = await get_source(store, source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        if not source.tags:
+            source.tags = {}
+        
+        source.tags[name] = value
+        success = await store.update_source(source_id, source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update source tag")
+        
+        # Emit source updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_source_event('sources/updated', source)
+        except Exception as e:
+            logger.warning("Failed to emit source updated event: %s", e)
+        
+        return {"message": f"Tag {name} updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to update source tag %s for %s: %s", name, source_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.delete("/sources/{source_id}/tags/{name}")
+async def delete_source_tag(
+    source_id: str,
+    name: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete a specific source tag"""
+    try:
+        source = await get_source(store, source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        if not source.tags or name not in source.tags:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        del source.tags[name]
+        success = await store.update_source(source_id, source)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete source tag")
+        
+        # Emit source updated event
+        try:
+            event_manager = EventManager(store)
+            await event_manager.emit_source_event('sources/updated', source)
+        except Exception as e:
+            logger.warning("Failed to emit source updated event: %s", e)
+        
+        return {"message": f"Tag {name} deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to delete source tag %s for %s: %s", name, source_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -596,3 +596,23 @@ class VASTStore:
             logger.error("Failed to create source collection %s: %s", collection_id, e)
             return False
 
+    async def get_storage_backends(self) -> List[Dict[str, Any]]:
+        """Get information about available storage backends"""
+        try:
+            # Get storage backends from the storage backend manager
+            storage_backends = []
+            
+            # Add default storage backend
+            default_backend = self.storage_backend_manager.get_storage_backend_info("default")
+            if default_backend:
+                storage_backends.append(default_backend)
+            
+            # Add any additional storage backends if they exist
+            # This could be extended to support multiple storage backends
+            
+            logger.info("Retrieved %d storage backends", len(storage_backends))
+            return storage_backends
+            
+        except Exception as e:
+            logger.error("Failed to get storage backends: %s", e)
+            return []

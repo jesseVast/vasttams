@@ -4,7 +4,7 @@ A comprehensive FastAPI implementation of the BBC TAMS API specification with VA
 
 ## 🚀 Features
 
-- **Full TAMS API Compliance**: Implements the complete BBC TAMS API specification v6.0
+- **Full TAMS API Compliance**: Implements the complete BBC TAMS API specification v7.0
 - **VAST Database Integration**: High-performance columnar storage using vastdbmanager with Apache Arrow
 - **S3-Compatible Storage**: Hybrid storage with metadata in VAST DB and media segments in S3
 - **Time-Series Analytics**: Optimized for media flow segments with time ranges
@@ -114,10 +114,11 @@ bbctams/
 │   ├── prometheus/             # Prometheus configuration
 │   ├── grafana/                # Grafana dashboards and config
 │   └── alertmanager/           # Alertmanager configuration
-├── docker-compose.yml
-├── docker-compose.observability.yml  # Observability stack
-├── start-observability.sh      # Observability startup script
-├── Dockerfile
+├── docker/                           # Docker configuration and guides
+│   ├── docker-compose.yml
+│   ├── docker-compose.observability.yml
+│   └── README.md
+├── docker/start-observability.sh  # Observability startup script
 ├── requirements.txt
 ├── OBSERVABILITY.md            # Detailed observability documentation
 ├── SOFT_DELETE_EXTENSION.md    # Soft delete extension documentation
@@ -340,10 +341,11 @@ For comprehensive information about the soft delete extension, including impleme
 
 ### Docker Deployment
 
-1. **Build and run with docker-compose**
-   ```bash
-   docker-compose up --build
-   ```
+1. **Build and run with Docker**
+```bash
+cd docker
+docker-compose up --build
+```
 
 2. **Or build manually**
    ```bash
@@ -409,7 +411,7 @@ VAST_ENDPOINT=http://main.vast.acme.com
 VAST_ACCESS_KEY=test-access-key
 VAST_SECRET_KEY=test-secret-key
 VAST_BUCKET=tams-bucket
-VAST_SCHEMA=tams-schema
+VAST_SCHEMA=tams7
 
 # S3 Storage settings
 S3_ENDPOINT_URL=http://s3.vast.acme.com
@@ -417,6 +419,9 @@ S3_ACCESS_KEY_ID=vast-s3-access-key
 S3_SECRET_ACCESS_KEY=vast-s3-secret-key
 S3_BUCKET_NAME=tams-bucket
 S3_USE_SSL=false
+
+# Table projections for improved query performance
+ENABLE_TABLE_PROJECTIONS=false
 
 # Logging
 LOG_LEVEL=INFO
@@ -435,7 +440,7 @@ VAST_ENDPOINT=http://main.vast.acme.com
 VAST_ACCESS_KEY=test-access-key
 VAST_SECRET_KEY=test-secret-key
 VAST_BUCKET=tams-bucket
-VAST_SCHEMA=tams-schema
+VAST_SCHEMA=tams7
 ```
 
 ## 📖 API Usage Examples
@@ -617,8 +622,7 @@ bbctams/
 │   └── TimeAddressableMediaStore.yaml
 ├── tests/                      # Test suite
 ├── k8s/                        # Kubernetes manifests
-├── docker-compose.yml
-├── Dockerfile
+├── docker/                           # Docker configuration
 ├── requirements.txt
 └── README.md
 ```
@@ -723,8 +727,8 @@ url = await s3_store.generate_presigned_url(
     flow_id="flow-123",
     segment_id="seg-001",
     timerange="[0:0_10:0)",
-    operation="get_object",
-    expires_in=3600
+    operation="get_object"
+    # expires_in will use configurable default from settings
 )
 ```
 
@@ -837,17 +841,14 @@ If S3 storage operations fail:
 ## 🚀 Roadmap
 
 - [ ] Real-time event streaming with WebSockets
-- [ ] Advanced analytics with machine learning
-- [ ] Multi-region deployment support
+
 - [ ] Enhanced security with OAuth2/JWT
-- [ ] GraphQL API support
-- [ ] Plugin system for custom storage backends
-- [ ] Performance optimization for large-scale deployments
-- [ ] Integration with popular media processing tools
+
 - [ ] Advanced observability features (custom dashboards, alerting rules)
-- [ ] Service mesh integration for distributed tracing
-- [ ] Metrics aggregation and long-term storage
-- [ ] Automated performance baselining and anomaly detection
-- [ ] Enhanced soft delete query parameters (include_deleted, deleted_only, deleted_state)
-- [ ] Bulk operations for soft delete and restore
+
 - [ ] Advanced audit trail and compliance reporting
+- [ ] **Trino integration for advanced query capabilities**
+  - [ ] SQL query interface for complex analytics
+  - [ ] Advanced aggregation and window functions
+  - [ ] Integration with existing VAST database infrastructure
+  - [ ] Performance optimization for large-scale data queries

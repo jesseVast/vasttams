@@ -1,0 +1,37 @@
+{
+  "timestamp": "2025-08-21T13:00:04.092390",
+  "tests": {
+    "health_monitor": {
+      "status": "failed",
+      "timestamp": "2025-08-21T13:00:05.921657"
+    },
+    "model_validator": {
+      "status": "passed",
+      "timestamp": "2025-08-21T13:00:05.921998"
+    },
+    "connection_tester": {
+      "status": "passed",
+      "timestamp": "2025-08-21T13:00:15.929624"
+    },
+    "performance_analyzer": {
+      "status": "passed",
+      "timestamp": "2025-08-21T13:00:15.930251"
+    },
+    "troubleshooter": {
+      "status": "passed",
+      "timestamp": "2025-08-21T13:00:25.937389"
+    },
+    "quick_health_check": {
+      "status": "passed",
+      "timestamp": "2025-08-21T13:00:35.942390"
+    }
+  },
+  "summary": {
+    "total_tests": 6,
+    "passed_tests": 5,
+    "failed_tests": 1,
+    "success_rate": 83.33333333333334,
+    "duration_seconds": 31.850113
+  },
+  "overall_status": "partial_success"
+}

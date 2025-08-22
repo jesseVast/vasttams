@@ -228,6 +228,15 @@ class VastDBManager:
         """Insert data from a Python dictionary with row pooling and cache updates"""
         return self.data_operations.insert(table_name, data)
     
+    def insert_record(self, table_name: str, data: Dict[str, Any]):
+        """Insert a single record - compatibility method for storage endpoints"""
+        try:
+            self.data_operations.insert_single_record(table_name, data)
+            return True
+        except Exception as e:
+            logger.error(f"Error inserting record into table {table_name}: {e}")
+            return False
+    
     def select(self, table_name: str, predicate: Optional[Any] = None, 
                output_by_row: bool = False, columns: Optional[List[str]] = None):
         """Query data from a table with optional predicates"""
@@ -265,6 +274,69 @@ class VastDBManager:
         """Clear all cached data"""
         self.cache_manager.clear_cache()
         logger.info("Cleared all cached data")
+    
+    def query_records(self, table_name: str, predicate: Optional[Dict[str, Any]] = None, 
+                     columns: Optional[List[str]] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Query records from a table - compatibility method for analytics engine
+        
+        Args:
+            table_name: Name of the table to query
+            predicate: Optional predicate dictionary for filtering
+            columns: Optional list of columns to return
+            limit: Optional limit on number of records
+            
+        Returns:
+            List of dictionaries representing the records
+        """
+        try:
+            # Convert predicate dict to VAST predicate format
+            vast_predicate = None
+            if predicate:
+                vast_predicate = self.predicate_builder.build_vast_predicates(predicate)
+            
+            # Use the existing query_with_predicates method
+            result = self.data_operations.query_with_predicates(
+                table_name=table_name,
+                predicates=vast_predicate,
+                columns=columns,
+                limit=limit
+            )
+            
+            # Convert result to list of dictionaries if it's not already
+            if isinstance(result, dict):
+                # If result is a dict with column arrays, convert to list of dicts
+                if result and any(isinstance(v, list) for v in result.values()):
+                    # This is the columnar format from VAST, convert to row format
+                    records = []
+                    keys = list(result.keys())
+                    if keys:
+                        first_key = keys[0]
+                        if isinstance(result[first_key], list):
+                            num_rows = len(result[first_key])
+                            for i in range(num_rows):
+                                record = {}
+                                for key in keys:
+                                    if isinstance(result[key], list) and i < len(result[key]):
+                                        record[key] = result[key][i]
+                                    else:
+                                        record[key] = result[key]
+                                records.append(record)
+                            return records
+                
+                # If it's already a single record dict, wrap in list
+                return [result] if result else []
+            
+            elif isinstance(result, list):
+                return result
+            
+            else:
+                logger.warning(f"Unexpected result type from query: {type(result)}")
+                return []
+                
+        except Exception as e:
+            logger.error(f"Error in query_records for table {table_name}: {e}")
+            return []
     
     def refresh_table_metadata(self, table_name: str):
         """Refresh table metadata in cache (useful when columns change)"""

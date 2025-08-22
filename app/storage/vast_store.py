@@ -100,21 +100,20 @@ class VASTStore:
         # Initialize VastDBManager for endpoint modules
         self.vast_db_manager = VastDBManager(endpoints=self.endpoint)
         
-        # Initialize specialized endpoint modules
-        self.sources_storage = SourcesStorage(self.vast_db_manager)
-        self.flows_storage = FlowsStorage(self.vast_db_manager)
-        self.segments_storage = SegmentsStorage(self.vast_db_manager, None)  # S3 will be injected later
-        self.objects_storage = ObjectsStorage(self.vast_db_manager)
-        self.analytics_engine = AnalyticsEngine(self.vast_db_manager)
-        
         # Initialize S3 store (for backward compatibility)
         from .s3_store import S3Store
         self.s3_store = S3Store(storage_backend_manager=self.storage_backend_manager)
         
-        # Inject S3 store into segments storage
+        # Initialize S3 segments handler
         from .endpoints.segments.segments_s3 import SegmentsS3
         self.segments_s3 = SegmentsS3(self.storage_factory.get_s3_core(), self.storage_backend_manager)
-        self.segments_storage = SegmentsStorage(self.vast_core, self.segments_s3)
+        
+        # Initialize specialized endpoint modules
+        self.sources_storage = SourcesStorage(self.vast_db_manager)
+        self.flows_storage = FlowsStorage(self.vast_db_manager)
+        self.segments_storage = SegmentsStorage(self.vast_db_manager, self.segments_s3)
+        self.objects_storage = ObjectsStorage(self.vast_db_manager)
+        self.analytics_engine = AnalyticsEngine(self.vast_db_manager)
         
         # Create TAMS tables if they don't exist
         self._setup_tams_tables()
@@ -500,9 +499,86 @@ class VASTStore:
         except Exception as e:
             return {
                 'type': 'vast',
+                'error': str(e),
                 'endpoint': self.endpoint,
-                'bucket': self.bucket,
-                'schema': self.schema,
-                'error': str(e)
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
+    
+    # ============================================================================
+    # MISSING METHODS FOR API ENDPOINTS
+    # ============================================================================
+    
+    async def list_deletion_requests(self) -> List[Dict[str, Any]]:
+        """List deletion requests - delegated to appropriate storage"""
+        try:
+            # This would need to be implemented based on the deletion_requests table
+            # For now, return empty list
+            logger.info("list_deletion_requests called - returning empty list")
+            return []
+        except Exception as e:
+            logger.error(f"Error listing deletion requests: {e}")
+            return []
+    
+    async def list_webhooks(self) -> List[Dict[str, Any]]:
+        """List webhooks - delegated to appropriate storage"""
+        try:
+            # This would need to be implemented based on the webhooks table
+            # For now, return empty list
+            logger.info("list_webhooks called - returning empty list")
+            return []
+        except Exception as e:
+            logger.error(f"Error listing webhooks: {e}")
+            return []
+    
+    async def create_flow_collection(self, collection_id: str, label: str, description: Optional[str] = None, created_by: Optional[str] = None) -> bool:
+        """Create a new flow collection - creates empty collection"""
+        try:
+            # Create collection metadata without any flows initially
+            collection_metadata = {
+                'collection_id': collection_id,
+                'label': label,
+                'description': description or '',
+                'created': datetime.now(timezone.utc).isoformat(),
+                'created_by': created_by or 'system'
+            }
+            
+            # Store in VAST
+            success = self.vast_db_manager.insert_record('flow_collections', collection_metadata)
+            
+            if success:
+                logger.info("Successfully created flow collection %s", collection_id)
+            else:
+                logger.error("Failed to create flow collection %s", collection_id)
+            
+            return success
+            
+        except Exception as e:
+            logger.error("Failed to create flow collection %s: %s", collection_id, e)
+            return False
+    
+    async def create_source_collection(self, collection_id: str, label: str, description: Optional[str] = None, created_by: Optional[str] = None) -> bool:
+        """Create a new source collection - creates empty collection"""
+        try:
+            # Create collection metadata without any sources initially
+            collection_metadata = {
+                'collection_id': collection_id,
+                'label': label,
+                'description': description or '',
+                'created': datetime.now(timezone.utc).isoformat(),
+                'created_by': created_by or 'system'
+            }
+            
+            # Store in VAST
+            success = self.vast_db_manager.insert_record('source_collections', collection_metadata)
+            
+            if success:
+                logger.info("Successfully created source collection %s", collection_id)
+            else:
+                logger.error("Failed to create source collection %s", collection_id)
+            
+            return success
+            
+        except Exception as e:
+            logger.error("Failed to create source collection %s: %s", collection_id, e)
+            return False
 

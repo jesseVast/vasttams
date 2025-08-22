@@ -10,52 +10,59 @@ import sys
 from app.core.config import get_settings
 
 
-class TAMSStructuredFormatter(logging.Formatter):
-    """Structured formatter for TAMS logging with JSON output"""
+class TAMSHumanReadableFormatter(logging.Formatter):
+    """Human-readable formatter for TAMS logging with enhanced context"""
     
-    def __init__(self, include_timestamp: bool = True, include_level: bool = True):
-        super().__init__()
-        self.include_timestamp = include_timestamp
-        self.include_level = include_level
+    def __init__(self, include_function: bool = True, include_extra: bool = True):
+        # Enhanced format with more debugging information
+        if include_function:
+            format_str = "%(asctime)s - %(name)s:%(lineno)d:%(funcName)s - %(levelname)s - %(message)s"
+        else:
+            format_str = "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
+        
+        super().__init__(fmt=format_str, datefmt='%Y-%m-%d %H:%M:%S')
+        self.include_extra = include_extra
     
     def format(self, record: logging.LogRecord) -> str:
-        """Format log record as structured JSON"""
-        log_entry = {
-            "logger": record.name,
-            "message": record.getMessage(),
-            "module": record.module,
-            "function": record.funcName,
-            "line": record.lineno
-        }
+        """Format log record as human-readable text with extra context"""
+        # Get base formatted message
+        base_message = super().format(record)
         
-        if self.include_timestamp:
-            log_entry["timestamp"] = datetime.utcnow().isoformat()
+        if not self.include_extra:
+            return base_message
         
-        if self.include_level:
-            log_entry["level"] = record.levelname
+        # Add extra context if present
+        extra_parts = []
         
-        # Add extra fields if present
         if hasattr(record, 'tams_compliance_data'):
-            log_entry["tams_compliance"] = record.tams_compliance_data
+            compliance = record.tams_compliance_data
+            if isinstance(compliance, dict):
+                compliance_str = ", ".join(f"{k}={v}" for k, v in compliance.items())
+                extra_parts.append(f"[TAMS: {compliance_str}]")
         
         if hasattr(record, 'error_details'):
-            log_entry["error_details"] = record.error_details
+            error_details = record.error_details
+            if isinstance(error_details, dict):
+                error_str = ", ".join(f"{k}={v}" for k, v in error_details.items())
+                extra_parts.append(f"[Error: {error_str}]")
         
         if hasattr(record, 'user_context'):
-            log_entry["user_context"] = record.user_context
+            user_ctx = record.user_context
+            if isinstance(user_ctx, dict):
+                user_str = ", ".join(f"{k}={v}" for k, v in user_ctx.items())
+                extra_parts.append(f"[User: {user_str}]")
         
         if hasattr(record, 'api_context'):
-            log_entry["api_context"] = record.api_context
+            api_ctx = record.api_context
+            if isinstance(api_ctx, dict):
+                api_str = ", ".join(f"{k}={v}" for k, v in api_ctx.items())
+                extra_parts.append(f"[API: {api_str}]")
         
-        # Add exception info if present
-        if record.exc_info:
-            log_entry["exception"] = {
-                "type": record.exc_info[0].__name__ if record.exc_info[0] else None,
-                "message": str(record.exc_info[1]) if record.exc_info[1] else None,
-                "traceback": self.formatException(record.exc_info)
-            }
+        # Add extra context to message
+        if extra_parts:
+            return f"{base_message} {' '.join(extra_parts)}"
         
-        return json.dumps(log_entry, default=str)
+        return base_message
 
 
 class TAMSComplianceFilter(logging.Filter):
@@ -91,18 +98,19 @@ class TAMSLoggingConfig:
             "version": 1,
             "disable_existing_loggers": False,
             "formatters": {
-                "tams_structured": {
-                    "()": TAMSStructuredFormatter,
-                    "include_timestamp": True,
-                    "include_level": True
+                "tams_detailed": {
+                    "()": TAMSHumanReadableFormatter,
+                    "include_function": True,
+                    "include_extra": True
                 },
                 "tams_simple": {
-                    "()": TAMSStructuredFormatter,
-                    "include_timestamp": False,
-                    "include_level": False
+                    "()": TAMSHumanReadableFormatter,
+                    "include_function": False,
+                    "include_extra": False
                 },
                 "standard": {
-                    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                    "format": "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
+                    "datefmt": "%Y-%m-%d %H:%M:%S"
                 }
             },
             "filters": {
@@ -210,9 +218,10 @@ class TAMSLoggingConfig:
         })
 
 
-def get_tams_logger(name: str) -> logging.Logger:
-    """Get a TAMS-specific logger"""
-    return logging.getLogger(f"tams.{name}")
+# DEPRECATED: Use standard logging.getLogger(__name__) instead
+# def get_tams_logger(name: str) -> logging.Logger:
+#     """Get a TAMS-specific logger"""
+#     return logging.getLogger(f"tams.{name}")
 
 
 def log_tams_compliance_event(
@@ -325,6 +334,7 @@ def log_tams_storage_operation(
         logger.info(f"TAMS Storage Operation: {operation} - {status}", extra=extra_data)
 
 
+# DISABLED: Use simple_logging.py instead
 # Initialize logging when module is imported
-_tams_logging_config = TAMSLoggingConfig()
-_tams_logging_config.setup_logging()
+# _tams_logging_config = TAMSLoggingConfig()
+# _tams_logging_config.setup_logging()

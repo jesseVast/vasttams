@@ -201,3 +201,5 @@ test_output/
 *.mp4
 integration_test_results.json
 tests/test_simple_table.py
+logs/*
+

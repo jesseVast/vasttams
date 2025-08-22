@@ -22,10 +22,12 @@ import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import uuid
+from pydantic import ValidationError
 
 from ...vastdbmanager import VastDBManager
 from ...storage_backend_manager import StorageBackendManager
 from ....models.models import Source, SourceCollection
+from ....core.utils import log_pydantic_validation_error, safe_model_parse
 
 logger = logging.getLogger(__name__)
 
@@ -247,17 +249,29 @@ class SourcesStorage:
             Source: Source model instance or None if failed
         """
         try:
-            # Create Source model
-            source = Source(
-                id=metadata['id'],
-                format=metadata['format'],
-                label=metadata.get('label'),
-                description=metadata.get('description')
+            # Prepare source data for validation
+            source_data = {
+                'id': metadata['id'],
+                'format': metadata['format'],
+                'label': metadata.get('label'),
+                'description': metadata.get('description')
+            }
+            
+            # Add tags if they exist
+            if 'tags' in metadata and metadata['tags']:
+                source_data['tags'] = metadata['tags']
+            
+            # Use safe model creation with validation error logging
+            source, error_msg = safe_model_parse(
+                Source, 
+                source_data, 
+                f"Converting VAST metadata to Source model (id: {metadata.get('id', 'unknown')})"
             )
             
-            # Restore tags if they exist
-            if 'tags' in metadata and metadata['tags']:
-                source.tags = metadata['tags']
+            if source is None:
+                logger.error("Failed to create Source model from metadata: %s", error_msg)
+                logger.error("Metadata was: %s", metadata)
+                return None
             
             # Note: source_collection and collected_by are computed dynamically
             # from the source_collections table, not stored directly
@@ -265,8 +279,9 @@ class SourcesStorage:
             return source
             
         except Exception as e:
-            logger.error("Failed to convert metadata to source for %s: %s", 
+            logger.error("Unexpected error converting metadata to source for %s: %s", 
                         metadata.get('id', 'unknown'), e)
+            logger.error("Metadata was: %s", metadata)
             return None
     
     async def _delete_source_metadata(self, source_id: str) -> bool:

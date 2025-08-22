@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
 import uuid
+from pydantic import ValidationError
 from ..models.models import Source, SourcesResponse, SourceFilters, Tags
 from .sources import get_sources, get_source, create_source, delete_source
 from ..storage.vast_store import VASTStore
 from ..core.dependencies import get_vast_store
 from ..core.event_manager import EventManager
+from ..core.utils import log_pydantic_validation_error, safe_model_parse
 import logging
 
 logger = logging.getLogger(__name__)
@@ -73,8 +75,12 @@ async def create_new_source(
 ):
     """Create a new source"""
     try:
+        # Log successful validation
+        logger.info("Creating source with ID: %s, format: %s", source.id, source.format)
+        
         success = await create_source(store, source)
         if not success:
+            logger.error("Storage layer failed to create source %s", source.id)
             raise HTTPException(status_code=500, detail="Failed to create source")
         
         # Emit source created event
@@ -84,7 +90,18 @@ async def create_new_source(
         except Exception as e:
             logger.warning("Failed to emit source created event: %s", e)
         
+        logger.info("Successfully created source: %s", source.id)
         return source
+    except ValidationError as e:
+        # This shouldn't happen as FastAPI handles validation before the function,
+        # but we'll catch it for completeness
+        error_msg = log_pydantic_validation_error(
+            error=e,
+            context="POST /sources",
+            input_data=None,  # FastAPI already parsed it
+            model_name="Source"
+        )
+        raise HTTPException(status_code=422, detail=error_msg)
     except HTTPException:
         raise
     except Exception as e:
@@ -349,6 +366,9 @@ async def update_source_tags(
 ):
     """Update Source Tags"""
     try:
+        # Log the tags being updated
+        logger.info("Updating tags for source %s: %s", source_id, dict(tags) if tags else {})
+        
         source = await get_source(store, source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
@@ -356,6 +376,7 @@ async def update_source_tags(
         # Update source tags
         success = await store.update_source_tags(source_id, tags)
         if not success:
+            logger.error("Storage layer failed to update tags for source %s", source_id)
             raise HTTPException(status_code=500, detail="Failed to update source tags")
         
         # Emit source updated event
@@ -365,8 +386,17 @@ async def update_source_tags(
         except Exception as e:
             logger.warning("Failed to emit source updated event: %s", e)
         
+        logger.info("Successfully updated tags for source: %s", source_id)
         return tags
         
+    except ValidationError as e:
+        error_msg = log_pydantic_validation_error(
+            error=e,
+            context=f"PUT /sources/{source_id}/tags",
+            input_data=dict(tags) if tags else {},
+            model_name="Tags"
+        )
+        raise HTTPException(status_code=422, detail=error_msg)
     except HTTPException:
         raise
     except Exception as e:

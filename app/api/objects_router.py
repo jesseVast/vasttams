@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
+from pydantic import ValidationError
 from ..models.models import Object
 from .objects import get_object, create_object, delete_object
 from ..storage.vast_store import VASTStore
 from ..core.dependencies import get_vast_store
 from ..core.event_manager import EventManager
+from ..core.utils import log_pydantic_validation_error, safe_model_parse
 import logging
 from datetime import datetime, timezone
 

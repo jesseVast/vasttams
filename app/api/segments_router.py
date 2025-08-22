@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from typing import List, Optional
+from pydantic import ValidationError
 from ..models.models import FlowSegment, FlowStorage, FlowStoragePost
 from .segments import get_flow_segments, create_flow_segment, delete_flow_segments, create_flow_storage, SegmentManager
 from ..storage.vast_store import VASTStore
@@ -7,6 +8,7 @@ from ..storage.s3_store import S3Store
 from ..core.dependencies import get_vast_store
 from ..core.timerange_utils import get_storage_timerange
 from ..core.event_manager import EventManager
+from ..core.utils import log_pydantic_validation_error, safe_model_parse
 import logging
 import json
 

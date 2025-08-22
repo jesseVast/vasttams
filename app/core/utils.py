@@ -5,6 +5,8 @@ import aiohttp
 import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
+from pydantic import ValidationError
+import json
 
 # Configuration Constants - Easy to adjust for troubleshooting
 DEFAULT_TIMEOUT = 30  # Default timeout for HTTP requests
@@ -335,3 +337,133 @@ async def make_request(url: str, method: str = "GET", data: Optional[Dict[str, A
     except Exception as e:
         logging.error("Request error: %s", e)
         return None
+
+
+def log_pydantic_validation_error(error: ValidationError, context: str = "Unknown", 
+                                  input_data: Optional[Dict[str, Any]] = None, 
+                                  model_name: Optional[str] = None) -> str:
+    """
+    Log detailed Pydantic validation errors for easy troubleshooting
+    
+    Args:
+        error: Pydantic ValidationError instance
+        context: Context where the error occurred (e.g., "POST /sources", "update_source_tags")
+        input_data: Original input data that caused validation to fail
+        model_name: Name of the Pydantic model that failed validation
+        
+    Returns:
+        str: Formatted error message for HTTP response
+    """
+    logger = logging.getLogger(__name__)
+    
+    # Create detailed error breakdown
+    error_details = []
+    field_errors = []
+    
+    for error_item in error.errors():
+        field_path = " -> ".join(str(loc) for loc in error_item['loc'])
+        error_type = error_item['type']
+        error_msg = error_item['msg']
+        input_value = error_item.get('input', 'N/A')
+        
+        field_error = {
+            "field": field_path,
+            "error_type": error_type,
+            "message": error_msg,
+            "input_value": input_value
+        }
+        field_errors.append(field_error)
+        error_details.append(f"  • Field '{field_path}': {error_msg} (got: {input_value}, type: {error_type})")
+    
+    # Log comprehensive error information
+    logger.error("=" * 80)
+    logger.error("PYDANTIC VALIDATION ERROR")
+    logger.error("=" * 80)
+    logger.error("Context: %s", context)
+    if model_name:
+        logger.error("Model: %s", model_name)
+    logger.error("Error Count: %d", len(field_errors))
+    logger.error("-" * 40)
+    
+    for detail in error_details:
+        logger.error(detail)
+    
+    if input_data:
+        logger.error("-" * 40)
+        logger.error("Input Data:")
+        try:
+            # Pretty print input data for debugging
+            logger.error("%s", json.dumps(input_data, indent=2, default=str))
+        except Exception:
+            logger.error("%s", str(input_data))
+    
+    logger.error("-" * 40)
+    logger.error("Raw Pydantic Error:")
+    logger.error("%s", str(error))
+    logger.error("=" * 80)
+    
+    # Return a user-friendly error message
+    if len(field_errors) == 1:
+        field_error = field_errors[0]
+        return f"Validation error in field '{field_error['field']}': {field_error['message']}"
+    else:
+        field_names = [fe['field'] for fe in field_errors]
+        return f"Validation errors in {len(field_errors)} fields: {', '.join(field_names)}"
+
+
+def log_model_creation_error(model_class, input_data: Dict[str, Any], 
+                           context: str = "Model creation") -> str:
+    """
+    Helper to log errors when creating Pydantic models
+    
+    Args:
+        model_class: Pydantic model class
+        input_data: Data used to create the model
+        context: Context description
+        
+    Returns:
+        str: Error message for HTTP response
+    """
+    try:
+        model_class(**input_data)
+        return "No error"  # This shouldn't happen if we're in an error state
+    except ValidationError as e:
+        return log_pydantic_validation_error(
+            error=e,
+            context=context,
+            input_data=input_data,
+            model_name=model_class.__name__
+        )
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error("Non-validation error creating %s: %s", model_class.__name__, str(e))
+        return f"Unexpected error creating {model_class.__name__}: {str(e)}"
+
+
+def safe_model_parse(model_class, data: Dict[str, Any], context: str = "Unknown"):
+    """
+    Safely parse data into a Pydantic model with detailed error logging
+    
+    Args:
+        model_class: Pydantic model class
+        data: Data to parse
+        context: Context description
+        
+    Returns:
+        Tuple[Optional[model], Optional[str]]: (model_instance, error_message)
+    """
+    try:
+        model_instance = model_class(**data)
+        return model_instance, None
+    except ValidationError as e:
+        error_msg = log_pydantic_validation_error(
+            error=e,
+            context=context,
+            input_data=data,
+            model_name=model_class.__name__
+        )
+        return None, error_msg
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error("Unexpected error parsing %s in %s: %s", model_class.__name__, context, str(e))
+        return None, f"Unexpected error: {str(e)}"

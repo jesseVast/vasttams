@@ -164,13 +164,36 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
     
     # Return FastAPI's standard validation error response
-    return JSONResponse(
-        status_code=422,
-        content={
-            "detail": exc.errors(),
-            "message": error_msg
-        }
-    )
+    # Ensure we only return serializable data
+    try:
+        # Convert exc.errors() to a serializable format
+        serializable_errors = []
+        for error in exc.errors():
+            serializable_error = {
+                "loc": error.get("loc", []),
+                "msg": str(error.get("msg", "")),
+                "type": str(error.get("type", "")),
+                "input": str(error.get("input", "")) if error.get("input") is not None else None
+            }
+            serializable_errors.append(serializable_error)
+        
+        return JSONResponse(
+            status_code=422,
+            content={
+                "detail": serializable_errors,
+                "message": error_msg
+            }
+        )
+    except Exception as response_error:
+        # Fallback to a simple error response if serialization fails
+        logger.error("Error creating response: %s", str(response_error))
+        return JSONResponse(
+            status_code=422,
+            content={
+                "detail": [{"msg": "Validation error", "type": "validation_error"}],
+                "message": error_msg
+            }
+        )
 
 # Register modular routers
 app.include_router(flows_router)

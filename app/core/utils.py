@@ -393,9 +393,21 @@ def log_pydantic_validation_error(error: ValidationError, context: str = "Unknow
         logger.error("Input Data:")
         try:
             # Pretty print input data for debugging
-            logger.error("%s", json.dumps(input_data, indent=2, default=str))
-        except Exception:
-            logger.error("%s", str(input_data))
+            # Use a custom serializer to handle non-serializable objects
+            def safe_serialize(obj):
+                if hasattr(obj, '__dict__'):
+                    return str(obj)
+                elif hasattr(obj, 'model_dump'):
+                    return obj.model_dump()
+                elif hasattr(obj, 'dict'):
+                    return obj.dict()
+                else:
+                    return str(obj)
+            
+            logger.error("%s", json.dumps(input_data, indent=2, default=safe_serialize))
+        except Exception as e:
+            logger.error("JSON serialization failed: %s", str(e))
+            logger.error("Input data (stringified): %s", str(input_data))
     
     logger.error("-" * 40)
     logger.error("Raw Pydantic Error:")
@@ -453,13 +465,25 @@ def safe_model_parse(model_class, data: Dict[str, Any], context: str = "Unknown"
         Tuple[Optional[model], Optional[str]]: (model_instance, error_message)
     """
     try:
-        model_instance = model_class(**data)
+        # Ensure data is a dictionary and convert any non-serializable objects
+        safe_data = {}
+        for key, value in data.items():
+            if hasattr(value, 'model_dump'):
+                safe_data[key] = value.model_dump()
+            elif hasattr(value, 'dict'):
+                safe_data[key] = value.dict()
+            elif hasattr(value, '__dict__'):
+                safe_data[key] = str(value)
+            else:
+                safe_data[key] = value
+        
+        model_instance = model_class(**safe_data)
         return model_instance, None
     except ValidationError as e:
         error_msg = log_pydantic_validation_error(
             error=e,
             context=context,
-            input_data=data,
+            input_data=safe_data,
             model_name=model_class.__name__
         )
         return None, error_msg

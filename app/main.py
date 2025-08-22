@@ -20,6 +20,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Depends, BackgroundTasks, File, UploadFile, Form, Request
 from fastapi.responses import JSONResponse
 from fastapi.openapi.utils import get_openapi
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 import uvicorn
 from uuid import UUID
 
@@ -32,6 +34,7 @@ from .models.models import (
 )
 from .storage.vast_store import VASTStore
 from .core.config import get_settings, update_settings
+from .core.utils import log_pydantic_validation_error
 from .api.segments import SegmentManager
 from .api.flows import FlowManager
 from .api.sources import SourceManager
@@ -116,6 +119,61 @@ app.middleware("http")(telemetry_middleware)
 
 # Set custom OpenAPI schema
 app.openapi = custom_openapi
+
+# Add global validation exception handler
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Global handler for Pydantic validation errors from FastAPI
+    
+    This catches validation errors that occur during request parsing
+    and logs them with detailed information for troubleshooting.
+    """
+    
+    # Extract request details for context
+    method = request.method
+    url = str(request.url)
+    
+    # Try to get the request body for logging
+    request_body = None
+    try:
+        # Note: request.body() can only be called once, so this might not work
+        # in all cases, but we'll try
+        if hasattr(request, '_body'):
+            request_body = request._body
+        elif method in ["POST", "PUT", "PATCH"]:
+            # Attempt to read body, but it might be consumed already
+            try:
+                body_bytes = await request.body()
+                if body_bytes:
+                    request_body = body_bytes.decode('utf-8')
+            except:
+                request_body = "Unable to read request body"
+    except Exception:
+        request_body = "Error reading request body"
+    
+    # Create a simplified ValidationError for our logging function
+    validation_error = ValidationError.from_exception_data(
+        "RequestValidationError", 
+        exc.errors()
+    )
+    
+    # Log the detailed validation error
+    error_msg = log_pydantic_validation_error(
+        error=validation_error,
+        context=f"{method} {url}",
+        input_data={"request_body": request_body} if request_body else None,
+        model_name="Request"
+    )
+    
+    # Return FastAPI's standard validation error response
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": exc.errors(),
+            "message": error_msg
+        }
+    )
 
 # Register modular routers
 app.include_router(flows_router)

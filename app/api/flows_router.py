@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
 import uuid
 from datetime import datetime
+from pydantic import ValidationError
 from ..models.models import Flow, FlowsResponse, FlowFilters, FlowDetailFilters, Tags, FlowStoragePost, FlowStorage, HttpRequest, MediaObject
 from .flows import get_flows, get_flow, create_flow, update_flow, delete_flow
 from ..storage.vast_store import VASTStore
@@ -9,6 +10,7 @@ from ..core.dependencies import get_vast_store
 from ..core.config import get_settings
 from ..core.timerange_utils import get_storage_timerange
 from ..core.event_manager import EventManager
+from ..core.utils import log_pydantic_validation_error, safe_model_parse
 import logging
 
 logger = logging.getLogger(__name__)
@@ -907,17 +909,28 @@ async def allocate_flow_storage(
             # Create Object record in database for TAMS compliance
             try:
                 from ..models.models import Object
-                obj = Object(
-                    id=object_id,
-                    size=0,  # Size unknown until actually uploaded
-                    referenced_by_flows=[str(flow_id)]
+                obj_data = {
+                    "id": object_id,
+                    "size": 0,  # Size unknown until actually uploaded
+                    "referenced_by_flows": [str(flow_id)]
+                }
+                
+                # Use safe model creation with validation error logging
+                obj, error_msg = safe_model_parse(
+                    Object, 
+                    obj_data, 
+                    f"Creating Object record for storage allocation (flow_id: {flow_id})"
                 )
-                logger.info("Attempting to create Object record for %s: %s", object_id, obj.model_dump())
-                success = await store.create_object(obj)
-                if success:
-                    logger.info("Successfully created Object record for %s", object_id)
+                
+                if obj is None:
+                    logger.error("Failed to create Object model for %s: %s", object_id, error_msg)
                 else:
-                    logger.error("Failed to create Object record for %s - create_object returned False", object_id)
+                    logger.info("Attempting to create Object record for %s: %s", object_id, obj.model_dump())
+                    success = await store.create_object(obj)
+                    if success:
+                        logger.info("Successfully created Object record for %s", object_id)
+                    else:
+                        logger.error("Failed to create Object record for %s - create_object returned False", object_id)
             except Exception as e:
                 logger.error("Exception creating Object record for %s: %s", object_id, e)
                 # Don't fail the entire request, just log the error

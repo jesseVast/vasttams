@@ -3,7 +3,7 @@
   "info": {
     "title": "TAMS API",
     "description": "Time-addressable Media Store API",
-    "version": "6.0"
+    "version": "7.0"
   },
   "paths": {
     "/flows": {
@@ -5582,7 +5582,7 @@
           "api_version": {
             "type": "string",
             "title": "Api Version",
-            "default": "6.0"
+            "default": "7.0"
           },
           "service_version": {
             "anyOf": [

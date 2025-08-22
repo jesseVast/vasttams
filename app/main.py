@@ -23,29 +23,30 @@ from fastapi.openapi.utils import get_openapi
 import uvicorn
 from uuid import UUID
 
-from .models import (
+from .models.models import (
     Service, ServiceResponse, Source, SourcesResponse, Flow, FlowsResponse,
     FlowSegment, Object, Webhook, WebhookPost, WebhooksResponse,
     FlowStoragePost, FlowStorage, DeletionRequest, DeletionRequestsResponse,
-    SourceFilters, FlowFilters, FlowDetailFilters, PagingInfo, Tags, MediaStore, EventStreamMechanism, StorageLocation,
-    DeletionRequestsList
+    SourceFilters, FlowFilters, FlowDetailFilters, PagingInfo, Tags, MediaStore, EventStreamMechanism, 
+    DeletionRequestsList, StorageBackend, StorageBackendsList, HttpRequest, MediaObject
 )
-from .vast_store import VASTStore
-from .config import get_settings
-from app.segments import SegmentManager
-from app.flows import FlowManager
-from app.sources import SourceManager
-from app.objects import ObjectManager
-from app.flows_router import router as flows_router
-from app.segments_router import router as segments_router
-from app.sources_router import router as sources_router
-from app.objects_router import router as objects_router
-from app.analytics_router import router as analytics_router
-from .dependencies import get_vast_store, set_vast_store
-from .telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
+from .storage.vast_store import VASTStore
+from .core.config import get_settings
+from .api.segments import SegmentManager
+from .api.flows import FlowManager
+from .api.sources import SourceManager
+from .api.objects import ObjectManager
+from .api.flows_router import router as flows_router
+from .api.segments_router import router as segments_router
+from .api.sources_router import router as sources_router
+from .api.objects_router import router as objects_router
+from .api.analytics_router import router as analytics_router
+from .core.dependencies import get_vast_store, set_vast_store
+from .core.telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Import simplified logging (auto-configures on import)
+from .core import simple_logging
+
 logger = logging.getLogger(__name__)
 
 # Global VAST store instance
@@ -60,17 +61,14 @@ async def lifespan(app: FastAPI):
     """Lifespan event handler for startup and shutdown"""
     # Startup
     settings = get_settings()
+    # Initialize VAST store with single endpoint
+    
     vast_store = VASTStore(
-        endpoint=settings.vast_endpoint,
+        endpoint=settings.vast_endpoint,  # Use single endpoint
         access_key=settings.vast_access_key,
         secret_key=settings.vast_secret_key,
         bucket=settings.vast_bucket,
-        schema=settings.vast_schema,
-        s3_endpoint_url=settings.s3_endpoint_url,
-        s3_access_key_id=settings.s3_access_key_id,
-        s3_secret_access_key=settings.s3_secret_access_key,
-        s3_bucket_name=settings.s3_bucket_name,
-        s3_use_ssl=settings.s3_use_ssl
+        schema=settings.vast_schema
     )
     set_vast_store(vast_store)  # Set the global store instance
     logger.info("TAMS API started with VAST store using vastdbmanager and S3 for segments")
@@ -90,7 +88,7 @@ def custom_openapi() -> Dict[str, Any]:
     try:
         app.openapi_schema = get_openapi(
             title="TAMS API",
-            version="6.0",
+            version="7.0",
             description="Time-addressable Media Store API",
             routes=app.routes,
         )
@@ -103,14 +101,14 @@ def custom_openapi() -> Dict[str, Any]:
 app = FastAPI(
     title="TAMS API",
     description="Time-addressable Media Store API",
-    version="6.0",
+    version="7.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
 )
 
 # Initialize telemetry
-telemetry_manager.initialize("tams-api", "6.0")
+telemetry_manager.initialize("tams-api", "7.0")
 telemetry_manager.instrument_fastapi(app)
 
 # Add telemetry middleware
@@ -155,7 +153,7 @@ async def get_service():
         name="TAMS API",
         description="Time-addressable Media Store API",
         type="urn:x-tams:service:api",
-        api_version="6.0",
+        api_version="7.0",
         service_version="1.0.0",
         media_store=MediaStore(type="http_object_store"),
         event_stream_mechanisms=[
@@ -168,6 +166,29 @@ async def update_service(service: Service):
     """Update service information"""
     # In a real implementation, this would update the service configuration
     return {"message": "Service information updated"}
+
+# Storage backends endpoints
+@app.head("/service/storage-backends")
+async def head_storage_backends():
+    """Return storage backends path headers"""
+    return {}
+
+@app.get("/service/storage-backends", response_model=List[StorageBackend])
+async def list_storage_backends():
+    """Provide information about the storage backends available on this service instance"""
+    # For now, return our S3-compatible backend configuration
+    # In a real implementation, this would be configured at deployment time
+    return [
+        StorageBackend(
+            id="550e8400-e29b-41d4-a716-446655440000",
+            store_type="http_object_store",
+            provider="VAST Data",
+            store_product="VAST S3 Compatible Store",
+            region="us-west-1",
+            label="Primary VAST Storage",
+            default_storage=True
+        )
+    ]
 
 # Webhook endpoints
 @app.head("/service/webhooks")
@@ -203,7 +224,7 @@ async def create_webhook(
             url=webhook.url,
             api_key_name=webhook.api_key_name,
             events=webhook.events,
-            # Ownership fields for TAMS API v6.0 compliance
+            # Ownership fields for TAMS API v7.0 compliance
             owner_id=webhook.owner_id,
             created_by=webhook.created_by,
             created=datetime.now(timezone.utc)
@@ -213,6 +234,100 @@ async def create_webhook(
         raise
     except Exception as e:
         logger.error(f"Failed to create webhook: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Analytics endpoints
+@app.head("/flow-usage")
+async def head_flow_usage():
+    """Return flow usage analytics path headers"""
+    return {}
+
+@app.get("/flow-usage")
+async def get_flow_usage(
+    store: VASTStore = Depends(get_vast_store),
+    start_time: Optional[str] = Query(None, description="Start time for analytics (ISO 8601 format)"),
+    end_time: Optional[str] = Query(None, description="End time for analytics (ISO 8601 format)"),
+    source_id: Optional[str] = Query(None, description="Filter by source ID"),
+    format: Optional[str] = Query(None, description="Filter by flow format")
+):
+    """Get flow usage analytics"""
+    try:
+        analytics_params = {}
+        if start_time:
+            analytics_params['start_time'] = start_time
+        if end_time:
+            analytics_params['end_time'] = end_time
+        if source_id:
+            analytics_params['source_id'] = source_id
+        if format:
+            analytics_params['format'] = format
+            
+        result = await store.analytics_query('flow_usage', **analytics_params)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Failed to get flow usage analytics: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.head("/storage-usage")
+async def head_storage_usage():
+    """Return storage usage analytics path headers"""
+    return {}
+
+@app.get("/storage-usage")
+async def get_storage_usage(
+    store: VASTStore = Depends(get_vast_store),
+    start_time: Optional[str] = Query(None, description="Start time for analytics (ISO 8601 format)"),
+    end_time: Optional[str] = Query(None, description="End time for analytics (ISO 8601 format)"),
+    storage_backend_id: Optional[str] = Query(None, description="Filter by storage backend ID")
+):
+    """Get storage usage analytics"""
+    try:
+        analytics_params = {}
+        if start_time:
+            analytics_params['start_time'] = start_time
+        if end_time:
+            analytics_params['end_time'] = end_time
+        if storage_backend_id:
+            analytics_params['storage_backend_id'] = storage_backend_id
+            
+        result = await store.analytics_query('storage_usage', **analytics_params)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Failed to get storage usage analytics: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.head("/time-range-analysis")
+async def head_time_range_analysis():
+    """Return time range analysis path headers"""
+    return {}
+
+@app.get("/time-range-analysis")
+async def get_time_range_analysis(
+    store: VASTStore = Depends(get_vast_store),
+    start_time: Optional[str] = Query(None, description="Start time for analysis (ISO 8601 format)"),
+    end_time: Optional[str] = Query(None, description="End time for analysis (ISO 8601 format)"),
+    flow_id: Optional[str] = Query(None, description="Filter by flow ID"),
+    source_id: Optional[str] = Query(None, description="Filter by source ID")
+):
+    """Get time range analysis for flows and segments"""
+    try:
+        analytics_params = {}
+        if start_time:
+            analytics_params['start_time'] = start_time
+        if end_time:
+            analytics_params['end_time'] = end_time
+        if flow_id:
+            analytics_params['flow_id'] = flow_id
+        if source_id:
+            analytics_params['source_id'] = source_id
+            
+        result = await store.analytics_query('time_range_analysis', **analytics_params)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Failed to get time range analysis: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Deletion requests endpoints
@@ -297,6 +412,16 @@ async def process_deletion_request(deletion_request: DeletionRequest):
         logger.error(f"Failed to process deletion request {deletion_request.request_id}: {e}")
 
 # Health check endpoint
+@app.head("/health")
+async def health_check_head():
+    """Health check endpoint HEAD method"""
+    return {}
+
+@app.options("/health")
+async def health_check_options():
+    """Health check endpoint OPTIONS method for CORS preflight"""
+    return {}
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -307,6 +432,38 @@ async def health_check():
 async def get_metrics():
     """Prometheus metrics endpoint"""
     return metrics_endpoint()
+
+# Configuration management endpoints
+@app.get("/config/async-deletion-threshold")
+async def get_async_deletion_threshold():
+    """Get current async deletion threshold"""
+    from .config import get_settings
+    settings = get_settings()
+    return {
+        "async_deletion_threshold": settings.async_deletion_threshold,
+        "description": "Threshold for async deletion (number of segments). Flows with more segments than this will use async deletion."
+    }
+
+@app.put("/config/async-deletion-threshold")
+async def update_async_deletion_threshold(threshold: int):
+    """Update async deletion threshold at runtime
+    
+    Args:
+        threshold (int): New threshold value (must be >= 1)
+        
+    Returns:
+        dict: Confirmation of the update
+    """
+    if threshold < 1:
+        raise HTTPException(status_code=400, detail="Async deletion threshold must be at least 1")
+    
+    from .config import update_async_deletion_threshold
+    update_async_deletion_threshold(threshold)
+    
+    return {
+        "message": f"Async deletion threshold updated to {threshold} segments",
+        "async_deletion_threshold": threshold
+    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000) 

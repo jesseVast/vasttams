@@ -1,0 +1,67 @@
+{
+  "host": "0.0.0.0",
+  "port": 8000,
+  "debug": false,
+  
+  "vast_data_dir": "/app/vast_data",
+  "vast_endpoint": "http://172.200.204.90",
+  "vast_access_key": "SRSPW0DQT9T70Y787U68",
+  "vast_secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
+  "vast_bucket": "jthaloor-db",
+  "vast_schema": "tams7",
+  
+  "log_level": "INFO",
+  "log_format": "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
+  
+  "secret_key": "your-secret-key-here-change-in-production",
+  "algorithm": "HS256",
+  "access_token_expire_minutes": 30,
+  
+  "storage_type": "http_object_store",
+  "storage_base_url": "https://storage.example.com",
+  
+  "webhook_timeout": 30,
+  "webhook_retry_attempts": 3,
+  
+  "s3_endpoint_url": "http://172.200.204.91",
+  "s3_access_key_id": "SRSPW0DQT9T70Y787U68",
+  "s3_secret_access_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
+  "s3_bucket_name": "jthaloor-s3",
+  "s3_use_ssl": false,
+  
+  "s3_presigned_url_upload_timeout": 3600,
+  "s3_presigned_url_download_timeout": 3600,
+  
+  "default_storage_backend_id": "default",
+  "get_urls_max_count": 5,
+  
+  "enable_table_projections": false,
+  
+  "tams_compliance_mode": true,
+  "tams_validation_level": "strict",
+  
+  "enable_uuid_validation": true,
+  "enable_timestamp_validation": true,
+  "enable_content_format_validation": true,
+  "enable_mime_type_validation": true,
+  
+  "tams_error_reporting": true,
+  "tams_audit_logging": true,
+  
+  "tams_cache_enabled": true,
+  "tams_cache_ttl": 300,
+  
+  "tams_flow_storage_default_limit": 10,
+  "tams_segment_storage_default_limit": 10,
+  "tams_async_deletion_threshold": 1000,
+  
+  "jaeger_endpoint": "localhost:14268",
+  "otlp_endpoint": "http://localhost:4318/v1/traces",
+  "telemetry_enabled": true,
+  "metrics_enabled": true,
+  "tracing_enabled": true,
+  
+  "api_title": "TAMS API",
+  "api_version": "7.0",
+  "api_description": "Time-addressable Media Store API"
+}

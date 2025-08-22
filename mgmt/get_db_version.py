@@ -58,7 +58,7 @@ def get_config_info():
     """Get configuration information."""
     
     try:
-        from app.config import get_settings
+        from app.core.config import get_settings
         
         print("\n🔧 Configuration Information")
         print("=" * 30)

@@ -85,9 +85,9 @@ async def create_new_flow_segment(
                 # Generate storage_path if not provided to ensure consistency
                 if not segment_obj.storage_path:
                     s3_store = S3Store()
-                    storage_path = s3_store.generate_segment_key(flow_id, segment_obj.id, segment_obj.timerange)
+                    storage_path = s3_store.generate_segment_key(flow_id, segment_obj.object_id, segment_obj.timerange)
                     segment_obj.storage_path = storage_path
-                    logger.info("Generated storage_path for segment %s: %s", segment_obj.id, storage_path)
+                    logger.info("Generated storage_path for segment %s: %s", segment_obj.object_id, storage_path)
                 
             except json.JSONDecodeError as e:
                 raise HTTPException(status_code=400, detail=f"Invalid JSON in segment data: {e}")
@@ -102,10 +102,27 @@ async def create_new_flow_segment(
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create segment")
             
+            # Generate get_urls dynamically since presigned URLs expire
+            if segment_obj.storage_path:
+                try:
+                    s3_store = S3Store()
+                    get_urls = await s3_store.generate_get_urls(segment_obj)
+                    segment_obj.get_urls = get_urls
+                    logger.info("Generated dynamic get_urls for segment %s: %d URLs", 
+                              segment_obj.object_id, len(get_urls) if get_urls else 0)
+                except Exception as e:
+                    logger.error("Failed to generate get_urls for segment %s: %s", 
+                               segment_obj.object_id, e)
+                    segment_obj.get_urls = []
+            else:
+                logger.warning("No storage_path for segment %s, cannot generate get_urls", 
+                             segment_obj.object_id)
+                segment_obj.get_urls = []
+            
             # Emit segment created event
             try:
                 event_manager = EventManager(store)
-                await event_manager.emit_segment_event('flows/segments_added', segment_obj)
+                await event_manager.emit_segment_event('flows/segments_added', segment_obj, flow_id=flow_id)
             except Exception as e:
                 logger.warning("Failed to emit segment created event: %s", e)
             
@@ -124,10 +141,27 @@ async def create_new_flow_segment(
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create segment")
             
+            # Generate get_urls dynamically since presigned URLs expire
+            if segment.storage_path:
+                try:
+                    s3_store = S3Store()
+                    get_urls = await s3_store.generate_get_urls(segment)
+                    segment.get_urls = get_urls
+                    logger.info("Generated dynamic get_urls for segment %s: %d URLs", 
+                              segment.object_id, len(get_urls) if get_urls else 0)
+                except Exception as e:
+                    logger.error("Failed to generate get_urls for segment %s: %s", 
+                               segment.object_id, e)
+                    segment.get_urls = []
+            else:
+                logger.warning("No storage_path for segment %s, cannot generate get_urls", 
+                             segment.object_id)
+                segment.get_urls = []
+            
             # Emit segment created event
             try:
                 event_manager = EventManager(store)
-                await event_manager.emit_segment_event('flows/segments_added', segment)
+                await event_manager.emit_segment_event('flows/segments_added', segment, flow_id=flow_id)
             except Exception as e:
                 logger.warning("Failed to emit segment created event: %s", e)
             
@@ -156,10 +190,27 @@ async def create_new_flow_segment(
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create segment")
             
+            # Generate get_urls dynamically since presigned URLs expire
+            if segment_obj.storage_path:
+                try:
+                    s3_store = S3Store()
+                    get_urls = await s3_store.generate_get_urls(segment_obj)
+                    segment_obj.get_urls = get_urls
+                    logger.info("Generated dynamic get_urls for segment %s: %d URLs", 
+                              segment_obj.object_id, len(get_urls) if get_urls else 0)
+                except Exception as e:
+                    logger.error("Failed to generate get_urls for segment %s: %s", 
+                               segment_obj.object_id, e)
+                    segment_obj.get_urls = []
+            else:
+                logger.warning("No storage_path for segment %s, cannot generate get_urls", 
+                             segment_obj.object_id)
+                segment_obj.get_urls = []
+            
             # Emit segment created event
             try:
                 event_manager = EventManager(store)
-                await event_manager.emit_segment_event('flows/segments_added', segment_obj)
+                await event_manager.emit_segment_event('flows/segments_added', segment_obj, flow_id=flow_id)
             except Exception as e:
                 logger.warning("Failed to emit segment created event: %s", e)
             

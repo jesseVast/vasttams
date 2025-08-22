@@ -153,13 +153,13 @@ class EventManager:
         except Exception as e:
             logger.error("Error creating flow event %s: %s", event_type, e)
     
-    async def emit_segment_event(self, event_type: str, segment: Any, user_id: Optional[str] = None) -> None:
+    async def emit_segment_event(self, event_type: str, segment: Any, user_id: Optional[str] = None, flow_id: Optional[str] = None) -> None:
         """Emit a flow segment-related event"""
         try:
             event_data = FlowSegmentEventData(
-                entity_id=str(segment.id),
-                segment_id=str(segment.id),
-                flow_id=str(segment.flow_id),
+                entity_id=str(segment.object_id),  # Use object_id instead of id
+                segment_id=str(segment.object_id),  # Use object_id instead of id
+                flow_id=flow_id,  # Use passed flow_id parameter
                 object_id=str(segment.object_id),
                 timerange=getattr(segment, 'timerange', None),
                 tags=getattr(segment, 'tags', {}).root if hasattr(segment, 'tags') and segment.tags else None,

@@ -273,6 +273,20 @@ class VASTStore:
         """
         return await self.segments_storage.create_segment(segment, flow_id, data)
     
+    async def create_flow_segment_metadata(self, segment: FlowSegment, flow_id: str) -> bool:
+        """
+        Create a TAMS flow segment with metadata only (no media data)
+        Used when media data is uploaded separately via presigned URL
+        
+        Args:
+            segment: FlowSegment model instance
+            flow_id: ID of the flow this segment belongs to
+            
+        Returns:
+            bool: True if creation successful, False otherwise
+        """
+        return await self.segments_storage.create_segment_metadata(segment, flow_id)
+    
     async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
         """
         Get TAMS flow segments - delegated to SegmentsStorage
@@ -534,12 +548,12 @@ class VASTStore:
         """Create a new flow collection - creates empty collection"""
         try:
             # Create collection metadata without any flows initially
+            # Use simple string fields to avoid data type conversion issues
             collection_metadata = {
-                'collection_id': collection_id,
-                'label': label,
-                'description': description or '',
-                'created': datetime.now(timezone.utc).isoformat(),
-                'created_by': created_by or 'system'
+                'collection_id': str(collection_id),
+                'label': str(label),
+                'description': str(description or ''),
+                'created_by': str(created_by or 'system')
             }
             
             # Store in VAST
@@ -560,12 +574,12 @@ class VASTStore:
         """Create a new source collection - creates empty collection"""
         try:
             # Create collection metadata without any sources initially
+            # Use simple string fields to avoid data type conversion issues
             collection_metadata = {
-                'collection_id': collection_id,
-                'label': label,
-                'description': description or '',
-                'created': datetime.now(timezone.utc).isoformat(),
-                'created_by': created_by or 'system'
+                'collection_id': str(collection_id),
+                'label': str(label),
+                'description': str(description or ''),
+                'created_by': str(created_by or 'system')
             }
             
             # Store in VAST

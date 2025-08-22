@@ -46,6 +46,35 @@ class TimerangeGenerator:
         return f"[00:00:00.000,{end_time})"
     
     @staticmethod
+    def generate_tams_timerange(duration_seconds: int = 300) -> str:
+        """
+        Generate a TAMS-compliant timerange starting from 0:0
+        
+        Args:
+            duration_seconds: Duration in seconds (default: 300 = 5 minutes)
+            
+        Returns:
+            Timerange string in TAMS format [0:0_MM:SS]
+            
+        Examples:
+            >>> TimerangeGenerator.generate_tams_timerange(300)
+            '[0:0_5:0]'
+            >>> TimerangeGenerator.generate_tams_timerange(60)
+            '[0:0_1:0]'
+        """
+        if duration_seconds <= 0:
+            raise ValueError("Duration must be positive")
+        
+        # Calculate minutes and seconds
+        minutes = duration_seconds // 60
+        seconds = duration_seconds % 60
+        
+        # Format end time in TAMS format (MM:SS)
+        end_time = f"{minutes}:{seconds}"
+        
+        return f"[0:0_{end_time}]"
+    
+    @staticmethod
     def generate_timerange_from_duration(start_seconds: int = 0, duration_seconds: int = 300) -> str:
         """
         Generate timerange from start time and duration
@@ -173,8 +202,8 @@ def get_default_timerange(duration_seconds: int = 300) -> str:
 
 
 def get_storage_timerange(duration_seconds: int = 300) -> str:
-    """Get timerange for storage operations (alias for get_default_timerange)"""
-    return get_default_timerange(duration_seconds)
+    """Get TAMS-compliant timerange for storage operations"""
+    return TimerangeGenerator.generate_tams_timerange(duration_seconds)
 
 
 def get_short_timerange() -> str:

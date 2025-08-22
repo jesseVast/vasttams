@@ -63,13 +63,12 @@ class SourcesStorage:
             logger.info("Creating TAMS source: %s", source.id)
             
             # Convert Source to VAST-compatible format
+            # Use simple string fields to avoid data type conversion issues
             metadata = {
                 'id': str(source.id),
-                'format': source.format,
-                'label': source.label,
-                'description': source.description,
-                'created': datetime.now(timezone.utc).isoformat(),
-                'updated': datetime.now(timezone.utc).isoformat()
+                'format': str(source.format),
+                'label': str(source.label),
+                'description': str(source.description)
             }
             
             # Store in VAST
@@ -363,13 +362,13 @@ class SourcesStorage:
             logger.info("Adding source %s to collection %s", source_id, collection_id)
             
             # Create collection metadata
+            # Use simple string fields to avoid data type conversion issues
             collection_metadata = {
-                'collection_id': collection_id,
-                'source_id': source_id,
-                'label': label,
-                'description': description or '',
-                'created': datetime.now(timezone.utc).isoformat(),
-                'created_by': created_by or 'system'
+                'collection_id': str(collection_id),
+                'source_id': str(source_id),
+                'label': str(label),
+                'description': str(description or ''),
+                'created_by': str(created_by or 'system')
             }
             
             # Store in VAST

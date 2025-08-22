@@ -75,6 +75,7 @@ class MockVastDBManager:
         self.get_analytics = MagicMock(side_effect=self._mock_get_analytics)
         self.get_time_series = MagicMock(side_effect=self._mock_get_time_series)
         self.get_aggregations = MagicMock(side_effect=self._mock_get_aggregations)
+        self.run_analytics = MagicMock(side_effect=self._mock_run_analytics)
     
     def _mock_create_source(self, source_data: Dict[str, Any]) -> Source:
         """Mock source creation"""
@@ -338,6 +339,33 @@ class MockVastDBManager:
             'total_segments': len(self.test_data['segments']),
             'total_objects': len(self.test_data['objects']),
             'query_params': query_params
+        }
+    
+    def _mock_run_analytics(self, query_params: Dict[str, Any]) -> Dict[str, Any]:
+        """Mock run analytics query (alias for get_analytics)"""
+        # Extract query components and return mock results
+        flow_id = query_params.get("flow_id")
+        query = query_params.get("query", "")
+        time_range = query_params.get("time_range", "")
+        
+        # Mock analytics results based on current test data
+        count = len(self.test_data["objects"])
+        if flow_id:
+            # Filter objects that reference this flow
+            count = len([
+                obj for obj in self.test_data["objects"].values()
+                if flow_id in obj.referenced_by_flows
+            ])
+        
+        return {
+            "count": count,
+            "flow_id": flow_id,
+            "query": query,
+            "time_range": time_range,
+            "total_sources": len(self.test_data["sources"]),
+            "total_flows": len(self.test_data["flows"]),
+            "total_segments": len(self.test_data["segments"]),
+            "total_objects": len(self.test_data["objects"])
         }
     
     def _mock_get_time_series(self, time_range: Dict[str, Any]) -> List[Dict[str, Any]]:

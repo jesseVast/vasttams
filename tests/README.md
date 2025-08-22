@@ -30,9 +30,8 @@ tests/
 │   ├── test_models.py         # Data model tests
 │   └── test_utils.py          # Utility function tests
 ├── test_integration/           # Integration tests
-│   ├── test_end_to_end_workflow.py # Full workflow test
-│   ├── test_api_integration.py # API integration tests
-│   └── test_storage_integration.py # Storage integration tests
+│   ├── test_end_to_end_workflow.py # Full workflow test (with parameterized storage)
+│   └── PARAMETERIZED_TESTING_GUIDE.md # Guide for implementing parameterized tests
 └── test_utils/                 # Test utilities
     ├── mock_vastdbmanager.py  # Shared VASTDB manager mock
     ├── mock_s3store.py        # Shared S3 store mock
@@ -55,10 +54,12 @@ tests/
 - Test individual components in isolation
 - Fast execution without external dependencies
 
-#### **Integration Tests (Real)**
-- Test component interactions
-- Use real database connections when needed
-- End-to-end workflow validation
+#### **Integration Tests (Parameterized)**
+- **Parameterized Storage Testing**: Same tests run against both mock and real storage
+- **Easy Switching**: Environment variable controls storage backend (`TAMS_TEST_BACKEND=mock|real`)
+- **Real Credentials**: Uses S3 and database credentials from config.py
+- **No Code Duplication**: Single test file approach with automatic backend switching
+- **End-to-End Workflow**: Complete workflow validation from source creation to analytics
 
 #### **CRUD Tests**
 - Create, Read, Update, Delete operations for each module
@@ -78,6 +79,11 @@ python -m pytest tests/test_api/
 
 # Run integration tests only
 python -m pytest tests/test_integration/
+
+# Run parameterized tests with different storage backends
+export TAMS_TEST_BACKEND=mock    # Use mock storage (fast)
+export TAMS_TEST_BACKEND=real    # Use real storage (requires services)
+python -m pytest tests/test_integration/ -v
 
 # Run with coverage
 python -m pytest --cov=app tests/
@@ -99,6 +105,32 @@ python tests/run_consolidated_tests.py
 
 # Option 4: Run specific test without warnings
 python -m pytest tests/test_core/test_models.py::TestObjectModel::test_object_referenced_flows_handling -v --disable-warnings
+
+### **Parameterized Testing Guide**
+
+For implementing parameterized storage testing in your own tests, see:
+- **`tests/test_integration/PARAMETERIZED_TESTING_GUIDE.md`** - Complete implementation guide
+- **`tests/test_integration/test_end_to_end_workflow.py`** - Working example
+
+**Quick Start:**
+```bash
+# Add to your test file
+import os
+USE_MOCK_STORAGE = os.getenv("TAMS_TEST_BACKEND", "mock") == "mock"
+
+# Replace storage initialization
+if USE_MOCK_STORAGE:
+    vast_storage = MockVastDBManager()
+    s3_storage = MockS3Store()
+else:
+    # Real storage setup from config.py
+    from app.storage.vastdbmanager import VastDBManager
+    from app.storage.s3_store import S3Store
+    # ... setup real storage
+
+# Run with different backends
+export TAMS_TEST_BACKEND=mock    # Mock storage
+export TAMS_TEST_BACKEND=real    # Real storage
 ```
 
 **Note**: The pytest.ini configuration includes `--disable-warnings` by default, but some warnings may still appear during import. The environment variable approach is most reliable.

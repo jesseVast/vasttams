@@ -40,7 +40,7 @@ from .api.flows_router import router as flows_router
 from .api.segments_router import router as segments_router
 from .api.sources_router import router as sources_router
 from .api.objects_router import router as objects_router
-from .api.analytics_router import router as analytics_router
+
 from .core.dependencies import get_vast_store, set_vast_store
 from .core.telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
 
@@ -122,7 +122,6 @@ app.include_router(flows_router)
 app.include_router(segments_router)
 app.include_router(sources_router)
 app.include_router(objects_router)
-app.include_router(analytics_router)
 
 # OpenAPI JSON endpoint
 @app.get("/openapi.json")

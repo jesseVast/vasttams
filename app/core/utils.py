@@ -419,7 +419,16 @@ def log_pydantic_validation_error(error: ValidationError, context: str = "Unknow
     
     logger.error("-" * 40)
     logger.error("Raw Pydantic Error:")
-    logger.error("%s", str(error))
+    # Don't try to serialize the error object itself, just convert to string
+    try:
+        logger.error("Error type: %s", type(error).__name__)
+        logger.error("Error message: %s", str(error))
+        # Log individual error details safely
+        for i, error_detail in enumerate(error.errors()):
+            logger.error("Error %d: %s", i, str(error_detail))
+    except Exception as log_error:
+        logger.error("Error logging failed: %s", str(log_error))
+        logger.error("Error string: %s", str(error))
     logger.error("=" * 80)
     
     # Return a user-friendly error message

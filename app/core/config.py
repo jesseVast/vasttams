@@ -81,6 +81,13 @@ class Settings(BaseSettings):
         env="TAMS_STORAGE_PATH"
     )
     
+    # S3 TAMS root path (legacy support)
+    s3_tams_root: str = Field(
+        default="/tams",
+        description="S3 TAMS root path for legacy compatibility",
+        env="S3_TAMS_ROOT"
+    )
+    
     # get_urls configuration
     get_urls_max_count: int = Field(
         default=5,

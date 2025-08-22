@@ -71,6 +71,10 @@ class SourcesStorage:
                 'description': str(source.description)
             }
             
+            # Store tags if they exist
+            if source.tags:
+                metadata['tags'] = source.tags.model_dump() if hasattr(source.tags, 'model_dump') else dict(source.tags)
+            
             # Store in VAST
             success = self.vast.insert_record('sources', metadata)
             
@@ -245,6 +249,10 @@ class SourcesStorage:
                 label=metadata.get('label'),
                 description=metadata.get('description')
             )
+            
+            # Restore tags if they exist
+            if 'tags' in metadata and metadata['tags']:
+                source.tags = metadata['tags']
             
             # Note: source_collection and collected_by are computed dynamically
             # from the source_collections table, not stored directly

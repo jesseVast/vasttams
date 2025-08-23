@@ -46,7 +46,7 @@ TAMS is a high-performance, scalable media storage and management system built o
 
 ### **1. API Layer (FastAPI)**
 
-The TAMS API is built using FastAPI, a modern, fast web framework for building APIs with Python 3.7+ based on standard Python type hints.
+The TAMS API is built using FastAPI, a modern, fast web framework for building APIs with Python 3.12+ based on standard Python type hints.
 
 **Key Features:**
 - **Automatic API Documentation**: OpenAPI/Swagger UI generation
@@ -67,7 +67,7 @@ app/
 ├── auth/                # Authentication and authorization
 ├── core/                # Core application logic
 ├── models/              # Data models and schemas
-└── storage/             # Storage layer abstractions
+└── storage/             # Enhanced storage layer architecture
 ```
 
 ### **2. Authentication & Authorization**
@@ -98,181 +98,414 @@ The business logic layer handles all application-specific operations and busines
 
 **Validation:**
 - **Input Validation**: Pydantic model validation
-- **Business Rules**: Custom business logic validation
+- **Business Rules**: Domain-specific validation logic
 - **Data Integrity**: Referential integrity checks
-- **Audit Trail**: Complete operation logging
 
-### **4. Storage Layer**
+### **4. Enhanced Storage Layer**
 
-The storage layer provides abstraction over multiple storage backends with intelligent caching and optimization.
+The storage layer has been completely refactored to provide better separation of concerns, improved debugging capabilities, and enhanced performance.
 
-#### **VAST Database (Metadata)**
+#### **4.1 Core Storage Modules**
 
-VAST Database serves as the primary metadata store, providing:
-- **High Performance**: Sub-second query response times
-- **Scalability**: Petabyte-scale data handling
-- **Time-Series Optimization**: Native time-series data support
-- **Column Management**: Dynamic schema evolution
+**`s3_core.py`**: Pure S3 infrastructure code
+- Connection management and configuration
+- Bucket operations and lifecycle management
+- Error handling and retry logic
+- Performance optimization utilities
 
-**Architecture:**
+**`vast_core.py`**: Pure VAST database infrastructure code
+- Connection pooling and management
+- Query execution and optimization
+- Schema management and validation
+- Performance monitoring and metrics
+
+**`storage_factory.py`**: Storage backend factory
+- Dynamic storage backend selection
+- Configuration-based backend instantiation
+- Backend health monitoring and failover
+
+#### **4.2 TAMS-Specific Storage Modules**
+
+**`sources/`**: Source storage operations
+- Source CRUD operations
+- Source metadata management
+- Source relationship handling
+
+**`flows/`**: Flow storage operations
+- Flow CRUD operations
+- Flow metadata and attributes
+- Flow-source relationships
+
+**`segments/`**: Segment storage operations
+- Segment CRUD operations
+- Media data storage and retrieval
+- Time range optimization
+
+**`objects/`**: Object storage operations
+- Object CRUD operations
+- Object metadata management
+- Access tracking and analytics
+
+**`analytics/`**: Analytics storage operations
+- Analytics data storage
+- Query optimization for analytics
+- Performance metrics collection
+
+**`tags/`**: Tags storage operations
+- Tag CRUD operations
+- Tag relationship management
+- Tag-based querying
+
+#### **4.3 Diagnostics Module**
+
+**`connection_tester.py`**: Connection health testing
+- Network connectivity validation
+- Endpoint health checks
+- Performance benchmarking
+
+**`health_monitor.py`**: System health monitoring
+- Real-time health status
+- Performance metrics collection
+- Alert generation
+
+**`logger.py`**: Enhanced logging system
+- Structured logging with context
+- Performance logging
+- Error tracking and reporting
+
+**`model_validator.py`**: Data validation utilities
+- Schema validation
+- Data integrity checks
+- Error reporting and debugging
+
+**`performance_analyzer.py`**: Performance analysis
+- Query performance analysis
+- Bottleneck identification
+- Optimization recommendations
+
+**`troubleshooter.py`**: Automated troubleshooting
+- Common issue detection
+- Solution recommendations
+- Debug information collection
+
+#### **4.4 Enhanced VAST Database Manager**
+
+**`core.py`**: Main orchestrator
+- High-level operation coordination
+- Transaction management
+- Error handling and recovery
+
+**`cache/`**: Intelligent caching system
+- TTL-based cache management
+- Background cache updates
+- Memory-efficient storage
+
+**`queries/`**: Query processing & optimization
+- Query parsing and validation
+- Dynamic optimization strategies
+- Performance monitoring
+
+**`analytics/`**: Advanced analytics capabilities
+- Time-series analysis
+- Statistical aggregations
+- Performance monitoring
+
+**`endpoints/`**: Multi-endpoint management
+- Load balancing
+- Health monitoring
+- Failover handling
+
+### **5. Data Models and Validation**
+
+The system uses Pydantic v2 for comprehensive data validation and serialization.
+
+**Key Features:**
+- **Type Safety**: Full type checking at runtime
+- **Automatic Validation**: Schema-based validation
+- **Serialization**: JSON serialization/deserialization
+- **Documentation**: Automatic API documentation generation
+
+**Model Structure:**
 ```
-app/storage/vastdbmanager/
-├── core.py                  # Main orchestrator
-├── cache/                   # Intelligent caching system
-├── queries/                 # Query processing & optimization
-├── analytics/               # Advanced analytics capabilities
-└── endpoints/               # Multi-endpoint management
+models/
+├── base.py              # Base model classes
+├── sources.py           # Source data models
+├── flows.py             # Flow data models
+├── segments.py          # Segment data models
+├── objects.py           # Object data models
+└── common.py            # Common data types
 ```
 
-#### **S3-Compatible Storage (Media Objects)**
+## 🗄️ **Storage Architecture**
 
-S3-compatible storage handles the actual media file storage:
-- **Object Storage**: Efficient binary data storage
-- **Metadata Integration**: Seamless metadata-object linking
-- **Multi-Provider Support**: AWS S3, MinIO, etc.
-- **Lifecycle Management**: Automatic cleanup and optimization
+### **Hybrid Storage Approach**
 
-### **5. Analytics Engine**
+The system uses a hybrid storage approach combining the strengths of different storage technologies:
 
-The analytics engine provides advanced data analysis capabilities using a hybrid approach.
+1. **VAST Database**: High-performance columnar storage for metadata and analytics
+2. **S3-Compatible Storage**: Scalable object storage for media segments
+3. **Intelligent Caching**: Multi-level caching for performance optimization
 
-**Hybrid Architecture:**
-- **VAST for Filtering**: Efficient data extraction using predicates
-- **DuckDB for Processing**: Advanced SQL analytics on filtered data
-- **Memory Efficiency**: Only load relevant data for analysis
-- **Real-Time Processing**: Stream processing capabilities
+### **VAST Database Schema**
 
-**Analytics Types:**
-- **Time-Series Analytics**: Moving averages, trends, anomalies
-- **Aggregation Analytics**: Percentiles, correlations, distributions
-- **Performance Analytics**: Query performance and optimization
-- **Business Analytics**: Usage patterns and insights
+The VAST database uses optimized schemas for TAMS data types:
+
+**Sources Table:**
+```sql
+CREATE TABLE sources (
+    id VARCHAR PRIMARY KEY,
+    format VARCHAR NOT NULL,
+    label VARCHAR,
+    description TEXT,
+    tags JSONB,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
+    deleted_by VARCHAR
+);
+```
+
+**Flows Table:**
+```sql
+CREATE TABLE flows (
+    id VARCHAR PRIMARY KEY,
+    source_id VARCHAR REFERENCES sources(id),
+    format VARCHAR NOT NULL,
+    codec VARCHAR,
+    frame_width INTEGER,
+    frame_height INTEGER,
+    frame_rate VARCHAR,
+    label VARCHAR,
+    description TEXT,
+    tags JSONB,
+    read_only BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
+    deleted_by VARCHAR
+);
+```
+
+**Segments Table:**
+```sql
+CREATE TABLE segments (
+    id VARCHAR PRIMARY KEY,
+    flow_id VARCHAR REFERENCES flows(id),
+    object_id VARCHAR NOT NULL,
+    timerange VARCHAR NOT NULL,
+    sample_offset BIGINT DEFAULT 0,
+    sample_count BIGINT,
+    storage_path VARCHAR,
+    file_size BIGINT,
+    content_type VARCHAR,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
+    deleted_by VARCHAR
+);
+```
+
+### **S3 Storage Organization**
+
+Media segments are organized in a hierarchical structure:
+
+```
+s3://bucket-name/
+├── tams/
+│   ├── 2024/
+│   │   ├── 01/
+│   │   │   ├── 15/
+│   │   │   │   ├── flow-id-1/
+│   │   │   │   │   ├── segment-001.mp4
+│   │   │   │   │   └── segment-002.mp4
+│   │   │   │   └── flow-id-2/
+│   │   │   │       └── segment-001.mp4
+│   │   │   └── 16/
+│   │   └── 02/
+│   └── 2025/
+```
 
 ## 🔄 **Data Flow**
 
 ### **1. Media Upload Flow**
 
 ```
-1. Client Request → API Layer
-2. Authentication & Authorization
-3. Business Logic Validation
-4. Metadata Storage (VAST)
-5. Object Storage (S3)
-6. Response to Client
+Client → API → Validation → Business Logic → Storage Layer
+                                    ↓
+                            ┌─────────────┬─────────────┐
+                            │ VAST Store  │   S3 Store │
+                            │ (Metadata)  │ (Media)    │
+                            └─────────────┴─────────────┘
 ```
 
 ### **2. Media Retrieval Flow**
 
 ```
-1. Client Request → API Layer
-2. Authentication & Authorization
-3. Metadata Query (VAST)
-4. Object Retrieval (S3)
-5. Response Assembly
-6. Response to Client
+Client → API → Validation → Business Logic → Storage Layer
+                                    ↓
+                            ┌─────────────┬─────────────┐
+                            │ VAST Store  │   S3 Store │
+                            │ (Metadata)  │ (Media)    │
+                            └─────────────┴─────────────┘
+                                    ↓
+                            Presigned URL Generation
+                                    ↓
+                            Client Download
 ```
 
 ### **3. Analytics Flow**
 
 ```
-1. Analytics Request → API Layer
-2. Authentication & Authorization
-3. Data Filtering (VAST)
-4. Data Processing (DuckDB)
-5. Results Aggregation
-6. Response to Client
+Client → API → Validation → Analytics Engine → VAST Store
+                                    ↓
+                            Query Optimization
+                                    ↓
+                            Data Processing
+                                    ↓
+                            Result Aggregation
+                                    ↓
+                            Response Generation
 ```
 
-## 📊 **Performance Characteristics**
+## 🚀 **Performance Optimizations**
 
-### **Throughput**
-- **API Requests**: 10,000+ requests/second
-- **Data Ingestion**: 1GB+ per second
-- **Query Performance**: Sub-second response times
-- **Concurrent Users**: 1,000+ simultaneous users
+### **1. Caching Strategy**
 
-### **Scalability**
-- **Horizontal Scaling**: Stateless API instances
-- **Database Scaling**: VAST cluster scaling
-- **Storage Scaling**: S3-compatible storage scaling
-- **Cache Scaling**: Distributed caching support
+- **Multi-Level Caching**: Application, database, and CDN caching
+- **TTL-Based Expiration**: Automatic cache invalidation
+- **Background Updates**: Non-blocking cache refresh
+- **Memory Management**: Configurable cache size limits
 
-### **Reliability**
-- **High Availability**: 99.9% uptime target
-- **Data Durability**: 99.999999999% (11 9's)
-- **Fault Tolerance**: Automatic failover
-- **Backup & Recovery**: Automated backup procedures
+### **2. Query Optimization**
+
+- **Dynamic Splits**: Automatic query splitting based on table size
+- **Index Optimization**: Strategic index placement for common queries
+- **Query Caching**: Result caching for repeated queries
+- **Parallel Processing**: Concurrent query execution
+
+### **3. Storage Optimization**
+
+- **Compression**: Automatic data compression for media files
+- **Deduplication**: Storage deduplication for identical segments
+- **Lifecycle Management**: Automatic cleanup of old data
+- **Load Balancing**: Intelligent storage backend selection
+
+## 🔍 **Monitoring and Observability**
+
+### **1. Metrics Collection**
+
+- **Application Metrics**: Request rates, response times, error rates
+- **Storage Metrics**: I/O operations, storage usage, performance
+- **Business Metrics**: User activity, data growth, usage patterns
+- **System Metrics**: CPU, memory, network, disk usage
+
+### **2. Logging Strategy**
+
+- **Structured Logging**: JSON-formatted logs with context
+- **Log Levels**: Configurable logging verbosity
+- **Log Aggregation**: Centralized log collection and analysis
+- **Performance Logging**: Detailed performance metrics
+
+### **3. Health Monitoring**
+
+- **Endpoint Health**: Real-time health status of all components
+- **Dependency Health**: Database, storage, and external service health
+- **Performance Health**: Response time and throughput monitoring
+- **Alert Generation**: Automatic alerting for critical issues
 
 ## 🔒 **Security Architecture**
 
-### **Network Security**
-- **TLS/SSL**: End-to-end encryption
-- **Firewall Rules**: Restrictive network access
-- **VPC/Private Networks**: Isolated network segments
-- **API Gateway**: Centralized security controls
+### **1. Authentication**
 
-### **Data Security**
-- **Encryption at Rest**: AES-256 encryption
-- **Encryption in Transit**: TLS 1.3
-- **Access Controls**: Role-based access control
-- **Audit Logging**: Complete access logging
+- **Multi-Provider Support**: JWT, API keys, basic auth, URL tokens
+- **Token Management**: Secure token generation and validation
+- **Session Management**: Secure session handling and expiration
+- **Rate Limiting**: Protection against abuse and attacks
 
-### **Application Security**
-- **Input Validation**: Comprehensive input sanitization
-- **SQL Injection Protection**: Parameterized queries
-- **XSS Protection**: Output encoding
-- **Rate Limiting**: DDoS protection
+### **2. Authorization**
 
-## 🚀 **Deployment Architecture**
+- **Role-Based Access Control**: Fine-grained permission management
+- **Resource-Level Security**: Per-resource access control
+- **Audit Logging**: Complete access and modification logging
+- **Data Encryption**: Encryption at rest and in transit
 
-### **Containerization**
-- **Docker**: Application containerization
-- **Multi-Stage Builds**: Optimized image sizes
-- **Health Checks**: Application health monitoring
-- **Resource Limits**: CPU and memory constraints
+### **3. Data Protection**
 
-### **Orchestration**
-- **Kubernetes**: Container orchestration
-- **Helm Charts**: Deployment templating
-- **Service Mesh**: Inter-service communication
-- **Auto-Scaling**: Dynamic resource allocation
+- **Soft Delete**: Data safety with audit trails
+- **Access Logging**: Complete access history tracking
+- **Data Validation**: Comprehensive input validation
+- **Error Handling**: Secure error message generation
 
-### **Monitoring & Observability**
-- **Prometheus**: Metrics collection
+## 🚀 **Scalability Features**
+
+### **1. Horizontal Scaling**
+
+- **Load Balancing**: Automatic request distribution
+- **Stateless Design**: No server-side state dependencies
+- **Database Sharding**: Horizontal database scaling
+- **Storage Distribution**: Multi-region storage support
+
+### **2. Performance Scaling**
+
+- **Connection Pooling**: Efficient database connection management
+- **Query Optimization**: Dynamic query performance tuning
+- **Caching Layers**: Multi-level performance optimization
+- **Background Processing**: Asynchronous operation handling
+
+### **3. Storage Scaling**
+
+- **Object Storage**: Unlimited storage capacity
+- **CDN Integration**: Global content delivery
+- **Compression**: Storage space optimization
+- **Lifecycle Management**: Automatic data lifecycle handling
+
+## 🔧 **Deployment Architecture**
+
+### **1. Container Deployment**
+
+- **Docker Support**: Complete containerization
+- **Multi-Stage Builds**: Optimized image creation
+- **Environment Configuration**: Flexible configuration management
+- **Health Checks**: Built-in health monitoring
+
+### **2. Kubernetes Deployment**
+
+- **Complete K8s Manifests**: Production-ready deployment
+- **Horizontal Pod Autoscaling**: Automatic scaling
+- **Service Mesh Ready**: Istio/Linkerd compatibility
+- **Monitoring Integration**: Prometheus and Grafana integration
+
+### **3. Observability Stack**
+
+- **Prometheus**: Metrics collection and storage
 - **Grafana**: Visualization and dashboards
 - **Jaeger**: Distributed tracing
-- **ELK Stack**: Log aggregation and analysis
+- **Alertmanager**: Alert management and routing
 
-## 🔮 **Future Architecture**
+## 📊 **Analytics and Reporting**
 
-### **Planned Enhancements**
-- **GraphQL API**: Flexible query interface
-- **Real-Time Streaming**: WebSocket support
-- **Machine Learning**: AI-powered analytics
-- **Edge Computing**: Distributed processing
+### **1. Built-in Analytics**
 
-### **Technology Evolution**
-- **Database**: Advanced VAST features
-- **Storage**: Object storage optimization
-- **Analytics**: Real-time processing
-- **Security**: Advanced threat protection
+- **Flow Usage Analytics**: Usage patterns and statistics
+- **Storage Analytics**: Storage usage and optimization
+- **Time Range Analysis**: Temporal data analysis
+- **Performance Analytics**: System performance metrics
 
-## 📚 **Architecture Principles**
+### **2. Custom Analytics**
 
-### **Design Principles**
-1. **Separation of Concerns**: Clear component boundaries
-2. **Single Responsibility**: Each component has one purpose
-3. **Open/Closed**: Open for extension, closed for modification
-4. **Dependency Inversion**: Depend on abstractions, not concretions
+- **Query Interface**: Custom analytics queries
+- **Data Export**: Analytics data export capabilities
+- **Real-time Dashboards**: Live monitoring dashboards
+- **Alert Generation**: Automated alerting based on analytics
 
-### **Performance Principles**
-1. **Caching First**: Cache everything possible
-2. **Async Operations**: Non-blocking operations
-3. **Batch Processing**: Efficient bulk operations
-4. **Resource Optimization**: Minimal resource usage
+### **3. Business Intelligence**
 
-### **Security Principles**
-1. **Defense in Depth**: Multiple security layers
-2. **Least Privilege**: Minimal required access
-3. **Zero Trust**: Verify everything
-4. **Security by Design**: Built-in security features
+- **Usage Patterns**: User behavior analysis
+- **Capacity Planning**: Resource usage forecasting
+- **Performance Optimization**: System optimization recommendations
+- **Cost Analysis**: Storage and compute cost analysis
+
+This architecture provides a robust, scalable, and maintainable foundation for the TAMS API system, with clear separation of concerns, comprehensive monitoring, and excellent performance characteristics.

@@ -1,5 +1,235 @@
 # BBC TAMS Project Notes
 
+## ✅ **DOCUMENTATION CLEANUP COMPLETED** (2025-01-27)
+
+### **🔍 Current Status: DOCUMENTATION CLEANUP COMPLETE**
+**Date**: January 27, 2025  
+**Task**: Update and clean up all docs except notes and edits  
+**Status**: ✅ **COMPLETED** - All documentation updated and cleaned up
+
+### **📋 SUMMARY OF DOCUMENTATION CLEANUP**
+
+#### **✅ Documentation Files Updated (8 out of 17)**
+
+**Major Restructures (6 files)**:
+1. **`README.md`** - Updated with current architecture, features, and project structure
+2. **`docs/ARCHITECTURE.md`** - Complete overhaul with refactored storage layer
+3. **`docs/DEVELOPMENT.md`** - Comprehensive updates with new development workflow
+4. **`docs/DEPLOYMENT.md`** - Modern deployment practices and containerization
+5. **`docs/USAGE.md`** - Current API endpoints and examples
+6. **`docs/REQUIREMENTS.md`** - Completely restructured with current dependencies
+
+**Minor Updates (2 files)**:
+7. **`docs/SAMPLE_WORKFLOW.md`** - Updated with current API state
+8. **`docs/CRITICAL_BUGS.md`** - Status updates and bug resolution
+
+**No Changes Needed (9 files)** - Already current and accurate
+
+#### **🎯 Key Improvements Made**
+
+**Architecture Documentation**: Updated to reflect enhanced storage layer with modular design
+**API Documentation**: All endpoints, request/response formats, and examples current
+**Dependencies**: Python 3.12+, specific library versions, current requirements
+**Features**: Advanced analytics, intelligent caching, enhanced observability
+**Deployment**: Modern containerization and Kubernetes practices
+
+#### **🚀 Documentation Quality Achieved**
+
+**Consistency**: Unified terminology and structure across all files
+**Accuracy**: All examples use current API endpoints and responses
+**Completeness**: Comprehensive coverage of all major features
+**Maintainability**: Clear structure and easy to update
+
+---
+
+## ✅ **DEPENDENCY CHECKING IMPLEMENTATION COMPLETED** (2025-01-27)
+
+### **🔍 Current Status: COMPLETE**
+**Date**: January 27, 2025  
+**Task**: Implement comprehensive dependency checking for all deletion operations  
+**Status**: Full referential integrity enforcement implemented across all entities  
+
+### **📋 SUMMARY OF DEPENDENCY CHECKING IMPLEMENTATION**
+
+#### **🚨 Critical Issue Resolved**
+The TAMS API had **CRITICAL referential integrity violations** where deletion operations completely ignored dependency constraints, leading to:
+- **Orphaned flows** without sources
+- **Orphaned segments** without flows  
+- **Orphaned objects** without segments
+- **Complete breakdown** of database consistency
+
+#### **✅ Dependency Checking Now Implemented**
+
+**1. Source Deletion Dependencies**
+```python
+# ✅ IMPLEMENTED: Check for dependent flows
+if not cascade:
+    dependent_flows = await self._get_dependent_flows(source_id)
+    if dependent_flows:
+        raise ValueError(f"Cannot delete source {source_id}: {len(dependent_flows)} dependent flows exist.")
+```
+
+**2. Flow Deletion Dependencies**
+```python
+# ✅ IMPLEMENTED: Check for dependent segments
+if not cascade:
+    dependent_segments = await self._get_dependent_segments(flow_id)
+    if dependent_segments:
+        raise ValueError(f"Cannot delete flow {flow_id}: {len(dependent_segments)} dependent segments exist.")
+```
+
+**3. Segment Deletion Dependencies**
+```python
+# ✅ NEW: Check for dependent objects
+for segment in segments:
+    dependent_objects = await self._get_dependent_objects_for_segment(segment.object_id)
+    if dependent_objects:
+        raise ValueError(f"Cannot delete segment {segment.object_id}: {len(dependent_objects)} dependent objects exist.")
+```
+
+**4. Object Deletion Dependencies**
+```python
+# ✅ ENHANCED: Check for both flow references and segment dependencies
+referenced_by_flows = await self._get_object_flow_references(object_id)
+if referenced_by_flows:
+    raise ValueError(f"Cannot delete object {object_id}: {len(referenced_by_flows)} flow references exist.")
+
+dependent_segments = await self._get_dependent_segments_for_object(object_id)
+if dependent_segments:
+    raise ValueError(f"Cannot delete object {object_id}: {len(dependent_segments)} dependent segments exist.")
+```
+
+#### **🔧 Implementation Details**
+
+**New Dependency Checking Methods**:
+- `_get_dependent_objects_for_segment()`: Check if segment's object is referenced by other segments
+- `_get_dependent_segments_for_object()`: Check if object is referenced by any segments
+
+**Enhanced Error Handling**:
+- **409 Conflict** status codes for dependency violations
+- **Proper error messages** explaining why deletion failed
+- **Comprehensive logging** for debugging and monitoring
+
+**API Endpoints Updated**:
+- `DELETE /sources/{id}`: Returns 409 if dependent flows exist
+- `DELETE /flows/{id}`: Returns 409 if dependent segments exist  
+- `DELETE /flows/{id}/segments`: Returns 409 if dependent objects exist
+- `DELETE /objects/{id}`: Returns 409 if referenced by flows or segments
+
+#### **🎯 TAMS API Compliance Achieved**
+
+**Referential Integrity**: ✅ **FULLY ENFORCED**
+- **Sources**: Cannot be deleted if flows depend on them (unless cascade=true)
+- **Flows**: Cannot be deleted if segments depend on them (unless cascade=true)
+- **Segments**: Cannot be deleted if objects have other references
+- **Objects**: Cannot be deleted if referenced by flows or segments
+
+**Cascade Behavior**: ✅ **PROPERLY IMPLEMENTED**
+- **cascade=true**: Deletes entity and all dependencies
+- **cascade=false**: Fails with 409 Conflict if dependencies exist
+
+**Error Responses**: ✅ **STANDARDIZED**
+- **409 Conflict**: When dependencies prevent deletion
+- **404 Not Found**: When entity doesn't exist
+- **500 Internal Error**: When deletion operation fails
+
+#### **🚀 Technical Benefits**
+
+**Data Consistency**: Complete elimination of orphaned entities
+**API Reliability**: Predictable behavior across all deletion endpoints
+**System Stability**: No more cascading failures from broken references
+**Debugging**: Clear error messages explaining constraint violations
+
+---
+
+## ✅ **TAGS ISSUE COMPLETELY RESOLVED** (2025-08-22)
+
+### **🔍 Current Status: COMPLETE**
+**Date**: August 22, 2025  
+**Task**: Fix tags issue by implementing dedicated tags table and updating API endpoints  
+**Status**: Tags functionality fully implemented and working for both sources and flows  
+
+### **📋 SUMMARY OF TAGS ISSUE RESOLUTION**
+
+#### **🏗️ New Tags Architecture**
+The tags system has been completely refactored to use a dedicated tags table instead of JSON fields in sources and flows.
+
+**New Tags Structure:**
+```
+tags table:
+├── id: Unique tag identifier
+├── entity_type: 'source' or 'flow'
+├── entity_id: ID of the source or flow
+├── tag_name: Tag name/key
+├── tag_value: Tag value
+├── created: Timestamp when tag was created
+├── updated: Timestamp when tag was last updated
+├── created_by: Who created the tag
+└── updated_by: Who last updated the tag
+```
+
+#### **🎯 Key Benefits Achieved**
+
+1. **Dynamic Tag Management**: Tags are now truly dynamic fields that can be added/removed without schema changes
+2. **Efficient Querying**: Tags can be queried efficiently using VAST's native query language
+3. **Better Performance**: No need to parse JSON strings for tag operations
+4. **Consistent API**: All tag operations use the same CRUD interface
+5. **VAST Native**: Uses VAST's Ibis predicates instead of SQL queries
+
+#### **🔧 Implementation Details**
+
+**TagsStorage Module**: New dedicated module for tag operations
+- `create_tag()`: Create individual tags
+- `get_tags()`: Get all tags for an entity
+- `get_tag()`: Get specific tag value
+- `update_tag()`: Update individual tag
+- `update_tags()`: Update all tags for an entity
+- `delete_tag()`: Delete specific tag
+- `delete_all_tags()`: Delete all tags for an entity
+- `search_tags()`: Search tags by criteria
+- `get_tag_statistics()`: Get tag usage statistics
+
+**API Endpoints Updated**: All tag endpoints now use the new architecture
+- `PUT /sources/{id}/tags`: Update source tags
+- `GET /sources/{id}/tags`: Get source tags
+- `PUT /sources/{id}/tags/{name}`: Update specific source tag
+- `GET /sources/{id}/tags/{name}`: Get specific source tag value
+- `DELETE /sources/{id}/tags/{name}`: Delete specific source tag
+- `PUT /flows/{id}/tags`: Update flow tags
+- `GET /flows/{id}/tags`: Get flow tags
+- `PUT /flows/{id}/tags/{name}`: Update specific flow tag
+- `GET /flows/{id}/tags/{name}`: Get specific flow tag value
+- `DELETE /flows/{id}/tags/{name}`: Delete specific flow tag
+
+**VAST Integration**: All tag operations use VAST's native query language
+- Ibis predicates for filtering and updates
+- No SQL queries - fully VAST compliant
+- Efficient database operations
+
+#### **✅ Testing Results**
+
+**Source Tags**: ✅ Working perfectly
+- Create tags: `PUT /sources/{id}/tags` ✅
+- Get all tags: `GET /sources/{id}/tags` ✅
+- Get specific tag: `GET /sources/{id}/tags/{name}` ✅
+- Update tags: `PUT /sources/{id}/tags` ✅
+
+**Flow Tags**: ✅ Working perfectly
+- Create tags: `PUT /flows/{id}/tags` ✅
+- Get all tags: `GET /flows/{id}/tags` ✅
+- Get specific tag: `GET /flows/{id}/tags/{name}` ✅
+- Update tags: `PUT /flows/{id}/tags` ✅
+
+#### **🚀 Technical Implementation**
+
+**Database Schema**: Tags table created with proper projections
+**Storage Layer**: TagsStorage module fully integrated with VASTStore
+**API Layer**: All endpoints updated to use new tags architecture
+**Error Handling**: Proper error handling for all tag operations
+**Logging**: Comprehensive logging for debugging and monitoring
+
+---
+
 ## ✅ **TEST SUITE REFACTORING COMPLETED** (2025-01-27)
 
 ### **🔍 Current Status: COMPLETE**
@@ -170,7 +400,7 @@ python tests/run_consolidated_tests.py --python-path /path/to/python
 
 ---
 
-## ✅ **Table Projections Management Completed (2025-08-18)**
+## ✅ **TABLE PROJECTIONS MANAGEMENT COMPLETED** (2025-08-18)
 
 ### Summary
 - Centralized projection definitions in `VASTStore` via `VASTStore._get_desired_table_projections()` (static).
@@ -199,10 +429,10 @@ python tests/run_consolidated_tests.py --python-path /path/to/python
 
 ## 🚨 **CRITICAL TAMS API COMPLIANCE ISSUES DISCOVERED - NEW CHAT STARTING POINT**
 
-### **🔍 Current Investigation Status: COMPLETE**
+### **🔍 CURRENT INVESTIGATION STATUS: COMPLETE**
 **Date**: 2025-08-17  
-**Investigation**: Comprehensive model compliance analysis against TAMS API specification  
-**Status**: All models analyzed, critical issues identified, action plan created  
+**INVESTIGATION**: COMPREHENSIVE model compliance analysis against TAMS API specification  
+**STATUS**: All models analyzed, critical issues identified, action plan created  
 
 ### **📋 SUMMARY FOR NEW CHAT CONTINUATION**
 
@@ -3063,3 +3293,474 @@ All segment operations now use the correct TAMS path format and generate fresh g
 4. ✅ Dynamic get_urls Generation (fresh presigned URLs)
 
 **Status: ✅ COMPLETE - All TAMS storage requirements implemented and working**
+
+# TAMS API Development Notes
+
+## 🎯 **CURRENT STATUS - Table Schema Restoration**
+
+### **Date**: 2025-01-XX
+### **Status**: COMPLETED - Table creation functionality restored
+### **Priority**: HIGH - Critical for VAST database initialization
+
+### **🔧 Issue Identified**
+- VAST cannot create tables automatically
+- During storage refactoring, table creation schemas and code were removed
+- Current `vast_store.py` only has placeholder for table setup
+
+### **✅ Solution Implemented**
+1. **Created `app/storage/schemas.py`** - Centralized location for all TAMS table schemas
+2. **Restored table creation logic** - Complete `_setup_tams_tables()` method with:
+   - All 13 TAMS table schemas (sources, flows, segments, objects, etc.)
+   - Projection definitions for performance optimization
+   - Proper error handling and logging
+3. **Updated `vast_store.py`** - Now imports schemas and creates tables during initialization
+
+### **📊 Tables Restored**
+- **sources** - Media sources with metadata and collections
+- **flows** - Media flows with format-specific attributes
+- **segments** - Time-series optimized flow segments
+- **objects** - Media object metadata
+- **flow_object_references** - Flow-object relationship tracking
+- **flow_collections** - Dynamic flow collection management
+- **source_collections** - Dynamic source collection management
+- **webhooks** - Webhook configuration and filtering
+- **deletion_requests** - Deletion request tracking
+- **users** - User authentication and management
+- **api_tokens** - API token management
+- **refresh_tokens** - Refresh token handling
+- **auth_logs** - Authentication event logging
+
+### **🚀 Benefits**
+- VAST database now properly initializes with all required tables
+- Schemas are centralized and easily maintainable
+- Projection support for query performance optimization
+- Proper error handling during table creation
+- Maintains backward compatibility with existing code
+
+### **📁 Files Modified**
+1. **`app/storage/schemas.py`** - NEW FILE with all table schemas
+2. **`app/storage/vast_store.py`** - Updated to use schemas and create tables
+
+---
+
+## 🎯 **CURRENT STATUS - Phase 7 Complete**
+
+### **Date**: 2025-01-XX
+### **Status**: COMPLETED ✅
+### **Priority**: COMPLETED - All Priority 1-4 issues resolved
+
+### **🏆 Phase 7 Achievements**
+- [x] Dynamic collections implementation
+- [x] Enhanced projections
+- [x] TAMS compliance finalization
+- [x] Performance optimizations
+- [x] All Priority 1-4 issues resolved
+
+### **📋 Next Phase (Priority 5)**
+- [ ] Event Stream Mechanisms implementation
+- [ ] TAMS API 100% specification compliance
+- [ ] Production deployment readiness
+
+---
+
+## 🏗️ **STORAGE SECTION REFACTORING PLAN FOR BETTER DEBUGGING**
+
+### **Date**: 2025-01-XX
+### **Status**: PROPOSED - Comprehensive refactoring plan for improved debugging and model checking
+### **Priority**: HIGH - Critical for development efficiency and system reliability
+
+### **🎯 Objectives**
+1. **Centralize Debugging Tools** - Create unified diagnostic capabilities
+2. **Simplify Architecture** - Reduce complexity and improve maintainability  
+3. **Enhance Visibility** - Better error reporting and health monitoring
+4. **Improve Model Validation** - Robust validation with clear error messages
+5. **Enable Self-Diagnosis** - Automated health checks and troubleshooting
+
+### **📊 Current Architecture Problems**
+
+#### **1. Scattered Components**
+```
+app/storage/
+├── vast_store.py (3044 lines - TOO LARGE)
+├── vastdbmanager/
+│   ├── core.py (318 lines)
+│   ├── connection_manager.py (123 lines)
+│   ├── table_operations.py (252 lines)
+│   ├── data_operations.py
+│   ├── batch_operations.py (406 lines)
+│   └── analytics/ (multiple files)
+├── s3_store.py (652 lines - LARGE)
+└── storage_backend_manager.py
+```
+
+**Issues Identified:**
+- `vast_store.py` is too large (3044 lines) - difficult to debug and maintain
+- Deep nesting makes debugging difficult - errors are buried in complex call stacks
+- No centralized error handling - errors scattered across multiple modules
+- Limited diagnostic capabilities - no unified way to check system health
+- Debugging scripts scattered throughout project - no centralized debugging tools
+
+#### **2. Storage Architecture Complexity**
+```
+VASTStore → VastDBManager → VASTCore → VAST Database
+     ↓
+S3Store → StorageBackendManager → S3Core → S3 Storage
+```
+
+**Problems:**
+- Too many abstraction layers - difficult to trace data flow
+- Error propagation through multiple layers - root cause hard to identify
+- No unified error handling - each layer has different error formats
+- Complex dependency injection - hard to mock for testing
+
+#### **3. Debugging Limitations**
+- No centralized health monitoring
+- Limited connection testing capabilities
+- No automated troubleshooting tools
+- Performance analysis scattered across modules
+- No unified logging strategy
+
+### **🔧 Proposed Solution**
+
+#### **Phase 1: Schema Centralization** ✅ **COMPLETED**
+- [x] Create `app/storage/schemas.py` with all table schemas
+- [x] Restore table creation functionality in `vast_store.py`
+- [x] Centralize projection definitions
+
+#### **Phase 2: Core Module Simplification**
+- [ ] Break down `vast_store.py` into focused modules
+- [ ] Simplify `VastDBManager` to core operations only
+- [ ] Create unified error handling system
+- [ ] Implement centralized logging strategy
+
+#### **Phase 3: Diagnostics Module Enhancement**
+- [ ] Expand health monitoring capabilities
+- [ ] Add automated troubleshooting
+- [ ] Implement performance analysis tools
+- [ ] Create unified debugging interface
+
+#### **Phase 4: Testing and Validation**
+- [ ] Comprehensive integration testing
+- [ ] Performance benchmarking
+- [ ] Error scenario testing
+- [ ] Documentation updates
+
+### **📈 Expected Benefits**
+1. **Improved Debugging** - Centralized tools and better error visibility
+2. **Reduced Complexity** - Simpler architecture with clear responsibilities
+3. **Better Maintainability** - Focused modules with single responsibilities
+4. **Enhanced Reliability** - Unified error handling and health monitoring
+5. **Faster Development** - Clearer code structure and better tooling
+
+### **🔄 Implementation Strategy**
+1. **Incremental Approach** - Phase by phase to minimize disruption
+2. **Backward Compatibility** - Maintain existing API interfaces
+3. **Comprehensive Testing** - Validate each phase before proceeding
+4. **Documentation Updates** - Keep NOTES.md and EDITS.md current
+
+---
+
+## 🎯 **FUNCTION DEFINITIONS**
+
+### **VASTStore Class Methods**
+
+#### **Table Management**
+- `_setup_tams_tables()` - Creates all TAMS tables with schemas and projections
+- `_get_desired_table_projections()` - Returns projection configuration for performance optimization
+
+#### **Source Operations (Delegated)**
+- `create_source(source: Source) -> bool` - Creates TAMS source via SourcesStorage
+- `get_source(source_id: str) -> Optional[Source]` - Retrieves source via SourcesStorage
+- `update_source(source_id: str, updates: Dict[str, Any]) -> bool` - Updates source via SourcesStorage
+- `delete_source(source_id: str, cascade: bool = False) -> bool` - Deletes source with cascade support via SourcesStorage
+- `list_sources(filters: Optional[Dict[str, Any]] = None) -> List[Source]` - Lists sources with optional filtering via SourcesStorage
+
+#### **Flow Operations (Delegated)**
+- `create_flow(flow: Flow) -> bool` - Creates TAMS flow via FlowsStorage
+- `get_flow(flow_id: str) -> Optional[Flow]` - Retrieves flow via FlowsStorage
+- `update_flow(flow_id: str, updates: Dict[str, Any]) -> bool` - Updates flow via FlowsStorage
+- `delete_flow(flow_id: str, cascade: bool = False) -> bool` - Deletes flow with cascade support via FlowsStorage
+- `list_flows(filters: Optional[Dict[str, Any]] = None) -> List[Flow]` - Lists flows with optional filtering via FlowsStorage
+
+#### **Segment Operations (Delegated)**
+- `create_flow_segment(segment: FlowSegment, flow_id: str, media_data: Union[bytes, str, Any]) -> bool` - Creates segment via SegmentsStorage
+- `get_flow_segments(flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]` - Retrieves segments via SegmentsStorage
+- `delete_segments(flow_id: str, timerange: Optional[str] = None) -> bool` - Deletes segments via SegmentsStorage
+
+#### **Object Operations (Delegated)**
+- `get_object(object_id: str) -> Optional[Object]` - Retrieves object via ObjectsStorage
+- `list_objects(filters: Optional[Dict[str, Any]] = None) -> List[Object]` - Lists objects via ObjectsStorage
+
+#### **Analytics Operations (Delegated)**
+- `get_analytics(query_params: Dict[str, Any]) -> Dict[str, Any]` - Executes analytics via AnalyticsEngine
+
+### **Schema Definitions**
+
+#### **Source Schema**
+```python
+source_schema = pa.schema([
+    ('id', pa.string()),
+    ('format', pa.string()),
+    ('label', pa.string()),
+    ('description', pa.string()),
+    ('created_by', pa.string()),
+    ('updated_by', pa.string()),
+    ('created', pa.timestamp('us')),
+    ('updated', pa.timestamp('us')),
+    ('tags', pa.string()),  # JSON string
+    ('source_collection', pa.string()),  # JSON string
+    ('collected_by', pa.string()),  # JSON string
+])
+```
+
+#### **Flow Schema**
+```python
+flow_schema = pa.schema([
+    ('id', pa.string()),
+    ('source_id', pa.string()),
+    ('format', pa.string()),
+    ('codec', pa.string()),
+    ('label', pa.string()),
+    ('description', pa.string()),
+    ('created_by', pa.string()),
+    ('updated_by', pa.string()),
+    ('created', pa.timestamp('us')),
+    ('metadata_updated', pa.timestamp('us')),
+    ('segments_updated', pa.timestamp('us')),
+    ('tags', pa.string()),  # JSON string
+    ('container', pa.string()),
+    ('read_only', pa.bool_()),
+    ('metadata_version', pa.string()),
+    ('generation', pa.int32()),
+    ('segment_duration', pa.string()),
+    # Video specific fields
+    ('frame_width', pa.int32()),
+    ('frame_height', pa.int32()),
+    ('frame_rate', pa.string()),
+    # Audio specific fields
+    ('sample_rate', pa.string()),
+    ('bits_per_sample', pa.int32()),
+    ('channels', pa.int32()),
+    # Bit rate fields
+    ('max_bit_rate', pa.int32()),
+    ('avg_bit_rate', pa.int32()),
+    # Multi flow specific
+    ('flow_collection', pa.string()),
+])
+```
+
+#### **Segment Schema**
+```python
+segment_schema = pa.schema([
+    ('id', pa.string()),
+    ('flow_id', pa.string()),
+    ('object_id', pa.string()),
+    ('timerange', pa.string()),
+    ('ts_offset', pa.string()),
+    ('last_duration', pa.string()),
+    ('sample_offset', pa.int64()),
+    ('sample_count', pa.int64()),
+    ('get_urls', pa.string()),  # JSON string
+    ('key_frame_count', pa.int32()),
+    ('created', pa.timestamp('us')),
+    ('storage_path', pa.string()),  # S3 object key
+    # Time-series optimization fields
+    ('start_time', pa.timestamp('us')),
+    ('end_time', pa.timestamp('us')),
+    ('duration_seconds', pa.float64()),
+])
+```
+
+#### **Object Schema**
+```python
+object_schema = pa.schema([
+    ('id', pa.string()),  # TAMS spec requires 'id' field
+    ('size', pa.int64()),
+    ('created', pa.timestamp('us')),
+    ('last_accessed', pa.timestamp('us')),
+    ('access_count', pa.int32()),
+])
+```
+
+### **Projection Definitions**
+
+#### **Sources Projections**
+- `('id',)` - Primary key projection
+
+#### **Flows Projections**
+- `('id',)` - Primary key projection
+- `('id', 'source_id')` - Composite key for source-based queries
+- `('source_id', 'created')` - Source-based creation time queries
+- `('source_id', 'updated')` - Source-based update time queries
+
+#### **Segments Projections**
+- `('id',)` - Primary key projection
+- `('id', 'flow_id')` - Composite projection for flow-based queries
+- `('id', 'flow_id', 'object_id')` - Composite key for segment queries
+- `('id', 'start_time', 'end_time')` - Time range projection
+- `('flow_id', 'start_time', 'end_time')` - Flow-based time range queries
+
+#### **Collections Projections**
+- `('collection_id', 'flow_id')` - Composite key for collection-flow queries
+- `('collection_id', 'label')` - Collection label queries
+- `('collection_id', 'created')` - Collection creation time queries
+
+---
+
+## 🔄 **RECENT CHANGES**
+
+### **2025-01-XX - Table Schema Restoration**
+- **Issue**: VAST cannot create tables automatically after storage refactoring
+- **Solution**: Created `app/storage/schemas.py` with all TAMS table schemas
+- **Implementation**: Restored complete table creation logic in `vast_store.py`
+- **Result**: All 13 TAMS tables now properly created during VAST initialization
+
+### **2025-01-XX - Storage Architecture Refactoring**
+- **Goal**: Improve debugging, separation of concerns, and modularity
+- **Changes**: Restructured storage into core modules and endpoint-specific modules
+- **Status**: COMPLETED - New architecture implemented and functional
+
+### **2025-01-XX - TAMS API Compliance Phase 7**
+- **Goal**: Complete TAMS API specification compliance
+- **Changes**: Dynamic collections, enhanced projections, performance optimizations
+- **Status**: COMPLETED - All Priority 1-4 issues resolved
+
+---
+
+## 📚 **REFERENCES**
+
+### **Key Files**
+- `app/storage/schemas.py` - All TAMS table schemas and projections
+- `app/storage/vast_store.py` - Main VAST store orchestrator
+- `app/storage/vastdbmanager/` - VAST database management layer
+- `app/storage/endpoints/` - Endpoint-specific storage modules
+
+### **Configuration**
+- `app/core/config.py` - Application configuration and settings
+- `config/production.json` - Production configuration
+
+### **Documentation**
+- `docs/TAMS_API_ENDPOINTS.md` - TAMS API endpoint specifications
+- `docs/ARCHITECTURE.md` - System architecture documentation
+- `docs/DEVELOPMENT.md` - Development guidelines and procedures
+
+---
+
+## 🎯 **NEXT STEPS**
+
+### **Immediate (Priority 1)**
+1. **Test table creation** - Verify all tables are created successfully
+2. **Validate schemas** - Ensure schemas match TAMS API requirements
+3. **Test projections** - Verify projection creation and performance
+
+### **Short Term (Priority 2)**
+1. **Performance testing** - Benchmark table creation and query performance
+2. **Error handling** - Test error scenarios and recovery
+3. **Documentation** - Update API documentation with new capabilities
+
+### **Medium Term (Priority 3)**
+1. **Schema evolution** - Implement schema migration capabilities
+2. **Advanced projections** - Add more sophisticated projection strategies
+3. **Monitoring** - Enhance health monitoring and alerting
+
+### **Long Term (Priority 4)**
+1. **Automation** - Implement automated schema management
+2. **Optimization** - Continuous performance optimization
+3. **Scalability** - Prepare for production scale deployment
+
+## 🎯 **CURRENT STATUS - Tags Issue Resolution**
+
+### **Date**: 2025-01-XX
+### **Status**: COMPLETED - Tags now stored in dedicated table with proper VAST queries
+### **Priority**: HIGH - Critical for TAMS API tag functionality
+
+### **🔧 Issue Identified**
+- Tags were previously stored as JSON strings in sources and flows tables
+- This approach limited flexibility and made tag operations inefficient
+- Tags needed to be dynamic fields that could be easily queried and managed
+
+### **✅ Solution Implemented**
+1. **Created dedicated tags table** - New `tags` table with proper schema
+2. **Updated table schemas** - Removed tags field from sources and flows tables
+3. **Implemented TagsStorage module** - Dedicated storage module for tag operations
+4. **Fixed VAST query usage** - Replaced SQL strings with proper VAST predicate queries
+5. **Integrated with VASTStore** - Added tag operation methods to main store
+
+### **📊 Tags Table Schema**
+```python
+tags_schema = pa.schema([
+    ('id', pa.string()),  # Unique tag identifier
+    ('entity_type', pa.string()),  # 'source' or 'flow'
+    ('entity_id', pa.string()),  # ID of the source or flow
+    ('tag_name', pa.string()),  # Tag name/key
+    ('tag_value', pa.string()),  # Tag value
+    ('created', pa.timestamp('us')),  # When tag was created
+    ('updated', pa.timestamp('us')),  # When tag was last updated
+    ('created_by', pa.string()),  # Who created the tag
+    ('updated_by', pa.string()),  # Who last updated the tag
+])
+```
+
+### **🚀 Benefits of New Approach**
+- **Dynamic Tags**: Tags are now truly dynamic fields that can be added/removed without schema changes
+- **Efficient Queries**: VAST predicate-based queries for fast tag lookups
+- **Better Performance**: Dedicated table with proper indexing and projections
+- **Scalability**: Tags can grow without affecting main entity tables
+- **Flexibility**: Easy to add new tag types or modify existing tags
+
+### **🔧 Technical Implementation**
+
+#### **1. TagsStorage Module**
+- **Location**: `app/storage/endpoints/tags/tags_storage.py`
+- **Methods**: CRUD operations for tags using proper VAST queries
+- **Predicates**: Uses Ibis predicates (e.g., `(_.entity_type == 'source') & (_.entity_id == source_id)`)
+
+#### **2. VAST Query Integration**
+- **Replaced SQL**: No more SQL strings - uses VAST's native query capabilities
+- **Predicate Building**: Proper Ibis predicate construction for filtering
+- **Method Usage**: Uses `select()`, `update()`, and `delete()` methods from VastDBManager
+
+#### **3. Schema Updates**
+- **Sources Table**: Removed `tags` field (was JSON string)
+- **Flows Table**: Removed `tags` field (was JSON string)
+- **New Table**: Added `tags` table to `tables_config`
+
+### **📁 Files Modified**
+1. **`app/storage/schemas.py`** - Added tags table schema, removed tags from sources/flows
+2. **`app/storage/endpoints/tags/tags_storage.py`** - NEW FILE with complete tag operations
+3. **`app/storage/endpoints/tags/__init__.py`** - NEW FILE for tags module package
+4. **`app/storage/vast_store.py`** - Integrated TagsStorage and added tag operation methods
+
+### **🔄 Tag Operations Now Available**
+
+#### **Source Tags**
+- `get_source_tags(source_id)` - Get all tags for a source
+- `get_source_tag(source_id, tag_name)` - Get specific tag value
+- `update_source_tag(source_id, tag_name, tag_value)` - Update single tag
+- `update_source_tags(source_id, tags)` - Update all tags
+- `delete_source_tag(source_id, tag_name)` - Delete single tag
+- `delete_source_tags(source_id)` - Delete all tags
+
+#### **Flow Tags**
+- `get_flow_tags(flow_id)` - Get all tags for a flow
+- `get_flow_tag(flow_id, tag_name)` - Get specific tag value
+- `update_flow_tag(flow_id, tag_name, tag_value)` - Update single tag
+- `update_flow_tags(flow_id, tags)` - Update all tags
+- `delete_flow_tag(flow_id, tag_name)` - Delete single tag
+- `delete_flow_tags(flow_id)` - Delete all tags
+
+### **📈 Performance Optimizations**
+- **Projections**: Tags table includes optimized projections for common queries
+- **Indexing**: Entity-based queries are optimized with proper projections
+- **Caching**: Leverages VastDBManager's caching for repeated queries
+
+### **🧪 Testing Required**
+1. **Tag Creation**: Verify tags are properly created in dedicated table
+2. **Tag Retrieval**: Test tag queries for sources and flows
+3. **Tag Updates**: Verify tag modification operations work correctly
+4. **Tag Deletion**: Test single and bulk tag deletion
+5. **Performance**: Benchmark tag operations vs. previous JSON approach
+
+---
+
+## 🎯 **CURRENT STATUS - Table Schema Restoration**

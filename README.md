@@ -1,4 +1,4 @@
-# VAST TAMS (Time-addressable Media Store) API running on VAST
+# VAST TAMS (Time-addressable Media Store) API
 
 A comprehensive FastAPI implementation of the BBC TAMS API specification with VAST Database and VAST S3 integration for high-performance time-series analytics and S3-compatible storage for media segments.
 
@@ -19,14 +19,13 @@ A comprehensive FastAPI implementation of the BBC TAMS API specification with VA
 - **Pydantic v2 Compatible**: Modern data validation with RootModel support
 - **Soft Delete Extension**: Vendor-specific enhancement with optional soft delete and cascade delete capabilities
 - **Data Integrity**: Maintains referential integrity with cascade operations
+- **Advanced Analytics**: Time-series analysis, aggregation analytics, and performance monitoring
+- **Intelligent Caching**: TTL-based caching with background updates and performance optimization
 
 ## 🏗️ Architecture
 
-<img width="822" height="430" alt="TAMS_Architecture-Live_white" src="https://github.com/user-attachments/assets/23ea1987-4b30-468f-89e4-a7a3778a2a02" />
-
-
-### Modular Router Architecture
-The application follows a clean modular architecture with separate routers for each domain:
+### Modular Storage Architecture
+The application follows a clean modular architecture with separate components for each domain:
 
 - **`main.py`**: Core application setup, lifespan management, and service endpoints
 - **`flows_router.py`**: Flow management endpoints (CRUD operations)
@@ -34,24 +33,29 @@ The application follows a clean modular architecture with separate routers for e
 - **`sources_router.py`**: Source management endpoints (CRUD operations)
 - **`objects_router.py`**: Media object management
 - **`analytics_router.py`**: Analytics and reporting endpoints
-- **`dependencies.py`**: Dependency injection for VAST store access
+- **`dependencies.py`**: Dependency injection for storage access
 
-### Hybrid Storage Architecture
-The application uses a hybrid storage approach:
+### Enhanced Storage Architecture
+The application uses a modern, modular storage approach:
 
-- **VAST Database**: Stores metadata (sources, flows, segments) with optimized schemas
-- **S3-Compatible Storage**: Stores actual media segment data with presigned URLs
-- **Time-Series Optimization**: Automatic time range parsing and indexing for efficient queries
+- **Core Storage Modules**: `s3_core.py`, `vast_core.py` with infrastructure code only
+- **TAMS-Specific Modules**: Organized by API endpoint (sources/, flows/, segments/, objects/, analytics/)
+- **Centralized Diagnostics**: Comprehensive diagnostics module for troubleshooting
+- **Storage Health Monitoring**: Real-time health checks and performance monitoring
+- **Model Validation Utilities**: Enhanced validation and error reporting
+- **Simplified Architecture**: Better separation of concerns and maintainability
 
 ### VAST Database Store
-The application uses the `vastdbmanager.py` module to provide a clean interface to VAST Database:
+The application uses the enhanced `vastdbmanager` module to provide a clean interface to VAST Database:
 
 - **Columnar Storage**: Apache Arrow schemas with optimized table structures
 - **Time-Series Optimization**: Automatic time range parsing and indexing
 - **Transaction Support**: ACID-like operations with rollback capability
 - **Schema Management**: Automatic table creation and schema discovery
-- **Analytics Engine**: Built-in statistical analysis and aggregation
-- **Connection Management**: Robust connection handling with retry logic
+- **Advanced Analytics Engine**: Built-in statistical analysis, aggregation, and time-series analytics
+- **Connection Management**: Robust connection handling with retry logic and load balancing
+- **Intelligent Caching**: TTL-based caching with background updates
+- **Performance Monitoring**: Query performance tracking and optimization
 
 ### S3 Store Integration
 The `s3_store.py` module provides:
@@ -90,11 +94,34 @@ bbctams/
 │   ├── config.py               # Configuration management
 │   ├── dependencies.py         # Dependency injection
 │   ├── models.py               # Pydantic data models
-│   ├── vast_store.py           # VAST database store
-│   ├── vastdbmanager.py        # VAST database manager
-│   ├── s3_store.py             # S3 storage manager
-│   ├── telemetry.py            # Telemetry and observability
-│   ├── utils.py                # Utility functions and helpers
+│   ├── storage/                # Enhanced storage architecture
+│   │   ├── core/               # Core storage modules
+│   │   │   ├── s3_core.py      # S3 infrastructure
+│   │   │   ├── vast_core.py    # VAST infrastructure
+│   │   │   └── storage_factory.py
+│   │   ├── endpoints/          # TAMS-specific storage modules
+│   │   │   ├── sources/        # Source storage operations
+│   │   │   ├── flows/          # Flow storage operations
+│   │   │   ├── segments/       # Segment storage operations
+│   │   │   ├── objects/        # Object storage operations
+│   │   │   ├── analytics/      # Analytics storage operations
+│   │   │   └── tags/           # Tags storage operations
+│   │   ├── diagnostics/        # Comprehensive diagnostics
+│   │   │   ├── connection_tester.py
+│   │   │   ├── health_monitor.py
+│   │   │   ├── logger.py
+│   │   │   ├── model_validator.py
+│   │   │   ├── performance_analyzer.py
+│   │   │   └── troubleshooter.py
+│   │   ├── vastdbmanager/      # Enhanced VAST database manager
+│   │   │   ├── core.py         # Main orchestrator
+│   │   │   ├── cache/          # Intelligent caching system
+│   │   │   ├── queries/        # Query processing & optimization
+│   │   │   ├── analytics/      # Advanced analytics capabilities
+│   │   │   └── endpoints/      # Multi-endpoint management
+│   │   ├── vast_store.py       # VAST database store
+│   │   ├── s3_store.py         # S3 storage manager
+│   │   └── schemas.py          # Storage schemas
 │   ├── flows.py                # Flow business logic
 │   ├── segments.py             # Segment business logic
 │   ├── sources.py              # Source business logic
@@ -114,14 +141,11 @@ bbctams/
 │   ├── prometheus/             # Prometheus configuration
 │   ├── grafana/                # Grafana dashboards and config
 │   └── alertmanager/           # Alertmanager configuration
-├── docker/                           # Docker configuration and guides
+├── docker/                     # Docker configuration and guides
 │   ├── docker-compose.yml
 │   ├── docker-compose.observability.yml
 │   └── README.md
-├── docker/start-observability.sh  # Observability startup script
 ├── requirements.txt
-├── OBSERVABILITY.md            # Detailed observability documentation
-├── SOFT_DELETE_EXTENSION.md    # Soft delete extension documentation
 └── README.md
 ```
 
@@ -288,16 +312,6 @@ This soft delete functionality is **NOT part of the official TAMS API specificat
 
 Soft delete functionality is enabled by default and cannot be disabled through configuration. The behavior is hardcoded to provide consistent data safety across all operations.
 
-### Detailed Documentation
-
-For comprehensive information about the soft delete extension, including implementation details, troubleshooting, and future enhancements, see:
-
-📖 **[SOFT_DELETE_EXTENSION.md](SOFT_DELETE_EXTENSION.md)** - Complete soft delete extension documentation
-
-### Observability Endpoints
-- `GET /metrics` - Prometheus metrics endpoint
-- `GET /health` - Enhanced health check with system metrics
-
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -391,8 +405,6 @@ docker-compose up --build
 - **Health Checks**: System metrics and dependency health
 - **Pre-configured Dashboards**: Ready-to-use Grafana dashboards
 - **Alerting**: Configurable alerts for critical metrics
-
-For detailed observability documentation, see [OBSERVABILITY.md](OBSERVABILITY.md).
 
 ## ⚙️ Configuration
 
@@ -602,11 +614,14 @@ bbctams/
 │   ├── config.py               # Configuration management
 │   ├── dependencies.py         # Dependency injection
 │   ├── models.py               # Pydantic data models
-│   ├── vast_store.py           # VAST database store
-│   ├── vastdbmanager.py        # VAST database manager
-│   ├── s3_store.py             # S3 storage manager
-│   ├── telemetry.py            # Telemetry and observability
-│   ├── utils.py                # Utility functions and helpers
+│   ├── storage/                # Enhanced storage architecture
+│   │   ├── core/               # Core storage modules
+│   │   ├── endpoints/          # TAMS-specific storage modules
+│   │   ├── diagnostics/        # Comprehensive diagnostics
+│   │   ├── vastdbmanager/      # Enhanced VAST database manager
+│   │   ├── vast_store.py       # VAST database store
+│   │   ├── s3_store.py         # S3 storage manager
+│   │   └── schemas.py          # Storage schemas
 │   ├── flows.py                # Flow business logic
 │   ├── segments.py             # Segment business logic
 │   ├── sources.py              # Source business logic
@@ -622,7 +637,7 @@ bbctams/
 │   └── TimeAddressableMediaStore.yaml
 ├── tests/                      # Test suite
 ├── k8s/                        # Kubernetes manifests
-├── docker/                           # Docker configuration
+├── docker/                     # Docker configuration
 ├── requirements.txt
 └── README.md
 ```
@@ -674,7 +689,7 @@ with vast_store.db_manager.session.transaction() as tx:
     # Perform operations within transaction
 ```
 
-#### Analytics Integration
+#### Advanced Analytics Integration
 Built-in analytics queries:
 ```python
 # Flow usage analytics
@@ -765,8 +780,6 @@ url = await s3_store.generate_presigned_url(
 - Use HTTPS/TLS in production deployments
 - Implement audit logging for security events
 
-For detailed security setup instructions, see [SECURITY.md](SECURITY.md).
-
 ## 📊 Monitoring & Observability
 
 - **Comprehensive Telemetry**: Prometheus metrics, OpenTelemetry tracing, and structured logging
@@ -776,8 +789,6 @@ For detailed security setup instructions, see [SECURITY.md](SECURITY.md).
 - **Alerting**: Configurable alerts for performance, errors, and business metrics
 - **Performance Monitoring**: VAST database and S3 operation performance tracking
 - **Business Metrics**: Sources, flows, segments, and storage usage analytics
-
-For complete observability setup and configuration, see [OBSERVABILITY.md](OBSERVABILITY.md).
 
 ## 🤝 Contributing
 
@@ -841,11 +852,8 @@ If S3 storage operations fail:
 ## 🚀 Roadmap
 
 - [ ] Real-time event streaming with WebSockets
-
 - [ ] Enhanced security with OAuth2/JWT
-
 - [ ] Advanced observability features (custom dashboards, alerting rules)
-
 - [ ] Advanced audit trail and compliance reporting
 - [ ] **Trino integration for advanced query capabilities**
   - [ ] SQL query interface for complex analytics

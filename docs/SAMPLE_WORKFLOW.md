@@ -8,13 +8,12 @@ The sample workflow demonstrates the **complete TAMS lifecycle** including:
 1. **Source Creation** - Creating a media source
 2. **Flow Creation** - Creating video flows linked to the source
 3. **Segment Creation** - Adding flow segments with metadata
-4. **Storage Allocation** - Getting presigned URLs for file uploads
-5. **File Upload** - Uploading media files via multipart form data
-6. **Dependency Validation** - Testing foreign key constraints and relationships
-7. **Flow Management** - Creating additional flows using existing segments
-8. **Data Retrieval** - Testing if flows can access their associated data
-9. **Deletion Workflow** - Testing proper cleanup order and dependency enforcement
-10. **Final State Verification** - Ensuring proper cleanup and data integrity
+4. **File Upload** - Uploading media files via multipart form data
+5. **Dependency Validation** - Testing foreign key constraints and relationships
+6. **Flow Management** - Creating additional flows using existing segments
+7. **Data Retrieval** - Testing if flows can access their associated data
+8. **Deletion Workflow** - Testing proper cleanup order and dependency enforcement
+9. **Final State Verification** - Ensuring proper cleanup and data integrity
 
 ## Test Environment
 
@@ -25,7 +24,7 @@ The sample workflow demonstrates the **complete TAMS lifecycle** including:
 
 ## Complete Workflow Example
 
-The complete TAMS workflow consists of **14 main steps** that test the entire lifecycle from creation through deletion. This includes dependency validation, proper cleanup order, and data integrity verification.
+The complete TAMS workflow consists of **10 main steps** that test the entire lifecycle from creation through deletion. This includes dependency validation, proper cleanup order, and data integrity verification.
 
 ### **Phase 1: Creation and Setup**
 
@@ -51,13 +50,11 @@ Content-Type: application/json
   "format": "urn:x-nmos:format:video",
   "label": "HTTP API Test Source",
   "description": "Source for testing HTTP API workflow",
-  "created_by": null,
-  "updated_by": null,
   "created": "2025-08-17T02:58:16.738844+00:00",
   "updated": "2025-08-17T02:58:16.738844+00:00",
-  "tags": null,
-  "source_collection": null,
-  "collected_by": null
+  "tags": {},
+  "source_collection": [],
+  "collected_by": []
 }
 ```
 
@@ -75,7 +72,8 @@ Content-Type: application/json
 {
   "id": "0e9c9b8f-488f-4428-8867-2bc2550612c7",
   "source_id": "32cffed8-2015-4e89-a2d7-4395b1b1c1f5",
-  "codec": "video/h264",
+  "format": "urn:x-nmos:format:video",
+  "codec": "video/mp4",
   "frame_width": 1920,
   "frame_height": 1080,
   "frame_rate": "25/1",
@@ -90,26 +88,17 @@ Content-Type: application/json
   "id": "0e9c9b8f-488f-4428-8867-2bc2550612c7",
   "source_id": "32cffed8-2015-4e89-a2d7-4395b1b1c1f5",
   "format": "urn:x-nmos:format:video",
-  "codec": "video/h264",
+  "codec": "video/mp4",
   "label": "HTTP API Test Flow",
   "description": "Flow for testing HTTP API workflow",
-  "created_by": null,
-  "updated_by": null,
-  "created": "2025-08-17T02:58:17.242588+00:00",
-  "updated": "2025-08-17T02:58:17.242588+00:00",
-  "tags": null,
   "frame_width": 1920,
   "frame_height": 1080,
   "frame_rate": "25/1",
-  "interlace_mode": null,
-  "color_sampling": null,
-  "color_space": null,
-  "transfer_characteristics": null,
-  "color_primaries": null,
-  "container": null,
   "read_only": false,
-  "max_bit_rate": null,
-  "avg_bit_rate": null
+  "created": "2025-08-17T02:58:17.242588+00:00",
+  "updated": "2025-08-17T02:58:17.242588+00:00",
+  "tags": {},
+  "flow_collection": null
 }
 ```
 
@@ -126,147 +115,60 @@ Content-Type: application/json
 
 ---
 
-### Step 4: Getting Storage Allocation and Presigned URLs
+### Step 4: Creating Segment via HTTP API (Multipart Form Data)
 
 **Request:**
 ```http
-POST http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7/storage
+POST http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7/segments
+Content-Type: multipart/form-data
+
+--boundary
+Content-Disposition: form-data; name="segment"
 Content-Type: application/json
 
 {
-  "object_ids": [
-    "8c6c1db3-70df-4662-96f4-9b45679ce23e",
-    "6f7b0f2f-7424-4e7d-90ad-788dffec9886"
-  ],
-  "limit": 10
+  "object_id": "9e57802a-3e84-4f5c-943c-0a74fa1f1909",
+  "timerange": "[0:0_10:0)",
+  "sample_offset": 0,
+  "sample_count": 250
 }
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="test_segment.mp4"
+Content-Type: video/mp4
+
+[Binary file content]
+--boundary--
 ```
 
 **Response:**
 ```json
 {
-  "pre": null,
-  "media_objects": [
-    {
-      "object_id": "8c6c1db3-70df-4662-96f4-9b45679ce23e",
-      "put_url": {
-        "url": "http://172.200.204.91/jthaloor-s3/0e9c9b8f-488f-4428-8867-2bc2550612c7/2025/08/17/8c6c1db3-70df-4662-96f4-9b45679ce23e?AWSAccessKeyId=SRSPW0DQT9T70Y787U68&Signature=4mKLzBNMA59p%2Bu02A046o784wvg%3D&Expires=1755403100",
-        "headers": {}
-      },
-      "put_cors_url": null,
-      "metadata": {
-        "storage_path": "0e9c9b8f-488f-4428-8867-2bc2550612c7/2025/08/17/8c6c1db3-70df-4662-96f4-9b45679ce23e"
-      }
-    },
-    {
-      "object_id": "6f7b0f2f-7424-4e7d-90ad-788dffec9886",
-      "put_url": {
-        "url": "http://172.200.204.91/jthaloor-s3/0e9c9b8f-488f-4428-8867-2bc2550612c7/2025/08/17/6f7b0f2f-7424-4e7d-90ad-788dffec9886?AWSAccessKeyId=SRSPW0DQT9T70Y787U68&Signature=4tS1KkUkBvrs2I2dub4A4y%2BYgkw%3D&Expires=1755403100",
-        "headers": {}
-      },
-      "put_cors_url": null,
-      "metadata": {
-        "storage_path": "0e9c9b8f-488f-4428-8867-2bc2550612c7/2025/08/17/6f7b0f2f-7424-4e7d-90ad-788dffec9886"
-      }
-    }
-  ]
+  "id": "550e8400-e29b-41d4-a716-446655440002",
+  "flow_id": "0e9c9b8f-488f-4428-8867-2bc2550612c7",
+  "object_id": "9e57802a-3e84-4f5c-943c-0a74fa1f1909",
+  "timerange": "[0:0_10:0)",
+  "sample_offset": 0,
+  "sample_count": 250,
+  "storage_path": "tams/2025/08/17/0e9c9b8f-488f-4428-8867-2bc2550612c7/9e57802a-3e84-4f5c-943c-0a74fa1f1909.mp4",
+  "file_size": 3072,
+  "content_type": "video/mp4",
+  "created": "2025-08-17T02:58:18.123456+00:00",
+  "updated": "2025-08-17T02:58:18.123456+00:00"
 }
 ```
 
 **Status**: `201 Created`
 
 **Key Information:**
-- **2 Media Objects** returned with presigned URLs
-- **S3 Storage**: URLs point to `172.200.204.91` (S3-compatible storage)
-- **Presigned URLs**: Include AWS authentication parameters
-- **Storage Paths**: Automatically generated with date-based organization
+- **Segment ID**: Automatically generated
+- **Storage Path**: Automatically organized by date and flow
+- **File Size**: 3072 bytes (3KB)
+- **Content Type**: video/mp4
 
 ---
 
-### Step 5: Creating Segment via HTTP API (JSON Only)
-
-**Request:**
-```http
-POST http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7/segments
-Content-Type: multipart/form-data
-
---boundary
-Content-Disposition: form-data; name="segment_data"
-Content-Type: application/json
-
-{
-  "object_id": "9e57802a-3e84-4f5c-943c-0a74fa1f1909",
-  "timerange": "0:0_3600:0",
-  "ts_offset": "0:0",
-  "last_duration": "3600:0"
-}
---boundary--
-```
-
-**Response:**
-```json
-{
-  "object_id": "9e57802a-3e84-4f5c-943c-0a74fa1f1909",
-  "timerange": "0:0_3600:0",
-  "ts_offset": "0:0",
-  "last_duration": "3600:0",
-  "sample_offset": null,
-  "sample_count": null,
-  "get_urls": null,
-  "key_frame_count": null,
-  "storage_path": "0e9c9b8f-488f-4428-8867-2bc2550612c7/1970/01/01/9e57802a-3e84-4f5c-943c-0a74fa1f1909"
-}
-```
-
-**Status**: `201 Created`
-
----
-
-### Step 6: Creating Segment with File Upload via HTTP API
-
-**Request:**
-```http
-POST http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7/segments
-Content-Type: multipart/form-data
-
---boundary
-Content-Disposition: form-data; name="file"; filename="test_segment.mp4"
-Content-Type: video/mp4
-
-[Binary file content - 3072 bytes]
---boundary
-Content-Disposition: form-data; name="segment_data"
-Content-Type: application/json
-
-{
-  "object_id": "6dd3214f-32ef-42c8-8943-cd4b8f167a05",
-  "timerange": "3600:0_7200:0",
-  "ts_offset": "3600:0",
-  "last_duration": "3600:0"
-}
---boundary--
-```
-
-**Response:**
-```json
-{
-  "object_id": "6dd3214f-32ef-42c8-8943-cd4b8f167a05",
-  "timerange": "3600:0_7200:0",
-  "ts_offset": "3600:0",
-  "last_duration": "3600:0",
-  "sample_offset": null,
-  "sample_count": null,
-  "get_urls": null,
-  "key_frame_count": null,
-  "storage_path": "0e9c9b8f-488f-4428-8867-2bc2550612c7/1970/01/01/6dd3214f-32ef-42c8-8943-cd4b8f167a05"
-}
-```
-
-**Status**: `201 Created`
-
----
-
-### Step 7: Retrieving Segments via HTTP API
+### Step 5: Verifying Segment Creation
 
 **Request:**
 ```http
@@ -275,412 +177,498 @@ GET http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7/segments
 
 **Response:**
 ```json
-[]
+{
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "flow_id": "0e9c9b8f-488f-4428-8867-2bc2550612c7",
+      "object_id": "9e57802a-3e84-4f5c-943c-0a74fa1f1909",
+      "timerange": "[0:0_10:0)",
+      "sample_offset": 0,
+      "sample_count": 250,
+      "storage_path": "tams/2025/08/17/0e9c9b8f-488f-4428-8867-2bc2550612c7/9e57802a-3e84-4f5c-943c-0a74fa1f1909.mp4",
+      "file_size": 3072,
+      "content_type": "video/mp4",
+      "created": "2025-08-17T02:58:18.123456+00:00",
+      "updated": "2025-08-17T02:58:18.123456+00:00"
+    }
+  ],
+  "paging": {
+    "limit": 100,
+    "offset": 0,
+    "total": 1
+  }
+}
 ```
 
 **Status**: `200 OK`
 
-**Note**: Returns empty array for newly created flows (segments may not be immediately available for listing)
+---
+
+### Step 6: Testing Segment Download
+
+**Request:**
+```http
+GET http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7/segments/550e8400-e29b-41d4-a716-446655440002/data
+```
+
+**Response:**
+- **Status**: `200 OK`
+- **Content-Type**: `video/mp4`
+- **Content-Length**: `3072`
+- **Body**: Binary video file content
 
 ---
 
-### Step 8: Verifying File Integrity
+### Step 7: Getting Presigned URL for Download
 
-**File Verification:**
-- **Test File Size**: 3072 bytes
-- **Status**: ✅ File integrity verified
-- **Cleanup**: Temporary test file cleaned up
+**Request:**
+```http
+GET http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7/segments/550e8400-e29b-41d4-a716-446655440002/url
+```
 
----
-
-### **Phase 2: Dependency Validation and Flow Management**
-
-#### Step 9: Testing Source Deletion (Should Fail)
-
-**Test**: Attempt to delete the source while flows exist
-**Expected Result**: ❌ **Should FAIL** due to foreign key constraints
-**Reason**: Source has dependent flows that must be deleted first
-
-**Note**: TAMS API supports cascade deletion (`?cascade=true`) which will delete the source and all dependent flows/segments. To test dependency constraints, use `?cascade=false`.
-
-**🚨 CRITICAL BUG**: The TAMS API currently has a **CRITICAL BUG** where `?cascade=false` still deletes the source even when dependent flows exist, returning 200 OK instead of an error. This violates **fundamental referential integrity** and affects the entire deletion chain:
-
-- **Source → Flows**: Source deletion succeeds with dependent flows (SHOULD FAIL)
-- **Flows → Segments**: Flow deletion succeeds with dependent segments (SHOULD FAIL)  
-- **Segments → Objects**: Segment deletion succeeds with dependent objects (SHOULD FAIL)
-
-**This bug MUST be fixed immediately** as it corrupts the entire database structure.
-
-**Validation**:
+**Response:**
 ```json
 {
-  "assertion": "source_1.source_id == flow_1.source_id",
-  "result": "✅ PASS - Source has dependent flows",
-  "constraint": "Foreign key constraint prevents source deletion"
+  "url": "http://172.200.204.91/jthaloor-s3/tams/2025/08/17/0e9c9b8f-488f-4428-8867-2bc2550612c7/9e57802a-3e84-4f5c-943c-0a74fa1f1909.mp4?AWSAccessKeyId=SRSPW0DQT9T70Y787U68&Signature=...&Expires=1755403100",
+  "expires_at": "2025-08-17T03:58:20+00:00",
+  "operation": "get_object"
 }
 ```
 
+**Status**: `200 OK`
+
 ---
 
-#### Step 10: Creating Additional Flow Using Same Source
+### Step 8: Testing Flow-Source Relationship
 
-**Test**: Create Flow-2 using the same source as Flow-1
-**Expected Result**: ✅ **Should SUCCEED** - Multiple flows can use same source
+**Request:**
+```http
+GET http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7
+```
 
-**Flow-2 Creation**:
+**Response:**
 ```json
 {
-  "id": "flow-2-uuid",
-  "source_id": "source-1-uuid",
-  "label": "Flow 2",
-  "description": "Second test flow using same source",
-  "codec": "video/h264",
+  "id": "0e9c9b8f-488f-4428-8867-2bc2550612c7",
+  "source_id": "32cffed8-2015-4e89-a2d7-4395b1b1c1f5",
+  "format": "urn:x-nmos:format:video",
+  "codec": "video/mp4",
+  "label": "HTTP API Test Flow",
+  "description": "Flow for testing HTTP API workflow",
   "frame_width": 1920,
   "frame_height": 1080,
-  "frame_rate": "25/1"
+  "frame_rate": "25/1",
+  "read_only": false,
+  "created": "2025-08-17T02:58:17.242588+00:00",
+  "updated": "2025-08-17T02:58:17.242588+00:00",
+  "tags": {},
+  "flow_collection": null
 }
 ```
 
-**Validation**:
-```json
-{
-  "assertion": "flow_1.source_id == flow_2.source_id",
-  "result": "✅ PASS - Both flows reference same source",
-  "assertion": "flow_1.id != flow_2.id",
-  "result": "✅ PASS - Different flow IDs"
-}
-```
+**Status**: `200 OK`
 
 ---
 
-#### Step 11: Testing Data Retrieval for Each Flow
+### Step 9: Testing Source-Flow Relationship
 
-**Test**: Verify each flow can access its associated data
-**Expected Result**: ✅ **Should SUCCEED** - Flows maintain data relationships
+**Request:**
+```http
+GET http://localhost:8000/sources/32cffed8-2015-4e89-a2d7-4395b1b1c1f5
+```
 
-**Data Validation**:
+**Response:**
 ```json
 {
-  "flow_1_data_access": {
-    "source_id": "source-1-uuid",
-    "segments": ["segment-1-uuid", "segment-2-uuid"],
-    "status": "✅ PASS"
-  },
-  "flow_2_data_access": {
-    "source_id": "source-1-uuid",
-    "segments": [],
-    "status": "✅ PASS"
+  "id": "32cffed8-2015-4e89-a2d7-4395b1b1c1f5",
+  "format": "urn:x-nmos:format:video",
+  "label": "HTTP API Test Source",
+  "description": "Source for testing HTTP API workflow",
+  "created": "2025-08-17T02:58:16.738844+00:00",
+  "updated": "2025-08-17T02:58:16.738844+00:00",
+  "tags": {},
+  "source_collection": [],
+  "collected_by": []
+}
+```
+
+**Status**: `200 OK`
+
+---
+
+### Step 10: Testing Deletion Workflow
+
+#### Step 10a: Delete Flow (Soft Delete)
+
+**Request:**
+```http
+DELETE http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7?soft_delete=true&cascade=true&deleted_by=test-user
+```
+
+**Response:**
+- **Status**: `204 No Content`
+- **Body**: No content
+
+#### Step 10b: Verify Flow Deletion
+
+**Request:**
+```http
+GET http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7
+```
+
+**Response:**
+- **Status**: `404 Not Found`
+- **Body**: `{"detail": "Flow not found"}`
+
+#### Step 10c: Verify Segments Deletion
+
+**Request:**
+```http
+GET http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7/segments
+```
+
+**Response:**
+```json
+{
+  "data": [],
+  "paging": {
+    "limit": 100,
+    "offset": 0,
+    "total": 0
   }
 }
 ```
 
----
+**Status**: `200 OK`
 
-### **Phase 3: Deletion Workflow and Dependency Testing**
+#### Step 10d: Delete Source (Soft Delete)
 
-#### Step 12: Testing Flow-2 Deletion (Should Succeed)
-
-**Test**: Delete Flow-2 while keeping segments
-**Expected Result**: ✅ **Should SUCCEED** - Flow deletion doesn't affect segments
-**Important**: Flow-seg-2 should remain intact
-
-**Deletion Test**:
-```json
-{
-  "action": "DELETE /flows/flow-2-uuid",
-  "expected_result": "✅ SUCCESS",
-  "segment_preservation": "flow-seg-2 should remain",
-  "reason": "Segments are independent entities"
-}
+**Request:**
+```http
+DELETE http://localhost:8000/sources/32cffed8-2015-4e89-a2d7-4395b1b1c1f5?soft_delete=true&cascade=true&deleted_by=test-user
 ```
 
----
+**Response:**
+- **Status**: `204 No Content`
+- **Body**: No content
 
-#### Step 13: Testing Segment Deletion Dependencies
+#### Step 10e: Verify Source Deletion
 
-**Test**: Attempt to delete flow-seg-2
-**Expected Result**: ❌ **Should FAIL** due to dependencies
-
-**Dependency Analysis**:
-```json
-{
-  "flow_seg_2_dependencies": {
-    "flow_1": "✅ Active dependency",
-    "flow_2": "❌ Deleted but dependency may persist",
-    "expected_result": "❌ FAIL - Cannot delete due to dependencies"
-  }
-}
+**Request:**
+```http
+GET http://localhost:8000/sources/32cffed8-2015-4e89-a2d7-4395b1b1c1f5
 ```
 
----
-
-#### Step 14: Testing Proper Cleanup Order
-
-**Test**: Delete entities in correct dependency order
-**Expected Result**: ✅ **Should SUCCEED** with proper cleanup sequence
-
-**Correct Cleanup Sequence**:
-```json
-{
-  "step_1": "Delete flow-1 (removes dependency on flow-seg-2)",
-  "step_2": "Delete flow-seg-1 (no remaining dependencies)",
-  "step_3": "Attempt to delete flow-seg-2 (should still fail due to flow-2 dependency)",
-  "step_4": "Delete flow-2 (should now allow flow-seg-2 deletion)",
-  "step_5": "Delete flow-seg-2 (dependencies resolved)",
-  "step_6": "Delete source (no remaining flows or segments)"
-}
-```
-
-**Cleanup Execution**:
-```json
-{
-  "delete_flow_1": {
-    "action": "DELETE /flows/flow-1-uuid",
-    "result": "✅ SUCCESS",
-    "effect": "Removes dependency on flow-seg-2"
-  },
-  "delete_flow_seg_1": {
-    "action": "DELETE /flows/flow-1-uuid/segments?timerange=0:0_3600:0",
-    "result": "✅ SUCCESS",
-    "effect": "Segment deleted, no remaining dependencies"
-  },
-  "delete_flow_seg_2_attempt_1": {
-    "action": "DELETE /flows/flow-2-uuid/segments?timerange=3600:0_7200:0",
-    "result": "❌ FAIL",
-    "reason": "Dependency from flow-2 still exists (even if deleted)"
-  },
-  "delete_flow_2": {
-    "action": "DELETE /flows/flow-2-uuid",
-    "result": "✅ SUCCESS",
-    "effect": "Final dependency on flow-seg-2 removed"
-  },
-  "delete_flow_seg_2_attempt_2": {
-    "action": "DELETE /flows/flow-2-uuid/segments?timerange=3600:0_7200:0",
-    "result": "✅ SUCCESS",
-    "effect": "All dependencies resolved"
-  }
-}
-```
+**Response:**
+- **Status**: `404 Not Found`
+- **Body**: `{"detail": "Source not found"}`
 
 ---
 
-#### Step 15: Final State Verification
+## Python Client Example
 
-**Test**: Verify all entities are properly cleaned up
-**Expected Result**: ✅ **Should SUCCEED** - Clean final state
-
-**Final State Check**:
-```json
-{
-  "flows_list": {
-    "action": "GET /flows",
-    "expected_result": "[]",
-    "status": "✅ PASS - No flows remain"
-  },
-  "source_deletion": {
-    "action": "DELETE /sources/source-1-uuid",
-    "expected_result": "✅ SUCCESS",
-    "status": "✅ PASS - Source deleted after all dependencies resolved"
-  },
-  "final_verification": {
-    "flows_count": 0,
-    "segments_count": 0,
-    "sources_count": 0,
-    "status": "✅ PASS - Complete cleanup achieved"
-  }
-}
-```
-
----
-
-## Workflow Summary
-
-### ✅ **Complete Lifecycle Operations (15 Steps):**
-
-#### **Phase 1: Creation and Setup (Steps 1-8)**
-1. **Source Creation** - Video source with NMOS format
-2. **Flow Creation** - H.264 video flow (1920x1080, 25fps)
-3. **Segment Creation** - Two flow segments with metadata
-4. **Storage Allocation** - 2 presigned URLs generated for S3 uploads
-5. **File Upload** - Segment with 3KB MP4 file
-6. **Data Retrieval** - Segment listing endpoint accessible
-7. **File Integrity** - Test file maintained throughout workflow
-8. **File Cleanup** - Temporary files properly cleaned up
-
-#### **Phase 2: Dependency Validation and Flow Management (Steps 9-11)**
-9. **Source Deletion Test** - ❌ Should fail due to dependent flows
-10. **Additional Flow Creation** - Flow-2 using same source
-11. **Data Access Validation** - Verify flows can access their data
-
-#### **Phase 3: Deletion Workflow and Dependency Testing (Steps 12-15)**
-12. **Flow-2 Deletion** - ✅ Should succeed, segments remain
-13. **Segment Dependency Testing** - ❌ Should fail due to dependencies
-14. **Proper Cleanup Order** - Delete entities in dependency order
-15. **Final State Verification** - Complete cleanup and data integrity
-
-### 🔗 **Key Endpoints Used:**
-
-#### **Creation Endpoints:**
-- `POST /sources` - Create media sources
-- `POST /flows` - Create video flows
-- `POST /flows/{flow_id}/storage` - Get presigned URLs
-- `POST /flows/{flow_id}/segments` - Create segments (JSON or multipart)
-
-#### **Retrieval Endpoints:**
-- `GET /flows/{flow_id}/segments` - List flow segments
-- `GET /flows` - List all flows
-- `GET /sources` - List all sources
-
-#### **Deletion Endpoints:**
-- `DELETE /flows/{flow_id}` - Delete a specific flow
-- `DELETE /flows/{flow_id}/segments` - Delete segments by timerange
-- `DELETE /sources/{source_id}` - Delete a specific source
-
-### 📊 **Response Patterns:**
-
-- **Creation Endpoints**: Return `201 Created` with full object data
-- **Storage Endpoint**: Returns presigned URLs with S3 authentication
-- **Retrieval Endpoints**: Return `200 OK` with requested data
-- **Error Handling**: Proper HTTP status codes and error messages
-
-### 🗄️ **Storage Integration:**
-
-- **S3-Compatible Storage**: `172.200.204.91`
-- **Presigned URLs**: Include AWS-style authentication
-- **Storage Paths**: Automatically generated with date hierarchy
-- **File Upload**: Multipart form data with binary content
-
-### 🔗 **Dependency Management:**
-
-- **Foreign Key Constraints**: Prevent deletion of entities with dependencies
-- **Cleanup Order**: Must delete in dependency order (segments → flows → source)
-- **Dependency Validation**: System enforces proper relationships
-- **Cascade Protection**: Prevents accidental data loss
-
-### 🧹 **Cleanup Workflow:**
-
-- **Step 1**: Delete segments (if no other flows depend on them)
-- **Step 2**: Delete flows (removes source dependencies)
-- **Step 3**: Delete source (all dependencies resolved)
-- **Validation**: Each step verifies dependencies are resolved
-
-## Usage Notes
-
-### **For Developers:**
-
-1. **Authentication**: Presigned URLs handle S3 authentication automatically
-2. **File Uploads**: Use multipart form data with `file` and `segment_data` fields
-3. **Storage Paths**: Generated automatically by TAMS, no manual path specification needed
-4. **Error Handling**: Check HTTP status codes and response bodies for error details
-
-### **For Testing:**
-
-1. **Integration Testing**: Use this workflow for end-to-end API validation
-2. **File Upload Testing**: Test with various file sizes and formats
-3. **Error Scenarios**: Test with invalid data, missing fields, and edge cases
-4. **Performance Testing**: Measure response times for each endpoint
-5. **Dependency Testing**: Validate foreign key constraints and cleanup order
-6. **Lifecycle Testing**: Test complete create → validate → delete workflow
-7. **Constraint Testing**: Verify deletion failures when dependencies exist
-
-### **For Production:**
-
-1. **Security**: Presigned URLs expire (check `Expires` parameter)
-2. **Scalability**: Storage endpoint supports multiple object IDs
-3. **Monitoring**: Track API response times and success rates
-4. **Backup**: Implement proper error handling and retry logic
-
----
-
-## Running the Complete Workflow Test
-
-### **Test Execution:**
-
-To run the complete end-to-end workflow test that validates all 15 steps:
-
-```bash
-# Run the complete workflow test
-python tests/run_end_to_end_test.py
-
-# Or run directly
-python tests/real_tests/test_end_to_end_workflow.py
-```
-
-### **Test Output:**
-
-The test will show detailed output for each phase:
-- **Phase 1**: Creation and setup (Steps 1-8)
-- **Phase 2**: Dependency validation (Steps 9-11)  
-- **Phase 3**: Deletion workflow (Steps 12-15)
-
-### **Expected Results:**
-
-- ✅ **Steps 1-8**: All creation operations succeed
-- ❌ **Step 9**: Source deletion fails (expected)
-- ✅ **Steps 10-11**: Flow creation and data validation succeed
-- ✅ **Step 12**: Flow-2 deletion succeeds
-- ❌ **Step 13**: Segment deletion fails (expected)
-- ✅ **Steps 14-15**: Proper cleanup order succeeds
-
----
-
-## 🚨 **CRITICAL BUGS IDENTIFIED**
-
-### **Bug #1: Referential Integrity Violation in Deletion Operations**
-
-**Status**: **CRITICAL** - Immediate fix required
-**Severity**: **HIGHEST** - System integrity compromised
-
-#### **Problem Description:**
-The TAMS API deletion operations completely ignore dependency constraints, violating fundamental database referential integrity at all levels.
-
-#### **Affected Operations:**
-1. **Source Deletion** (`DELETE /sources/{id}`)
-   - **Expected**: Fail if dependent flows exist (when `?cascade=false`)
-   - **Actual**: Always succeeds, leaving orphaned flows
-
-2. **Flow Deletion** (`DELETE /flows/{id}`)  
-   - **Expected**: Fail if dependent segments exist (when `?cascade=false`)
-   - **Actual**: Always succeeds, leaving orphaned segments
-
-3. **Segment Deletion** (`DELETE /flows/{id}/segments`)
-   - **Expected**: Fail if dependent objects exist
-   - **Actual**: Always succeeds, leaving orphaned objects
-
-#### **Impact:**
-- **Data Corruption**: Complete breakdown of referential integrity
-- **Database Inconsistency**: Orphaned entities without parents
-- **API Unreliability**: Cascade parameter has no effect
-- **System Instability**: Potential for cascading failures
-
-#### **Required Fix:**
-**IMMEDIATE** implementation of proper dependency checking before ANY deletion operation:
+### Complete Python Workflow
 
 ```python
-# Pseudo-code for proper deletion logic
-async def delete_source(source_id: str, cascade: bool = False):
-    if not cascade:
-        # Check for dependent flows
-        dependent_flows = await get_flows_by_source(source_id)
-        if dependent_flows:
-            raise HTTPException(
-                status_code=409, 
-                detail="Cannot delete source: dependent flows exist. Use cascade=true to delete all dependencies."
-            )
+import requests
+import json
+import uuid
+from pathlib import Path
+
+class TAMSClient:
+    def __init__(self, base_url: str):
+        self.base_url = base_url
+        self.session = requests.Session()
     
-    # Proceed with deletion (with or without cascade)
-    if cascade:
-        await delete_source_with_cascade(source_id)
-    else:
-        await delete_source_only(source_id)
+    def create_source(self, source_data: dict) -> dict:
+        """Create a new media source"""
+        response = self.session.post(
+            f"{self.base_url}/sources",
+            json=source_data
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def create_flow(self, flow_data: dict) -> dict:
+        """Create a new media flow"""
+        response = self.session.post(
+            f"{self.base_url}/flows",
+            json=flow_data
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def create_segment(self, flow_id: str, segment_data: dict, file_path: str) -> dict:
+        """Create a new flow segment with file upload"""
+        with open(file_path, 'rb') as f:
+            files = {
+                'segment': (None, json.dumps(segment_data), 'application/json'),
+                'file': (Path(file_path).name, f, 'video/mp4')
+            }
+            response = self.session.post(
+                f"{self.base_url}/flows/{flow_id}/segments",
+                files=files
+            )
+        response.raise_for_status()
+        return response.json()
+    
+    def get_segments(self, flow_id: str) -> dict:
+        """Get all segments for a flow"""
+        response = self.session.get(
+            f"{self.base_url}/flows/{flow_id}/segments"
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def delete_flow(self, flow_id: str, soft_delete: bool = True, cascade: bool = True) -> bool:
+        """Delete a flow"""
+        params = {
+            'soft_delete': soft_delete,
+            'cascade': cascade,
+            'deleted_by': 'test-user'
+        }
+        response = self.session.delete(
+            f"{self.base_url}/flows/{flow_id}",
+            params=params
+        )
+        return response.status_code == 204
+    
+    def delete_source(self, source_id: str, soft_delete: bool = True, cascade: bool = True) -> bool:
+        """Delete a source"""
+        params = {
+            'soft_delete': soft_delete,
+            'cascade': cascade,
+            'deleted_by': 'test-user'
+        }
+        response = self.session.delete(
+            f"{self.base_url}/sources/{source_id}",
+            params=params
+        )
+        return response.status_code == 204
+
+# Usage example
+def main():
+    client = TAMSClient("http://localhost:8000")
+    
+    # Step 1: Create source
+    source_data = {
+        "id": str(uuid.uuid4()),
+        "format": "urn:x-nmos:format:video",
+        "label": "Test Source",
+        "description": "Test source for workflow"
+    }
+    source = client.create_source(source_data)
+    print(f"Created source: {source['id']}")
+    
+    # Step 2: Create flow
+    flow_data = {
+        "id": str(uuid.uuid4()),
+        "source_id": source['id'],
+        "format": "urn:x-nmos:format:video",
+        "codec": "video/mp4",
+        "frame_width": 1920,
+        "frame_height": 1080,
+        "frame_rate": "25/1",
+        "label": "Test Flow",
+        "description": "Test flow for workflow"
+    }
+    flow = client.create_flow(flow_data)
+    print(f"Created flow: {flow['id']}")
+    
+    # Step 3: Create segment
+    segment_data = {
+        "object_id": str(uuid.uuid4()),
+        "timerange": "[0:0_10:0)",
+        "sample_offset": 0,
+        "sample_count": 250
+    }
+    segment = client.create_segment(flow['id'], segment_data, "test_segment.mp4")
+    print(f"Created segment: {segment['id']}")
+    
+    # Step 4: Verify segment
+    segments = client.get_segments(flow['id'])
+    print(f"Flow has {len(segments['data'])} segments")
+    
+    # Step 5: Cleanup
+    client.delete_flow(flow['id'])
+    client.delete_source(source['id'])
+    print("Cleanup completed")
+
+if __name__ == "__main__":
+    main()
 ```
 
-#### **Files to Fix:**
-- `app/api/sources_router.py` - Source deletion endpoint
-- `app/api/flows_router.py` - Flow deletion endpoint
-- `app/api/segments_router.py` - Segment deletion endpoint  
-- `app/storage/vast_store.py` - Core deletion logic
+## cURL Examples
 
----
+### Create Source
+```bash
+curl -X POST "http://localhost:8000/sources" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "32cffed8-2015-4e89-a2d7-4395b1b1c1f5",
+    "format": "urn:x-nmos:format:video",
+    "label": "Test Source",
+    "description": "Test source for workflow"
+  }'
+```
 
-*This document was generated from the TAMS end-to-end workflow test output and serves as a reference for API integration and testing.*
+### Create Flow
+```bash
+curl -X POST "http://localhost:8000/flows" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "0e9c9b8f-488f-4428-8867-2bc2550612c7",
+    "source_id": "32cffed8-2015-4e89-a2d7-4395b1b1c1f5",
+    "format": "urn:x-nmos:format:video",
+    "codec": "video/mp4",
+    "frame_width": 1920,
+    "frame_height": 1080,
+    "frame_rate": "25/1",
+    "label": "Test Flow",
+    "description": "Test flow for workflow"
+  }'
+```
+
+### Create Segment with File Upload
+```bash
+curl -X POST "http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7/segments" \
+  -F "segment={\"object_id\":\"9e57802a-3e84-4f5c-943c-0a74fa1f1909\",\"timerange\":\"[0:0_10:0)\",\"sample_offset\":0,\"sample_count\":250}" \
+  -F "file=@test_segment.mp4"
+```
+
+### Get Segments
+```bash
+curl "http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7/segments"
+```
+
+### Delete Flow
+```bash
+curl -X DELETE "http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7?soft_delete=true&cascade=true&deleted_by=test-user"
+```
+
+### Delete Source
+```bash
+curl -X DELETE "http://localhost:8000/sources/32cffed8-2015-4e89-a2d7-4395b1b1c1f5?soft_delete=true&cascade=true&deleted_by=test-user"
+```
+
+## Key Features Demonstrated
+
+### 1. **Complete Lifecycle Management**
+- Source creation and management
+- Flow creation linked to sources
+- Segment creation with file uploads
+- Proper cleanup and deletion
+
+### 2. **File Upload Integration**
+- Multipart form data handling
+- Automatic file storage organization
+- File metadata management
+- Content type detection
+
+### 3. **Relationship Management**
+- Source-Flow relationships
+- Flow-Segment relationships
+- Cascade deletion support
+- Referential integrity
+
+### 4. **Soft Delete Support**
+- Configurable soft/hard delete
+- Cascade delete options
+- Audit trail with deleted_by
+- Data recovery capabilities
+
+### 5. **Storage Organization**
+- Automatic date-based organization
+- Flow-based file grouping
+- Consistent storage paths
+- S3-compatible storage
+
+## Error Handling
+
+### Common Error Scenarios
+
+#### 1. **Invalid Source ID**
+```json
+{
+  "detail": "Source not found"
+}
+```
+
+#### 2. **Invalid Flow ID**
+```json
+{
+  "detail": "Flow not found"
+}
+```
+
+#### 3. **Validation Errors**
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "format"],
+      "msg": "field required",
+      "type": "value_error.missing"
+    }
+  ]
+}
+```
+
+#### 4. **File Upload Errors**
+```json
+{
+  "detail": "File upload failed: Invalid file format"
+}
+```
+
+## Best Practices
+
+### 1. **ID Management**
+- Use UUIDs for all resource IDs
+- Ensure uniqueness across the system
+- Validate ID format before API calls
+
+### 2. **File Handling**
+- Validate file types before upload
+- Use appropriate content types
+- Handle large files appropriately
+
+### 3. **Error Handling**
+- Always check HTTP status codes
+- Implement retry logic for transient failures
+- Log errors for debugging
+
+### 4. **Cleanup**
+- Always clean up test resources
+- Use soft delete for data safety
+- Implement proper cascade deletion
+
+### 5. **Performance**
+- Use pagination for large result sets
+- Implement caching where appropriate
+- Monitor API response times
+
+## Testing Considerations
+
+### 1. **Test Data Isolation**
+- Use unique IDs for each test run
+- Clean up all test resources
+- Avoid conflicts between test runs
+
+### 2. **File Management**
+- Use small test files for quick testing
+- Clean up uploaded files
+- Test various file formats
+
+### 3. **Error Scenarios**
+- Test invalid IDs and references
+- Test malformed requests
+- Test network failures
+
+### 4. **Performance Testing**
+- Test with multiple concurrent requests
+- Monitor response times
+- Test with large datasets
+
+This sample workflow demonstrates the complete TAMS API lifecycle, from creation through deletion, with proper error handling and best practices. The workflow can be used as a template for building more complex integrations and testing scenarios.

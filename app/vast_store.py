@@ -704,7 +704,8 @@ class VASTStore:
                     return False
             else:
                 logger.info(f"Skipping S3 storage for empty segment data in flow {flow_id}")
-            # Store only segment metadata in VAST DB
+            
+            # Store segment metadata in VAST DB
             start_time, end_time, duration = self._parse_timerange(segment.timerange)
             get_urls_objs = await self.s3_store.create_get_urls(flow_id, segment.object_id, segment.timerange)
             get_urls_json = self._dict_to_json([url.model_dump() for url in get_urls_objs])
@@ -726,6 +727,10 @@ class VASTStore:
             }
             self.db_manager.insert('segments', {k: [v] for k, v in segment_data.items()})
             logger.info(f"Created flow segment metadata for flow {flow_id} in VAST DB")
+            
+            # Automatically create or update object record
+            await self._ensure_object_exists(segment.object_id, flow_id, segment.timerange, len(data) if data else 0)
+            
             return True
         except Exception as e:
             logger.error(f"Failed to create flow segment for flow {flow_id}: {e}")
@@ -788,6 +793,60 @@ class VASTStore:
             logger.error(f"Failed to create object {obj.object_id}: {e}")
             return False
     
+    async def _ensure_object_exists(self, object_id: str, flow_id: str, timerange: str, data_size: int) -> None:
+        """Ensure object record exists and is up to date with flow references"""
+        try:
+            # Check if object already exists
+            existing_object = await self.get_object(object_id)
+            
+            if existing_object:
+                # Object exists, update flow references and size if needed
+                flow_refs = existing_object.flow_references
+                
+                # Check if this flow reference already exists
+                flow_ref_exists = any(
+                    ref.get('flow_id') == flow_id and ref.get('timerange') == timerange 
+                    for ref in flow_refs
+                )
+                
+                if not flow_ref_exists:
+                    # Add new flow reference
+                    flow_refs.append({
+                        'flow_id': flow_id,
+                        'timerange': timerange
+                    })
+                    
+                    # Update object with new flow references and size
+                    update_data = {
+                        'flow_references': self._dict_to_json(flow_refs),
+                        'size': max(existing_object.size or 0, data_size),
+                        'last_accessed': datetime.now(timezone.utc)
+                    }
+                    
+                    predicate = (ibis_.object_id == object_id)
+                    self.db_manager.update('objects', update_data, predicate)
+                    logger.info(f"Updated object {object_id} with new flow reference for flow {flow_id}")
+            else:
+                # Object doesn't exist, create it
+                from .models import Object
+                new_object = Object(
+                    object_id=object_id,
+                    flow_references=[{
+                        'flow_id': flow_id,
+                        'timerange': timerange
+                    }],
+                    size=data_size,
+                    created=datetime.now(timezone.utc)
+                )
+                
+                await self.create_object(new_object)
+                logger.info(f"Created new object {object_id} for flow {flow_id}")
+                
+        except Exception as e:
+            logger.error(f"Failed to ensure object {object_id} exists: {e}")
+            # Don't fail the segment creation if object management fails
+            pass
+
     async def get_object(self, object_id: str) -> Optional[Object]:
         """Get media object by ID"""
         try:

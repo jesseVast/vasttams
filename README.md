@@ -629,6 +629,111 @@ curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/s
 - **Form Only**: Use `segment_data` field for metadata without media file
 - **Timerange Format**: Use ISO 8601 format (e.g., "2025-08-23T14:00:00Z/2025-08-23T14:05:00Z")
 
+### **4. Create Segments from Existing Objects - ✅ WORKING**
+
+You can create multiple segments that reference the same object ID across different time ranges:
+
+#### **Reuse Existing Object with Different Timerange**
+```bash
+# First segment (creates object)
+curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
+  -F "segment_data={\"object_id\":\"my-video-clip\",\"timerange\":\"2025-08-23T10:00:00Z/2025-08-23T10:05:00Z\"}" \
+  -F "file=@video_clip.mp4"
+
+# Second segment (same object, different time)
+curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
+  -F "segment_data={\"object_id\":\"my-video-clip\",\"timerange\":\"2025-08-23T15:00:00Z/2025-08-23T15:05:00Z\"}" \
+  -F "file=@video_clip.mp4"
+
+# Third segment (same object, no file - metadata only)
+curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
+  -F "segment_data={\"object_id\":\"my-video-clip\",\"timerange\":\"2025-08-23T20:00:00Z/2025-08-23T20:10:00Z\"}"
+```
+
+#### **Reference Non-Existent Object (Auto-Created)**
+```bash
+# Object will be automatically created when first referenced
+curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
+  -F "segment_data={\"object_id\":\"future-object-123\",\"timerange\":\"2025-08-23T22:00:00Z/2025-08-23T22:05:00Z\"}"
+```
+
+### **5. Object Management - ✅ WORKING**
+
+#### **Create Object Directly (Optional)**
+```bash
+curl -X POST "http://localhost:8000/objects" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "object_id": "pre-created-object",
+    "flow_references": [],
+    "size": 0,
+    "created": null
+  }'
+```
+
+#### **Check Object Details**
+```bash
+curl -X GET "http://localhost:8000/objects/my-video-clip" | jq .
+```
+
+#### **View Object Flow References**
+The response will show all segments that reference this object:
+```json
+{
+  "object_id": "my-video-clip",
+  "flow_references": [
+    {
+      "flow_id": "550e8400-e29b-41d4-a716-446655440001",
+      "timerange": "2025-08-23T10:00:00Z/2025-08-23T10:05:00Z"
+    },
+    {
+      "flow_id": "550e8400-e29b-41d4-a716-446655440001",
+      "timerange": "2025-08-23T15:00:00Z/2025-08-23T15:05:00Z"
+    },
+    {
+      "flow_id": "550e8400-e29b-41d4-a716-446655440001",
+      "timerange": "2025-08-23T20:00:00Z/2025-08-23T20:10:00Z"
+    }
+  ],
+  "size": 2668,
+  "created": "2025-08-23T22:05:19.862893",
+  "deleted": false
+}
+```
+
+#### **Delete Object**
+```bash
+curl -X DELETE "http://localhost:8000/objects/my-video-clip?soft_delete=true&deleted_by=user123"
+```
+
+### **6. Complete Workflow Example - ✅ WORKING**
+
+Here's a complete example of creating and reusing objects:
+
+```bash
+# Step 1: Create first segment (creates object automatically)
+curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
+  -F "segment_data={\"object_id\":\"demo-video\",\"timerange\":\"2025-08-23T09:00:00Z/2025-08-23T09:02:00Z\"}" \
+  -F "file=@demo_video.mp4"
+
+# Step 2: Create second segment (same object, different time)
+curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
+  -F "segment_data={\"object_id\":\"demo-video\",\"timerange\":\"2025-08-23T14:00:00Z/2025-08-23T14:02:00Z\"}" \
+  -F "file=@demo_video.mp4"
+
+# Step 3: Check object details
+curl -X GET "http://localhost:8000/objects/demo-video" | jq .
+
+# Step 4: Create metadata-only segment (same object, no file)
+curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
+  -F "segment_data={\"object_id\":\"demo-video\",\"timerange\":\"2025-08-23T19:00:00Z/2025-08-23T19:05:00Z\"}"
+
+# Step 5: Verify final object state
+curl -X GET "http://localhost:8000/objects/demo-video" | jq .
+```
+
+**Expected Result**: The object will have 3 flow references, showing how the same media content is referenced across different time periods.
+
 ### Get Analytics
 ```bash
 # Flow usage analytics
@@ -996,6 +1101,14 @@ If segment creation fails:
 4. **File Upload**: Ensure file is properly attached when using multipart form
 5. **JSON Validation**: Check that all required fields match the FlowSegment model
 6. **Flow ID**: Verify the flow ID exists and is not read-only
+
+#### Object Management Issues
+If object operations fail:
+1. **Object ID Consistency**: Use the same `object_id` across multiple segments to reuse objects
+2. **Automatic Creation**: Objects are created automatically when first referenced in segments
+3. **Flow References**: Each segment adds a new flow reference to the object
+4. **Timerange Uniqueness**: Use different timeranges for segments with the same object ID
+5. **Object Lookup**: Use `/objects/{object_id}` endpoint to check object details and flow references
 
 ## 🚀 Roadmap
 

@@ -579,13 +579,54 @@ curl -X POST "http://localhost:8000/flows" \
   }'
 ```
 
-### Upload Flow Segment
+### Create Flow Segments
+
+The API supports multiple ways to create segments:
+
+#### **1. Upload Segment with Media File (Multipart Form)**
 ```bash
 curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
-  -H "Content-Type: multipart/form-data" \
-  -F "segment={\"object_id\":\"seg_001\",\"timerange\":\"[0:0_10:0)\",\"sample_offset\":0,\"sample_count\":250}" \
+  -F "segment_data={\"object_id\":\"seg_001\",\"timerange\":\"2025-08-23T14:00:00Z/2025-08-23T14:05:00Z\",\"ts_offset\":\"PT0S\",\"last_duration\":\"PT5M\",\"sample_offset\":0,\"sample_count\":7500,\"key_frame_count\":125}" \
   -F "file=@video_segment.mp4"
 ```
+
+#### **2. Create Segment with JSON Data Only**
+```bash
+curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "object_id": "seg_002",
+    "timerange": "2025-08-23T14:05:00Z/2025-08-23T14:10:00Z",
+    "ts_offset": "PT0S",
+    "last_duration": "PT5M",
+    "sample_offset": 0,
+    "sample_count": 7500,
+    "key_frame_count": 125
+  }'
+```
+
+#### **3. Create Segment with Form Data Only (No File)**
+```bash
+curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
+  -F "segment_data={\"object_id\":\"seg_003\",\"timerange\":\"2025-08-23T14:10:00Z/2025-08-23T14:15:00Z\"}"
+```
+
+**Required Fields:**
+- `object_id`: Unique identifier for the segment
+- `timerange`: ISO 8601 time range (e.g., "2025-08-23T14:00:00Z/2025-08-23T14:05:00Z")
+
+**Optional Fields:**
+- `ts_offset`: Timestamp offset (e.g., "PT0S")
+- `last_duration`: Duration of the segment (e.g., "PT5M")
+- `sample_offset`: Starting sample offset
+- `sample_count`: Number of samples in the segment
+- `key_frame_count`: Number of key frames
+
+**Notes:**
+- **Multipart Form**: Use `segment_data` field for JSON metadata + `file` field for media content
+- **JSON Only**: Send complete segment object in request body
+- **Form Only**: Use `segment_data` field for metadata without media file
+- **Timerange Format**: Use ISO 8601 format (e.g., "2025-08-23T14:00:00Z/2025-08-23T14:05:00Z")
 
 ### Get Analytics
 ```bash
@@ -942,6 +983,15 @@ If S3 storage operations fail:
 2. Check access key and secret
 3. Ensure bucket exists and is writable
 4. Verify SSL/TLS configuration
+
+#### Segment Upload Issues
+If segment creation fails:
+1. **Check Required Fields**: Ensure `object_id` and `timerange` are provided
+2. **Timerange Format**: Use ISO 8601 format (e.g., "2025-08-23T14:00:00Z/2025-08-23T14:05:00Z")
+3. **Multipart Form**: Use `segment_data` field (not `segment`) for JSON metadata
+4. **File Upload**: Ensure file is properly attached when using multipart form
+5. **JSON Validation**: Check that all required fields match the FlowSegment model
+6. **Flow ID**: Verify the flow ID exists and is not read-only
 
 ## 🚀 Roadmap
 

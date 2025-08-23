@@ -37,6 +37,9 @@ async def delete_object(store: VASTStore, object_id: str) -> bool:
     try:
         success = await store.delete_object(object_id)
         return success
+    except ValueError as e:
+        # Re-raise TAMS compliance errors (dependency violations) for proper 409 handling
+        raise
     except Exception as e:
         logger.error("Failed to delete object %s: %s", object_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")

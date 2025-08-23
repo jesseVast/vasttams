@@ -20,7 +20,7 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
 # Configuration
-DEFAULT_BASE_URL = "http://localhost:8000"
+DEFAULT_BASE_URL = os.getenv("TAMS_API_BASE_URL", "http://localhost:8000")
 DEFAULT_SOURCE_LABEL = "Video Source"
 DEFAULT_FLOW_LABEL = "Video Flow"
 DEFAULT_VIDEO_CODEC = "video/mp4"

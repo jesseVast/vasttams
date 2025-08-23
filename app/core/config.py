@@ -6,14 +6,13 @@ from typing import Optional, List
 import os
 import json
 
-# Configuration Constants - Easy to adjust for troubleshooting
+# Configuration Constants
 DEFAULT_PORT = 8000
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_CORS_ORIGINS = ["*"]
 DEFAULT_CORS_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 DEFAULT_CORS_HEADERS = ["*"]
-# Removed - replaced with s3_presigned_url_upload_timeout and s3_presigned_url_download_timeout
 
 
 class Settings(BaseSettings):
@@ -27,26 +26,67 @@ class Settings(BaseSettings):
     # Server settings
     host: str = "0.0.0.0"
     port: int = Field(default=DEFAULT_PORT, description="Application port")
-    debug: bool = True
+    debug: bool = Field(default=False, description="Enable debug mode (should be False in production)")
     
     # VAST Database settings
-    #vast_endpoint: str = "http://100.100.0.1:9090"
-    vast_endpoint: str = "http://172.200.204.90"
-    vast_access_key: str = "SRSPW0DQT9T70Y787U68"
-    vast_secret_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
-    vast_bucket: str = "jthaloor-db"
-    vast_schema: str = "tams7"
+    vast_endpoint: str = Field(
+        default="http://localhost:9090",
+        description="VAST database endpoint URL",
+        env="VAST_ENDPOINT"
+    )
+    vast_access_key: str = Field(
+        default="",
+        description="VAST database access key",
+        env="VAST_ACCESS_KEY"
+    )
+    vast_secret_key: str = Field(
+        default="",
+        description="VAST database secret key",
+        env="VAST_SECRET_KEY"
+    )
+    vast_bucket: str = Field(
+        default="tams",
+        description="VAST database bucket name",
+        env="VAST_BUCKET"
+    )
+    vast_schema: str = Field(
+        default="tams7",
+        description="VAST database schema name",
+        env="VAST_SCHEMA"
+    )
     
     # Logging settings
-    log_level: str = "INFO"
-    log_format: str = "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
+    log_level: str = Field(
+        default="INFO",
+        description="Application log level",
+        env="LOG_LEVEL"
+    )
+    log_format: str = Field(
+        default="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
+        description="Log message format"
+    )
     
     # S3 settings for flow segment storage
-    #s3_endpoint_url: str = "http://100.100.0.2:9090"
-    s3_endpoint_url: str = "http://172.200.204.91"
-    s3_access_key_id: str = "SRSPW0DQT9T70Y787U68"
-    s3_secret_access_key: str = "WkKLxvG7YkAdSMuHjFsZG5Ou7BS1mDQGnr"
-    s3_bucket_name: str = "jthaloor-s3"
+    s3_endpoint_url: str = Field(
+        default="http://localhost:9000",
+        description="S3-compatible storage endpoint URL",
+        env="S3_ENDPOINT_URL"
+    )
+    s3_access_key_id: str = Field(
+        default="",
+        description="S3 access key ID",
+        env="S3_ACCESS_KEY_ID"
+    )
+    s3_secret_access_key: str = Field(
+        default="",
+        description="S3 secret access key",
+        env="S3_SECRET_ACCESS_KEY"
+    )
+    s3_bucket_name: str = Field(
+        default="tams",
+        description="S3 bucket name for media storage",
+        env="S3_BUCKET_NAME"
+    )
     s3_use_ssl: bool = False
     s3_region: str = Field(
         default="us-east-1",
@@ -223,7 +263,9 @@ class Settings(BaseSettings):
                         
             except (json.JSONDecodeError, IOError) as e:
                 # Log error but continue with default values
-                print(f"Warning: Could not load mounted config file: {e}")
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Could not load mounted config file: {e}")
 
 
 # Global settings instance

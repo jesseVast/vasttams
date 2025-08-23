@@ -138,7 +138,9 @@ async def send_webhook_notification(
             response = await client.post(webhook.url, json=payload, headers=headers)
             return response.status_code in [200, 201, 202]
     except Exception as e:
-        print(f"Webhook notification failed: {e}")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Webhook notification failed: {e}")
         return False
 
 

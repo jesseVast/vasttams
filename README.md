@@ -12,13 +12,14 @@ A comprehensive FastAPI implementation of the BBC TAMS API specification with VA
 - **Analytics Endpoints**: Built-in analytics for flow usage, storage patterns, and time analysis
 - **Comprehensive Observability**: Prometheus metrics, OpenTelemetry tracing, and Grafana dashboards
 - **Modular Architecture**: Clean separation of concerns with dedicated routers for each domain
-- **Webhook Support**: Event-driven notifications for media operations
+- **Event-Driven Webhooks**: Complete webhook system with real-time event notifications for media operations
+- **Automatic Object Management**: Objects are automatically created and updated when segments are created
 - **Docker Support**: Containerized deployment with Docker and docker-compose
 - **Kubernetes Ready**: Complete K8s manifests for production deployment
 - **Comprehensive Testing**: Automated test suite for all endpoints
 - **Pydantic v2 Compatible**: Modern data validation with RootModel support
 - **Soft Delete Extension**: Vendor-specific enhancement with optional soft delete and cascade delete capabilities
-- **Data Integrity**: Maintains referential integrity with cascade operations
+- **Data Integrity**: Maintains referential integrity with cascade operations and automatic object tracking
 
 ## 🏗️ Architecture
 
@@ -103,7 +104,9 @@ bbctams/
 │   ├── segments_router.py      # Segment API router
 │   ├── sources_router.py       # Source API router
 │   ├── objects_router.py       # Object API router
-│   └── analytics_router.py     # Analytics API router
+│   ├── analytics_router.py     # Analytics API router
+│   └── core/
+│       └── event_manager.py    # Webhook event management
 ├── api/
 │   ├── openapi.json            # OpenAPI specification
 │   ├── schemas/                # JSON schemas
@@ -181,12 +184,116 @@ bbctams/
 - `GET /analytics/storage-usage` - Storage usage analysis and access patterns
 - `GET /analytics/time-range-analysis` - Time range patterns and duration analysis
 
+### Webhook Management (`/service/webhooks`)
+- `GET /service/webhooks` - List registered webhooks
+- `POST /service/webhooks` - Create new webhook for event notifications
+- `HEAD /service/webhooks` - Get webhook headers
+
 ### Management Endpoints
-- `GET /service/webhooks` - List webhooks
-- `POST /service/webhooks` - Create webhook
 - `GET /flow-delete-requests` - List deletion requests
 - `POST /flow-delete-requests` - Create deletion request
 - `GET /flow-delete-requests/{id}` - Get deletion request by ID
+
+## 🔔 Webhook System
+
+This implementation includes a complete event-driven webhook system that provides real-time notifications for media operations.
+
+### Features
+- **Event-Driven Architecture**: Automatic webhook execution when TAMS events occur
+- **Multiple Event Types**: Support for segment, flow, and source events
+- **Concurrent Execution**: Multiple webhooks can be registered and executed simultaneously
+- **Custom Authentication**: API key support for secure webhook endpoints
+- **Robust Error Handling**: Comprehensive error handling and retry logic
+- **Event Metadata**: Complete event payloads with full context
+
+### Supported Events
+- `flows/segments_added` - Triggered when new segments are created
+- `flows/segments_deleted` - Triggered when segments are deleted
+- `flows/created` - Triggered when new flows are created (future)
+- `sources/created` - Triggered when new sources are created (future)
+
+### Webhook Registration
+
+```bash
+curl -X POST "http://localhost:8000/service/webhooks" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-service.com/webhook",
+    "api_key_name": "X-API-Key",
+    "api_key_value": "your-secret-key",
+    "events": ["flows/segments_added"],
+    "owner_id": "user123",
+    "created_by": "user123"
+  }'
+```
+
+### Event Payload Structure
+
+When events occur, webhooks receive HTTP POST requests with the following structure:
+
+```json
+{
+  "event_type": "flows/segments_added",
+  "timestamp": "2025-08-23T14:29:49.688319+00:00",
+  "segment": {
+    "object_id": "segment-id-123",
+    "timerange": "2025-08-23T14:00:00Z/2025-08-23T14:05:00Z",
+    "flow_id": "550e8400-e29b-41d4-a716-446655440001",
+    "sample_offset": 0,
+    "sample_count": 7500,
+    "key_frame_count": 125
+  },
+  "metadata": {
+    "flow_id": "550e8400-e29b-41d4-a716-446655440001"
+  }
+}
+```
+
+### HTTP Headers
+
+Webhook requests include the following headers:
+- `Content-Type: application/json`
+- `User-Agent: TAMS-API/6.0`
+- `X-TAMS-Event: flows/segments_added`
+- `X-TAMS-Timestamp: 2025-08-23T14:29:49.688319+00:00`
+- `{api_key_name}: {api_key_value}` (if configured)
+
+### Webhook Response
+
+Your webhook endpoint should return:
+- **Success**: HTTP 200, 201, or 202 status codes
+- **Response Body**: Any valid JSON response (optional)
+
+```json
+{
+  "status": "received",
+  "message": "Event processed successfully"
+}
+```
+
+### Implementation Details
+
+The webhook system is implemented using:
+- **EventManager**: Centralized event management and webhook execution
+- **aiohttp**: Asynchronous HTTP client for webhook calls
+- **Concurrent Execution**: Multiple webhooks processed simultaneously
+- **Automatic Object Management**: Objects are automatically created/updated when segments are created
+
+### Testing Webhooks
+
+A webhook test receiver is included for development and testing:
+
+```bash
+# Start the webhook test receiver
+python test_webhook_receiver.py
+
+# Create a segment to trigger webhook
+curl -X POST "http://localhost:8000/flows/{flow_id}/segments" \
+  -F "segment_data={...}" \
+  -F "file=@test_file.dat"
+```
+
+The test receiver will log all webhook calls with complete event details.
 
 ## 🔒 Soft Delete Extension
 
@@ -500,7 +607,9 @@ curl -X POST "http://localhost:8000/service/webhooks" \
     "url": "https://webhook.example.com/events",
     "api_key_name": "X-API-Key",
     "api_key_value": "your-webhook-secret",
-    "events": ["source.created", "flow.updated", "segment.uploaded"]
+    "events": ["flows/segments_added"],
+    "owner_id": "user123",
+    "created_by": "user123"
   }'
 ```
 
@@ -836,6 +945,8 @@ If S3 storage operations fail:
 
 ## 🚀 Roadmap
 
+- [x] **Event-driven webhook system** - ✅ **COMPLETED**
+- [x] **Automatic object management** - ✅ **COMPLETED**
 - [ ] Real-time event streaming with WebSockets
 - [ ] Advanced analytics with machine learning
 - [ ] Multi-region deployment support
@@ -851,3 +962,6 @@ If S3 storage operations fail:
 - [ ] Enhanced soft delete query parameters (include_deleted, deleted_only, deleted_state)
 - [ ] Bulk operations for soft delete and restore
 - [ ] Advanced audit trail and compliance reporting
+- [ ] Webhook retry logic and exponential backoff
+- [ ] Webhook delivery status tracking and monitoring
+- [ ] Additional event types (flows/created, sources/created, etc.)

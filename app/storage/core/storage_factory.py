@@ -59,8 +59,7 @@ class StorageFactory:
                 access_key_id=access_key_id,
                 secret_access_key=secret_access_key,
                 bucket_name=bucket_name,
-                use_ssl=use_ssl,
-                region=self.config.get('s3_region', getattr(settings, 's3_region', 'us-east-1'))
+                use_ssl=use_ssl
             )
             
             logger.info("S3Core created successfully")

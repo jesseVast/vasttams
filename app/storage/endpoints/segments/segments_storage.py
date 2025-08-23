@@ -54,6 +54,87 @@ class SegmentsStorage:
         
         logger.info("SegmentsStorage initialized")
     
+    async def create_flow_segment(self, segment: FlowSegment, flow_id: str, media_data: Any) -> bool:
+        """
+        Create a TAMS flow segment - wrapper for create_segment for compatibility
+        
+        Args:
+            segment: FlowSegment model instance
+            flow_id: ID of the flow this segment belongs to
+            media_data: Media data (bytes, string, or None for metadata-only)
+            
+        Returns:
+            bool: True if creation successful, False otherwise
+        """
+        try:
+            # Convert media_data to bytes if it's a string
+            if isinstance(media_data, str):
+                media_data = media_data.encode('utf-8')
+            elif media_data is None:
+                # Metadata-only creation
+                return await self.create_segment_metadata(segment, flow_id)
+            
+            # Create segment with media data
+            return await self.create_segment(segment, flow_id, media_data)
+            
+        except Exception as e:
+            logger.error("Failed to create flow segment %s: %s", segment.object_id, e)
+            return False
+    
+    async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
+        """
+        Get TAMS flow segments with optional timerange filtering
+        
+        Args:
+            flow_id: ID of the flow to get segments for
+            timerange: Optional time range filter
+            
+        Returns:
+            List of FlowSegment model instances
+        """
+        try:
+            logger.info("Getting TAMS segments for flow %s", flow_id)
+            
+            # Use the get_segments method which includes get_urls generation
+            return await self.get_segments(flow_id, timerange)
+            
+        except Exception as e:
+            logger.error("Failed to get TAMS segments for flow %s: %s", flow_id, e)
+            return []
+    
+    async def remove_flow_object_reference(self, object_id: str, flow_id: str) -> bool:
+        """
+        Remove a flow-object reference when a segment is deleted
+        
+        Args:
+            object_id: ID of the object
+            flow_id: ID of the flow that no longer references this object
+            
+        Returns:
+            bool: True if removal successful, False otherwise
+        """
+        try:
+            # Remove from flow_object_references table
+            predicate = {
+                'object_id': object_id,
+                'flow_id': flow_id
+            }
+            
+            # Use VAST delete with predicate
+            success = self.vast.delete('flow_object_references', predicate)
+            
+            if success >= 0:  # 0 or positive means success
+                logger.info("Removed flow-object reference for object %s, flow %s", object_id, flow_id)
+                return True
+            else:
+                logger.error("Failed to remove flow-object reference for object %s, flow %s", object_id, flow_id)
+                return False
+                
+        except Exception as e:
+            logger.error("Failed to remove flow-object reference for object %s, flow %s: %s", 
+                        object_id, flow_id, e)
+            return False
+    
     async def create_segment(self, segment: FlowSegment, flow_id: str, data: bytes) -> bool:
         """
         Create a TAMS flow segment with media data
@@ -177,6 +258,9 @@ class SegmentsStorage:
             
         Returns:
             bool: True if deletion successful, False otherwise
+            
+        Raises:
+            ValueError: If segments have dependent objects (TAMS API compliance)
         """
         try:
             logger.info("Deleting TAMS segments for flow %s (timerange: %s)", flow_id, timerange)
@@ -187,7 +271,19 @@ class SegmentsStorage:
                 logger.info("No segments to delete for flow %s", flow_id)
                 return True
             
-            # 2. Delete from S3 and VAST
+            # 2. ✅ NEW: Check dependencies before deletion (TAMS API compliance)
+            for segment in segments:
+                logger.info("🔍 DEBUG: Checking dependencies for segment %s (object_id: %s)", segment.object_id, segment.object_id)
+                dependencies = await self._get_dependent_objects_for_segment(segment.object_id)
+                logger.info("🔍 DEBUG: Dependencies found for segment %s: %s", segment.object_id, dependencies)
+                if dependencies:
+                    error_msg = f"Cannot delete segment {segment.object_id}: {len(dependencies)} dependencies exist. This would violate referential integrity: {dependencies}"
+                    logger.warning(error_msg)
+                    raise ValueError(error_msg)
+                else:
+                    logger.info("🔍 DEBUG: No dependencies found for segment %s, deletion allowed", segment.object_id)
+            
+            # 3. Delete from S3 and VAST
             success_count = 0
             for segment in segments:
                 s3_success = await self.s3.delete_segment(segment)
@@ -202,15 +298,24 @@ class SegmentsStorage:
             logger.info("Deleted %d/%d TAMS segments for flow %s", success_count, len(segments), flow_id)
             return success_count == len(segments)
             
+        except ValueError:
+            # Re-raise TAMS compliance errors
+            raise
         except Exception as e:
             logger.error("Failed to delete TAMS segments for flow %s: %s", flow_id, e)
             return False
     
     async def _store_segment_metadata(self, segment: FlowSegment, flow_id: str) -> bool:
         """
-        Store segment metadata in VAST
+        Store segment metadata in VAST and manage flow-object references
+        
+        This method ensures TAMS compliance by:
+        1. Storing segment metadata
+        2. Creating/updating flow_object_references
+        3. Ensuring objects know which flows reference them
         """
         try:
+            # 1. Store segment metadata
             metadata = {
                 'id': segment.object_id,  # Use object_id as the primary key
                 'flow_id': flow_id,
@@ -221,13 +326,68 @@ class SegmentsStorage:
                 'storage_path': segment.storage_path,  # Store the S3 key used for this segment
                 'size': 0 # FlowSegment does not have a size field, set to 0 for now
             }
-            success = self.vast.insert_record('segments', metadata)
-            if success:
-                logger.info("Successfully stored segment metadata for %s with storage_path: %s", 
-                          segment.object_id, segment.storage_path)
-            else:
+            
+            segment_success = self.vast.insert_record('segments', metadata)
+            if not segment_success:
                 logger.error("Failed to store segment metadata for %s", segment.object_id)
-            return success
+                return False
+            
+            # 2. Create flow-object reference for TAMS compliance
+            # Use the working 'insert' method instead of 'insert_record' to avoid datetime conversion issues
+            reference_metadata = {
+                'object_id': [segment.object_id],  # Columnar format expected by 'insert'
+                'flow_id': [flow_id],
+                'created': [datetime.now(timezone.utc)]
+            }
+            
+            reference_success = self.vast.insert('flow_object_references', reference_metadata)
+            if not reference_success:
+                logger.error("Failed to create flow-object reference for segment %s, flow %s", 
+                           segment.object_id, flow_id)
+                # Note: We don't fail here as the segment was created successfully
+                # The flow reference is for compliance, not core functionality
+                logger.warning("Flow-object reference creation failed, but segment was created")
+            else:
+                logger.info("Successfully created flow-object reference for segment %s, flow %s", 
+                           segment.object_id, flow_id)
+            
+            # 3. Ensure object exists in objects table (if not already there)
+            try:
+                from ..objects.objects_storage import ObjectsStorage
+                objects_storage = ObjectsStorage(self.vast)
+                
+                # Check if object exists
+                existing_object = await objects_storage.get_object(segment.object_id)
+                if not existing_object:
+                    # Create minimal object record
+                    from ....models.models import Object
+                    obj = Object(
+                        id=segment.object_id,
+                        referenced_by_flows=[flow_id],
+                        first_referenced_by_flow=flow_id,
+                        size=0,  # Size unknown until actually uploaded
+                        created=datetime.now(timezone.utc)
+                    )
+                    obj_success = await objects_storage.create_object(obj)
+                    if obj_success:
+                        logger.info("Created object record for segment %s", segment.object_id)
+                    else:
+                        logger.warning("Failed to create object record for segment %s", segment.object_id)
+                else:
+                    # Object exists, update its referenced_by_flows if needed
+                    if flow_id not in existing_object.referenced_by_flows:
+                        # Add this flow to the object's references
+                        # Note: This would require an update method in ObjectsStorage
+                        logger.debug("Object %s already exists and references flow %s", 
+                                   segment.object_id, flow_id)
+            except Exception as e:
+                logger.warning("Failed to manage object record for segment %s: %s", segment.object_id, e)
+                # Don't fail segment creation for object management issues
+            
+            logger.info("Successfully stored segment metadata for %s with storage_path: %s", 
+                      segment.object_id, segment.storage_path)
+            return True
+            
         except Exception as e:
             logger.error("Error storing segment metadata for %s: %s", segment.object_id, e)
             return False
@@ -295,11 +455,19 @@ class SegmentsStorage:
             bool: True if deletion successful, False otherwise
         """
         try:
-            # Note: VAST doesn't have native DELETE operations
-            # This would need to be implemented using VAST's delete capabilities
-            logger.warning("Segment metadata deletion not implemented for VAST")
-            return False
+            from ibis import _ as ibis_
             
+            # Delete segment from VAST database using ibis predicate
+            predicate = (ibis_.id == segment_id)
+            deleted_count = self.vast.delete('segments', predicate)
+            
+            if deleted_count > 0:
+                logger.info("Successfully deleted segment %s from VAST", segment_id)
+                return True
+            else:
+                logger.warning("Segment %s not found for deletion", segment_id)
+                return False
+                
         except Exception as e:
             logger.error("Failed to delete segment metadata for %s: %s", segment_id, e)
             return False
@@ -374,3 +542,69 @@ class SegmentsStorage:
         except Exception as e:
             logger.error("Failed to update TAMS segment %s: %s", segment_id, e)
             return False
+
+    async def _get_dependent_objects_for_segment(self, segment_id: str) -> List[str]:
+        """
+        Check if segment's object has dependencies that prevent deletion
+        
+        Args:
+            segment_id: ID of the segment to check
+            
+        Returns:
+            List[str]: List of dependency violations (flow references, other segments, etc.)
+        """
+        try:
+            # Get the object_id from the segment
+            segment = await self.get_segment_by_id(segment_id)
+            if not segment:
+                logger.warning("Segment %s not found for dependency check", segment_id)
+                return []
+            
+            object_id = segment.object_id
+            dependencies = []
+            
+            # 1. Check if this object is referenced by other flows (TAMS API compliance)
+            flow_references = self.vast.query_records(
+                'flow_object_references', 
+                predicate={'object_id': object_id}
+            )
+            
+            # Filter out the current flow
+            other_flow_refs = [
+                ref for ref in flow_references 
+                if ref.get('flow_id') != segment.flow_id
+            ]
+            
+            if other_flow_refs:
+                logger.info("Object %s is referenced by %d other flows: %s", 
+                           object_id, len(other_flow_refs), 
+                           [ref.get('flow_id') for ref in other_flow_refs])
+                dependencies.extend([f"flow_{ref.get('flow_id')}" for ref in other_flow_refs])
+            
+            # 2. Check if this object is referenced by other segments in the same flow
+            # (This might indicate a data integrity issue)
+            other_segments = self.vast.query_records(
+                'segments', 
+                predicate={'object_id': object_id, 'flow_id': segment.flow_id}
+            )
+            
+            # Filter out the current segment
+            other_segments = [
+                seg for seg in other_segments 
+                if seg.get('id') != segment_id
+            ]
+            
+            if other_segments:
+                logger.info("Object %s is referenced by %d other segments in flow %s: %s", 
+                           object_id, len(other_segments), segment.flow_id,
+                           [seg.get('id') for seg in other_segments])
+                dependencies.extend([f"segment_{seg.get('id')}" for seg in other_segments])
+            
+            if dependencies:
+                logger.info("Object %s has %d dependencies: %s", object_id, len(dependencies), dependencies)
+            
+            return dependencies
+            
+        except Exception as e:
+            logger.error("Failed to check object dependencies for segment %s: %s", segment_id, e)
+            return []

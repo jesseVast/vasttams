@@ -169,6 +169,11 @@ async def delete_flow_by_id(
                 logger.warning("Failed to emit flow deleted event: %s", e)
         
         return {"message": "Flow hard deleted successfully"}
+        
+    except ValueError as e:
+        # ✅ NEW: Handle dependency violations with 409 Conflict
+        logger.warning("Dependency violation deleting flow %s: %s", flow_id, e)
+        raise HTTPException(status_code=409, detail=str(e))
     except HTTPException:
         # Re-raise HTTP exceptions (including 409 Conflict from constraint violations)
         raise
@@ -270,7 +275,9 @@ async def get_flow_tags(
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
-        return flow.tags.root if flow.tags else {}
+        # Get tags from the new tags storage architecture
+        tags = await store.get_flow_tags(flow_id)
+        return tags.root if tags else {}
     except HTTPException:
         raise
     except Exception as e:
@@ -293,50 +300,21 @@ async def get_flow_tag(
         flow = await get_flow(store, flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
-        if not flow.tags or name not in flow.tags:
+        # Get specific tag value from the new tags storage architecture
+        tag_value = await store.get_flow_tag(flow_id, name)
+        if tag_value is not None:
+            return tag_value
+        else:
             raise HTTPException(status_code=404, detail="Tag not found")
-        return flow.tags[name]
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Failed to get flow tag %s for %s: %s", name, flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.put("/flows/{flow_id}/tags", response_model=Tags)
-async def update_flow_tags(
-    flow_id: str,
-    tags: Tags,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update all flow tags"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Update all tags
-        flow.tags = tags
-        
-        # Save the updated flow
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update flow tags")
-        
-        # Emit flow updated event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_flow_event('flows/updated', flow)
-        except Exception as e:
-            logger.warning("Failed to emit flow updated event: %s", e)
-        
-        return tags
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow tags for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
+# TAMS API does not support bulk tags update - only individual tag operations
+# This endpoint removed for TAMS compliance
+# Code preserved in VASTStore.update_flow_tags() for potential future use
 
 @router.put("/flows/{flow_id}/tags/{name}")
 async def update_flow_tag(
@@ -352,13 +330,8 @@ async def update_flow_tag(
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
         
-        # Update the tag
-        if not flow.tags:
-            flow.tags = {}
-        flow.tags[name] = value
-        
-        # Save the updated flow
-        success = await store.update_flow(flow_id, flow)
+        # Update the tag using the new tags storage architecture
+        success = await store.update_flow_tag(flow_id, name, value)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update flow tag")
         
@@ -392,15 +365,8 @@ async def delete_flow_tag(
         if not flow.tags or name not in flow.tags:
             raise HTTPException(status_code=404, detail="Tag not found")
         
-        # Remove the tag
-        if flow.tags and name in flow.tags:
-            # Create a new dict without the deleted tag
-            new_tags = dict(flow.tags.root)
-            del new_tags[name]
-            flow.tags = Tags(root=new_tags)
-        
-        # Save the updated flow
-        success = await store.update_flow(flow_id, flow)
+        # Delete the tag using the new tags storage architecture
+        success = await store.delete_flow_tag(flow_id, name)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete flow tag")
         
@@ -616,28 +582,7 @@ async def get_flow_read_only(
 
 
 
-@router.head("/flows/{flow_id}/flow_collection")
-async def head_flow_collection(flow_id: str):
-    """Return flow collection path headers"""
-    return {}
 
-@router.get("/flows/{flow_id}/flow_collection")
-async def get_flow_collection(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Get flow collection - now dynamically computed from flow_collections table"""
-    try:
-        # Get collections dynamically from the flow_collections table
-        collections = await store.get_flow_collections(flow_id)
-        
-        # Return collection IDs for backward compatibility
-        collection_ids = [col.collection_id for col in collections]
-        return collection_ids
-        
-    except Exception as e:
-        logger.error("Failed to get flow collection for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 
@@ -658,9 +603,20 @@ async def get_flow_collection(
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
         
-        # Check if flow has collection_id field
-        if hasattr(flow, 'collection_id') and flow.collection_id:
-            return {"collection_id": flow.collection_id}
+        # Get collections from the flow_collections table
+        collections = await store.get_flow_collections(flow_id)
+        if collections:
+            # Return collection information
+            collection_info = []
+            for collection in collections:
+                collection_info.append({
+                    "collection_id": collection.collection_id,
+                    "flow_id": collection.flow_id,
+                    "label": collection.label,
+                    "description": collection.description,
+                    "created": collection.created
+                })
+            return collection_info
         else:
             raise HTTPException(status_code=404, detail="Flow collection not available for this flow")
     except HTTPException:
@@ -1103,35 +1059,7 @@ async def get_flow_tag(
         logger.error("Failed to get flow tag %s for %s: %s", name, flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.put("/flows/{flow_id}/tags/{name}")
-async def update_flow_tag(
-    flow_id: str,
-    name: str,
-    value: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update a specific flow tag"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        if not flow.tags:
-            flow.tags = {}
-        
-        flow.tags[name] = value
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update flow tag")
-        
-        return {"message": f"Tag {name} updated successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow tag %s for %s: %s", name, flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
+
 
 @router.delete("/flows/{flow_id}/tags/{name}")
 async def delete_flow_tag(
@@ -1147,11 +1075,8 @@ async def delete_flow_tag(
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
         
-        if not flow.tags or name not in flow.tags:
-            raise HTTPException(status_code=404, detail="Tag not found")
-        
-        del flow.tags[name]
-        success = await store.update_flow(flow_id, flow)
+        # Delete the tag using the new tags storage architecture
+        success = await store.delete_flow_tag(flow_id, name)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete flow tag")
         

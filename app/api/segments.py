@@ -30,7 +30,7 @@ async def create_flow_segment(store: VASTStore, flow_id: str, segment: FlowSegme
     try:
         # Create segment with metadata only (no media data)
         # Media data should be uploaded separately via presigned URL
-        success = await store.create_flow_segment_metadata(segment, flow_id)
+        success = await store.create_flow_segment(segment, flow_id, None)  # No media data for metadata-only creation
         return success
     except Exception as e:
         logger.error("Failed to create flow segment for %s: %s", flow_id, e)

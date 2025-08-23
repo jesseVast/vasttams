@@ -55,8 +55,7 @@ class S3Store:
             access_key_id=self.access_key_id,
             secret_access_key=self.secret_access_key,
             bucket_name=self.bucket_name,
-            use_ssl=self.use_ssl,
-            region=getattr(settings, 's3_region', 'us-east-1')
+            use_ssl=self.use_ssl
         )
         
         # Initialize specialized endpoint modules
@@ -76,7 +75,9 @@ class S3Store:
         Format: {tams_storage_path}/{year}/{month}/{date}/{object_id}
         """
         from datetime import datetime
-        from app.core.config import settings
+        from app.core.config import get_settings
+        
+        settings = get_settings()
         
         # Get current date for TAMS path organization
         now = datetime.now()
@@ -145,6 +146,32 @@ class S3Store:
             str: Presigned URL or None if failed
         """
         return self.s3_core.generate_presigned_url(storage_path, operation, expires)
+    
+    async def generate_get_urls(self, segment) -> List[Dict[str, Any]]:
+        """
+        Generate GetUrl objects for a segment - delegated to SegmentsS3
+        
+        Args:
+            segment: FlowSegment object with storage_path
+            
+        Returns:
+            List[Dict]: List of GetUrl dictionaries
+        """
+        try:
+            # Delegate to SegmentsS3 which has the proper implementation
+            get_urls = await self.segments_s3.generate_get_urls(segment)
+            
+            # Convert GetUrl objects to dictionaries for API response
+            result = []
+            for get_url in get_urls:
+                result.append(get_url.model_dump())
+            
+            logger.debug("Generated get_urls for segment %s: %d URLs", segment.object_id, len(result))
+            return result
+            
+        except Exception as e:
+            logger.error("Failed to generate get_urls for segment %s: %s", segment.object_id, e)
+            return []
     
     # Legacy methods for backward compatibility
     def create_get_urls(self, segment: FlowSegment) -> List[GetUrl]:

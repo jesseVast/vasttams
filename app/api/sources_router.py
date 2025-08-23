@@ -324,6 +324,11 @@ async def delete_source_by_id(
                 logger.warning("Failed to emit source deleted event: %s", e)
         
         return {"message": "Source hard deleted successfully"}
+        
+    except ValueError as e:
+        # ✅ NEW: Handle dependency violations with 409 Conflict
+        logger.warning("Dependency violation deleting source %s: %s", source_id, e)
+        raise HTTPException(status_code=409, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
@@ -349,59 +354,27 @@ async def list_source_tags(
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
-        # Return the source tags or empty dict if no tags
-        return source.tags or Tags()
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to list source tags for %s: %s", source_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.put("/sources/{source_id}/tags", response_model=Tags)
-async def update_source_tags(
-    source_id: str,
-    tags: Tags,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update Source Tags"""
-    try:
-        # Log the tags being updated
-        logger.info("Updating tags for source %s: %s", source_id, dict(tags) if tags else {})
-        
-        source = await get_source(store, source_id)
-        if not source:
-            raise HTTPException(status_code=404, detail="Source not found")
-        
-        # Update source tags
-        success = await store.update_source_tags(source_id, tags)
-        if not success:
-            logger.error("Storage layer failed to update tags for source %s", source_id)
-            raise HTTPException(status_code=500, detail="Failed to update source tags")
-        
-        # Emit source updated event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_source_event('sources/updated', source)
-        except Exception as e:
-            logger.warning("Failed to emit source updated event: %s", e)
-        
-        logger.info("Successfully updated tags for source: %s", source_id)
-        return tags
+        # Get tags from the new tags storage architecture
+        tags = await store.get_source_tags(source_id)
+        return tags if tags else Tags({})
         
     except ValidationError as e:
         error_msg = log_pydantic_validation_error(
             error=e,
-            context=f"PUT /sources/{source_id}/tags",
-            input_data=dict(tags) if tags else {},
+            context=f"GET /sources/{source_id}/tags",
+            input_data={"source_id": source_id, "source": str(source) if source else "None"},
             model_name="Tags"
         )
         raise HTTPException(status_code=422, detail=error_msg)
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to update source tags for %s: %s", source_id, e)
+        logger.error("Failed to list source tags for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+# TAMS API does not support bulk tags update - only individual tag operations
+# This endpoint removed for TAMS compliance
+# Code preserved in VASTStore.update_source_tags() for potential future use
 
 @router.head("/sources/{source_id}/tags/{name}")
 async def head_source_tag(source_id: str, name: str):
@@ -420,9 +393,10 @@ async def get_source_tag(
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
-        # Get specific tag value
-        if source.tags and name in source.tags:
-            return source.tags[name]
+        # Get specific tag value from the new tags storage architecture
+        tag_value = await store.get_source_tag(source_id, name)
+        if tag_value is not None:
+            return tag_value
         else:
             raise HTTPException(status_code=404, detail="Tag not found")
         
@@ -445,11 +419,11 @@ async def update_source_tag(
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
-        # Update specific tag
-        current_tags = source.tags or {}
-        current_tags[name] = value
+        # Update specific tag using individual tag update (like flow tags)
+        logger.info("🔍 DEBUG: Source tag update - source_id: %s, name: %s, value: %s", source_id, name, value)
+        logger.info("🔍 DEBUG: Value type: %s", type(value))
         
-        success = await store.update_source_tags(source_id, Tags(**current_tags))
+        success = await store.update_source_tag(source_id, name, value)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update source tag")
         
@@ -702,7 +676,7 @@ async def get_source_tags(
 @router.post("/sources/{source_id}/tags")
 async def create_source_tags(
     source_id: str,
-    tags: Tags,
+    tags: Tags = Body(..., description="Tags to create or update"),
     store: VASTStore = Depends(get_vast_store)
 ):
     """Create or update source tags"""
@@ -729,6 +703,14 @@ async def create_source_tags(
             logger.warning("Failed to emit source updated event: %s", e)
         
         return {"message": "Tags updated successfully"}
+    except ValidationError as e:
+        error_msg = log_pydantic_validation_error(
+            error=e,
+            context=f"POST /sources/{source_id}/tags",
+            input_data={"source_id": source_id, "tags": dict(tags) if tags else {}},
+            model_name="Tags"
+        )
+        raise HTTPException(status_code=422, detail=error_msg)
     except HTTPException:
         raise
     except Exception as e:

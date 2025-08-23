@@ -221,15 +221,22 @@ class ObjectsStorage:
             bool: True if deletion successful, False otherwise
             
         Raises:
-            ValueError: If object has flow references (TAMS API compliance - objects are immutable)
+            ValueError: If object has flow references or segment dependencies (TAMS API compliance)
         """
         try:
             logger.info("Deleting TAMS object: %s", object_id)
             
-            # Check for flow references - TAMS API rules: objects are immutable
+            # ✅ ENHANCED: Check for both flow references and segment dependencies
             referenced_by_flows = await self._get_object_flow_references(object_id)
             if referenced_by_flows:
                 error_msg = f"Cannot delete object {object_id}: {len(referenced_by_flows)} flow references exist. Objects are immutable by TAMS API design."
+                logger.warning(error_msg)
+                raise ValueError(error_msg)
+            
+            # ✅ NEW: Check for segment dependencies
+            dependent_segments = await self._get_dependent_segments_for_object(object_id)
+            if dependent_segments:
+                error_msg = f"Cannot delete object {object_id}: {len(dependent_segments)} dependent segments exist. This would violate referential integrity."
                 logger.warning(error_msg)
                 raise ValueError(error_msg)
             
@@ -266,7 +273,7 @@ class ObjectsStorage:
             reference_metadata = {
                 'object_id': object_id,
                 'flow_id': flow_id,
-                'created': datetime.now(timezone.utc).isoformat()
+                'created': datetime.now(timezone.utc)
             }
             
             # Store in VAST
@@ -413,4 +420,29 @@ class ObjectsStorage:
             
         except Exception as e:
             logger.error("Failed to get objects referenced by flow %s: %s", flow_id, e)
+            return []
+
+    async def _get_dependent_segments_for_object(self, object_id: str) -> List[str]:
+        """
+        Check if object is referenced by any segments
+        
+        Args:
+            object_id: ID of the object to check
+            
+        Returns:
+            List[str]: List of segment IDs that reference this object
+        """
+        try:
+            # Query segments table for object references
+            segments = self.vast.query_records('segments', predicate={'object_id': object_id})
+            dependent_segments = [segment['id'] for segment in segments]
+            
+            if dependent_segments:
+                logger.info("Object %s is referenced by %d segments: %s", 
+                           object_id, len(dependent_segments), dependent_segments)
+            
+            return dependent_segments
+            
+        except Exception as e:
+            logger.error("Failed to get dependent segments for object %s: %s", object_id, e)
             return []

@@ -71,6 +71,11 @@ async def delete_object_by_id(
                 logger.warning("Failed to emit object deleted event: %s", e)
         
         return {"message": "Object hard deleted successfully"}
+        
+    except ValueError as e:
+        # ✅ NEW: Handle dependency violations with 409 Conflict
+        logger.warning("Dependency violation deleting object %s: %s", object_id, e)
+        raise HTTPException(status_code=409, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:

@@ -143,6 +143,7 @@ class SegmentsS3:
         """
         try:
             logger.info("Generating TAMS-compliant get_urls for segment: %s", segment.object_id)
+            logger.info("Segment storage_path: %s", segment.storage_path)
             
             # Use stored storage_path if available, otherwise generate key
             key = segment.storage_path if segment.storage_path else self._generate_segment_key(segment)
@@ -154,6 +155,9 @@ class SegmentsS3:
             
             # Generate dynamic presigned URL for download (expires in 1 hour)
             logger.info("Generating presigned URL for key: %s", key)
+            logger.info("S3 core object: %s", self.s3)
+            logger.info("S3 core methods: %s", dir(self.s3))
+            
             presigned_url = self.s3.generate_presigned_url(
                 key=key,
                 operation="get_object",

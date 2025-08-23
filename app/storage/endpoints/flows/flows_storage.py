@@ -254,6 +254,21 @@ class FlowsStorage:
                     logger.warning(error_msg)
                     raise ValueError(error_msg)
             
+            # If cascading, delete all dependent segments first
+            if cascade:
+                dependent_segments = await self._get_dependent_segments(flow_id)
+                logger.info("Cascade deletion: found %d dependent segments for flow %s: %s", 
+                           len(dependent_segments), flow_id, dependent_segments)
+                if dependent_segments:
+                    logger.info("Cascade deletion: deleting %d dependent segments for flow %s", len(dependent_segments), flow_id)
+                    for segment_id in dependent_segments:
+                        logger.info("Deleting dependent segment %s during cascade deletion", segment_id)
+                        segment_success = await self._delete_segment_metadata(segment_id)
+                        if not segment_success:
+                            logger.warning("Failed to delete dependent segment %s during cascade deletion", segment_id)
+                        else:
+                            logger.info("Successfully deleted dependent segment %s during cascade deletion", segment_id)
+            
             # Delete flow metadata from VAST
             vast_success = await self._delete_flow_metadata(flow_id)
             
@@ -362,6 +377,34 @@ class FlowsStorage:
                         metadata.get('id', 'unknown'), e)
             return None
     
+    async def _delete_segment_metadata(self, segment_id: str) -> bool:
+        """
+        Delete segment metadata from VAST
+        
+        Args:
+            segment_id: ID of the segment to delete
+            
+        Returns:
+            bool: True if deletion successful, False otherwise
+        """
+        try:
+            from ibis import _ as ibis_
+            
+            # Delete segment from VAST database using ibis predicate
+            predicate = (ibis_.id == segment_id)
+            deleted_count = self.vast.delete('segments', predicate)
+            
+            if deleted_count > 0:
+                logger.info("Successfully deleted segment %s from VAST", segment_id)
+                return True
+            else:
+                logger.warning("Segment %s not found for deletion", segment_id)
+                return False
+                
+        except Exception as e:
+            logger.error("Failed to delete segment metadata for %s: %s", segment_id, e)
+            return False
+    
     async def _delete_flow_metadata(self, flow_id: str) -> bool:
         """
         Delete flow metadata from VAST
@@ -377,7 +420,7 @@ class FlowsStorage:
             
             # Delete flow from VAST database using ibis predicate
             predicate = (ibis_.id == flow_id)
-            deleted_count = self.vast.db_manager.delete('flows', predicate)
+            deleted_count = self.vast.delete('flows', predicate)
             
             if deleted_count > 0:
                 logger.info("Successfully deleted flow %s from VAST", flow_id)
@@ -401,12 +444,18 @@ class FlowsStorage:
             List[str]: List of dependent segment IDs
         """
         try:
+            logger.info("Querying for dependent segments with flow_id: %s", flow_id)
             # Query segments table for dependent segments
             segments = self.vast.query_records('segments', predicate={'flow_id': flow_id})
-            return [segment['id'] for segment in segments]
+            logger.info("Found segments data: %s", segments)
+            segment_ids = [segment['id'] for segment in segments]
+            logger.info("Extracted segment IDs: %s", segment_ids)
+            return segment_ids
             
         except Exception as e:
             logger.error("Failed to get dependent segments for flow %s: %s", flow_id, e)
+            import traceback
+            logger.error("Traceback: %s", traceback.format_exc())
             return []
     
     # Flow collection management methods

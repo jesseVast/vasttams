@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     debug: bool = True
     
     # VAST Database settings
-    vast_endpoint: str = "http://100.100.0.1:9090"
+    vast_endpoint: str = "http://172.200.204.90"
     vast_access_key: str = "SRSPW0DQT9T70Y787U68"
     vast_secret_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
     vast_bucket: str = "jthaloor-db"
@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     log_format: str = "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
     
     # S3 settings for flow segment storage
-    s3_endpoint_url: str = "http://100.100.0.2:9090"
+    s3_endpoint_url: str = "http://172.200.204.90"
     s3_access_key_id: str = "SRSPW0DQT9T70Y787U68"
     s3_secret_access_key: str = "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
     s3_bucket_name: str = "jthaloor-s3"

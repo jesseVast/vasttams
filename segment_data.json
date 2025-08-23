@@ -1,0 +1,8 @@
+{
+  "timerange": "2025-08-23T13:00:00Z/2025-08-23T13:05:00Z",
+  "ts_offset": "PT0S",
+  "last_duration": "PT5M",
+  "sample_offset": 0,
+  "sample_count": 7500,
+  "key_frame_count": 125
+}

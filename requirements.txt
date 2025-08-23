@@ -19,6 +19,7 @@ psycopg2-binary==2.9.9
 # Caching and HTTP
 redis==5.0.1
 httpx==0.28.1
+aiohttp==3.10.6
 
 # Testing
 pytest==7.4.3

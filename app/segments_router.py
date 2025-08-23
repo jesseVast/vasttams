@@ -4,6 +4,7 @@ from app.models import FlowSegment, FlowStorage, FlowStoragePost
 from app.segments import get_flow_segments, create_flow_segment, delete_flow_segments, create_flow_storage, SegmentManager
 from app.vast_store import VASTStore
 from app.dependencies import get_vast_store
+from app.core.event_manager import EventManager
 import logging
 import json
 
@@ -91,6 +92,13 @@ async def create_new_flow_segment(
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create segment")
             
+            # Emit webhook event for segment creation
+            try:
+                event_manager = EventManager(store)
+                await event_manager.emit_segment_event('flows/segments_added', segment_obj, flow_id=flow_id)
+            except Exception as e:
+                logger.warning(f"Failed to emit webhook event: {e}")
+            
             return segment_obj
         
         # Handle JSON data
@@ -98,6 +106,14 @@ async def create_new_flow_segment(
             success = await create_flow_segment(store, flow_id, segment)
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create segment")
+            
+            # Emit webhook event for segment creation
+            try:
+                event_manager = EventManager(store)
+                await event_manager.emit_segment_event('flows/segments_added', segment, flow_id=flow_id)
+            except Exception as e:
+                logger.warning(f"Failed to emit webhook event: {e}")
+            
             return segment
         
         # Handle form data without file (segment_data only)
@@ -114,6 +130,13 @@ async def create_new_flow_segment(
             success = await create_flow_segment(store, flow_id, segment_obj)
             if not success:
                 raise HTTPException(status_code=500, detail="Failed to create segment")
+            
+            # Emit webhook event for segment creation
+            try:
+                event_manager = EventManager(store)
+                await event_manager.emit_segment_event('flows/segments_added', segment_obj, flow_id=flow_id)
+            except Exception as e:
+                logger.warning(f"Failed to emit webhook event: {e}")
             
             return segment_obj
         else:

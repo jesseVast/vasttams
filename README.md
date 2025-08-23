@@ -583,14 +583,20 @@ curl -X POST "http://localhost:8000/flows" \
 
 The API supports multiple ways to create segments:
 
-#### **1. Upload Segment with Media File (Multipart Form)**
+#### **1. Upload Segment with Media File (Multipart Form) - ✅ WORKING**
 ```bash
 curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
   -F "segment_data={\"object_id\":\"seg_001\",\"timerange\":\"2025-08-23T14:00:00Z/2025-08-23T14:05:00Z\",\"ts_offset\":\"PT0S\",\"last_duration\":\"PT5M\",\"sample_offset\":0,\"sample_count\":7500,\"key_frame_count\":125}" \
   -F "file=@video_segment.mp4"
 ```
 
-#### **2. Create Segment with JSON Data Only**
+#### **2. Create Segment with Form Data Only (No File) - ✅ WORKING**
+```bash
+curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
+  -F "segment_data={\"object_id\":\"seg_003\",\"timerange\":\"2025-08-23T14:10:00Z/2025-08-23T14:15:00Z\"}"
+```
+
+#### **3. Create Segment with JSON Data Only - ⚠️ CURRENTLY NOT WORKING**
 ```bash
 curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
   -H "Content-Type: application/json" \
@@ -604,12 +610,7 @@ curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/s
     "key_frame_count": 125
   }'
 ```
-
-#### **3. Create Segment with Form Data Only (No File)**
-```bash
-curl -X POST "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments" \
-  -F "segment_data={\"object_id\":\"seg_003\",\"timerange\":\"2025-08-23T14:10:00Z/2025-08-23T14:15:00Z\"}"
-```
+**Note**: JSON-only requests are currently not working due to a FastAPI parameter binding issue. Use multipart form or form-only methods instead.
 
 **Required Fields:**
 - `object_id`: Unique identifier for the segment
@@ -988,7 +989,10 @@ If S3 storage operations fail:
 If segment creation fails:
 1. **Check Required Fields**: Ensure `object_id` and `timerange` are provided
 2. **Timerange Format**: Use ISO 8601 format (e.g., "2025-08-23T14:00:00Z/2025-08-23T14:05:00Z")
-3. **Multipart Form**: Use `segment_data` field (not `segment`) for JSON metadata
+3. **Use Working Methods**: 
+   - ✅ **Multipart Form**: Use `segment_data` field + `file` field for media content
+   - ✅ **Form Only**: Use `segment_data` field for metadata without media file
+   - ⚠️ **JSON Only**: Currently not working due to FastAPI parameter binding issue
 4. **File Upload**: Ensure file is properly attached when using multipart form
 5. **JSON Validation**: Check that all required fields match the FlowSegment model
 6. **Flow ID**: Verify the flow ID exists and is not read-only

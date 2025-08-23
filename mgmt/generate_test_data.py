@@ -70,7 +70,7 @@ parser.add_argument('--batch-size', type=int, default=25,
 args = parser.parse_args()
 
 # API Configuration
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = os.getenv("TAMS_API_BASE_URL", "http://localhost:8000")
 HEALTH_ENDPOINT = f"{API_BASE_URL}/health"
 SOURCES_ENDPOINT = f"{API_BASE_URL}/sources"
 FLOWS_ENDPOINT = f"{API_BASE_URL}/flows"

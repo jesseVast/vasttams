@@ -51,7 +51,7 @@ def upload_series(
     resolution: str = "1920x1080",
     frame_rate: str = "30/1",
     codec: str = "video/mp4",
-    base_url: str = "http://localhost:8000",
+            base_url: str = os.getenv("TAMS_API_BASE_URL", "http://localhost:8000"),
     timeout: int = DEFAULT_UPLOAD_TIMEOUT,
     dry_run: bool = False
 ) -> bool:
@@ -273,8 +273,8 @@ Note: The timeout should match or exceed the presigned URL expiry time (default:
     
     parser.add_argument(
         "--base-url",
-        default="http://localhost:8000",
-        help="TAMS API base URL (default: http://localhost:8000)"
+        default=os.getenv("TAMS_API_BASE_URL", "http://localhost:8000"),
+        help="TAMS API base URL (default: from TAMS_API_BASE_URL env var or http://localhost:8000)"
     )
     
     parser.add_argument(

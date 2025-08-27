@@ -85,12 +85,12 @@ class S3Store:
         Args:
             flow_id: Flow identifier
             segment_id: Segment identifier
-            timerange: Time range string
+            timerange: Time range string (TAMS format or ISO 8601 format)
             
         Returns:
             S3 object key
         """
-        # Parse timerange to extract time information for path structure
+        # First try to parse as TAMS timerange format: [seconds:subseconds_end:subseconds)
         # Format: [start_time:end_time) or [start_time:)
         clean_range = timerange.strip('[]()')
         
@@ -99,7 +99,8 @@ class S3Store:
         else:
             start_str = clean_range
         
-        # Convert to datetime for path structure
+        # Try to parse TAMS format first (seconds:subseconds)
+        start_time = None
         try:
             if ':' in start_str:
                 parts = start_str.split(':')
@@ -108,11 +109,32 @@ class S3Store:
                     subseconds = int(parts[1]) if parts[1] else 0
                     start_time = datetime.fromtimestamp(seconds + (subseconds / 1000000000), timezone.utc)
                 else:
-                    start_time = datetime.now(timezone.utc)
+                    # Fall back to current time if TAMS format parsing fails
+                    start_time = None
             else:
-                start_time = datetime.now(timezone.utc)
+                # Fall back to current time if TAMS format parsing fails
+                start_time = None
         except (ValueError, TypeError):
-            start_time = datetime.now(timezone.utc)
+            # Fall back to current time if TAMS format parsing fails
+            start_time = None
+        
+        # If TAMS format parsing failed, try ISO 8601 format
+        if start_time is None:
+            try:
+                # Handle ISO 8601 format: "2025-08-23T13:00:00Z/2025-08-23T13:05:00Z"
+                if '/' in timerange:
+                    start_str = timerange.split('/')[0]
+                    # Remove timezone suffix and parse
+                    start_str_clean = start_str.replace('Z', '+00:00').replace('z', '+00:00')
+                    start_time = datetime.fromisoformat(start_str_clean)
+                else:
+                    # Single timestamp format
+                    start_str_clean = timerange.replace('Z', '+00:00').replace('z', '+00:00')
+                    start_time = datetime.fromisoformat(start_str_clean)
+            except (ValueError, TypeError):
+                # If all parsing fails, use current time as fallback
+                logger.warning(f"Failed to parse timerange '{timerange}', using current time as fallback")
+                start_time = datetime.now(timezone.utc)
         
         # Create hierarchical path structure
         year = start_time.year
@@ -122,6 +144,7 @@ class S3Store:
         # Key format: flow_id/year/month/day/segment_id
         key = f"{flow_id}/{year:04d}/{month:02d}/{day:02d}/{segment_id}"
         
+        logger.debug(f"Generated S3 key '{key}' for timerange '{timerange}' (parsed date: {start_time.date()})")
         return key
     
     async def store_flow_segment(self, 
@@ -380,25 +403,63 @@ class S3Store:
         Args:
             flow_id: Flow identifier
             segment_id: Segment identifier
-            timerange: Time range string
+            timerange: string
             
         Returns:
             List of GetUrl objects
         """
         try:
-            # Generate presigned URL for direct access
-            presigned_url = await self.generate_presigned_url(
-                flow_id, segment_id, timerange, 'get_object'
-            )
+            # Generate S3 object key
+            object_key = self._generate_segment_key(flow_id, segment_id, timerange)
             
-            if presigned_url:
-                return [
-                    GetUrl(
-                        url=presigned_url,
-                        label=f"Direct access for segment {segment_id}"
-                    )
-                ]
+            # Check if the S3 object actually exists before generating URLs
+            try:
+                self.s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+                object_exists = True
+                logger.debug(f"S3 object exists for segment {segment_id}: {object_key}")
+            except ClientError as e:
+                if e.response['Error']['Code'] == '404':
+                    object_exists = False
+                    logger.debug(f"S3 object does not exist for segment {segment_id}: {object_key}")
+                else:
+                    # For other errors (like 403), assume object doesn't exist
+                    object_exists = False
+                    logger.warning(f"Error checking S3 object for segment {segment_id}: {e}")
+            except Exception as e:
+                # For any other exceptions, assume object doesn't exist
+                object_exists = False
+                logger.warning(f"Unexpected error checking S3 object for segment {segment_id}: {e}")
             
+            # Only generate URLs if the S3 object exists
+            if object_exists:
+                urls = []
+                
+                # Generate presigned URL for GET operations (data retrieval)
+                get_url = await self.generate_presigned_url(
+                    flow_id, segment_id, timerange, 'get_object'
+                )
+                
+                if get_url:
+                    urls.append(GetUrl(
+                        url=get_url,
+                        label=f"GET access for segment {segment_id}"
+                    ))
+                
+                # Generate presigned URL for HEAD operations (metadata retrieval)
+                head_url = await self.generate_presigned_url(
+                    flow_id, segment_id, timerange, 'head_object'
+                )
+                
+                if head_url:
+                    urls.append(GetUrl(
+                        url=head_url,
+                        label=f"HEAD access for segment {segment_id}"
+                    ))
+                
+                return urls
+            
+            # Return empty list if no S3 object exists
+            logger.debug(f"No GetUrls generated for segment {segment_id} - S3 object does not exist")
             return []
             
         except Exception as e:

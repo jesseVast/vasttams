@@ -540,6 +540,8 @@ Allocate storage for flow segments.
 ### Segment Tagging (TAMS 6.0p4+ Extension)
 
 > **⚠️ Note**: Segment tagging endpoints are **not part of the official 6.0 API specification**. These are TAMS-specific extensions available in release 6.0p4 and later.
+> 
+> **🔄 Architecture Update**: As of 6.0p4, segment tags use a column-based approach (stored in the `segments` table) instead of a separate table for consistency with sources and flows.
 
 #### `GET /flows/{flow_id}/segments/{segment_id}/tags` - Get Segment Tags
 Get all tags for a specific segment.

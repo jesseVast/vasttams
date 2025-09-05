@@ -285,7 +285,6 @@ class VASTStore:
             ('start_time', pa.timestamp('us')),
             ('end_time', pa.timestamp('us')),
             ('duration_seconds', pa.float64()),
-            ('tags', pa.string()),  # JSON string - NEW COLUMN
             # Soft delete fields
             ('deleted', pa.bool_()),
             ('deleted_at', pa.timestamp('us')),
@@ -341,6 +340,7 @@ class VASTStore:
             'sources': source_schema,
             'flows': flow_schema,
             'segments': segment_schema,
+            'segment_tags': segment_tags_schema,
             'objects': object_schema,
             'webhooks': webhook_schema,
             'deletion_requests': deletion_request_schema
@@ -738,14 +738,6 @@ class VASTStore:
             start_time, end_time, duration = self._parse_timerange(segment.timerange)
             get_urls_objs = await self.s3_store.create_get_urls(flow_id, segment.object_id, segment.timerange)
             get_urls_json = self._dict_to_json([url.model_dump() for url in get_urls_objs])
-            # Convert tags to JSON string
-            if segment.tags:
-                # Convert Tags object to regular dict if needed
-                tags_dict = segment.tags.root if hasattr(segment.tags, 'root') else dict(segment.tags)
-                tags_json = self._dict_to_json(tags_dict)
-            else:
-                tags_json = "{}"
-            
             segment_data = {
                 'id': str(uuid.uuid4()),
                 'flow_id': flow_id,
@@ -760,8 +752,7 @@ class VASTStore:
                 'created': datetime.now(timezone.utc),
                 'start_time': start_time,
                 'end_time': end_time,
-                'duration_seconds': duration,
-                'tags': tags_json  # Add tags field
+                'duration_seconds': duration
             }
             self.db_manager.insert('segments', {k: [v] for k, v in segment_data.items()})
             logger.info(f"Created flow segment metadata for flow {flow_id} in VAST DB")
@@ -782,20 +773,13 @@ class VASTStore:
                 target_start, target_end, _ = self._parse_timerange(timerange)
                 predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)
             
-            # Handle tag filtering for segments - NOW DATABASE-LEVEL
+            # Handle tag filtering for segments
             if filters and ('tag_filters' in filters or 'tag_exists_filters' in filters):
-                # Apply tag value filtering
-                if 'tag_filters' in filters and filters['tag_filters']:
-                    for tag_name, tag_value in filters['tag_filters'].items():
-                        predicate = predicate & ibis_.tags.contains(f'"{tag_name}": "{tag_value}"')
-                
-                # Apply tag existence filtering
-                if 'tag_exists_filters' in filters and filters['tag_exists_filters']:
-                    for tag_name, should_exist in filters['tag_exists_filters'].items():
-                        if should_exist:
-                            predicate = predicate & ibis_.tags.contains(f'"{tag_name}":')
-                        else:
-                            predicate = predicate & ~ibis_.tags.contains(f'"{tag_name}":')
+                # For segment tag filtering, we need to join with segment_tags table
+                # This is more complex as segments and their tags are in separate tables
+                # For now, we'll get all segments and filter them in Python
+                # In a production system, you'd want to do this at the database level with proper joins
+                pass
             
             # Add soft delete filtering
             predicate = self._add_soft_delete_predicate(predicate)
@@ -804,35 +788,46 @@ class VASTStore:
             segments = []
             if isinstance(results, list):
                 for row in results:
-                    # Parse tags from JSON string
-                    tags = {}
-                    if row.get('tags'):
-                        import json
-                        try:
-                            tags = json.loads(row['tags'])
-                        except:
-                            tags = {}
+                    # Check tag filtering if specified
+                    if filters and ('tag_filters' in filters or 'tag_exists_filters' in filters):
+                        segment_id = row['object_id']  # segment_id is same as object_id
+                        segment_tags = await self.get_segment_tags(segment_id)
+                        
+                        # Apply tag value filtering
+                        if 'tag_filters' in filters and filters['tag_filters']:
+                            tag_match = True
+                            for tag_name, tag_value in filters['tag_filters'].items():
+                                if not segment_tags or segment_tags.get(tag_name) != tag_value:
+                                    tag_match = False
+                                    break
+                            if not tag_match:
+                                continue
+                        
+                        # Apply tag existence filtering
+                        if 'tag_exists_filters' in filters and filters['tag_exists_filters']:
+                            tag_match = True
+                            for tag_name, should_exist in filters['tag_exists_filters'].items():
+                                has_tag = segment_tags and tag_name in segment_tags
+                                if has_tag != should_exist:
+                                    tag_match = False
+                                    break
+                            if not tag_match:
+                                continue
                     
                     # get_urls is generated from S3
                     get_urls = await self.s3_store.create_get_urls(flow_id, row['object_id'], row['timerange'])
-                    
                     segment = FlowSegment(
                         object_id=row['object_id'],
                         timerange=row['timerange'],
-                        ts_offset=row['ts_offset'],
-                        last_duration=row['last_duration'],
+                        ts_offset=row['ts_offset'] if row['ts_offset'] else None,
+                        last_duration=row['last_duration'] if row['last_duration'] else None,
                         sample_offset=row['sample_offset'],
                         sample_count=row['sample_count'],
                         get_urls=get_urls,
-                        key_frame_count=row['key_frame_count'],
-                        tags=tags  # Include tags in response
+                        key_frame_count=row['key_frame_count']
                     )
                     segments.append(segment)
-            
             return segments
-        except Exception as e:
-            logger.error(f"Failed to get flow segments for {flow_id}: {e}")
-            return []
         except Exception as e:
             logger.error(f"Failed to get flow segments for flow {flow_id}: {e}")
             return []
@@ -1789,16 +1784,12 @@ class VASTStore:
         """Get all tags for a segment"""
         try:
             from ibis import _ as ibis_
-            predicate = (ibis_.object_id == segment_id)  # Use object_id instead of segment_id
-            result = self.db_manager.select('segments', predicate=predicate, output_by_row=True)
+            predicate = (ibis_.segment_id == segment_id)
+            result = self.db_manager.select('segment_tags', predicate=predicate, output_by_row=True)
             if result and len(result) > 0:
                 import json
-                tags_json = result[0].get('tags', '{}')
-                return json.loads(tags_json) if tags_json else {}
-            return {}
-        except Exception as e:
-            logger.error(f"Failed to get segment tags for {segment_id}: {e}")
-            return {}
+                return json.loads(result[0]['tags'])
+            return None
         except Exception as e:
             logger.error(f"Failed to get segment tags for {segment_id}: {e}")
             return None
@@ -1813,15 +1804,21 @@ class VASTStore:
             import json
             tags_json = json.dumps(existing_tags)
             
-            # Update the segments table directly
+            # Insert or update - first delete existing record, then insert new one
             from ibis import _ as ibis_
-            predicate = (ibis_.object_id == segment_id)
-            self.db_manager.update('segments', {'tags': tags_json}, predicate)
+            predicate = (ibis_.segment_id == segment_id)
+            self.db_manager.delete('segment_tags', predicate)
             
-            logger.info(f"Updated segment tag {name}={value} for segment {segment_id}")
+            # Insert new record
+            self.db_manager.insert('segment_tags', {
+                'segment_id': [segment_id],
+                'tags': [tags_json]
+            })
+            
+            logger.info(f"Updated segment tag {name} for segment {segment_id}")
             return True
         except Exception as e:
-            logger.error(f"Failed to update segment tag for {segment_id}: {e}")
+            logger.error(f"Failed to update segment tag {name} for {segment_id}: {e}")
             return False
 
     async def delete_segment_tag(self, segment_id: str, name: str) -> bool:
@@ -1830,22 +1827,6 @@ class VASTStore:
             existing_tags = await self.get_segment_tags(segment_id)
             if not existing_tags or name not in existing_tags:
                 return False
-                
-            del existing_tags[name]
-            
-            import json
-            tags_json = json.dumps(existing_tags)
-            
-            # Update the segments table
-            from ibis import _ as ibis_
-            predicate = (ibis_.object_id == segment_id)
-            self.db_manager.update('segments', {'tags': tags_json}, predicate)
-            
-            logger.info(f"Deleted segment tag {name} for segment {segment_id}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to delete segment tag for {segment_id}: {e}")
-            return False
                 
             del existing_tags[name]
             
@@ -1873,8 +1854,8 @@ class VASTStore:
         """Delete all tags for a segment"""
         try:
             from ibis import _ as ibis_
-            predicate = (ibis_.object_id == segment_id)
-            self.db_manager.update('segments', {'tags': '{}'}, predicate)
+            predicate = (ibis_.segment_id == segment_id)
+            self.db_manager.delete('segment_tags', predicate)
             logger.info(f"Deleted all tags for segment {segment_id}")
             return True
         except Exception as e:

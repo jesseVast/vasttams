@@ -127,6 +127,7 @@ class FlowSegment(BaseModel):
     sample_count: Optional[int] = None
     get_urls: Optional[List[GetUrl]] = None
     key_frame_count: Optional[int] = None
+    tags: Optional[Tags] = None  # Add tags field
     # Soft delete fields
     deleted: Optional[bool] = False
     deleted_at: Optional[datetime] = None

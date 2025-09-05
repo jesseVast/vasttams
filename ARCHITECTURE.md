@@ -216,6 +216,7 @@ created: timestamp[us]       -- Creation timestamp
 start_time: timestamp[us]    -- Segment start time
 end_time: timestamp[us]      -- Segment end time
 duration_seconds: double     -- Segment duration
+tags: string                 -- JSON tags for categorization (6.0p4+)
 deleted: bool                -- Soft delete flag
 deleted_at: timestamp[us]    -- Deletion timestamp
 deleted_by: string           -- User who deleted
@@ -273,6 +274,35 @@ All tables include additional soft delete fields for data integrity:
 ```
 
 **Important**: Soft-deleted records are automatically excluded from all query operations to maintain data consistency.
+
+## 🏷️ Tag Architecture (6.0p4+)
+
+### Unified Tag Storage
+
+As of release 6.0p4, TAMS uses a unified column-based tag architecture across all resource types:
+
+#### **Column-Based Approach**
+- **Sources**: Tags stored in `sources.tags` column as JSON string
+- **Flows**: Tags stored in `flows.tags` column as JSON string  
+- **Segments**: Tags stored in `segments.tags` column as JSON string
+
+#### **Benefits of Unified Architecture**
+1. **Consistency**: All resources use the same tag storage mechanism
+2. **Performance**: Database-level filtering with `ibis_.tags.contains()` queries
+3. **Simplicity**: No separate table management required
+4. **Maintainability**: Single source of truth for tag data
+
+#### **Tag Query Capabilities**
+- **Value-based Filtering**: `tag.{name}=value` for exact matches
+- **Existence-based Filtering**: `tag_exists.{name}=true/false` for tag presence
+- **JSON Querying**: Efficient `ibis_.tags.contains()` for database-level filtering
+- **Cross-Resource**: Consistent query syntax across all resource types
+
+#### **Migration from Separate Tables**
+- **Previous Architecture**: Segments used separate `segment_tags` table
+- **Current Architecture**: All resources use column-based tag storage
+- **Database Cleanup**: Old `segment_tags` table removed during migration
+- **Backward Compatibility**: API endpoints remain unchanged
 
 ## 🔄 Data Flow Architecture
 

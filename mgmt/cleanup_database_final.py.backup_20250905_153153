@@ -28,6 +28,7 @@ LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 TABLES_DELETION_ORDER = [
     'deletion_requests',  # Delete first (no dependencies)
     'webhooks',          # Delete first (no dependencies)
+    'segment_tags',      # Delete before segments (depends on segments)
     'segments',          # Delete before flows (depends on flows)
     'objects',           # Delete before flows (may reference flows)
     'flows',             # Delete before sources (depends on sources)

@@ -2,6 +2,16 @@
 
 This document provides a complete end-to-end test of the TAMS API workflow, including creating sources, flows, segments, and fetching segment URLs with comprehensive tag filtering capabilities. All commands are tested and working.
 
+## ⚠️ **IMPORTANT: Database Cleanup Required**
+
+**Before running this test, ensure you have run the database cleanup script:**
+
+```bash
+python mgmt/cleanup_database_final.py
+```
+
+This is required for the 6.0p4 release due to the architectural change from separate `segment_tags` table to column-based tag storage.
+
 ## 🧪 Test Overview
 
 This test demonstrates the complete TAMS API workflow with tag functionality:

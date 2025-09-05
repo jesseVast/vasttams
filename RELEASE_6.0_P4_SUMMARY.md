@@ -4,6 +4,15 @@
 **Version**: 6.0p4  
 **Type**: Feature Release
 
+## ⚠️ **IMPORTANT: Database Cleanup Required**
+
+**This release includes a significant architectural change for segment tags that requires database cleanup before deployment:**
+
+- Segment tags have been refactored from a separate `segment_tags` table to a column-based approach within the `segments` table
+- **You MUST run the database cleanup script before deploying this release**
+- Run: `python mgmt/cleanup_database_final.py` to clean the database
+- This will remove the old `segment_tags` table and prepare for the new column-based approach
+
 ## 🎯 Overview
 
 TAMS API Release 6.0p4 introduces comprehensive tag filtering capabilities across all resource types (sources, flows, and segments) and enhanced segment download functionality. This release significantly improves the API's querying and content management capabilities while maintaining full backward compatibility.
@@ -25,8 +34,9 @@ TAMS API Release 6.0p4 introduces comprehensive tag filtering capabilities acros
 - **Combined with Other Filters**: Works seamlessly with existing timerange, format, and other query parameters
 
 #### **Database Integration**
-- **JSON-based Querying**: Efficient `ibis_.tags.contains()` queries for flows and sources
-- **Python-based Filtering**: Optimized filtering for segments with separate tag table
+- **Column-based Architecture**: All resources (sources, flows, segments) now use consistent column-based tag storage
+- **JSON-based Querying**: Efficient `ibis_.tags.contains()` queries for all resource types
+- **Database-level Filtering**: All tag filtering performed at the database level for optimal performance
 - **Performance Optimized**: Minimal impact on query performance with proper indexing
 
 ### ⬇️ Enhanced Segment Download Functionality
@@ -60,8 +70,9 @@ TAMS API Release 6.0p4 introduces comprehensive tag filtering capabilities acros
 ## 🔧 Technical Improvements
 
 ### **Database Schema Updates**
-- **Segment Tags Table**: New `segment_tags` table for efficient segment tag storage
-- **Cleanup Scripts**: Updated database management scripts to handle new table dependencies
+- **Column-based Tags**: Refactored segment tags from separate table to column-based approach for consistency
+- **Unified Architecture**: All resources (sources, flows, segments) now use consistent tag storage
+- **Cleanup Scripts**: Updated database management scripts to remove old `segment_tags` table
 - **Schema Migration**: Seamless integration with existing database schemas
 
 ### **API Enhancements**

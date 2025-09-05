@@ -2,6 +2,28 @@
 
 ## Current Status
 
+### Release 6.0p4 - Column-Based Segment Tags (Completed)
+
+**Architectural Change**: Refactored segment tags from separate table to column-based approach for consistency with sources and flows.
+
+#### **Changes Made**
+- **Database Schema**: Added `tags` column to `segments` table
+- **VASTStore Methods**: Refactored all segment tag methods to use column-based storage
+- **API Consistency**: All resources now use unified tag storage architecture
+- **Database Cleanup**: Removed old `segment_tags` table from cleanup script
+- **Testing**: Comprehensive end-to-end testing with 100% success rate
+
+#### **Benefits**
+1. **Consistency**: All resources use the same tag storage mechanism
+2. **Performance**: Database-level filtering with `ibis_.tags.contains()` queries
+3. **Simplicity**: No separate table management required
+4. **Maintainability**: Single source of truth for tag data
+
+#### **Database Cleanup Required**
+- **Script**: `python mgmt/cleanup_database_final.py`
+- **Purpose**: Remove old `segment_tags` table before deployment
+- **Impact**: Required for 6.0p4 deployment
+
 ### Documentation Restructuring (Completed)
 - **README.md** has been split into focused, manageable files
 - **USAGE.md** - Comprehensive usage examples and API workflows

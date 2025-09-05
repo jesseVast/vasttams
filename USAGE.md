@@ -8,6 +8,7 @@ This guide provides comprehensive examples and patterns for using the TAMS API, 
 - [Basic API Usage](#basic-api-usage)
 - [Flow Segment Management](#flow-segment-management)
 - [Object Management](#object-management)
+- [Tag Filtering and Management](#tag-filtering-and-management)
 - [Advanced Workflows](#advanced-workflows)
 - [Error Handling](#error-handling)
 - [Best Practices](#best-practices)
@@ -310,6 +311,114 @@ curl -X DELETE "http://localhost:8000/flows/{flow_id}/segments/{segment_id}/tags
 - **Processing Status**: Mark segments as processed, pending, or failed
 - **Custom Metadata**: Add any key-value pairs for organization
 - **Workflow Tracking**: Tag segments for different processing pipelines
+
+## 🏷️ Tag Filtering and Management
+
+TAMS 6.0p4+ includes comprehensive tag filtering capabilities across all resource types. Tags allow you to add custom metadata and filter resources based on these tags.
+
+### Tag Filtering Syntax
+
+#### Value-based Filtering
+Filter resources by specific tag values:
+```bash
+# Filter sources by tag value
+GET /sources?tag.environment=production
+
+# Filter flows by tag value  
+GET /flows?tag.priority=high
+
+# Filter segments by tag value
+GET /flows/{flow_id}/segments?tag.quality=hd
+```
+
+#### Existence-based Filtering
+Filter resources by tag presence/absence:
+```bash
+# Find resources that have a specific tag
+GET /sources?tag_exists.quality=true
+
+# Find resources that don't have a specific tag
+GET /flows?tag_exists.priority=false
+```
+
+#### Multiple Tag Filters
+Combine multiple tag filters:
+```bash
+# Multiple tag values
+GET /sources?tag.environment=production&tag.department=engineering
+
+# Mixed value and existence filters
+GET /flows?tag.priority=high&tag_exists.quality=true
+```
+
+### Tag Management Examples
+
+#### Adding Tags to Resources
+```bash
+# Add tags to a source
+POST /sources
+{
+  "id": "source-123",
+  "format": "urn:x-nmos:format:video",
+  "label": "Camera Feed",
+  "tags": {
+    "environment": "production",
+    "location": "studio-a",
+    "quality": "hd"
+  }
+}
+
+# Add tags to a flow
+POST /flows
+{
+  "id": "flow-123",
+  "source_id": "source-123",
+  "format": "urn:x-nmos:format:video",
+  "tags": {
+    "priority": "high",
+    "stream_type": "live"
+  }
+}
+
+# Add tags to a segment
+PUT /flows/{flow_id}/segments/{segment_id}/tags/quality
+"hd"
+
+PUT /flows/{flow_id}/segments/{segment_id}/tags/type
+"keyframe"
+```
+
+#### Querying with Tags
+```bash
+# Find all production resources
+curl "http://localhost:8000/sources?tag.environment=production"
+curl "http://localhost:8000/flows?tag.environment=production"
+
+# Find high-priority flows
+curl "http://localhost:8000/flows?tag.priority=high"
+
+# Find HD segments in a specific time range
+curl "http://localhost:8000/flows/{flow_id}/segments?tag.quality=hd&timerange=[0:0_15:0)"
+
+# Find segments that have quality tags
+curl "http://localhost:8000/flows/{flow_id}/segments?tag_exists.quality=true"
+```
+
+### Cross-Resource Tag Filtering
+
+Use tags to find related resources across different types:
+```bash
+# Find all resources tagged with "production"
+echo "=== Production Sources ==="
+curl -s "http://localhost:8000/sources?tag.environment=production" | jq '.[] | {type: "source", id, label}'
+
+echo "=== Production Flows ==="
+curl -s "http://localhost:8000/flows?tag.environment=production" | jq '.[] | {type: "flow", id, label}'
+
+# Find all engineering resources
+echo "=== Engineering Sources ==="
+curl -s "http://localhost:8000/sources?tag.department=engineering" | jq '.[] | {type: "source", id, label}'
+```
 
 ## 🔄 Object Management
 

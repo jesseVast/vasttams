@@ -9,6 +9,7 @@ This document provides complete documentation for all TAMS API endpoints, includ
 - [Flows Management](#flows-management)
 - [Flow Segments](#flow-segments)
 - [Segment Tagging (6.0p4+ Extension)](#segment-tagging-tams-60p4-extension)
+- [Tag Filtering (6.0p4+ Feature)](#tag-filtering-60p4-feature)
 - [Media Objects](#media-objects)
 - [Analytics Endpoints](#analytics-endpoints)
 - [Webhook Management](#webhook-management)
@@ -618,6 +619,198 @@ Delete all tags for a segment.
 {
   "message": "All tags deleted successfully"
 }
+```
+
+## 🏷️ Tag Filtering (6.0p4+ Feature)
+
+> **✨ New Feature**: Tag filtering is available in release 6.0p4 and later, providing comprehensive filtering capabilities across all resource types.
+
+### Query Parameters
+
+All list endpoints support tag filtering using the following query parameters:
+
+#### Value-based Filtering
+- `tag.{name}=value` - Filter resources where tag `{name}` equals `value`
+- Example: `tag.environment=production`
+
+#### Existence-based Filtering  
+- `tag_exists.{name}=true` - Filter resources that have tag `{name}`
+- `tag_exists.{name}=false` - Filter resources that don't have tag `{name}`
+- Example: `tag_exists.quality=true`
+
+#### Multiple Tag Filters
+- Combine multiple tag filters with `&`
+- Example: `tag.environment=production&tag.department=engineering`
+
+### Sources Tag Filtering
+
+#### `GET /sources` - List Sources with Tag Filters
+
+**Query Parameters:**
+- `tag.{name}` (string, optional): Filter by tag value
+- `tag_exists.{name}` (boolean, optional): Filter by tag existence
+- `format` (string, optional): Filter by format
+- `limit` (integer, optional): Limit number of results
+
+**Examples:**
+```bash
+# Filter sources by environment
+GET /sources?tag.environment=production
+
+# Filter sources by location
+GET /sources?tag.location=studio-a
+
+# Filter sources that have quality tag
+GET /sources?tag_exists.quality=true
+
+# Multiple tag filters
+GET /sources?tag.environment=production&tag.department=engineering
+
+# Combined with other filters
+GET /sources?tag.environment=production&format=urn:x-nmos:format:video
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "format": "urn:x-nmos:format:video",
+      "label": "Camera Feed",
+      "tags": {
+        "environment": "production",
+        "location": "studio-a",
+        "quality": "hd"
+      }
+    }
+  ]
+}
+```
+
+### Flows Tag Filtering
+
+#### `GET /flows` - List Flows with Tag Filters
+
+**Query Parameters:**
+- `tag.{name}` (string, optional): Filter by tag value
+- `tag_exists.{name}` (boolean, optional): Filter by tag existence
+- `source_id` (string, optional): Filter by source ID
+- `format` (string, optional): Filter by format
+- `limit` (integer, optional): Limit number of results
+
+**Examples:**
+```bash
+# Filter flows by priority
+GET /flows?tag.priority=high
+
+# Filter flows by stream type
+GET /flows?tag.stream_type=live
+
+# Filter flows that have priority tag
+GET /flows?tag_exists.priority=true
+
+# Multiple tag filters
+GET /flows?tag.environment=production&tag.priority=high
+
+# Combined with other filters
+GET /flows?tag.priority=high&format=urn:x-nmos:format:video
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "source_id": "550e8400-e29b-41d4-a716-446655440001",
+      "format": "urn:x-nmos:format:video",
+      "label": "HD Video Stream",
+      "tags": {
+        "priority": "high",
+        "stream_type": "live",
+        "environment": "production"
+      }
+    }
+  ]
+}
+```
+
+### Segments Tag Filtering
+
+#### `GET /flows/{flow_id}/segments` - List Segments with Tag Filters
+
+**Path Parameters:**
+- `flow_id` (string): Flow UUID
+
+**Query Parameters:**
+- `tag.{name}` (string, optional): Filter by tag value
+- `tag_exists.{name}` (boolean, optional): Filter by tag existence
+- `timerange` (string, optional): Filter by time range
+- `limit` (integer, optional): Limit number of results
+
+**Examples:**
+```bash
+# Filter segments by quality
+GET /flows/{flow_id}/segments?tag.quality=hd
+
+# Filter segments by type
+GET /flows/{flow_id}/segments?tag.type=keyframe
+
+# Filter segments that have quality tag
+GET /flows/{flow_id}/segments?tag_exists.quality=true
+
+# Multiple tag filters
+GET /flows/{flow_id}/segments?tag.quality=hd&tag.type=keyframe
+
+# Combined with timerange
+GET /flows/{flow_id}/segments?tag.quality=hd&timerange=[0:0_15:0)
+```
+
+**Response:**
+```json
+[
+  {
+    "object_id": "seg_001",
+    "timerange": "[0:0_10:0)",
+    "sample_offset": 0,
+    "sample_count": 250,
+    "get_urls": [
+      {
+        "url": "http://s3.example.com/...",
+        "label": "GET access for segment seg_001"
+      },
+      {
+        "url": "http://s3.example.com/...",
+        "label": "HEAD access for segment seg_001"
+      }
+    ],
+    "tags": {
+      "quality": "hd",
+      "type": "keyframe"
+    }
+  }
+]
+```
+
+### Cross-Resource Tag Filtering
+
+Use tag filtering to find related resources across different types:
+
+```bash
+# Find all production resources
+echo "=== Production Sources ==="
+curl -s "http://localhost:8000/sources?tag.environment=production" | jq '.[] | {type: "source", id, label}'
+
+echo "=== Production Flows ==="
+curl -s "http://localhost:8000/flows?tag.environment=production" | jq '.[] | {type: "flow", id, label}'
+
+# Find all engineering resources
+echo "=== Engineering Sources ==="
+curl -s "http://localhost:8000/sources?tag.department=engineering" | jq '.[] | {type: "source", id, label}'
+
+echo "=== Engineering Flows ==="
+curl -s "http://localhost:8000/flows?tag.department=engineering" | jq '.[] | {type: "flow", id, label}'
 ```
 
 ## 📦 Media Objects

@@ -428,6 +428,9 @@ class SourceFilters(BaseModel):
     format: Optional[ContentFormat] = None
     page: Optional[str] = None
     limit: Optional[int] = Field(None, ge=1, le=1000)
+    # Tag filtering support
+    tag_filters: Optional[Dict[str, str]] = None  # tag.{name} = value
+    tag_exists_filters: Optional[Dict[str, bool]] = None  # tag_exists.{name} = true/false
 
 
 class FlowFilters(BaseModel):
@@ -441,9 +444,22 @@ class FlowFilters(BaseModel):
     frame_height: Optional[int] = None
     page: Optional[str] = None
     limit: Optional[int] = Field(None, ge=1, le=1000)
+    # Tag filtering support
+    tag_filters: Optional[Dict[str, str]] = None  # tag.{name} = value
+    tag_exists_filters: Optional[Dict[str, bool]] = None  # tag_exists.{name} = true/false
 
 
 class FlowDetailFilters(BaseModel):
     """Flow detail query filters"""
     include_timerange: bool = False
-    timerange: Optional[TimeRange] = None 
+    timerange: Optional[TimeRange] = None
+
+
+class SegmentFilters(BaseModel):
+    """Segment query filters"""
+    timerange: Optional[TimeRange] = None
+    page: Optional[str] = None
+    limit: Optional[int] = Field(None, ge=1, le=1000)
+    # Tag filtering support
+    tag_filters: Optional[Dict[str, str]] = None  # tag.{name} = value
+    tag_exists_filters: Optional[Dict[str, bool]] = None  # tag_exists.{name} = true/false 

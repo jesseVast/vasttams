@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request
+from typing import List, Optional, Dict, Any
 from app.models import Flow, FlowsResponse, FlowFilters, FlowDetailFilters, Tags
 from app.flows import get_flows, get_flow, create_flow, update_flow, delete_flow
 from app.vast_store import VASTStore
@@ -61,10 +61,25 @@ async def list_flows(
     frame_height: Optional[int] = Query(None, description="Filter by frame height"),
     page: Optional[str] = Query(None, description="Pagination key"),
     limit: Optional[int] = Query(100, ge=1, le=1000, description="Number of results to return"),
+    request: Request = None,  # To access all query parameters for tag filtering
     store: VASTStore = Depends(get_vast_store)
 ):
-    """List flows with optional filtering"""
+    """List flows with optional filtering including tag-based filtering"""
     try:
+        # Parse tag filters from query parameters
+        tag_filters = {}
+        tag_exists_filters = {}
+        
+        if request:
+            query_params = dict(request.query_params)
+            for key, value in query_params.items():
+                if key.startswith('tag.'):
+                    tag_name = key[4:]  # Remove 'tag.' prefix
+                    tag_filters[tag_name] = value
+                elif key.startswith('tag_exists.'):
+                    tag_name = key[11:]  # Remove 'tag_exists.' prefix
+                    tag_exists_filters[tag_name] = value.lower() == 'true'
+        
         filters = FlowFilters(
             source_id=source_id,
             timerange=timerange,
@@ -74,7 +89,9 @@ async def list_flows(
             frame_width=frame_width,
             frame_height=frame_height,
             page=page,
-            limit=limit
+            limit=limit,
+            tag_filters=tag_filters if tag_filters else None,
+            tag_exists_filters=tag_exists_filters if tag_exists_filters else None
         )
         flows = await get_flows(store, filters)
         return FlowsResponse(data=flows)

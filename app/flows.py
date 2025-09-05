@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Standalone functions for router use
 async def get_flows(store: VASTStore, filters: FlowFilters) -> List[Flow]:
-    """Get flows with filtering"""
+    """Get flows with filtering including tag-based filtering"""
     try:
         filter_dict = {}
         if filters.source_id:
@@ -31,6 +31,12 @@ async def get_flows(store: VASTStore, filters: FlowFilters) -> List[Flow]:
             filter_dict['frame_width'] = filters.frame_width
         if filters.frame_height:
             filter_dict['frame_height'] = filters.frame_height
+        
+        # Add tag filtering
+        if filters.tag_filters:
+            filter_dict['tag_filters'] = filters.tag_filters
+        if filters.tag_exists_filters:
+            filter_dict['tag_exists_filters'] = filters.tag_exists_filters
         
         flows = await store.list_flows(filters=filter_dict, limit=filters.limit)
         return flows

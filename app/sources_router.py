@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request
+from typing import List, Optional, Dict, Any
 from app.models import Source, SourcesResponse, SourceFilters, Tags
 from app.sources import get_sources, get_source, create_source, delete_source
 from app.vast_store import VASTStore
@@ -28,11 +28,33 @@ async def list_sources(
     format: Optional[str] = Query(None, description="Filter by format"),
     page: Optional[str] = Query(None, description="Pagination key"),
     limit: Optional[int] = Query(100, ge=1, le=1000, description="Number of results to return"),
+    request: Request = None,  # To access all query parameters for tag filtering
     store: VASTStore = Depends(get_vast_store)
 ):
-    """List sources with optional filtering"""
+    """List sources with optional filtering including tag-based filtering"""
     try:
-        filters = SourceFilters(label=label, format=format, page=page, limit=limit)
+        # Parse tag filters from query parameters
+        tag_filters = {}
+        tag_exists_filters = {}
+        
+        if request:
+            query_params = dict(request.query_params)
+            for key, value in query_params.items():
+                if key.startswith('tag.'):
+                    tag_name = key[4:]  # Remove 'tag.' prefix
+                    tag_filters[tag_name] = value
+                elif key.startswith('tag_exists.'):
+                    tag_name = key[11:]  # Remove 'tag_exists.' prefix
+                    tag_exists_filters[tag_name] = value.lower() == 'true'
+        
+        filters = SourceFilters(
+            label=label,
+            format=format,
+            page=page,
+            limit=limit,
+            tag_filters=tag_filters if tag_filters else None,
+            tag_exists_filters=tag_exists_filters if tag_exists_filters else None
+        )
         sources = await get_sources(store, filters)
         return SourcesResponse(data=sources)
     except Exception as e:

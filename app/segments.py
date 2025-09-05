@@ -7,17 +7,18 @@ from fastapi import HTTPException
 import json
 import uuid
 from datetime import datetime, timezone
-from .models import FlowSegment, FlowStorage, FlowStoragePost, StorageLocation
+from .models import FlowSegment, FlowStorage, FlowStoragePost, StorageLocation, SegmentFilters
 from .vast_store import VASTStore
 import logging
 
 logger = logging.getLogger(__name__)
 
 # Standalone functions for router use
-async def get_flow_segments(store: VASTStore, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
-    """Get flow segments with optional timerange filtering"""
+async def get_flow_segments(store: VASTStore, flow_id: str, filters: Optional[SegmentFilters] = None) -> List[FlowSegment]:
+    """Get flow segments with optional filtering including tag-based filtering"""
     try:
-        segments = await store.get_flow_segments(flow_id, timerange=timerange)
+        timerange = filters.timerange if filters else None
+        segments = await store.get_flow_segments(flow_id, timerange=timerange, filters=filters)
         return segments
     except Exception as e:
         logger.error(f"Failed to get flow segments for {flow_id}: {e}")

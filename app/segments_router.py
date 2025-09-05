@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, Body
-from typing import List, Optional
-from app.models import FlowSegment, FlowStorage, FlowStoragePost
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, Body, Request
+from typing import List, Optional, Dict, Any
+from app.models import FlowSegment, FlowStorage, FlowStoragePost, SegmentFilters
 from app.segments import get_flow_segments, create_flow_segment, delete_flow_segments, create_flow_storage, SegmentManager
 from app.vast_store import VASTStore
 from app.dependencies import get_vast_store
@@ -51,11 +51,32 @@ async def head_flow_segments(flow_id: str):
 async def list_flow_segments(
     flow_id: str,
     timerange: Optional[str] = Query(None, description="Filter by time range"),
+    request: Request = None,  # To access all query parameters for tag filtering
     store: VASTStore = Depends(get_vast_store)
 ):
-    """List segments for a specific flow"""
+    """List segments for a specific flow with optional tag filtering"""
     try:
-        segments = await get_flow_segments(store, flow_id, timerange)
+        # Parse tag filters from query parameters
+        tag_filters = {}
+        tag_exists_filters = {}
+        
+        if request:
+            query_params = dict(request.query_params)
+            for key, value in query_params.items():
+                if key.startswith('tag.'):
+                    tag_name = key[4:]  # Remove 'tag.' prefix
+                    tag_filters[tag_name] = value
+                elif key.startswith('tag_exists.'):
+                    tag_name = key[11:]  # Remove 'tag_exists.' prefix
+                    tag_exists_filters[tag_name] = value.lower() == 'true'
+        
+        filters = SegmentFilters(
+            timerange=timerange,
+            tag_filters=tag_filters if tag_filters else None,
+            tag_exists_filters=tag_exists_filters if tag_exists_filters else None
+        )
+        
+        segments = await get_flow_segments(store, flow_id, filters)
         return segments
     except Exception as e:
         logger.error(f"Failed to list segments for flow {flow_id}: {e}")

@@ -14,13 +14,19 @@ logger = logging.getLogger(__name__)
 
 # Standalone functions for router use
 async def get_sources(store: VASTStore, filters: SourceFilters) -> List[Source]:
-    """Get sources with filtering"""
+    """Get sources with filtering including tag-based filtering"""
     try:
         filter_dict = {}
         if filters.label:
             filter_dict['label'] = filters.label
         if filters.format:
             filter_dict['format'] = filters.format
+        
+        # Add tag filtering
+        if filters.tag_filters:
+            filter_dict['tag_filters'] = filters.tag_filters
+        if filters.tag_exists_filters:
+            filter_dict['tag_exists_filters'] = filters.tag_exists_filters
         
         sources = await store.list_sources(filters=filter_dict, limit=filters.limit)
         return sources

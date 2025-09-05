@@ -6,7 +6,7 @@ This document provides detailed technical information about the TAMS API archite
 
 The TAMS API is built using a modern, modular architecture that separates concerns and provides clear interfaces between components.
 
-<img width="822" height="430" alt="TAMS_Architecture-Live_white" src="https://github.com/user-attachments/assets/23ea1987-4b30-468f-89e4-a9a3778a2a02" />
+<img width="822" height="430" alt="TAMS_Architecture-Live_white" src="TAMS_Architecture-Live_white.png" />
 
 ## 🔧 Modular Router Architecture
 

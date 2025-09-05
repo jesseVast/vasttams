@@ -133,6 +133,12 @@ class FlowSegment(BaseModel):
     deleted_by: Optional[str] = None
 
 
+class SegmentTag(BaseModel):
+    """Segment tag model"""
+    segment_id: str
+    tags: Tags
+
+
 class VideoFlow(BaseModel):
     """Video flow model"""
     id: UUID4

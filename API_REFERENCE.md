@@ -8,6 +8,7 @@ This document provides complete documentation for all TAMS API endpoints, includ
 - [Sources Management](#sources-management)
 - [Flows Management](#flows-management)
 - [Flow Segments](#flow-segments)
+- [Segment Tagging (6.0p4+ Extension)](#segment-tagging-tams-60p4-extension)
 - [Media Objects](#media-objects)
 - [Analytics Endpoints](#analytics-endpoints)
 - [Webhook Management](#webhook-management)
@@ -534,6 +535,90 @@ Allocate storage for flow segments.
 ```
 
 **Response:** HTTP 201 with storage allocation
+
+### Segment Tagging (TAMS 6.0p4+ Extension)
+
+> **⚠️ Note**: Segment tagging endpoints are **not part of the official 6.0 API specification**. These are TAMS-specific extensions available in release 6.0p4 and later.
+
+#### `GET /flows/{flow_id}/segments/{segment_id}/tags` - Get Segment Tags
+Get all tags for a specific segment.
+
+**Path Parameters:**
+- `flow_id` (string): Flow UUID
+- `segment_id` (string): Segment ID (object_id)
+
+**Response:**
+```json
+{
+  "quality": "high",
+  "type": "video",
+  "resolution": "1080p"
+}
+```
+
+#### `GET /flows/{flow_id}/segments/{segment_id}/tags/{name}` - Get Specific Tag
+Get a specific tag value for a segment.
+
+**Path Parameters:**
+- `flow_id` (string): Flow UUID
+- `segment_id` (string): Segment ID (object_id)
+- `name` (string): Tag name
+
+**Response:**
+```json
+{
+  "quality": "high"
+}
+```
+
+#### `PUT /flows/{flow_id}/segments/{segment_id}/tags/{name}` - Create/Update Tag
+Create or update a tag for a segment.
+
+**Path Parameters:**
+- `flow_id` (string): Flow UUID
+- `segment_id` (string): Segment ID (object_id)
+- `name` (string): Tag name
+
+**Request Body:**
+```json
+"high"
+```
+
+**Response:**
+```json
+{
+  "message": "Tag updated successfully"
+}
+```
+
+#### `DELETE /flows/{flow_id}/segments/{segment_id}/tags/{name}` - Delete Specific Tag
+Delete a specific tag from a segment.
+
+**Path Parameters:**
+- `flow_id` (string): Flow UUID
+- `segment_id` (string): Segment ID (object_id)
+- `name` (string): Tag name
+
+**Response:**
+```json
+{
+  "message": "Tag deleted successfully"
+}
+```
+
+#### `DELETE /flows/{flow_id}/segments/{segment_id}/tags` - Delete All Tags
+Delete all tags for a segment.
+
+**Path Parameters:**
+- `flow_id` (string): Flow UUID
+- `segment_id` (string): Segment ID (object_id)
+
+**Response:**
+```json
+{
+  "message": "All tags deleted successfully"
+}
+```
 
 ## 📦 Media Objects
 

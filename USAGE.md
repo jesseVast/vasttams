@@ -244,6 +244,73 @@ curl "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440001/segments?
 }
 ```
 
+### Segment Tagging (TAMS 6.0p4+ Extension)
+
+> **⚠️ Note**: Segment tagging endpoints are **not part of the official 6.0 API specification**. These are TAMS-specific extensions available in release 6.0p4 and later.
+
+#### **Adding Tags to Segments**
+
+```bash
+# Add a quality tag to a segment
+curl -X PUT "http://localhost:8000/flows/{flow_id}/segments/{segment_id}/tags/quality" \
+  -H "Content-Type: application/json" \
+  -d '"high"'
+
+# Add multiple tags
+curl -X PUT "http://localhost:8000/flows/{flow_id}/segments/{segment_id}/tags/type" \
+  -H "Content-Type: application/json" \
+  -d '"video"'
+
+curl -X PUT "http://localhost:8000/flows/{flow_id}/segments/{segment_id}/tags/resolution" \
+  -H "Content-Type: application/json" \
+  -d '"1080p"'
+```
+
+#### **Retrieving Segment Tags**
+
+```bash
+# Get all tags for a segment
+curl "http://localhost:8000/flows/{flow_id}/segments/{segment_id}/tags"
+
+# Response:
+{
+  "quality": "high",
+  "type": "video",
+  "resolution": "1080p"
+}
+
+# Get a specific tag
+curl "http://localhost:8000/flows/{flow_id}/segments/{segment_id}/tags/quality"
+
+# Response:
+{
+  "quality": "high"
+}
+```
+
+#### **Managing Segment Tags**
+
+```bash
+# Update an existing tag
+curl -X PUT "http://localhost:8000/flows/{flow_id}/segments/{segment_id}/tags/quality" \
+  -H "Content-Type: application/json" \
+  -d '"ultra-high"'
+
+# Delete a specific tag
+curl -X DELETE "http://localhost:8000/flows/{flow_id}/segments/{segment_id}/tags/resolution"
+
+# Delete all tags for a segment
+curl -X DELETE "http://localhost:8000/flows/{flow_id}/segments/{segment_id}/tags"
+```
+
+#### **Segment Tagging Use Cases**
+
+- **Quality Classification**: Tag segments by quality level (low, medium, high, ultra-high)
+- **Content Type**: Categorize by media type (video, audio, data)
+- **Processing Status**: Mark segments as processed, pending, or failed
+- **Custom Metadata**: Add any key-value pairs for organization
+- **Workflow Tracking**: Tag segments for different processing pipelines
+
 ## 🔄 Object Management
 
 ### Creating Objects

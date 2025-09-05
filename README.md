@@ -13,6 +13,7 @@ A comprehensive FastAPI implementation of the BBC TAMS API specification with VA
 - **Comprehensive Observability**: Prometheus metrics, OpenTelemetry tracing, and Grafana dashboards
 - **Modular Architecture**: Clean separation of concerns with dedicated routers for each domain
 - **Event-Driven Webhooks**: Complete webhook system with real-time event notifications for media operations
+- **Segment Tagging**: TAMS-specific extension for adding custom metadata tags to media segments (6.0p4+)
 - **Automatic Object Management**: Objects are automatically created and updated when segments are created
 - **Docker Support**: Containerized deployment with Docker and docker-compose
 - **Kubernetes Ready**: Complete K8s manifests for production deployment
@@ -199,6 +200,7 @@ For issues and questions:
 - [x] **Event-driven webhook system** - ✅ **COMPLETED**
 - [x] **Automatic object management** - ✅ **COMPLETED**
 - [x] **Dual URL support (GET/HEAD)** - ✅ **COMPLETED**
+- [x] **Segment tagging functionality** - ✅ **COMPLETED** (6.0p4+)
 - [ ] Real-time event streaming with WebSockets
 - [ ] Advanced analytics with machine learning
 - [ ] Multi-region deployment support

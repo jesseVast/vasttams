@@ -723,6 +723,114 @@ curl http://172.200.204.90:9000/minio/health/live
 - **[Interactive API Docs](http://localhost:8000/docs)** - Swagger UI
 - **[ReDoc Documentation](http://localhost:8000/redoc)** - Alternative docs
 
+## 🏷️ Step 9: Test Segment Tagging (TAMS 6.0p4+ Extension)
+
+> **⚠️ Note**: Segment tagging endpoints are **not part of the official 6.0 API specification**. These are TAMS-specific extensions available in release 6.0p4 and later.
+
+### 9.1 Add Tags to Segments
+
+#### Command
+```bash
+# Get a segment ID from the flow
+SEGMENT_ID=$(curl -s "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments" | jq -r '.[0].object_id')
+echo "Testing with segment ID: $SEGMENT_ID"
+
+# Add quality tag
+curl -X PUT "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments/$SEGMENT_ID/tags/quality" \
+  -H "Content-Type: application/json" \
+  -d '"high"'
+
+# Add type tag
+curl -X PUT "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments/$SEGMENT_ID/tags/type" \
+  -H "Content-Type: application/json" \
+  -d '"video"'
+
+# Add resolution tag
+curl -X PUT "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments/$SEGMENT_ID/tags/resolution" \
+  -H "Content-Type: application/json" \
+  -d '"1080p"'
+```
+
+#### Expected Response
+```json
+{"message": "Tag updated successfully"}
+```
+
+### 9.2 Retrieve Segment Tags
+
+#### Command
+```bash
+# Get all tags for the segment
+curl -s "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments/$SEGMENT_ID/tags" | jq '.'
+
+# Get a specific tag
+curl -s "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments/$SEGMENT_ID/tags/quality" | jq '.'
+```
+
+#### Expected Response
+```json
+{
+  "quality": "high",
+  "type": "video",
+  "resolution": "1080p"
+}
+```
+
+### 9.3 Update and Delete Tags
+
+#### Command
+```bash
+# Update an existing tag
+curl -X PUT "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments/$SEGMENT_ID/tags/quality" \
+  -H "Content-Type: application/json" \
+  -d '"ultra-high"'
+
+# Delete a specific tag
+curl -X DELETE "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments/$SEGMENT_ID/tags/resolution"
+
+# Verify remaining tags
+curl -s "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments/$SEGMENT_ID/tags" | jq '.'
+
+# Delete all tags
+curl -X DELETE "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments/$SEGMENT_ID/tags"
+
+# Verify no tags remain
+curl -s "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments/$SEGMENT_ID/tags" | jq '.'
+```
+
+#### Expected Response
+```json
+{"message": "Tag updated successfully"}
+{"message": "Tag deleted successfully"}
+{
+  "quality": "ultra-high",
+  "type": "video"
+}
+{"message": "All tags deleted successfully"}
+{}
+```
+
+### 9.4 Test Error Handling
+
+#### Command
+```bash
+# Try to get a non-existent tag
+curl -s "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments/$SEGMENT_ID/tags/nonexistent" | jq '.'
+
+# Try to delete a non-existent tag
+curl -X DELETE "http://localhost:8000/flows/550e8400-e29b-41d4-a716-446655440002/segments/$SEGMENT_ID/tags/nonexistent" | jq '.'
+```
+
+#### Expected Response
+```json
+{
+  "detail": "Tag not found"
+}
+{
+  "detail": "Tag not found"
+}
+```
+
 ## 🎉 Conclusion
 
 This test validates that the TAMS API is working correctly with:
@@ -733,5 +841,6 @@ This test validates that the TAMS API is working correctly with:
 - ✅ Efficient object reuse across multiple timeranges
 - ✅ Comprehensive analytics and monitoring
 - ✅ Proper error handling and validation
+- ✅ Segment tagging functionality (TAMS 6.0p4+ extension)
 
 The API is ready for production use and all core functionality is working as expected.

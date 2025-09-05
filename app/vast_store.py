@@ -291,6 +291,12 @@ class VASTStore:
             ('deleted_by', pa.string())
         ])
         
+        # Segment tags table schema
+        segment_tags_schema = pa.schema([
+            ('segment_id', pa.string()),  # References segments.id (same as object_id)
+            ('tags', pa.string())         # JSON string for key-value pairs
+        ])
+        
         # Object table schema
         object_schema = pa.schema([
             ('object_id', pa.string()),
@@ -334,6 +340,7 @@ class VASTStore:
             'sources': source_schema,
             'flows': flow_schema,
             'segments': segment_schema,
+            'segment_tags': segment_tags_schema,
             'objects': object_schema,
             'webhooks': webhook_schema,
             'deletion_requests': deletion_request_schema
@@ -1692,4 +1699,87 @@ class VASTStore:
                     return False
         except Exception as e:
             logger.error(f"Failed to delete object {object_id}: {e}")
+            return False
+
+    # Segment tag management methods
+    async def get_segment_tags(self, segment_id: str) -> Optional[Dict[str, str]]:
+        """Get all tags for a segment"""
+        try:
+            from ibis import _ as ibis_
+            predicate = (ibis_.segment_id == segment_id)
+            result = self.db_manager.select('segment_tags', predicate=predicate, output_by_row=True)
+            if result and len(result) > 0:
+                import json
+                return json.loads(result[0]['tags'])
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get segment tags for {segment_id}: {e}")
+            return None
+
+    async def update_segment_tag(self, segment_id: str, name: str, value: str) -> bool:
+        """Create or update a segment tag"""
+        try:
+            # Get existing tags
+            existing_tags = await self.get_segment_tags(segment_id) or {}
+            existing_tags[name] = value
+            
+            import json
+            tags_json = json.dumps(existing_tags)
+            
+            # Insert or update - first delete existing record, then insert new one
+            from ibis import _ as ibis_
+            predicate = (ibis_.segment_id == segment_id)
+            self.db_manager.delete('segment_tags', predicate)
+            
+            # Insert new record
+            self.db_manager.insert('segment_tags', {
+                'segment_id': [segment_id],
+                'tags': [tags_json]
+            })
+            
+            logger.info(f"Updated segment tag {name} for segment {segment_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update segment tag {name} for {segment_id}: {e}")
+            return False
+
+    async def delete_segment_tag(self, segment_id: str, name: str) -> bool:
+        """Delete a specific segment tag"""
+        try:
+            existing_tags = await self.get_segment_tags(segment_id)
+            if not existing_tags or name not in existing_tags:
+                return False
+                
+            del existing_tags[name]
+            
+            # Always delete existing record first
+            from ibis import _ as ibis_
+            predicate = (ibis_.segment_id == segment_id)
+            self.db_manager.delete('segment_tags', predicate)
+            
+            if existing_tags:
+                import json
+                tags_json = json.dumps(existing_tags)
+                # Insert updated record
+                self.db_manager.insert('segment_tags', {
+                    'segment_id': [segment_id],
+                    'tags': [tags_json]
+                })
+            
+            logger.info(f"Deleted segment tag {name} for segment {segment_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete segment tag {name} for {segment_id}: {e}")
+            return False
+
+    async def delete_segment_tags(self, segment_id: str) -> bool:
+        """Delete all tags for a segment"""
+        try:
+            from ibis import _ as ibis_
+            predicate = (ibis_.segment_id == segment_id)
+            self.db_manager.delete('segment_tags', predicate)
+            logger.info(f"Deleted all tags for segment {segment_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete segment tags for {segment_id}: {e}")
             return False 

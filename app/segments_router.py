@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
-from typing import List, Optional
-from app.models import FlowSegment, FlowStorage, FlowStoragePost
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, Body, Request
+from typing import List, Optional, Dict, Any
+from app.models import FlowSegment, FlowStorage, FlowStoragePost, SegmentFilters
 from app.segments import get_flow_segments, create_flow_segment, delete_flow_segments, create_flow_storage, SegmentManager
 from app.vast_store import VASTStore
 from app.dependencies import get_vast_store
@@ -51,11 +51,32 @@ async def head_flow_segments(flow_id: str):
 async def list_flow_segments(
     flow_id: str,
     timerange: Optional[str] = Query(None, description="Filter by time range"),
+    request: Request = None,  # To access all query parameters for tag filtering
     store: VASTStore = Depends(get_vast_store)
 ):
-    """List segments for a specific flow"""
+    """List segments for a specific flow with optional tag filtering"""
     try:
-        segments = await get_flow_segments(store, flow_id, timerange)
+        # Parse tag filters from query parameters
+        tag_filters = {}
+        tag_exists_filters = {}
+        
+        if request:
+            query_params = dict(request.query_params)
+            for key, value in query_params.items():
+                if key.startswith('tag.'):
+                    tag_name = key[4:]  # Remove 'tag.' prefix
+                    tag_filters[tag_name] = value
+                elif key.startswith('tag_exists.'):
+                    tag_name = key[11:]  # Remove 'tag_exists.' prefix
+                    tag_exists_filters[tag_name] = value.lower() == 'true'
+        
+        filters = SegmentFilters(
+            timerange=timerange,
+            tag_filters=tag_filters if tag_filters else None,
+            tag_exists_filters=tag_exists_filters if tag_exists_filters else None
+        )
+        
+        segments = await get_flow_segments(store, flow_id, filters)
         return segments
     except Exception as e:
         logger.error(f"Failed to list segments for flow {flow_id}: {e}")
@@ -189,4 +210,142 @@ async def create_flow_storage_by_id(
         raise
     except Exception as e:
         logger.error(f"Failed to create storage for flow {flow_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# Segment tag endpoints
+@router.get("/flows/{flow_id}/segments/{segment_id}/tags")
+async def get_segment_tags(
+    flow_id: str,
+    segment_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get all tags for a segment"""
+    try:
+        # Verify segment exists
+        segments = await store.get_flow_segments(flow_id)
+        segment_exists = any(seg.object_id == segment_id for seg in segments)
+        if not segment_exists:
+            raise HTTPException(status_code=404, detail="Segment not found")
+        
+        tags = await store.get_segment_tags(segment_id)
+        return tags or {}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get segment tags for {segment_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/flows/{flow_id}/segments/{segment_id}/tags/{name}")
+async def get_segment_tag(
+    flow_id: str,
+    segment_id: str,
+    name: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Get specific segment tag value"""
+    try:
+        # Verify segment exists
+        segments = await store.get_flow_segments(flow_id)
+        segment_exists = any(seg.object_id == segment_id for seg in segments)
+        if not segment_exists:
+            raise HTTPException(status_code=404, detail="Segment not found")
+        
+        tags = await store.get_segment_tags(segment_id)
+        if not tags or name not in tags:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        return {name: tags[name]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get segment tag {name} for {segment_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.put("/flows/{flow_id}/segments/{segment_id}/tags/{name}")
+async def update_segment_tag(
+    flow_id: str,
+    segment_id: str,
+    name: str,
+    value: str = Body(..., description="Tag value"),
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Create or update segment tag"""
+    try:
+        await check_flow_read_only(store, flow_id)
+        
+        # Verify segment exists
+        segments = await store.get_flow_segments(flow_id)
+        segment_exists = any(seg.object_id == segment_id for seg in segments)
+        if not segment_exists:
+            raise HTTPException(status_code=404, detail="Segment not found")
+        
+        success = await store.update_segment_tag(segment_id, name, value)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update segment tag")
+        
+        return {"message": "Tag updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update segment tag {name} for {segment_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/flows/{flow_id}/segments/{segment_id}/tags/{name}")
+async def delete_segment_tag(
+    flow_id: str,
+    segment_id: str,
+    name: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete specific segment tag"""
+    try:
+        await check_flow_read_only(store, flow_id)
+        
+        # Verify segment exists
+        segments = await store.get_flow_segments(flow_id)
+        segment_exists = any(seg.object_id == segment_id for seg in segments)
+        if not segment_exists:
+            raise HTTPException(status_code=404, detail="Segment not found")
+        
+        success = await store.delete_segment_tag(segment_id, name)
+        if not success:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        return {"message": "Tag deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete segment tag {name} for {segment_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/flows/{flow_id}/segments/{segment_id}/tags")
+async def delete_segment_tags(
+    flow_id: str,
+    segment_id: str,
+    store: VASTStore = Depends(get_vast_store)
+):
+    """Delete all tags for a segment"""
+    try:
+        await check_flow_read_only(store, flow_id)
+        
+        # Verify segment exists
+        segments = await store.get_flow_segments(flow_id)
+        segment_exists = any(seg.object_id == segment_id for seg in segments)
+        if not segment_exists:
+            raise HTTPException(status_code=404, detail="Segment not found")
+        
+        success = await store.delete_segment_tags(segment_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete segment tags")
+        
+        return {"message": "All tags deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete segment tags for {segment_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error") 

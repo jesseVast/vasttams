@@ -291,6 +291,12 @@ class VASTStore:
             ('deleted_by', pa.string())
         ])
         
+        # Segment tags table schema
+        segment_tags_schema = pa.schema([
+            ('segment_id', pa.string()),  # References segments.id (same as object_id)
+            ('tags', pa.string())         # JSON string for key-value pairs
+        ])
+        
         # Object table schema
         object_schema = pa.schema([
             ('object_id', pa.string()),
@@ -334,6 +340,7 @@ class VASTStore:
             'sources': source_schema,
             'flows': flow_schema,
             'segments': segment_schema,
+            'segment_tags': segment_tags_schema,
             'objects': object_schema,
             'webhooks': webhook_schema,
             'deletion_requests': deletion_request_schema
@@ -516,7 +523,7 @@ class VASTStore:
             return None
     
     async def list_sources(self, filters: Optional[Dict[str, Any]] = None, limit: Optional[int] = None) -> List[Source]:
-        """List sources with optional filtering"""
+        """List sources with optional filtering including tag-based filtering"""
         try:
             # Build predicate from filters
             predicate = None
@@ -526,8 +533,30 @@ class VASTStore:
                     conditions.append((ibis_.label == filters['label']))
                 if 'format' in filters:
                     conditions.append((ibis_.format == filters['format']))
+                
+                # Add tag filtering logic
+                if 'tag_filters' in filters and filters['tag_filters']:
+                    for tag_name, tag_value in filters['tag_filters'].items():
+                        # Use JSON functions to query tags - search for exact key-value pair
+                        # Note: JSON format includes spaces after colons: "key": "value"
+                        tag_condition = ibis_.tags.contains(f'"{tag_name}": "{tag_value}"')
+                        conditions.append(tag_condition)
+                
+                if 'tag_exists_filters' in filters and filters['tag_exists_filters']:
+                    for tag_name, should_exist in filters['tag_exists_filters'].items():
+                        if should_exist:
+                            # Tag should exist (has the key)
+                            tag_condition = ibis_.tags.contains(f'"{tag_name}":')
+                        else:
+                            # Tag should not exist (doesn't have the key)
+                            tag_condition = ~ibis_.tags.contains(f'"{tag_name}":')
+                        conditions.append(tag_condition)
+                
                 if conditions:
-                    predicate = conditions[0] if len(conditions) == 1 else conditions[0] & conditions[1]
+                    # Combine all conditions with AND
+                    predicate = conditions[0]
+                    for condition in conditions[1:]:
+                        predicate = predicate & condition
             
             # Add soft delete filtering
             predicate = self._add_soft_delete_predicate(predicate)
@@ -736,13 +765,21 @@ class VASTStore:
             logger.error(f"Failed to create flow segment for flow {flow_id}: {e}")
             return False
 
-    async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
-        """Get flow segment metadata from VAST DB and data from S3"""
+    async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None, filters: Optional[Dict[str, Any]] = None) -> List[FlowSegment]:
+        """Get flow segment metadata from VAST DB and data from S3 with optional tag filtering"""
         try:
             predicate = (ibis_.flow_id == flow_id)
             if timerange:
                 target_start, target_end, _ = self._parse_timerange(timerange)
                 predicate = predicate & (ibis_.start_time <= target_end) & (ibis_.end_time >= target_start)
+            
+            # Handle tag filtering for segments
+            if filters and ('tag_filters' in filters or 'tag_exists_filters' in filters):
+                # For segment tag filtering, we need to join with segment_tags table
+                # This is more complex as segments and their tags are in separate tables
+                # For now, we'll get all segments and filter them in Python
+                # In a production system, you'd want to do this at the database level with proper joins
+                pass
             
             # Add soft delete filtering
             predicate = self._add_soft_delete_predicate(predicate)
@@ -751,6 +788,32 @@ class VASTStore:
             segments = []
             if isinstance(results, list):
                 for row in results:
+                    # Check tag filtering if specified
+                    if filters and ('tag_filters' in filters or 'tag_exists_filters' in filters):
+                        segment_id = row['object_id']  # segment_id is same as object_id
+                        segment_tags = await self.get_segment_tags(segment_id)
+                        
+                        # Apply tag value filtering
+                        if 'tag_filters' in filters and filters['tag_filters']:
+                            tag_match = True
+                            for tag_name, tag_value in filters['tag_filters'].items():
+                                if not segment_tags or segment_tags.get(tag_name) != tag_value:
+                                    tag_match = False
+                                    break
+                            if not tag_match:
+                                continue
+                        
+                        # Apply tag existence filtering
+                        if 'tag_exists_filters' in filters and filters['tag_exists_filters']:
+                            tag_match = True
+                            for tag_name, should_exist in filters['tag_exists_filters'].items():
+                                has_tag = segment_tags and tag_name in segment_tags
+                                if has_tag != should_exist:
+                                    tag_match = False
+                                    break
+                            if not tag_match:
+                                continue
+                    
                     # get_urls is generated from S3
                     get_urls = await self.s3_store.create_get_urls(flow_id, row['object_id'], row['timerange'])
                     segment = FlowSegment(
@@ -1142,7 +1205,7 @@ class VASTStore:
             return {"error": str(e)}
     
     async def list_flows(self, filters: Optional[Dict[str, Any]] = None, limit: Optional[int] = None) -> List[Flow]:
-        """List flows with optional filtering"""
+        """List flows with optional filtering including tag-based filtering"""
         try:
             # Build predicate from filters
             predicate = None
@@ -1160,8 +1223,30 @@ class VASTStore:
                     conditions.append((ibis_.frame_width == filters['frame_width']))
                 if 'frame_height' in filters:
                     conditions.append((ibis_.frame_height == filters['frame_height']))
+                
+                # Add tag filtering logic
+                if 'tag_filters' in filters and filters['tag_filters']:
+                    for tag_name, tag_value in filters['tag_filters'].items():
+                        # Use JSON functions to query tags - search for exact key-value pair
+                        # Note: JSON format includes spaces after colons: "key": "value"
+                        tag_condition = ibis_.tags.contains(f'"{tag_name}": "{tag_value}"')
+                        conditions.append(tag_condition)
+                
+                if 'tag_exists_filters' in filters and filters['tag_exists_filters']:
+                    for tag_name, should_exist in filters['tag_exists_filters'].items():
+                        if should_exist:
+                            # Tag should exist (has the key)
+                            tag_condition = ibis_.tags.contains(f'"{tag_name}":')
+                        else:
+                            # Tag should not exist (doesn't have the key)
+                            tag_condition = ~ibis_.tags.contains(f'"{tag_name}":')
+                        conditions.append(tag_condition)
+                
                 if conditions:
-                    predicate = conditions[0] if len(conditions) == 1 else (conditions[0] & conditions[1])
+                    # Combine all conditions with AND
+                    predicate = conditions[0]
+                    for condition in conditions[1:]:
+                        predicate = predicate & condition
             
             # Add soft delete filtering
             predicate = self._add_soft_delete_predicate(predicate)
@@ -1692,4 +1777,87 @@ class VASTStore:
                     return False
         except Exception as e:
             logger.error(f"Failed to delete object {object_id}: {e}")
+            return False
+
+    # Segment tag management methods
+    async def get_segment_tags(self, segment_id: str) -> Optional[Dict[str, str]]:
+        """Get all tags for a segment"""
+        try:
+            from ibis import _ as ibis_
+            predicate = (ibis_.segment_id == segment_id)
+            result = self.db_manager.select('segment_tags', predicate=predicate, output_by_row=True)
+            if result and len(result) > 0:
+                import json
+                return json.loads(result[0]['tags'])
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get segment tags for {segment_id}: {e}")
+            return None
+
+    async def update_segment_tag(self, segment_id: str, name: str, value: str) -> bool:
+        """Create or update a segment tag"""
+        try:
+            # Get existing tags
+            existing_tags = await self.get_segment_tags(segment_id) or {}
+            existing_tags[name] = value
+            
+            import json
+            tags_json = json.dumps(existing_tags)
+            
+            # Insert or update - first delete existing record, then insert new one
+            from ibis import _ as ibis_
+            predicate = (ibis_.segment_id == segment_id)
+            self.db_manager.delete('segment_tags', predicate)
+            
+            # Insert new record
+            self.db_manager.insert('segment_tags', {
+                'segment_id': [segment_id],
+                'tags': [tags_json]
+            })
+            
+            logger.info(f"Updated segment tag {name} for segment {segment_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update segment tag {name} for {segment_id}: {e}")
+            return False
+
+    async def delete_segment_tag(self, segment_id: str, name: str) -> bool:
+        """Delete a specific segment tag"""
+        try:
+            existing_tags = await self.get_segment_tags(segment_id)
+            if not existing_tags or name not in existing_tags:
+                return False
+                
+            del existing_tags[name]
+            
+            # Always delete existing record first
+            from ibis import _ as ibis_
+            predicate = (ibis_.segment_id == segment_id)
+            self.db_manager.delete('segment_tags', predicate)
+            
+            if existing_tags:
+                import json
+                tags_json = json.dumps(existing_tags)
+                # Insert updated record
+                self.db_manager.insert('segment_tags', {
+                    'segment_id': [segment_id],
+                    'tags': [tags_json]
+                })
+            
+            logger.info(f"Deleted segment tag {name} for segment {segment_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete segment tag {name} for {segment_id}: {e}")
+            return False
+
+    async def delete_segment_tags(self, segment_id: str) -> bool:
+        """Delete all tags for a segment"""
+        try:
+            from ibis import _ as ibis_
+            predicate = (ibis_.segment_id == segment_id)
+            self.db_manager.delete('segment_tags', predicate)
+            logger.info(f"Deleted all tags for segment {segment_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete segment tags for {segment_id}: {e}")
             return False 

@@ -198,5 +198,35 @@ The project is currently focused on **comprehensive testing and validation** of 
 2. **Dynamic URL generation** - URLs only generated for existing objects
 3. **HEAD request support** - Both GET and HEAD operations supported
 4. **Object reuse** - Efficient content reuse across timeranges
+5. **Tag-based Flow Filtering** - Implemented tag search functionality for flows
 
 The comprehensive test suite validates all these fixes and provides a foundation for future development and testing efforts.
+
+## Recent Feature Implementation
+
+### Tag-based Filtering (New) ✅ TESTED
+- **Feature**: Added comprehensive tag filtering support for flows, sources, and segments using `tag.{name}` and `tag_exists.{name}` query parameters
+- **API Specification Compliance**: Implements the tag filtering parameters defined in the OpenAPI specification
+- **Implementation Details**:
+  - **Flows**: Updated `FlowFilters` model, flows router, business logic, and `VASTStore.list_flows()` method
+  - **Sources**: Updated `SourceFilters` model, sources router, business logic, and `VASTStore.list_sources()` method  
+  - **Segments**: Created `SegmentFilters` model, updated segments router, business logic, and `VASTStore.get_flow_segments()` method
+  - **Database Integration**: JSON-based tag querying using `ibis_.tags.contains()` for flows/sources, Python-based filtering for segments
+  - **Fixed JSON Format Issue**: Corrected query pattern to match actual JSON format with spaces (`"key": "value"`)
+  - **Database Management**: Updated `cleanup_database_final.py` to include `segment_tags` table in deletion order
+  - **Python Rules Compliance**: Refactored cleanup script following Python coding standards with constants, docstrings, type hints, and comprehensive tests
+  - **End-to-End Testing**: Created comprehensive test script with 100% success rate validating all tag functionality and segment downloads
+  - **Documentation**: Updated `FULL_WORKFLOW_TEST.md` with complete tag filtering examples, segment download testing, and automated testing section
+  - **Segment Downloads**: Implemented and tested complete segment download functionality with content verification
+- **Testing Results**: ✅ All tests passing (100% success rate)
+  - **Flows**: Tag value filtering, existence filtering, combined filtering, multiple tags ✅
+  - **Sources**: Tag value filtering, existence filtering, combined filtering ✅
+  - **Segments**: Tag value filtering, existence filtering, combined filtering ✅
+  - **Segment Downloads**: GET and HEAD URL generation, content download, verification ✅
+  - **Cross-Resource Filtering**: Tag filtering across sources, flows, and segments ✅
+  - Non-existent tag handling across all resource types ✅
+- **Usage Examples**:
+  - `GET /flows?tag.environment=production` - Get flows with environment=production tag
+  - `GET /sources?tag.priority=high` - Get sources with priority=high tag
+  - `GET /flows/{flow_id}/segments?tag.quality=hd` - Get segments with quality=hd tag
+  - `GET /flows?tag_exists.priority=true&format=urn:x-nmos:format:video` - Combined filtering

@@ -1,0 +1,3 @@
+[submodule "app/vaststore"]
+	path = app/vaststore
+	url = https://github.com/jesseVast/vaststore.git

@@ -55,6 +55,45 @@ class Settings(BaseSettings):
         env="VAST_SCHEMA"
     )
     
+    # Trino settings for vaststore SQL capabilities
+    trino_host: str = Field(
+        default="docker1",
+        description="Trino server host",
+        env="TRINO_HOST"
+    )
+    trino_port: int = Field(
+        default=8080,
+        description="Trino server port",
+        env="TRINO_PORT"
+    )
+    trino_user: str = Field(
+        default="admin",
+        description="Trino username",
+        env="TRINO_USER"
+    )
+    trino_catalog: str = Field(
+        default="vast",
+        description="Trino catalog name",
+        env="TRINO_CATALOG"
+    )
+    
+    # VastStore settings
+    vaststore_enable_trino: bool = Field(
+        default=True,
+        description="Enable Trino integration for vaststore SQL capabilities",
+        env="VASTSTORE_ENABLE_TRINO"
+    )
+    vaststore_s3_chunk_size: int = Field(
+        default=8 * 1024 * 1024,  # 8MB
+        description="S3 multipart upload chunk size in bytes",
+        env="VASTSTORE_S3_CHUNK_SIZE"
+    )
+    vaststore_s3_max_concurrent_parts: int = Field(
+        default=10,
+        description="Maximum concurrent parts for S3 multipart uploads",
+        env="VASTSTORE_S3_MAX_CONCURRENT_PARTS"
+    )
+    
     # Logging settings
     log_level: str = Field(
         default="INFO",

@@ -8,7 +8,7 @@ import logging
 from typing import Optional
 from fastapi import HTTPException, Request, Depends
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from app.models.models import User
+from app.models import User
 
 from .base import AuthProvider
 from ..models import AuthResult, AuthMethod

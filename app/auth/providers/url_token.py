@@ -53,7 +53,7 @@ class URLTokenProvider(AuthProvider):
         
         if self.vast_store:
             # Add to database
-            from app.models.models import ApiToken
+            from app.models import ApiToken
             
             api_token = ApiToken(
                 token_id=token,

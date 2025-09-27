@@ -2,62 +2,61 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
 import uuid
 from pydantic import ValidationError
-from ..models.models import Source, SourcesResponse, SourceFilters, Tags
-from .sources import get_sources, get_source, create_source, delete_source
-from ..storage.vast_store import VASTStore
-from ..core.dependencies import get_vast_store
+from ..models import Source, SourcesResponse, SourceFilters, Tags
+from ..storage import get_storage_service
+from ..storage.interfaces import StorageInterface
 from ..core.event_manager import EventManager
 from ..core.utils import log_pydantic_validation_error, safe_model_parse
 import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/sources", tags=["sources"])
 
 # HEAD endpoints
-@router.head("/sources")
+@router.head("")
 async def head_sources():
     """Return sources path headers"""
     return {}
 
 
 
-@router.options("/sources")
+@router.options("")
 async def options_sources():
     """Sources endpoint OPTIONS method for CORS preflight"""
     return {}
 
-@router.head("/sources/{source_id}")
+@router.head("/{source_id}")
 async def head_source(source_id: str):
     """Return source path headers"""
     return {}
 
 # GET endpoints
-@router.get("/sources", response_model=SourcesResponse)
+@router.get("", response_model=SourcesResponse)
 async def list_sources(
     label: Optional[str] = Query(None, description="Filter by label"),
     format: Optional[str] = Query(None, description="Filter by format"),
     page: Optional[str] = Query(None, description="Pagination key"),
     limit: Optional[int] = Query(100, ge=1, le=1000, description="Number of results to return"),
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """List sources with optional filtering"""
     try:
         filters = SourceFilters(label=label, format=format, page=page, limit=limit)
-        sources = await get_sources(store, filters)
+        sources = await storage.get_sources(filters)
         return SourcesResponse(data=sources)
     except Exception as e:
         logger.error("Failed to list sources: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/sources/{source_id}", response_model=Source)
+@router.get("/{source_id}", response_model=Source)
 async def get_source_by_id(
     source_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Get a specific source by ID"""
     try:
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         return source
@@ -68,24 +67,24 @@ async def get_source_by_id(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # POST endpoint
-@router.post("/sources", response_model=Source, status_code=201)
+@router.post("", response_model=Source, status_code=201)
 async def create_new_source(
     source: Source,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Create a new source"""
     try:
         # Log successful validation
         logger.info("Creating source with ID: %s, format: %s", source.id, source.format)
         
-        success = await create_source(store, source)
+        success = await storage.create_source(source)
         if not success:
             logger.error("Storage layer failed to create source %s", source.id)
             raise HTTPException(status_code=500, detail="Failed to create source")
         
         # Emit source created event
         try:
-            event_manager = EventManager(store)
+            event_manager = EventManager(storage)
             await event_manager.emit_source_event('sources/created', source)
         except Exception as e:
             logger.warning("Failed to emit source created event: %s", e)
@@ -109,61 +108,35 @@ async def create_new_source(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Batch POST endpoint
-@router.post("/sources/batch", response_model=List[Source], status_code=201)
+@router.post("/batch", response_model=List[Source], status_code=201)
 async def create_sources_batch(
     sources: List[Source],
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Create multiple sources using conditional logic: single insert for 1 source, batch insert for multiple"""
     try:
         if not sources:
             raise HTTPException(status_code=400, detail="No sources provided")
         
-        # If only 1 source, use single source creation
-        if len(sources) == 1:
-            success = await create_source(store, sources[0])
+        # Create sources one by one using the storage service
+        created_sources = []
+        for source in sources:
+            success = await storage.create_source(source)
             if not success:
-                raise HTTPException(status_code=500, detail="Failed to create single source")
-            logger.info("Successfully created 1 source using single insert")
-            return sources
+                raise HTTPException(status_code=500, detail=f"Failed to create source {source.id}")
+            created_sources.append(source)
         
-        # For multiple sources, use VAST's native batch insert
-        logger.info("Using VAST batch insert for %d sources", len(sources))
-        
-        # Convert Pydantic models to the format expected by insert_batch_efficient
-        # The method expects Dict[str, List[Any]] where keys are column names
-        first_source = sources[0].model_dump()
-        column_names = list(first_source.keys())
-        
-        # Transform data to column-oriented format
-        batch_data = {}
-        for col in column_names:
-            batch_data[col] = []
-            for source in sources:
-                source_dict = source.model_dump()
-                batch_data[col].append(source_dict.get(col))
-        
-        # Use VAST's native batch insert functionality
-        rows_inserted = store.db_manager.insert_batch_efficient(
-            table_name="sources",
-            data=batch_data,
-            batch_size=len(sources)
-        )
-        
-        if rows_inserted <= 0:
-            raise HTTPException(status_code=500, detail="Failed to insert sources batch")
-        
-        logger.info("Successfully created %d sources using VAST batch insert", rows_inserted)
+        logger.info("Successfully created %d sources", len(created_sources))
         
         # Emit source created events for batch creation
         try:
-            event_manager = EventManager(store)
-            for source in sources:
+            event_manager = EventManager(storage)
+            for source in created_sources:
                 await event_manager.emit_source_event('sources/created', source)
         except Exception as e:
             logger.warning("Failed to emit batch source created events: %s", e)
         
-        return sources
+        return created_sources
         
     except HTTPException:
         raise
@@ -172,15 +145,15 @@ async def create_sources_batch(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Source Collection Management Endpoints
-@router.get("/sources/{source_id}/source_collection")
+@router.get("/{source_id}/source_collection")
 async def get_source_collection(
     source_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Get source collection - dynamically computed from source_collections table"""
     try:
         # Get collections dynamically from the source_collections table
-        collections = await store.get_source_collections(source_id)
+        collections = await storage.get_source_collections(source_id)
         
         # Return collection IDs for backward compatibility
         collection_ids = [col.collection_id for col in collections]
@@ -191,27 +164,27 @@ async def get_source_collection(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.put("/sources/{source_id}/source_collection")
+@router.put("/{source_id}/source_collection")
 async def update_source_collection(
     source_id: str,
     source_collection: List[str],
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Update source collection - now managed dynamically via source_collections table"""
     try:
         # Check if source exists
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
         # Get current collections
-        current_collections = await store.get_source_collections(source_id)
+        current_collections = await storage.get_source_collections(source_id)
         current_collection_ids = [col.collection_id for col in current_collections]
         
         # Remove sources from collections they're no longer in
         for collection_id in current_collection_ids:
             if collection_id not in source_collection:
-                await store.remove_source_from_collection(collection_id, source_id)
+                await storage.remove_source_from_collection(collection_id, source_id)
         
         # Add sources to new collections
         for collection_id in source_collection:
@@ -219,7 +192,7 @@ async def update_source_collection(
                 # Generate a default label and description
                 label = f"Collection {collection_id[:8]}"
                 description = f"Auto-generated collection for source {source_id[:8]}"
-                await store.add_source_to_collection(collection_id, source_id, label, description)
+                await storage.add_source_to_collection(collection_id, source_id, label, description)
         
         return {"message": "Source collection updated successfully"}
         
@@ -230,7 +203,7 @@ async def update_source_collection(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.head("/sources/{source_id}/source_collection")
+@router.head("/{source_id}/source_collection")
 async def head_source_collection(source_id: str):
     """Return source collection path headers"""
     return {}
@@ -242,12 +215,12 @@ async def create_source_collection(
     collection_id: str,
     label: str,
     description: Optional[str] = None,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Create a new source collection"""
     try:
         # Create the collection directly
-        success = await store.create_source_collection(
+        success = await storage.create_source_collection(
             collection_id, 
             label, 
             description
@@ -268,11 +241,11 @@ async def create_source_collection(
 @router.get("/source-collections/{collection_id}/sources")
 async def get_source_collection_sources(
     collection_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Get all sources in a source collection"""
     try:
-        sources = await store.get_collection_sources(collection_id)
+        sources = await storage.get_collection_sources(collection_id)
         return {"collection_id": collection_id, "sources": sources}
         
     except Exception as e:
@@ -283,11 +256,11 @@ async def get_source_collection_sources(
 @router.delete("/source-collections/{collection_id}")
 async def delete_source_collection(
     collection_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Delete a source collection and remove all source associations"""
     try:
-        success = await store.delete_source_collection(collection_id)
+        success = await storage.delete_source_collection(collection_id)
         if success:
             return {"message": f"Source collection {collection_id} deleted successfully"}
         else:
@@ -300,25 +273,25 @@ async def delete_source_collection(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # DELETE endpoint
-@router.delete("/sources/{source_id}")
+@router.delete("/{source_id}")
 async def delete_source_by_id(
     source_id: str,
     cascade: bool = Query(True, description="Cascade delete related flows"),
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Delete a source (hard delete only - TAMS compliant)"""
     try:
         # Get source before deletion for event emission
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         
-        success = await delete_source(store, source_id, cascade)
+        success = await storage.delete_source(source_id, cascade)
         if not success:
             raise HTTPException(status_code=404, detail="Source not found")
         
         # Emit source deleted event
         if source:
             try:
-                event_manager = EventManager(store)
+                event_manager = EventManager(storage)
                 await event_manager.emit_source_event('sources/deleted', source)
             except Exception as e:
                 logger.warning("Failed to emit source deleted event: %s", e)
@@ -338,30 +311,30 @@ async def delete_source_by_id(
 
 
 # Source tags endpoints
-@router.head("/sources/{source_id}/tags")
+@router.head("/{source_id}/tags")
 async def head_source_tags(source_id: str):
     """Return Source tags path headers"""
     return {}
 
-@router.get("/sources/{source_id}/tags", response_model=Tags)
+@router.get("/{source_id}/tags", response_model=Tags)
 async def list_source_tags(
     source_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """List Source Tags"""
     try:
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
-        # Get tags from the new tags storage architecture
-        tags = await store.get_source_tags(source_id)
+        # Get tags from the storage service
+        tags = await storage.get_source_tags(source_id)
         return tags if tags else Tags({})
         
     except ValidationError as e:
         error_msg = log_pydantic_validation_error(
             error=e,
-            context=f"GET /sources/{source_id}/tags",
+            context=f"GET /{source_id}/tags",
             input_data={"source_id": source_id, "source": str(source) if source else "None"},
             model_name="Tags"
         )
@@ -376,25 +349,25 @@ async def list_source_tags(
 # This endpoint removed for TAMS compliance
 # Code preserved in VASTStore.update_source_tags() for potential future use
 
-@router.head("/sources/{source_id}/tags/{name}")
+@router.head("/{source_id}/tags/{name}")
 async def head_source_tag(source_id: str, name: str):
     """Return Source tag path headers"""
     return {}
 
-@router.get("/sources/{source_id}/tags/{name}", response_model=str)
+@router.get("/{source_id}/tags/{name}", response_model=str)
 async def get_source_tag(
     source_id: str,
     name: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Source Tag Value"""
     try:
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
-        # Get specific tag value from the new tags storage architecture
-        tag_value = await store.get_source_tag(source_id, name)
+        # Get specific tag value from the storage service
+        tag_value = await storage.get_source_tag(source_id, name)
         if tag_value is not None:
             return tag_value
         else:
@@ -406,30 +379,30 @@ async def get_source_tag(
         logger.error("Failed to get source tag %s for %s: %s", name, source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.put("/sources/{source_id}/tags/{name}", status_code=204)
+@router.put("/{source_id}/tags/{name}", status_code=204)
 async def update_source_tag(
     source_id: str,
     name: str,
     value: str = Body(..., media_type="text/plain"),
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Update Source Tag Value"""
     try:
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
-        # Update specific tag using individual tag update (like flow tags)
+        # Update specific tag using storage service
         logger.info("🔍 DEBUG: Source tag update - source_id: %s, name: %s, value: %s", source_id, name, value)
         logger.info("🔍 DEBUG: Value type: %s", type(value))
         
-        success = await store.update_source_tag(source_id, name, value)
+        success = await storage.update_source_tag(source_id, name, value)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update source tag")
         
         # Emit source updated event
         try:
-            event_manager = EventManager(store)
+            event_manager = EventManager(storage)
             await event_manager.emit_source_event('sources/updated', source)
         except Exception as e:
             logger.warning("Failed to emit source updated event: %s", e)
@@ -442,33 +415,29 @@ async def update_source_tag(
         logger.error("Failed to update source tag %s for %s: %s", name, source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.delete("/sources/{source_id}/tags/{name}", status_code=204)
+@router.delete("/{source_id}/tags/{name}", status_code=204)
 async def delete_source_tag(
     source_id: str,
     name: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Delete Source Tag"""
     try:
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
-        # Remove specific tag
-        current_tags = source.tags.root if source.tags else {}
-        if name in current_tags:
-            # Create a new dictionary without the tag to delete
-            new_tags = {k: v for k, v in current_tags.items() if k != name}
-            success = await store.update_source_tags(source_id, Tags(**new_tags))
-            if not success:
-                raise HTTPException(status_code=500, detail="Failed to delete source tag")
-            
-            # Emit source updated event
-            try:
-                event_manager = EventManager(store)
-                await event_manager.emit_source_event('sources/updated', source)
-            except Exception as e:
-                logger.warning("Failed to emit source updated event: %s", e)
+        # Remove specific tag using storage service
+        success = await storage.delete_source_tag(source_id, name)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete source tag")
+        
+        # Emit source updated event
+        try:
+            event_manager = EventManager(storage)
+            await event_manager.emit_source_event('sources/updated', source)
+        except Exception as e:
+            logger.warning("Failed to emit source updated event: %s", e)
         
         return  # 204 No Content
         
@@ -480,19 +449,19 @@ async def delete_source_tag(
 
 
 
-@router.head("/sources/{source_id}/description")
+@router.head("/{source_id}/description")
 async def head_source_description(source_id: str):
     """Return source description path headers"""
     return {}
 
-@router.get("/sources/{source_id}/description")
+@router.get("/{source_id}/description")
 async def get_source_description(
     source_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Get source description"""
     try:
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         return source.description or ""
@@ -502,26 +471,26 @@ async def get_source_description(
         logger.error("Failed to get source description for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.put("/sources/{source_id}/description")
+@router.put("/{source_id}/description")
 async def update_source_description(
     source_id: str,
     description: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Update source description"""
     try:
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
         source.description = description
-        success = await store.update_source(source_id, source)
+        success = await storage.update_source(source_id, source)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update source description")
         
         # Emit source updated event
         try:
-            event_manager = EventManager(store)
+            event_manager = EventManager(storage)
             await event_manager.emit_source_event('sources/updated', source)
         except Exception as e:
             logger.warning("Failed to emit source updated event: %s", e)
@@ -533,27 +502,27 @@ async def update_source_description(
         logger.error("Failed to update source description for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.delete("/sources/{source_id}/description")
+@router.delete("/{source_id}/description")
 async def delete_source_description(
     source_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Delete source description"""
     try:
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
         source.description = None
         
         # Save the updated source
-        success = await store.update_source(source_id, source)
+        success = await storage.update_source(source_id, source)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete source description")
         
         # Emit source updated event
         try:
-            event_manager = EventManager(store)
+            event_manager = EventManager(storage)
             await event_manager.emit_source_event('sources/updated', source)
         except Exception as e:
             logger.warning("Failed to emit source updated event: %s", e)
@@ -565,19 +534,19 @@ async def delete_source_description(
         logger.error("Failed to delete source description for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.head("/sources/{source_id}/label")
+@router.head("/{source_id}/label")
 async def head_source_label(source_id: str):
     """Return source label path headers"""
     return {}
 
-@router.get("/sources/{source_id}/label")
+@router.get("/{source_id}/label")
 async def get_source_label(
     source_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Get source label"""
     try:
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         return source.label or ""
@@ -587,26 +556,26 @@ async def get_source_label(
         logger.error("Failed to get source label for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.put("/sources/{source_id}/label")
+@router.put("/{source_id}/label")
 async def update_source_label(
     source_id: str,
     label: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Update source label"""
     try:
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
         source.label = label
-        success = await store.update_source(source_id, source)
+        success = await storage.update_source(source_id, source)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update source label")
         
         # Emit source updated event
         try:
-            event_manager = EventManager(store)
+            event_manager = EventManager(storage)
             await event_manager.emit_source_event('sources/updated', source)
         except Exception as e:
             logger.warning("Failed to emit source updated event: %s", e)
@@ -618,27 +587,27 @@ async def update_source_label(
         logger.error("Failed to update source label for %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.delete("/sources/{source_id}/label")
+@router.delete("/{source_id}/label")
 async def delete_source_label(
     source_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Delete source label"""
     try:
-        source = await get_source(store, source_id)
+        source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
         source.label = None
         
         # Save the updated source
-        success = await store.update_source(source_id, source)
+        success = await storage.update_source(source_id, source)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete source label")
         
         # Emit source updated event
         try:
-            event_manager = EventManager(store)
+            event_manager = EventManager(storage)
             await event_manager.emit_source_event('sources/updated', source)
         except Exception as e:
             logger.warning("Failed to emit source updated event: %s", e)
@@ -648,197 +617,4 @@ async def delete_source_label(
         raise
     except Exception as e:
         logger.error("Failed to delete source label for %s: %s", source_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-# Tags management endpoints
-@router.head("/sources/{source_id}/tags")
-async def head_source_tags(source_id: str):
-    """Return source tags path headers"""
-    return {}
-
-@router.get("/sources/{source_id}/tags")
-async def get_source_tags(
-    source_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Get source tags"""
-    try:
-        source = await get_source(store, source_id)
-        if not source:
-            raise HTTPException(status_code=404, detail="Source not found")
-        return source.tags or {}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get source tags for %s: %s", source_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.post("/sources/{source_id}/tags")
-async def create_source_tags(
-    source_id: str,
-    tags: Tags = Body(..., description="Tags to create or update"),
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Create or update source tags"""
-    try:
-        source = await get_source(store, source_id)
-        if not source:
-            raise HTTPException(status_code=404, detail="Source not found")
-        
-        # Merge new tags with existing ones
-        if source.tags:
-            source.tags.update(tags)
-        else:
-            source.tags = tags
-        
-        success = await store.update_source(source_id, source)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update source tags")
-        
-        # Emit source updated event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_source_event('sources/updated', source)
-        except Exception as e:
-            logger.warning("Failed to emit source updated event: %s", e)
-        
-        return {"message": "Tags updated successfully"}
-    except ValidationError as e:
-        error_msg = log_pydantic_validation_error(
-            error=e,
-            context=f"POST /sources/{source_id}/tags",
-            input_data={"source_id": source_id, "tags": dict(tags) if tags else {}},
-            model_name="Tags"
-        )
-        raise HTTPException(status_code=422, detail=error_msg)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update source tags for %s: %s", source_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.delete("/sources/{source_id}/tags")
-async def delete_source_tags(
-    source_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Delete all source tags"""
-    try:
-        source = await get_source(store, source_id)
-        if not source:
-            raise HTTPException(status_code=404, detail="Source not found")
-        
-        source.tags = {}
-        success = await store.update_source(source_id, source)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to delete source tags")
-        
-        # Emit source updated event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_source_event('sources/updated', source)
-        except Exception as e:
-            logger.warning("Failed to emit source updated event: %s", e)
-        
-        return {"message": "All tags deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to delete source tags for %s: %s", source_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.head("/sources/{source_id}/tags/{name}")
-async def head_source_tag(source_id: str, name: str):
-    """Return source tag path headers"""
-    return {}
-
-@router.get("/sources/{source_id}/tags/{name}")
-async def get_source_tag(
-    source_id: str,
-    name: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Get a specific source tag"""
-    try:
-        source = await get_source(store, source_id)
-        if not source:
-            raise HTTPException(status_code=404, detail="Source not found")
-        
-        if not source.tags or name not in source.tags:
-            raise HTTPException(status_code=404, detail="Tag not found")
-        
-        return {name: source.tags[name]}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get source tag %s for %s: %s", name, source_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.put("/sources/{source_id}/tags/{name}")
-async def update_source_tag(
-    source_id: str,
-    name: str,
-    value: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update a specific source tag"""
-    try:
-        source = await get_source(store, source_id)
-        if not source:
-            raise HTTPException(status_code=404, detail="Source not found")
-        
-        if not source.tags:
-            source.tags = {}
-        
-        source.tags[name] = value
-        success = await store.update_source(source_id, source)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update source tag")
-        
-        # Emit source updated event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_source_event('sources/updated', source)
-        except Exception as e:
-            logger.warning("Failed to emit source updated event: %s", e)
-        
-        return {"message": f"Tag {name} updated successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update source tag %s for %s: %s", name, source_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.delete("/sources/{source_id}/tags/{name}")
-async def delete_source_tag(
-    source_id: str,
-    name: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Delete a specific source tag"""
-    try:
-        source = await get_source(store, source_id)
-        if not source:
-            raise HTTPException(status_code=404, detail="Source not found")
-        
-        if not source.tags or name not in source.tags:
-            raise HTTPException(status_code=404, detail="Tag not found")
-        
-        del source.tags[name]
-        success = await store.update_source(source_id, source)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to delete source tag")
-        
-        # Emit source updated event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_source_event('sources/updated', source)
-        except Exception as e:
-            logger.warning("Failed to emit source updated event: %s", e)
-        
-        return {"message": f"Tag {name} deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to delete source tag %s for %s: %s", name, source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -70,3 +70,4 @@ async def delete_deletion_request(
     except Exception as e:
         logger.error("Failed to delete deletion request: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
+

@@ -8,7 +8,8 @@ from fastapi import Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from .base import AuthProvider
-from ..models import AuthResult, AuthMethod, User, AuthConfig
+from ..models import AuthResult, AuthMethod, AuthConfig
+from ...models import User
 
 logger = logging.getLogger(__name__)
 

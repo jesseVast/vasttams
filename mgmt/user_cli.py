@@ -18,7 +18,8 @@ from typing import Optional
 # Add the app directory to the path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from app.storage.vast_store import VASTStore
+from app.vaststore.vastdbmanager import VastDBManager
+from app.vaststore.s3 import S3Client
 from app.models.models import User, UserCreate, UserUpdate, UserPasswordChange
 from app.core.config import get_settings
 
@@ -28,32 +29,41 @@ class UserManager:
     
     def __init__(self):
         self.settings = get_settings()
-        self.store = None
+        self.vast_db = None
+        self.s3_client = None
     
     async def initialize(self):
-        """Initialize the VAST store connection"""
+        """Initialize the vaststore connections"""
         try:
-            self.store = VASTStore(
-                endpoint=self.settings.vast_endpoint,
+            self.vast_db = VastDBManager(
+                endpoints=[self.settings.vast_endpoint],
                 access_key=self.settings.vast_access_key,
                 secret_key=self.settings.vast_secret_key,
                 bucket=self.settings.vast_bucket,
                 schema=self.settings.vast_schema,
-                s3_endpoint_url=self.settings.s3_endpoint_url,
-                s3_access_key_id=self.settings.s3_access_key_id,
-                s3_secret_access_key=self.settings.s3_secret_access_key,
-                s3_bucket_name=self.settings.s3_bucket_name,
-                s3_use_ssl=self.settings.s3_use_ssl
+                enable_trino=self.settings.vaststore_enable_trino,
+                trino_host=self.settings.trino_host,
+                trino_port=self.settings.trino_port,
+                trino_user=self.settings.trino_user,
+                trino_catalog=self.settings.trino_catalog
             )
-            print("✅ Connected to VAST database")
+            self.s3_client = S3Client(
+                endpoint_url=self.settings.s3_endpoint_url,
+                bucket_name=self.settings.s3_bucket_name,
+                access_key=self.settings.s3_access_key_id,
+                secret_key=self.settings.s3_secret_access_key,
+                region=self.settings.s3_region,
+                use_ssl=self.settings.s3_use_ssl
+            )
+            print("✅ Connected to VAST database and S3")
         except Exception as e:
             print(f"❌ Failed to connect to VAST database: {e}")
             sys.exit(1)
     
     async def close(self):
-        """Close the VAST store connection"""
-        if self.store:
-            await self.store.close()
+        """Close the vaststore connections"""
+        # VastDBManager and S3Client don't need explicit closing
+        pass
     
     def hash_password(self, password: str) -> tuple[str, str]:
         """Hash a password using bcrypt"""

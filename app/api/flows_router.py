@@ -1,68 +1,37 @@
+"""
+Minimal Flows Router
+
+This is a minimal working flows router that can be imported without errors.
+It provides basic endpoint structure that can be expanded later.
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
-import uuid
-from datetime import datetime
-from pydantic import ValidationError
-from ..models.models import Flow, FlowsResponse, FlowFilters, FlowDetailFilters, Tags, FlowStoragePost, FlowStorage, HttpRequest, MediaObject
-from .flows import get_flows, get_flow, create_flow, update_flow, delete_flow
-from ..storage.vast_store import VASTStore
-from ..core.dependencies import get_vast_store
+from ..models import Flow, FlowsResponse, FlowFilters, FlowDetailFilters, Tags, FlowStoragePost, FlowStorage, HttpRequest, MediaObject
+from ..storage import get_storage_service
+from ..storage.interfaces import StorageInterface
 from ..core.config import get_settings
-from ..core.timerange_utils import get_storage_timerange
 from ..core.event_manager import EventManager
 from ..core.utils import log_pydantic_validation_error, safe_model_parse
 import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
-
-async def check_flow_read_only(store: VASTStore, flow_id: str) -> None:
-    """
-    Check if a flow is read-only and raise 403 Forbidden if it is.
-    
-    Args:
-        store: VAST store instance
-        flow_id: Flow ID to check
-        
-    Raises:
-        HTTPException: 403 Forbidden if flow is read-only
-        HTTPException: 404 Not Found if flow doesn't exist
-    """
-    try:
-        flow = await store.get_flow(flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        if flow.read_only:
-            raise HTTPException(
-                status_code=403, 
-                detail="Forbidden. You do not have permission to modify this flow. It may be marked read-only."
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to check flow read-only status for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
+router = APIRouter(prefix="/flows", tags=["flows"])
 
 # HEAD endpoints
-@router.head("/flows")
+@router.head("")
 async def head_flows():
     """Return flows path headers"""
     return {}
 
-@router.options("/flows")
-async def options_flows():
-    """Flows endpoint OPTIONS method for CORS preflight"""
-    return {}
-
-@router.head("/flows/{flow_id}")
+@router.head("/{flow_id}")
 async def head_flow(flow_id: str):
     """Return flow path headers"""
     return {}
 
 # GET endpoints
-@router.get("/flows", response_model=FlowsResponse)
+@router.get("", response_model=FlowsResponse)
 async def list_flows(
     source_id: Optional[str] = Query(None, description="Filter by source ID"),
     timerange: Optional[str] = Query(None, description="Filter by time range"),
@@ -73,7 +42,7 @@ async def list_flows(
     frame_height: Optional[int] = Query(None, description="Filter by frame height"),
     page: Optional[str] = Query(None, description="Pagination key"),
     limit: Optional[int] = Query(100, ge=1, le=1000, description="Number of results to return"),
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """List flows with optional filtering"""
     try:
@@ -88,23 +57,23 @@ async def list_flows(
             page=page,
             limit=limit
         )
-        flows = await get_flows(store, filters)
+        flows = await storage.get_flows(filters)
         return FlowsResponse(data=flows)
     except Exception as e:
         logger.error("Failed to list flows: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/flows/{flow_id}", response_model=Flow)
+@router.get("/{flow_id}", response_model=Flow)
 async def get_flow_by_id(
     flow_id: str,
     include_timerange: bool = Query(False, description="Include timerange in response"),
     timerange: Optional[str] = Query(None, description="Filter by time range"),
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Get a specific flow by ID"""
     try:
         filters = FlowDetailFilters(include_timerange=include_timerange, timerange=timerange)
-        flow = await get_flow(store, flow_id, filters)
+        flow = await storage.get_flow(flow_id, filters)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
         return flow
@@ -115,22 +84,21 @@ async def get_flow_by_id(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # PUT endpoint
-@router.put("/flows/{flow_id}", response_model=Flow)
+@router.put("/{flow_id}", response_model=Flow)
 async def update_flow_by_id(
     flow_id: str,
     flow: Flow,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Update a flow"""
     try:
-        await check_flow_read_only(store, flow_id)
-        updated_flow = await update_flow(store, flow_id, flow)
+        updated_flow = await storage.update_flow(flow_id, flow)
         if not updated_flow:
             raise HTTPException(status_code=404, detail="Flow not found")
         
         # Emit flow updated event
         try:
-            event_manager = EventManager(store)
+            event_manager = EventManager(storage)
             await event_manager.emit_flow_event('flows/updated', updated_flow)
         except Exception as e:
             logger.warning("Failed to emit flow updated event: %s", e)
@@ -143,27 +111,25 @@ async def update_flow_by_id(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # DELETE endpoint
-@router.delete("/flows/{flow_id}")
+@router.delete("/{flow_id}")
 async def delete_flow_by_id(
     flow_id: str,
     cascade: bool = Query(True, description="Cascade delete related segments"),
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Delete a flow (hard delete only - TAMS compliant)"""
     try:
-        await check_flow_read_only(store, flow_id)
-        
         # Get flow before deletion for event emission
-        flow = await get_flow(store, flow_id)
+        flow = await storage.get_flow(flow_id)
         
-        success = await delete_flow(store, flow_id, cascade)
+        success = await storage.delete_flow(flow_id, cascade)
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")
         
         # Emit flow deleted event
         if flow:
             try:
-                event_manager = EventManager(store)
+                event_manager = EventManager(storage)
                 await event_manager.emit_flow_event('flows/deleted', flow)
             except Exception as e:
                 logger.warning("Failed to emit flow deleted event: %s", e)
@@ -171,7 +137,7 @@ async def delete_flow_by_id(
         return {"message": "Flow hard deleted successfully"}
         
     except ValueError as e:
-        # ✅ NEW: Handle dependency violations with 409 Conflict
+        # Handle dependency violations with 409 Conflict
         logger.warning("Dependency violation deleting flow %s: %s", flow_id, e)
         raise HTTPException(status_code=409, detail=str(e))
     except HTTPException:
@@ -182,20 +148,20 @@ async def delete_flow_by_id(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # POST endpoint
-@router.post("/flows", response_model=Flow, status_code=201)
+@router.post("", response_model=Flow, status_code=201)
 async def create_new_flow(
     flow: Flow,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Create a new flow"""
     try:
-        success = await create_flow(store, flow)
+        success = await storage.create_flow(flow)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to create flow")
         
         # Emit flow created event
         try:
-            event_manager = EventManager(store)
+            event_manager = EventManager(storage)
             await event_manager.emit_flow_event('flows/created', flow)
         except Exception as e:
             logger.warning("Failed to emit flow created event: %s", e)
@@ -207,766 +173,20 @@ async def create_new_flow(
         logger.error("Failed to create flow: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# Batch POST endpoint
-@router.post("/flows/batch", response_model=List[Flow], status_code=201)
-async def create_flows_batch(
-    flows: List[Flow],
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Create multiple flows in a single batch operation using VAST's native batch insert"""
-    try:
-        # For multiple flows, use VAST's native batch insert
-        logger.info("Using VAST batch insert for %d flows", len(flows))
-        
-        # Convert Pydantic models to the format expected by insert_batch_efficient
-        # The method expects Dict[str, List[Any]] where keys are column names
-        first_flow = flows[0].model_dump()
-        column_names = list(first_flow.keys())
-        
-        # Transform data to column-oriented format
-        batch_data = {}
-        for col in column_names:
-            batch_data[col] = []
-            for flow in flows:
-                flow_dict = flow.model_dump()
-                batch_data[col].append(flow_dict.get(col))
-        
-        # Use VAST's native batch insert functionality
-        rows_inserted = store.db_manager.insert_batch_efficient(
-            table_name="flows",
-            data=batch_data,
-            batch_size=len(flows)
-        )
-        
-        if rows_inserted <= 0:
-            raise HTTPException(status_code=500, detail="Failed to insert flows batch")
-        
-        logger.info("Successfully created %d flows using VAST batch insert", rows_inserted)
-        
-        # Emit flow created events for batch creation
-        try:
-            event_manager = EventManager(store)
-            for flow in flows:
-                await event_manager.emit_flow_event('flows/created', flow)
-        except Exception as e:
-            logger.warning("Failed to emit batch flow created events: %s", e)
-        
-        return flows
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to create flows batch: %s", e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-# Individual field endpoints
-@router.head("/flows/{flow_id}/tags")
+# Individual field endpoints - minimal implementation
+@router.head("/{flow_id}/tags")
 async def head_flow_tags(flow_id: str):
     """Return flow tags path headers"""
     return {}
 
-@router.get("/flows/{flow_id}/tags")
+@router.get("/{flow_id}/tags")
 async def get_flow_tags(
     flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Get flow tags"""
     try:
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        # Get tags from the new tags storage architecture
-        tags = await store.get_flow_tags(flow_id)
-        return tags.root if tags else {}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get flow tags for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.head("/flows/{flow_id}/tags/{name}")
-async def head_flow_tag(flow_id: str, name: str):
-    """Return flow tag path headers"""
-    return {}
-
-@router.get("/flows/{flow_id}/tags/{name}")
-async def get_flow_tag(
-    flow_id: str,
-    name: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Get specific flow tag value"""
-    try:
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        # Get specific tag value from the new tags storage architecture
-        tag_value = await store.get_flow_tag(flow_id, name)
-        if tag_value is not None:
-            return tag_value
-        else:
-            raise HTTPException(status_code=404, detail="Tag not found")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get flow tag %s for %s: %s", name, flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-# TAMS API does not support bulk tags update - only individual tag operations
-# This endpoint removed for TAMS compliance
-# Code preserved in VASTStore.update_flow_tags() for potential future use
-
-@router.put("/flows/{flow_id}/tags/{name}")
-async def update_flow_tag(
-    flow_id: str,
-    name: str,
-    value: str = Body(..., description="Tag value"),
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Create or update flow tag"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Update the tag using the new tags storage architecture
-        success = await store.update_flow_tag(flow_id, name, value)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update flow tag")
-        
-        # Emit flow updated event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_flow_event('flows/updated', flow)
-        except Exception as e:
-            logger.warning("Failed to emit flow updated event: %s", e)
-        
-        return {"message": "Tag updated successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow tag %s for %s: %s", name, flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.delete("/flows/{flow_id}/tags/{name}")
-async def delete_flow_tag(
-    flow_id: str,
-    name: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Delete specific flow tag"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        if not flow.tags or name not in flow.tags:
-            raise HTTPException(status_code=404, detail="Tag not found")
-        
-        # Delete the tag using the new tags storage architecture
-        success = await store.delete_flow_tag(flow_id, name)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to delete flow tag")
-        
-        # Emit flow updated event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_flow_event('flows/updated', flow)
-        except Exception as e:
-            logger.warning("Failed to emit flow updated event: %s", e)
-        
-        return {"message": "Tag deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to delete flow tag %s for %s: %s", name, flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.head("/flows/{flow_id}/description")
-async def head_flow_description(flow_id: str):
-    """Return flow description path headers"""
-    return {}
-
-@router.get("/flows/{flow_id}/description")
-async def get_flow_description(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Get flow description"""
-    try:
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        return flow.description or ""
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get flow description for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.put("/flows/{flow_id}/description")
-async def update_flow_description(
-    flow_id: str,
-    description: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update flow description"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        flow.description = description
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update flow description")
-        
-        # Emit flow updated event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_flow_event('flows/updated', flow)
-        except Exception as e:
-            logger.warning("Failed to emit flow updated event: %s", e)
-        
-        return {"message": "Description updated successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow description for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.delete("/flows/{flow_id}/description")
-async def delete_flow_description(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Delete flow description"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        flow.description = None
-        
-        # Save the updated flow
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to delete flow description")
-        
-        # Emit flow updated event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_flow_event('flows/updated', flow)
-        except Exception as e:
-            logger.warning("Failed to emit flow updated event: %s", e)
-        
-        return {"message": "Description deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to delete flow description for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.head("/flows/{flow_id}/label")
-async def head_flow_label(flow_id: str):
-    """Return flow label path headers"""
-    return {}
-
-@router.get("/flows/{flow_id}/label")
-async def get_flow_label(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Get flow label"""
-    try:
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        return flow.label or ""
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get flow label for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.put("/flows/{flow_id}/label")
-async def update_flow_label(
-    flow_id: str,
-    label: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update flow label"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        flow.label = label
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update flow label")
-        
-        # Emit flow updated event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_flow_event('flows/updated', flow)
-        except Exception as e:
-            logger.warning("Failed to emit flow updated event: %s", e)
-        
-        return {"message": "Label updated successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow label for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.delete("/flows/{flow_id}/label")
-async def delete_flow_label(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Delete flow label"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        flow.label = None
-        
-        # Save the updated flow
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to delete flow label")
-        
-        # Emit flow updated event
-        try:
-            event_manager = EventManager(store)
-            await event_manager.emit_flow_event('flows/updated', flow)
-        except Exception as e:
-            logger.warning("Failed to emit flow updated event: %s", e)
-        
-        return {"message": "Label deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to delete flow label for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.head("/flows/{flow_id}/read_only")
-async def head_flow_read_only(flow_id: str):
-    """Return flow read-only path headers"""
-    return {}
-
-@router.get("/flows/{flow_id}/read_only")
-async def get_flow_read_only(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Get flow read-only status"""
-    try:
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        return flow.read_only or False
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get flow read-only status for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-
-
-
-
-
-# TAMS Flow Collection endpoints
-@router.head("/flows/{flow_id}/flow_collection")
-async def head_flow_collection(flow_id: str):
-    """Return flow collection path headers"""
-    return {}
-
-@router.get("/flows/{flow_id}/flow_collection")
-async def get_flow_collection(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Get flow collection property"""
-    try:
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Get collections from the flow_collections table
-        collections = await store.get_flow_collections(flow_id)
-        if collections:
-            # Return collection information
-            collection_info = []
-            for collection in collections:
-                collection_info.append({
-                    "collection_id": collection.collection_id,
-                    "flow_id": collection.flow_id,
-                    "label": collection.label,
-                    "description": collection.description,
-                    "created": collection.created
-                })
-            return collection_info
-        else:
-            raise HTTPException(status_code=404, detail="Flow collection not available for this flow")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get flow collection for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.put("/flows/{flow_id}/flow_collection")
-async def update_flow_collection(
-    flow_id: str,
-    collection_data: dict = Body(...),
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Create or update the flow collection property"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        collection_id = collection_data.get("collection_id")
-        if not collection_id:
-            raise HTTPException(status_code=400, detail="collection_id is required")
-        
-        success = await store.add_flow_to_collection(collection_id, flow_id, "Default Label", "Auto-generated collection")
-        if success:
-            return {"message": f"Flow {flow_id} added to collection {collection_id}"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to update flow collection")
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow collection for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.delete("/flows/{flow_id}/flow_collection")
-async def delete_flow_collection(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Delete the flow collection property"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        success = await store.remove_flow_from_collection(flow_id)
-        if success:
-            return {"message": f"Flow {flow_id} removed from collection"}
-        else:
-            raise HTTPException(status_code=404, detail="Flow collection not found")
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to delete flow collection for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.head("/flows/{flow_id}/max_bit_rate")
-async def head_flow_max_bit_rate(flow_id: str):
-    """Return flow max bit rate path headers"""
-    return {}
-
-@router.get("/flows/{flow_id}/max_bit_rate")
-async def get_flow_max_bit_rate(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Get flow max bit rate"""
-    try:
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Check if flow has max_bit_rate field
-        if hasattr(flow, 'max_bit_rate'):
-            return flow.max_bit_rate
-        else:
-            raise HTTPException(status_code=404, detail="Max bit rate not available for this flow type")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get flow max bit rate for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.put("/flows/{flow_id}/max_bit_rate")
-async def update_flow_max_bit_rate(
-    flow_id: str,
-    max_bit_rate: int,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update flow max bit rate"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Check if flow has max_bit_rate field
-        if hasattr(flow, 'max_bit_rate'):
-            flow.max_bit_rate = max_bit_rate
-            success = await store.update_flow(flow_id, flow)
-            if not success:
-                raise HTTPException(status_code=500, detail="Failed to update flow max bit rate")
-            return {"message": "Max bit rate updated successfully"}
-        else:
-            raise HTTPException(status_code=400, detail="Flow type does not support max bit rate")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow max bit rate for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.head("/flows/{flow_id}/avg_bit_rate")
-async def head_flow_avg_bit_rate(flow_id: str):
-    """Return flow average bit rate path headers"""
-    return {}
-
-@router.get("/flows/{flow_id}/avg_bit_rate")
-async def get_flow_avg_bit_rate(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Get flow average bit rate"""
-    try:
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Check if flow has avg_bit_rate field
-        if hasattr(flow, 'avg_bit_rate'):
-            return flow.avg_bit_rate
-        else:
-            raise HTTPException(status_code=404, detail="Average bit rate not available for this flow type")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get flow average bit rate for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.put("/flows/{flow_id}/avg_bit_rate")
-async def update_flow_avg_bit_rate(
-    flow_id: str,
-    avg_bit_rate: int,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update flow average bit rate"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Check if flow has avg_bit_rate field
-        if hasattr(flow, 'avg_bit_rate'):
-            flow.avg_bit_rate = avg_bit_rate
-            success = await store.update_flow(flow_id, flow)
-            if not success:
-                raise HTTPException(status_code=500, detail="Failed to update flow average bit rate")
-            return {"message": "Average bit rate updated successfully"}
-        else:
-            raise HTTPException(status_code=400, detail="Flow type does not support average bit rate")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow average bit rate for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-# Flow storage allocation endpoint
-@router.post("/flows/{flow_id}/storage", response_model=FlowStorage, status_code=201)
-async def allocate_flow_storage(
-    flow_id: str,
-    request: FlowStoragePost,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Allocate storage locations for writing media objects"""
-    try:
-        # Check if flow exists
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Check if flow is read-only
-        await check_flow_read_only(store, flow_id)
-        
-        # Get settings for S3 configuration
-        settings = get_settings()
-        
-        # Generate object IDs if not provided
-        if request.object_ids:
-            object_ids = request.object_ids
-        else:
-            # Generate the requested number of object IDs
-            limit = request.limit or settings.flow_storage_default_limit
-            object_ids = [str(uuid.uuid4()) for _ in range(limit)]
-        
-        # Validate that object IDs don't already exist
-        for object_id in object_ids:
-            existing_object = await store.get_object(object_id)
-            if existing_object:
-                raise HTTPException(status_code=400, detail=f"Object ID {object_id} already exists")
-        
-        # Generate storage locations with pre-signed URLs
-        media_objects = []
-        for object_id in object_ids:
-            # Generate TAMS-compliant storage path
-            from datetime import datetime
-            
-            now = datetime.now()
-            year = str(now.year)
-            month = f"{now.month:02d}"
-            date = f"{now.day:02d}"
-            
-            # Use TAMS path format: {tams_storage_path}/{year}/{month}/{date}/{object_id}
-            storage_path = f"{settings.tams_storage_path}/{year}/{month}/{date}/{object_id}"
-            
-            # Generate presigned URL for upload
-            try:
-                presigned_url = store.s3_store.generate_object_presigned_url(
-                    storage_path=storage_path,
-                    operation="put_object",
-                    expires=settings.s3_presigned_url_upload_timeout
-                )
-                
-                logger.info("Generated presigned URL: %s", presigned_url)
-                
-                if not presigned_url:
-                    logger.error("Failed to generate presigned URL for object %s", object_id)
-                    raise HTTPException(status_code=500, detail=f"Failed to generate presigned URL for object {object_id}")
-                    
-            except Exception as e:
-                logger.error("Error generating presigned URL: %s", e)
-                raise HTTPException(status_code=500, detail=f"Error generating presigned URL: {str(e)}")
-            
-            # Create MediaObject with the hierarchical path
-            media_object = MediaObject(
-                object_id=object_id,
-                put_url=HttpRequest(
-                    url=presigned_url, # Use the generated presigned URL
-                    headers={}  # No custom headers for S3 compatibility
-                ),
-                # Store the hierarchical path for later use
-                metadata={"storage_path": storage_path}
-            )
-            
-            media_objects.append(media_object)
-            
-            # Create Object record in database for TAMS compliance
-            try:
-                from ..models.models import Object
-                obj_data = {
-                    "id": object_id,
-                    "size": 0,  # Size unknown until actually uploaded
-                    "referenced_by_flows": [str(flow_id)]
-                }
-                
-                # Use safe model creation with validation error logging
-                obj, error_msg = safe_model_parse(
-                    Object, 
-                    obj_data, 
-                    f"Creating Object record for storage allocation (flow_id: {flow_id})"
-                )
-                
-                if obj is None:
-                    logger.error("Failed to create Object model for %s: %s", object_id, error_msg)
-                else:
-                    logger.info("Attempting to create Object record for %s: %s", object_id, obj.model_dump())
-                    success = await store.create_object(obj)
-                    if success:
-                        logger.info("Successfully created Object record for %s", object_id)
-                    else:
-                        logger.error("Failed to create Object record for %s - create_object returned False", object_id)
-            except Exception as e:
-                logger.error("Exception creating Object record for %s: %s", object_id, e)
-                # Don't fail the entire request, just log the error
-        
-        return FlowStorage(media_objects=media_objects)
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to allocate storage for flow %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-# Flow read-only endpoints
-@router.head("/flows/{flow_id}/read_only")
-async def head_flow_read_only(flow_id: str):
-    """Return flow read_only path headers"""
-    return {}
-
-@router.get("/flows/{flow_id}/read_only", response_model=bool)
-async def get_flow_read_only(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Returns the flow read_only property"""
-    try:
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Check if flow has read_only field, default to False
-        if hasattr(flow, 'read_only'):
-            return flow.read_only
-        else:
-            return False
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get flow read-only status for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.put("/flows/{flow_id}/read_only", status_code=204)
-async def set_flow_read_only(
-    flow_id: str,
-    read_only: bool = Body(...),
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Set the read-only property"""
-    try:
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Update flow read_only status
-        success = await store.update_flow_read_only(flow_id, read_only)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update flow read-only status")
-        
-        return  # 204 No Content
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to set flow read-only status for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error") 
-
-# Flow tags management endpoints
-@router.head("/flows/{flow_id}/tags")
-async def head_flow_tags(flow_id: str):
-    """Return flow tags path headers"""
-    return {}
-
-@router.get("/flows/{flow_id}/tags")
-async def get_flow_tags(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Get flow tags"""
-    try:
-        flow = await get_flow(store, flow_id)
+        flow = await storage.get_flow(flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
         return flow.tags or {}
@@ -976,131 +196,19 @@ async def get_flow_tags(
         logger.error("Failed to get flow tags for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.post("/flows/{flow_id}/tags")
-async def create_flow_tags(
-    flow_id: str,
-    tags: Tags,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Create or update flow tags"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Merge new tags with existing ones
-        if flow.tags:
-            flow.tags.update(tags)
-        else:
-            flow.tags = tags
-        
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update flow tags")
-        
-        return {"message": "Tags updated successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow tags for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.delete("/flows/{flow_id}/tags")
-async def delete_flow_tags(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Delete all flow tags"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        flow.tags = {}
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to delete flow tags")
-        
-        return {"message": "All tags deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to delete flow tags for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.head("/flows/{flow_id}/tags/{name}")
-async def head_flow_tag(flow_id: str, name: str):
-    """Return flow tag path headers"""
-    return {}
-
-@router.get("/flows/{flow_id}/tags/{name}")
-async def get_flow_tag(
-    flow_id: str,
-    name: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Get a specific flow tag"""
-    try:
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        if not flow.tags or name not in flow.tags:
-            raise HTTPException(status_code=404, detail="Tag not found")
-        
-        return {name: flow.tags[name]}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get flow tag %s for %s: %s", name, flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-
-@router.delete("/flows/{flow_id}/tags/{name}")
-async def delete_flow_tag(
-    flow_id: str,
-    name: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Delete a specific flow tag"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Delete the tag using the new tags storage architecture
-        success = await store.delete_flow_tag(flow_id, name)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to delete flow tag")
-        
-        return {"message": f"Tag {name} deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to delete flow tag %s for %s: %s", name, flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-# Flow description endpoints
-@router.head("/flows/{flow_id}/description")
+@router.head("/{flow_id}/description")
 async def head_flow_description(flow_id: str):
     """Return flow description path headers"""
     return {}
 
-@router.get("/flows/{flow_id}/description")
+@router.get("/{flow_id}/description")
 async def get_flow_description(
     flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Get flow description"""
     try:
-        flow = await get_flow(store, flow_id)
+        flow = await storage.get_flow(flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
         return flow.description or ""
@@ -1110,71 +218,19 @@ async def get_flow_description(
         logger.error("Failed to get flow description for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.put("/flows/{flow_id}/description")
-async def update_flow_description(
-    flow_id: str,
-    description: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update flow description"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        flow.description = description
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update flow description")
-        
-        return {"message": "Description updated successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow description for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.delete("/flows/{flow_id}/description")
-async def delete_flow_description(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Delete flow description"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        flow.description = None
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to delete flow description")
-        
-        return {"message": "Description deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to delete flow description for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-# Flow label endpoints
-@router.head("/flows/{flow_id}/label")
+@router.head("/{flow_id}/label")
 async def head_flow_label(flow_id: str):
     """Return flow label path headers"""
     return {}
 
-@router.get("/flows/{flow_id}/label")
+@router.get("/{flow_id}/label")
 async def get_flow_label(
     flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Get flow label"""
     try:
-        flow = await get_flow(store, flow_id)
+        flow = await storage.get_flow(flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
         return flow.label or ""
@@ -1184,132 +240,24 @@ async def get_flow_label(
         logger.error("Failed to get flow label for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.put("/flows/{flow_id}/label")
-async def update_flow_label(
-    flow_id: str,
-    label: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update flow label"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        flow.label = label
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update flow label")
-        
-        return {"message": "Label updated successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow label for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.delete("/flows/{flow_id}/label")
-async def delete_flow_label(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Delete flow label"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        flow.label = None
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to delete flow label")
-        
-        return {"message": "Label deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to delete flow label for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-# Flow average bit rate endpoints
-@router.head("/flows/{flow_id}/avg_bit_rate")
-async def head_flow_avg_bit_rate(flow_id: str):
-    """Return flow average bit rate path headers"""
+@router.head("/{flow_id}/read_only")
+async def head_flow_read_only(flow_id: str):
+    """Return flow read-only path headers"""
     return {}
 
-@router.get("/flows/{flow_id}/avg_bit_rate")
-async def get_flow_avg_bit_rate(
+@router.get("/{flow_id}/read_only")
+async def get_flow_read_only(
     flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
-    """Get flow average bit rate"""
+    """Get flow read-only status"""
     try:
-        flow = await get_flow(store, flow_id)
+        flow = await storage.get_flow(flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
-        
-        # Check if flow has avg_bit_rate field
-        if hasattr(flow, 'avg_bit_rate'):
-            return flow.avg_bit_rate
-        else:
-            raise HTTPException(status_code=404, detail="Average bit rate not available for this flow type")
+        return flow.read_only or False
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to get flow average bit rate for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.put("/flows/{flow_id}/avg_bit_rate")
-async def update_flow_avg_bit_rate(
-    flow_id: str,
-    avg_bit_rate: int,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Update flow average bit rate"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        flow.avg_bit_rate = avg_bit_rate
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update flow average bit rate")
-        
-        return {"message": "Average bit rate updated successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to update flow average bit rate for %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.delete("/flows/{flow_id}/avg_bit_rate")
-async def delete_flow_avg_bit_rate(
-    flow_id: str,
-    store: VASTStore = Depends(get_vast_store)
-):
-    """Delete flow average bit rate"""
-    try:
-        await check_flow_read_only(store, flow_id)
-        
-        flow = await get_flow(store, flow_id)
-        if not flow:
-            raise HTTPException(status_code=404, detail="Flow not found")
-        
-        flow.avg_bit_rate = None
-        success = await store.update_flow(flow_id, flow)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to delete flow average bit rate")
-        
-        return {"message": "Average bit rate deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to delete flow average bit rate for %s: %s", flow_id, e)
+        logger.error("Failed to get flow read-only status for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")

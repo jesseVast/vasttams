@@ -2,8 +2,8 @@
 Analytics API router for TAMS
 """
 from fastapi import APIRouter, Depends, HTTPException
-from ..core.dependencies import get_vast_store
-from ..storage.vast_store import VASTStore
+from ..storage import get_storage_service
+from ..storage.interfaces import StorageInterface
 from ..core.telemetry import telemetry_manager, trace_operation, monitor_operation
 import logging
 
@@ -15,11 +15,11 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 @trace_operation("flow_usage_analytics")
 @monitor_operation("analytics", "flow")
 async def get_flow_usage_analytics(
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Get flow usage analytics"""
     try:
-        analytics = await store.analytics_query("flow_usage")
+        analytics = await storage.get_analytics("flow_usage")
         
         # Update business metrics
         if isinstance(analytics, dict) and 'total_flows' in analytics:
@@ -38,11 +38,11 @@ async def get_flow_usage_analytics(
 @trace_operation("storage_usage_analytics")
 @monitor_operation("analytics", "storage")
 async def get_storage_usage_analytics(
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Get storage usage analytics"""
     try:
-        analytics = await store.analytics_query("storage_usage")
+        analytics = await storage.get_analytics("storage_usage")
         
         # Update business metrics
         if isinstance(analytics, dict):
@@ -61,11 +61,11 @@ async def get_storage_usage_analytics(
 @trace_operation("time_range_analytics")
 @monitor_operation("analytics", "timerange")
 async def get_time_range_analytics(
-    store: VASTStore = Depends(get_vast_store)
+    storage: StorageInterface = Depends(get_storage_service)
 ):
     """Get time range analytics"""
     try:
-        analytics = await store.analytics_query("time_range_analysis")
+        analytics = await storage.get_analytics("time_range_analysis")
         
         # Update business metrics
         if isinstance(analytics, dict) and 'total_segments' in analytics:

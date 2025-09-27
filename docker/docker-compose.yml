@@ -1,10 +1,27 @@
 version: '3.8'
 
 services:
+  # Trino integration for vaststore SQL capabilities
+  trino-vast:
+    image: vastdataorg/trino-vast:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./vast.properties:/etc/trino/catalog/vast.properties
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   tams-api:
     build: .
     ports:
       - "8000:8000"
+    depends_on:
+      - trino-vast
     environment:
       # Server settings
       - HOST=0.0.0.0
@@ -24,6 +41,12 @@ services:
       - S3_SECRET_ACCESS_KEY=WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr
       - S3_BUCKET_NAME=jthaloor-s3
       - S3_USE_SSL=false
+      
+      # Trino settings for vaststore
+      - TRINO_HOST=trino-vast
+      - TRINO_PORT=8080
+      - TRINO_USER=admin
+      - TRINO_CATALOG=vast
       
       # Logging
       - LOG_LEVEL=INFO

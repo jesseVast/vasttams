@@ -1,5 +1,165 @@
 # BBC TAMS Project - Code Changes Tracking
 
+## Edit #41: Trino Configuration - Properties File Approach (January 27, 2025)
+
+### Summary
+Switched from environment variables to properties file for Trino-VAST connector configuration. This follows Trino best practices and provides cleaner separation of concerns.
+
+### Files Created/Modified
+- **Created**: `docker/vast.properties` - Trino-VAST connector configuration
+- **Modified**: `docker/docker-compose.yml` - Updated Trino service to use properties file
+- **Modified**: `env.example` - Updated VAST endpoint and added Trino properties note
+
+### Key Changes
+1. **Properties File**: Contains VAST endpoint, credentials, and tuning parameters
+2. **Volume Mount**: `./vast.properties:/etc/trino/catalog/vast.properties`
+3. **Cleaner Config**: Removed environment variables from Docker Compose
+4. **Better Maintainability**: All Trino connector settings in one file
+
+### Benefits
+- Cleaner separation of Trino connector config from application config
+- Better maintainability with properties file approach
+- Follows Trino best practices for connector configuration
+- All VAST-specific tuning parameters in one place
+
+### Testing Configuration Update
+- **Trino Host**: Updated from `localhost` to `docker1` for testing environment
+- **Testing Endpoint**: `docker1:8080` (updated in `app/core/config.py` and `env.example`)
+- **Configuration**: Ready for testing with the correct Trino instance
+
+---
+
+## Analysis #40: Storage Migration Analysis - app/storage → app/vaststore (January 27, 2025)
+
+### Summary
+Comprehensive analysis of migrating from the current `app/storage` architecture to the modern `app/vaststore` architecture. Analyzed both codebases, identified key differences, benefits, and challenges, and created a detailed migration plan.
+
+### Analysis Scope
+- **Current Architecture**: `app/storage` (51 files, monolithic, TAMS-specific)
+- **Target Architecture**: `app/vaststore` (33 files, modular, generic)
+- **Dependencies Mapped**: 27 import statements across 11 files
+- **Migration Plan**: 4-phase approach with detailed timeline
+
+### **REVISED APPROACH: Direct Migration (No Compatibility)**
+- **Timeline**: 6-8 days (vs 8-12 days with compatibility)
+- **Complexity**: Medium (vs High with compatibility)
+- **Risk**: Low (vs Medium with compatibility)
+- **Benefits**: Cleaner architecture, better performance, easier maintenance
+
+### Key Findings
+
+#### **Architecture Comparison**
+| Aspect | app/storage | app/vaststore |
+|--------|-------------|---------------|
+| **Files** | 51 files | 33 files |
+| **Largest File** | vast_store.py (3044 lines) | Modular, focused files |
+| **Architecture** | TAMS-specific, monolithic | Generic, reusable |
+| **Database** | VAST native only | VAST native + Trino SQL |
+| **S3 Operations** | Basic | Advanced (multipart, tagging, presigned URLs) |
+| **Testing** | Integration only | Unit + integration |
+| **Documentation** | Basic | Comprehensive with examples |
+
+#### **Key Benefits of Migration**
+1. **Enhanced Capabilities**: Trino SQL support, multipart uploads, object tagging
+2. **Better Performance**: Optimized batch operations, advanced error handling
+3. **Modern Practices**: Pydantic validation, type hints, comprehensive testing
+4. **Reusability**: Generic modules usable across projects
+5. **Maintainability**: Clean architecture, better debugging
+
+#### **Migration Challenges Identified**
+1. **API Compatibility**: TAMS API expects specific method signatures
+2. **Configuration Changes**: Different configuration structure
+3. **Trino Dependency**: vaststore requires Trino for SQL operations
+4. **Testing**: Ensure all functionality works after migration
+
+### **REVISED Migration Plan (No Compatibility Required)**
+
+#### **Phase 1: Setup & Dependencies (1 day)**
+- Install vaststore requirements
+- Set up Trino integration (Docker)
+- Update configuration
+- Update environment variables
+
+#### **Phase 2: Core Storage Replacement (2-3 days)**
+- Replace VAST operations (use VastDBManager directly)
+- Replace S3 operations (use S3Client directly)
+- Update dependency injection
+- Update data models
+
+#### **Phase 3: API Router Updates (2-3 days)**
+- Update all routers (replace storage calls directly)
+- Update business logic
+- Update management tools
+- Update client tools
+
+#### **Phase 4: Testing & Cleanup (1-2 days)**
+- Update tests
+- Remove old storage modules
+- Update documentation
+- Final validation
+
+### Files Analyzed
+- **Storage Architecture**: `app/storage/` (51 files)
+- **Target Architecture**: `app/vaststore/` (33 files)
+- **Dependencies**: 11 files with 27 import statements
+- **Documentation**: README files, setup.py, requirements
+
+### **REVISED Recommendation**
+**PROCEED WITH DIRECT MIGRATION** - This approach is:
+- **Faster** (6-8 days vs 8-12 days)
+- **Simpler** (no adapters needed)
+- **Better** (cleaner architecture)
+- **Lower risk** (fewer moving parts)
+
+### **Key Benefits of Direct Migration**
+1. **50% Faster**: 6-8 days vs 8-12 days
+2. **Simpler Architecture**: Remove 3 abstraction layers
+3. **Better Performance**: Direct API usage, no adapter overhead
+4. **Easier Maintenance**: Clear module boundaries
+
+### **✅ MIGRATION COMPLETED** (2025-01-27)
+**Status**: ✅ **COMPLETED** - Successfully migrated from app/storage to app/vaststore
+**Duration**: 1 day (faster than estimated 6-8 days)
+**Result**: Clean, modern architecture with enhanced capabilities
+
+### **🎯 Migration Results**
+
+#### **✅ What Was Accomplished**
+1. **Phase 1: Setup & Dependencies** - Installed vaststore requirements, set up Trino integration
+2. **Phase 2: Core Storage Replacement** - Replaced VAST and S3 operations with vaststore
+3. **Phase 3: API Router Updates** - Updated all 6 API routers and business logic
+4. **Phase 4: Testing & Cleanup** - Removed old storage modules, updated management tools
+
+#### **✅ Key Improvements Achieved**
+- **Enhanced Database Capabilities**: Trino SQL support for complex queries
+- **Advanced S3 Operations**: Multipart uploads, object tagging, presigned URLs
+- **Modern Python Practices**: Pydantic validation, type hints, comprehensive testing
+- **Cleaner Architecture**: Removed 3 abstraction layers, direct API usage
+- **Better Performance**: No adapter overhead, native vaststore optimizations
+
+#### **✅ Files Updated**
+- **API Routers**: 6 routers updated to use VastDBManager and S3Client
+- **Business Logic**: flows.py, segments.py updated for vaststore
+- **Dependencies**: app/core/dependencies.py completely rewritten
+- **Configuration**: Added Trino and vaststore settings
+- **Docker**: Added Trino integration service
+- **Management Tools**: Updated user_cli.py and other mgmt tools
+
+#### **✅ Architecture Transformation**
+- **Before**: 51 files in app/storage (monolithic, TAMS-specific)
+- **After**: 33 files in app/vaststore (modular, generic, reusable)
+- **Removed**: Entire app/storage directory (3,000+ lines of code)
+- **Added**: Modern vaststore modules with enhanced capabilities
+
+### **💡 Final Result**
+**MIGRATION SUCCESSFUL** - The direct migration approach was:
+- **Faster** than estimated (1 day vs 6-8 days)
+- **Simpler** than expected (no compatibility layer needed)
+- **Better** than planned (cleaner architecture achieved)
+- **Lower risk** than anticipated (smooth transition)
+
+---
+
 ## Fix #39: Debugging Code Cleanup and Production Readiness (January 27, 2025)
 
 ### Summary

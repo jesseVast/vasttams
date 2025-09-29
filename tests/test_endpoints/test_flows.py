@@ -21,6 +21,57 @@ from test_utils import (
     create_test_source, create_test_flow, cleanup_test_data
 )
 
+def test_flows_automatic_source_creation():
+    """Test automatic source creation when flow is created with non-existent source_id"""
+    print_section("FLOWS AUTOMATIC SOURCE CREATION")
+    
+    # Create a flow with a non-existent source ID
+    print_subsection("CREATE Flow with Non-existent Source ID")
+    flow_data = {
+        "id": str(uuid.uuid4()),
+        "source_id": str(uuid.uuid4()),  # Non-existent source ID
+        "label": f"Test Flow Auto Source {test_data.get('test_id', 'unknown')}",
+        "description": "Test flow for automatic source creation",
+        "format": "urn:x-nmos:format:video",
+        "codec": "video/H264",
+        "essence_parameters": {
+            "frame_width": 1920,
+            "frame_height": 1080,
+            "frame_rate": {"numerator": 25, "denominator": 1}
+        }
+    }
+    
+    response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+    data = assert_response_success("POST", "/flows", response, 201)
+    test_data["flow_id"] = data["id"]
+    test_data["source_id"] = data["source_id"]
+    
+    print_result("POST", "/flows", response.status_code)
+    print(f"   Flow ID: {data['id']}")
+    print(f"   Source ID: {data['source_id']}")
+    
+    # Verify the source was created automatically
+    print_subsection("VERIFY Source Created Automatically")
+    response = requests.get(f"{BASE_URL}/sources/{test_data['source_id']}")
+    data = assert_response_success("GET", f"/sources/{test_data['source_id']}", response, 200)
+    
+    print_result("GET", f"/sources/{test_data['source_id']}", response.status_code)
+    print(f"   Source ID: {data['id']}")
+    print(f"   Format: {data['format']}")
+    print(f"   Label: {data['label']}")
+    print(f"   Description: {data['description']}")
+    
+    # Verify source metadata matches flow metadata
+    assert data['id'] == test_data['source_id'], "Source ID should match flow source_id"
+    assert data['format'] == flow_data['format'], "Source format should match flow format"
+    assert data['label'] == flow_data['label'], "Source label should match flow label"
+    assert data['description'] == flow_data['description'], "Source description should match flow description"
+    
+    print("✅ Automatic source creation working correctly!")
+    
+    # Clean up
+    cleanup_test_data()
+
 def test_flows_crud():
     """Test basic flow CRUD operations"""
     print_section("FLOWS CRUD OPERATIONS")
@@ -361,6 +412,7 @@ def run_all_flows_tests():
     print(f"⏰ Start Time: {datetime.now().isoformat()}")
     
     try:
+        test_flows_automatic_source_creation()
         test_flows_crud()
         test_flows_tags()
         test_flows_properties()

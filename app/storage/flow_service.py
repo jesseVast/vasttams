@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from .interfaces import StorageInterface
-from ..models import Flow, FlowFilters, FlowDetailFilters, VideoFlow, AudioFlow, ImageFlow, DataFlow, MultiFlow
+from ..models import Flow, FlowFilters, FlowDetailFilters, VideoFlow, AudioFlow, ImageFlow, DataFlow, MultiFlow, Source
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +192,9 @@ class FlowStorageService:
             flow.created = now
             flow.metadata_updated = now
             flow.segments_updated = now
+            
+            # Check if source exists, create it automatically if it doesn't
+            await self._ensure_source_exists(flow)
             
             flow_data = flow.model_dump()
             logger.debug("Creating flow with data: %s", flow_data)
@@ -454,3 +457,39 @@ class FlowStorageService:
         except Exception as e:
             logger.error("Failed to get flows with source details: %s", e)
             return []
+    
+    async def _ensure_source_exists(self, flow: Flow) -> None:
+        """Ensure source exists, create it automatically if it doesn't"""
+        try:
+            # Check if source exists
+            source_query = self.vast_db.query("sources").select("*").where(f"id = '{flow.source_id}'")
+            result = source_query.execute()
+            
+            if not result or not result.get('data') or len(result['data']) == 0:
+                # Source doesn't exist, create it automatically
+                logger.info("Source %s doesn't exist, creating it automatically", flow.source_id)
+                
+                # Create source with metadata from flow
+                source = Source(
+                    id=flow.source_id,
+                    format=flow.format,
+                    label=flow.label,
+                    description=flow.description,
+                    created_by=flow.created_by,
+                    updated_by=flow.updated_by,
+                    tags=flow.tags  # Replicate tags from flow to source
+                )
+                
+                # Insert source into database
+                source_data = source.model_dump(exclude={'source_collection', 'collected_by'})
+                source_data['created'] = datetime.now(timezone.utc)
+                source_data['updated'] = datetime.now(timezone.utc)
+                
+                self.vast_db.insert_record("sources", source_data)
+                logger.info("Successfully created source %s with metadata from flow", flow.source_id)
+            else:
+                logger.debug("Source %s already exists", flow.source_id)
+                
+        except Exception as e:
+            logger.error("Failed to ensure source exists for flow %s: %s", flow.id, e)
+            raise HTTPException(status_code=500, detail="Failed to create source automatically")

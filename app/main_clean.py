@@ -42,7 +42,6 @@ from .api.sources_router import router as sources_router
 from .api.objects_router import router as objects_router
 from .api.service_router import router as service_router
 from .api.deletion_requests_router import router as deletion_requests_router
-from .api.analytics_router import router as analytics_router
 
 from .core.dependencies import get_vast_db, get_s3_client
 from .core.telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
@@ -124,7 +123,6 @@ def custom_openapi():
         {"name": "segments", "description": "Flow segment operations"},
         {"name": "service", "description": "Service information and configuration"},
         {"name": "deletion-requests", "description": "Deletion request management"},
-        {"name": "analytics", "description": "Analytics and reporting"},
     ]
     
     app.openapi_schema = openapi_schema
@@ -167,7 +165,6 @@ app.include_router(sources_router)
 app.include_router(objects_router)
 app.include_router(service_router)
 app.include_router(deletion_requests_router)
-app.include_router(analytics_router)
 
 # OpenAPI JSON endpoint
 @app.get("/openapi.json")
@@ -190,7 +187,6 @@ async def get_root():
         "sources", 
         "objects",
         "flow-delete-requests", 
-        "analytics",
         "openapi.json",
         "docs",
         "redoc"
@@ -236,4 +232,5 @@ if __name__ == "__main__":
         reload=True,
         log_level="info"
     )
+
 

@@ -288,14 +288,20 @@ class Settings(BaseSettings):
             raise ValueError("TAMS cache TTL cannot exceed 24 hours (86400 seconds)")
 
     def _load_mounted_config(self):
-        """Load configuration from mounted config file"""
+        """Load configuration from mounted config file or local development config"""
+        # Check for mounted config first (production)
         config_file_path = "/etc/tams/config.json"
+        
+        # If mounted config doesn't exist, check for local development config
+        if not os.path.exists(config_file_path):
+            config_file_path = "config/development.json"
+        
         if os.path.exists(config_file_path):
             try:
                 with open(config_file_path, 'r') as f:
                     config_data = json.load(f)
                 
-                # Update settings with mounted config (takes precedence over defaults)
+                # Update settings with config file (takes precedence over defaults)
                 for key, value in config_data.items():
                     if hasattr(self, key):
                         setattr(self, key, value)
@@ -304,7 +310,7 @@ class Settings(BaseSettings):
                 # Log error but continue with default values
                 import logging
                 logger = logging.getLogger(__name__)
-                logger.warning(f"Could not load mounted config file: {e}")
+                logger.warning(f"Could not load config file {config_file_path}: {e}")
 
 
 # Global settings instance

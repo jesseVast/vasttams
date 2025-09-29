@@ -192,6 +192,16 @@ class TAMSLoggingConfig:
                     "level": "INFO",
                     "handlers": ["console", "file", "error_file"],
                     "propagate": False
+                },
+                "app.vaststore": {  # VAST store logger
+                    "level": "DEBUG",
+                    "handlers": ["console", "file", "error_file"],
+                    "propagate": False
+                },
+                "vastdb": {  # VAST database logger
+                    "level": "DEBUG",
+                    "handlers": ["console", "file", "error_file"],
+                    "propagate": False
                 }
             }
         }

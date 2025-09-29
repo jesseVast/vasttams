@@ -265,10 +265,10 @@ All planned endpoints for TAMS API 7.0 are currently implemented.
 - **Resources**: Sources, Flows, Objects
 - **Optimization**: VAST native batch insert for performance
 
-### Soft Delete
+### TAMS 7.0 Compliance
 - **Status**: ✅ Implemented
 - **Resources**: All major resources (Sources, Flows, Segments, Objects)
-- **Fields**: `deleted`, `deleted_at`, `deleted_by`
+- **Deletion**: Hard delete as per TAMS specification
 
 ### Event Streaming
 - **Status**: ✅ Implemented

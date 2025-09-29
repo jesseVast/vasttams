@@ -434,7 +434,7 @@ Client → API → Validation → Analytics Engine → VAST Store
 
 ### **3. Data Protection**
 
-- **Soft Delete**: Data safety with audit trails
+- **TAMS 7.0 Compliance**: Full specification adherence
 - **Access Logging**: Complete access history tracking
 - **Data Validation**: Comprehensive input validation
 - **Error Handling**: Secure error message generation

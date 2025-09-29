@@ -299,11 +299,11 @@ GET http://localhost:8000/sources/32cffed8-2015-4e89-a2d7-4395b1b1c1f5
 
 ### Step 10: Testing Deletion Workflow
 
-#### Step 10a: Delete Flow (Soft Delete)
+#### Step 10a: Delete Flow
 
 **Request:**
 ```http
-DELETE http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7?soft_delete=true&cascade=true&deleted_by=test-user
+DELETE http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7?cascade=true
 ```
 
 **Response:**
@@ -342,11 +342,11 @@ GET http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7/segments
 
 **Status**: `200 OK`
 
-#### Step 10d: Delete Source (Soft Delete)
+#### Step 10d: Delete Source
 
 **Request:**
 ```http
-DELETE http://localhost:8000/sources/32cffed8-2015-4e89-a2d7-4395b1b1c1f5?soft_delete=true&cascade=true&deleted_by=test-user
+DELETE http://localhost:8000/sources/32cffed8-2015-4e89-a2d7-4395b1b1c1f5?cascade=true
 ```
 
 **Response:**
@@ -421,12 +421,10 @@ class TAMSClient:
         response.raise_for_status()
         return response.json()
     
-    def delete_flow(self, flow_id: str, soft_delete: bool = True, cascade: bool = True) -> bool:
+    def delete_flow(self, flow_id: str, cascade: bool = True) -> bool:
         """Delete a flow"""
         params = {
-            'soft_delete': soft_delete,
-            'cascade': cascade,
-            'deleted_by': 'test-user'
+            'cascade': cascade
         }
         response = self.session.delete(
             f"{self.base_url}/flows/{flow_id}",
@@ -434,12 +432,10 @@ class TAMSClient:
         )
         return response.status_code == 204
     
-    def delete_source(self, source_id: str, soft_delete: bool = True, cascade: bool = True) -> bool:
+    def delete_source(self, source_id: str, cascade: bool = True) -> bool:
         """Delete a source"""
         params = {
-            'soft_delete': soft_delete,
-            'cascade': cascade,
-            'deleted_by': 'test-user'
+            'cascade': cascade
         }
         response = self.session.delete(
             f"{self.base_url}/sources/{source_id}",
@@ -544,12 +540,12 @@ curl "http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7/segments"
 
 ### Delete Flow
 ```bash
-curl -X DELETE "http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7?soft_delete=true&cascade=true&deleted_by=test-user"
+curl -X DELETE "http://localhost:8000/flows/0e9c9b8f-488f-4428-8867-2bc2550612c7?cascade=true"
 ```
 
 ### Delete Source
 ```bash
-curl -X DELETE "http://localhost:8000/sources/32cffed8-2015-4e89-a2d7-4395b1b1c1f5?soft_delete=true&cascade=true&deleted_by=test-user"
+curl -X DELETE "http://localhost:8000/sources/32cffed8-2015-4e89-a2d7-4395b1b1c1f5?cascade=true"
 ```
 
 ## Key Features Demonstrated
@@ -572,11 +568,10 @@ curl -X DELETE "http://localhost:8000/sources/32cffed8-2015-4e89-a2d7-4395b1b1c1
 - Cascade deletion support
 - Referential integrity
 
-### 4. **Soft Delete Support**
-- Configurable soft/hard delete
+### 4. **TAMS 7.0 Compliance**
+- Hard delete as per TAMS specification
 - Cascade delete options
-- Audit trail with deleted_by
-- Data recovery capabilities
+- Proper event notifications
 
 ### 5. **Storage Organization**
 - Automatic date-based organization
@@ -641,8 +636,8 @@ curl -X DELETE "http://localhost:8000/sources/32cffed8-2015-4e89-a2d7-4395b1b1c1
 
 ### 4. **Cleanup**
 - Always clean up test resources
-- Use soft delete for data safety
 - Implement proper cascade deletion
+- Follow TAMS 7.0 deletion patterns
 
 ### 5. **Performance**
 - Use pagination for large result sets

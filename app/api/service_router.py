@@ -90,19 +90,3 @@ async def create_webhook(
         logger.error("Failed to create webhook: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.delete("/webhooks/{webhook_id}")
-async def delete_webhook(
-    webhook_id: str,
-    storage: StorageInterface = Depends(get_storage_service)
-):
-    """Delete a webhook"""
-    try:
-        success = await storage.delete_webhook(webhook_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Webhook not found")
-        return {"message": "Webhook deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to delete webhook: %s", e)
-        raise HTTPException(status_code=500, detail="Internal server error")

@@ -203,3 +203,4 @@ integration_test_results.json
 tests/test_simple_table.py
 logs/*
 
+.env.backup

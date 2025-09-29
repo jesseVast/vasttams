@@ -69,7 +69,32 @@ class StorageInterface(ABC):
         pass
     
     @abstractmethod
-    async def delete_flow(self, flow_id: str) -> bool:
+    async def update_flow_description(self, flow_id: str, description: str) -> bool:
+        """Update flow description only"""
+        pass
+    
+    @abstractmethod
+    async def delete_flow_description(self, flow_id: str) -> bool:
+        """Delete flow description only"""
+        pass
+    
+    @abstractmethod
+    async def update_flow_label(self, flow_id: str, label: str) -> bool:
+        """Update flow label only"""
+        pass
+    
+    @abstractmethod
+    async def delete_flow_label(self, flow_id: str) -> bool:
+        """Delete flow label only"""
+        pass
+    
+    @abstractmethod
+    async def update_flow_read_only(self, flow_id: str, read_only: bool) -> bool:
+        """Update flow read_only status only"""
+        pass
+    
+    @abstractmethod
+    async def delete_flow(self, flow_id: str, cascade: bool = True) -> bool:
         """Delete a flow"""
         pass
     
@@ -137,21 +162,27 @@ class StorageInterface(ABC):
         """Delete a specific source tag"""
         pass
     
-    # Collection operations
+    # Flow tag methods
     @abstractmethod
-    async def get_source_collections(self, source_id: str) -> List[CollectionItem]:
-        """Get source collections"""
+    async def get_flow_tags(self, flow_id: str) -> Optional[Tags]:
+        """Get flow tags"""
         pass
     
     @abstractmethod
-    async def add_source_to_collection(self, collection_id: str, source_id: str, label: str, description: str) -> bool:
-        """Add source to collection"""
+    async def update_flow_tags(self, flow_id: str, tags: Tags) -> bool:
+        """Update flow tags"""
         pass
     
     @abstractmethod
-    async def remove_source_from_collection(self, collection_id: str, source_id: str) -> bool:
-        """Remove source from collection"""
+    async def update_flow_tag(self, flow_id: str, name: str, value: str) -> bool:
+        """Update a specific flow tag"""
         pass
+    
+    @abstractmethod
+    async def delete_flow_tag(self, flow_id: str, name: str) -> bool:
+        """Delete a specific flow tag"""
+        pass
+    
     
     # Service operations
     @abstractmethod

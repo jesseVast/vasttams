@@ -11,6 +11,7 @@ from .segment_service import SegmentStorageService
 from .object_service import ObjectStorageService
 from .tag_service import TagStorageService
 from .main_service import TAMSStorageService
+from .table_initializer import TAMSTableInitializer
 from .dependencies import get_storage_service
 
 __all__ = [
@@ -20,5 +21,6 @@ __all__ = [
     "ObjectStorageService",
     "TagStorageService",
     "TAMSStorageService",
+    "TAMSTableInitializer",
     "get_storage_service"
 ]

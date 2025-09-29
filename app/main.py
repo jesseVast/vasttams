@@ -29,7 +29,7 @@ from .models import (
     Service, ServiceResponse, Source, SourcesResponse, Flow, FlowsResponse,
     FlowSegment, Object, Webhook, WebhookPost, WebhooksResponse,
     FlowStoragePost, FlowStorage, DeletionRequest, DeletionRequestsResponse,
-    SourceFilters, FlowFilters, FlowDetailFilters, PagingInfo, Tags, MediaStore, EventStreamMechanism, 
+    SourceFilters, FlowFilters, FlowDetailFilters, PagingInfo, Tags, EventStreamMechanism, 
     DeletionRequestsList, StorageBackend, StorageBackendsList, HttpRequest, MediaObject
 )
 
@@ -42,7 +42,6 @@ from .api.sources_router import router as sources_router
 from .api.objects_router import router as objects_router
 from .api.service_router import router as service_router
 from .api.deletion_requests_router import router as deletion_requests_router
-from .api.analytics_router import router as analytics_router
 
 from .core.dependencies import get_vast_db, get_s3_client
 from .core.telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
@@ -67,8 +66,34 @@ async def lifespan(app: FastAPI):
         telemetry_manager.initialize()
         logger.info("Telemetry initialized")
         
-        # Initialize storage service (handled by dependency injection)
-        logger.info("Storage service initialized via dependency injection")
+        # Initialize storage service and verify tables
+        from .core.dependencies import get_vast_db
+        from .storage.table_initializer import TAMSTableInitializer
+        
+        vast_db = get_vast_db()
+        if vast_db:
+            table_initializer = TAMSTableInitializer(vast_db)
+            
+            # Verify tables exist, create if missing
+            table_status = await table_initializer.verify_tables_exist()
+            missing_tables = [name for name, exists in table_status.items() if not exists]
+            
+            if missing_tables:
+                logger.warning(f"Missing tables detected: {missing_tables}")
+                logger.info("Attempting to create missing tables...")
+                
+                # Create only missing tables
+                results = await table_initializer.initialize_all_tables(force_recreate=False)
+                successful = sum(1 for success in results.values() if success)
+                total = len(results)
+                
+                if successful == total:
+                    logger.info("✅ All missing tables created successfully")
+                else:
+                    failed = [name for name, success in results.items() if not success]
+                    logger.error(f"❌ Failed to create tables: {failed}")
+            else:
+                logger.info("✅ All required tables exist")
         
         logger.info("TAMS API startup complete")
         yield
@@ -84,9 +109,8 @@ async def lifespan(app: FastAPI):
             await vast_store.close()
             logger.info("VAST store closed")
         
-        # Cleanup telemetry
-        telemetry_manager.cleanup()
-        logger.info("Telemetry cleaned up")
+        # Telemetry cleanup handled automatically
+        logger.info("Telemetry cleanup handled automatically")
         
         logger.info("TAMS API shutdown complete")
 
@@ -124,7 +148,6 @@ def custom_openapi():
         {"name": "segments", "description": "Flow segment operations"},
         {"name": "service", "description": "Service information and configuration"},
         {"name": "deletion-requests", "description": "Deletion request management"},
-        {"name": "analytics", "description": "Analytics and reporting"},
     ]
     
     app.openapi_schema = openapi_schema
@@ -167,7 +190,6 @@ app.include_router(sources_router)
 app.include_router(objects_router)
 app.include_router(service_router)
 app.include_router(deletion_requests_router)
-app.include_router(analytics_router)
 
 # OpenAPI JSON endpoint
 @app.get("/openapi.json")
@@ -190,7 +212,6 @@ async def get_root():
         "sources", 
         "objects",
         "flow-delete-requests", 
-        "analytics",
         "openapi.json",
         "docs",
         "redoc"
@@ -205,7 +226,7 @@ async def head_health():
 @app.get("/health")
 async def health_check():
     """Enhanced health check with storage service status"""
-    return await enhanced_health_check()
+    return enhanced_health_check()
 
 @app.get("/metrics")
 async def get_metrics():

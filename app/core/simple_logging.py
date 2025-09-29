@@ -112,6 +112,16 @@ def setup_logging():
             "": {  # Root logger
                 "level": "DEBUG" if settings.debug else "INFO",
                 "handlers": ["console", "file", "error_file"]
+            },
+            "app.vaststore": {  # VAST store logger
+                "level": "DEBUG",
+                "handlers": ["console", "file", "error_file"],
+                "propagate": False
+            },
+            "vastdb": {  # VAST database logger
+                "level": "DEBUG",
+                "handlers": ["console", "file", "error_file"],
+                "propagate": False
             }
         }
     }

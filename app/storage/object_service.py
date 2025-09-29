@@ -28,10 +28,21 @@ class ObjectStorageService:
         try:
             result = self.vast_db.query("objects").select("*").where(f"id = '{object_id}'").execute()
             
-            if not result or len(result) == 0:
+            # Handle VAST query result format
+            rows = []
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
+                if isinstance(data, dict):
+                    rows = list(data.values()) if data else []
+                elif isinstance(data, list):
+                    rows = data
+            else:
+                rows = result if isinstance(result, list) else []
+            
+            if not rows or len(rows) == 0:
                 return None
             
-            object_data = dict(result[0])
+            object_data = dict(rows[0]) if hasattr(rows[0], '__iter__') and not isinstance(rows[0], str) else rows[0]
             return Object(**object_data)
         except Exception as e:
             logger.error("Failed to get object %s: %s", object_id, e)

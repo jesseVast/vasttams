@@ -1,5 +1,37 @@
 # BBC TAMS Project - Code Changes Tracking
 
+## Edit #42: Timerange Handling in TAMS Application Layer (September 28, 2025)
+
+### Summary
+Implemented proper timerange handling in the TAMS application layer, moving domain-specific logic out of the generic vaststore submodule to maintain clean architectural boundaries.
+
+### Files Modified
+- **Modified**: `app/storage/segment_service.py` - Added timerange splitting and reconstruction logic
+- **Reverted**: `app/vaststore/vastdbmanager/data_operations.py` - Removed TAMS-specific logic
+- **Reverted**: `app/vaststore/vastdbmanager/trino/query_builder.py` - Removed TAMS-specific logic
+
+### Key Changes
+1. **Timerange Splitting**: Split `timerange.value` into `timerange_start` and `timerange_end` for database storage
+2. **Timerange Reconstruction**: Reconstruct timerange from separate fields when reading from database
+3. **Format Correction**: Use underscore separator (`start_end`) instead of colon for proper TAMS format
+4. **JSON Serialization**: Handle JSON fields (`ts_offset`, `last_duration`, `get_urls`) for database storage
+5. **Architecture Cleanup**: Removed TAMS-specific logic from generic vaststore submodule
+
+### Benefits
+- Clean separation between domain-specific business logic and generic storage infrastructure
+- Proper architectural boundaries maintained
+- TAMS-specific timerange handling in application layer where it belongs
+- Generic vaststore submodule remains reusable for other projects
+- All timerange operations working correctly with proper database field mapping
+
+### Test Results
+- **Segments Tests**: All passing ✅
+- **New Parameter Tests**: All passing ✅
+- **Timerange Operations**: Working correctly ✅
+- **Database Storage**: Proper field mapping ✅
+
+---
+
 ## Edit #41: Trino Configuration - Properties File Approach (January 27, 2025)
 
 ### Summary

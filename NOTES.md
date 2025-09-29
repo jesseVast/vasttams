@@ -1,6 +1,31 @@
 # BBC TAMS Project Notes
 
-## 🚨 **CURRENT STATUS: FLOW ENDPOINT IMPLEMENTATION & 500 ERRORS** (2025-09-28)
+## 🎯 **CURRENT STATUS: TIMERANGE HANDLING IMPLEMENTED** (2025-09-28)
+
+### **✅ COMPLETED: TIMERANGE HANDLING IN TAMS APPLICATION LAYER**
+**Date**: September 28, 2025  
+**Task**: Implement timerange splitting logic in TAMS application layer  
+**Status**: ✅ **COMPLETED** - Timerange handling properly implemented
+
+#### **🏗️ Architecture Fix**
+- **Problem**: TAMS-specific timerange logic was incorrectly implemented in generic `vaststore` submodule
+- **Solution**: Moved timerange handling to TAMS application layer (`app/storage/segment_service.py`)
+- **Result**: Clean separation between domain-specific business logic and generic storage infrastructure
+
+#### **🔧 Implementation Details**
+- **Timerange Splitting**: Split `timerange.value` into `timerange_start` and `timerange_end` for database storage
+- **Timerange Reconstruction**: Reconstruct timerange from separate fields when reading from database
+- **Format**: Use underscore separator (`start_end`) instead of colon for proper TAMS format
+- **JSON Serialization**: Handle JSON fields (`ts_offset`, `last_duration`, `get_urls`) for database storage
+- **Error Handling**: Proper validation and error handling for timerange operations
+
+#### **✅ Test Results**
+- **Segments Tests**: All passing ✅
+- **New Parameter Tests**: All passing ✅
+- **Timerange Operations**: Working correctly ✅
+- **Database Storage**: Proper field mapping ✅
+
+## 🚨 **PREVIOUS STATUS: FLOW ENDPOINT IMPLEMENTATION & 500 ERRORS** (2025-09-28)
 
 ### **🔧 Current Status: FLOW ENDPOINTS IMPLEMENTED WITH REMAINING 500 ERRORS**
 **Date**: September 28, 2025  

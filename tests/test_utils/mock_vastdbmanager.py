@@ -79,7 +79,7 @@ class MockVastDBManager:
     
     def _mock_create_source(self, source_data: Dict[str, Any]) -> Source:
         """Mock source creation"""
-        source_id = uuid.uuid4()
+        source_id = str(uuid.uuid4())
         source = Source(
             id=source_id,
             format=source_data.get('format', 'urn:x-nmos:format:video'),
@@ -95,22 +95,11 @@ class MockVastDBManager:
     
     def _mock_get_source(self, source_id: str) -> Optional[Source]:
         """Mock source retrieval"""
-        # Convert string ID to UUID if needed
-        if isinstance(source_id, str):
-            try:
-                source_id = uuid.UUID(source_id)
-            except ValueError:
-                return None
+        # Keep source_id as string for lookup
         return self.test_data['sources'].get(source_id)
     
     def _mock_update_source(self, source_id: str, update_data: Dict[str, Any]) -> Optional[Source]:
         """Mock source update"""
-        if isinstance(source_id, str):
-            try:
-                source_id = uuid.UUID(source_id)
-            except ValueError:
-                return None
-        
         source = self.test_data['sources'].get(source_id)
         if source:
             for key, value in update_data.items():
@@ -144,13 +133,19 @@ class MockVastDBManager:
     
     def _mock_create_flow(self, flow_data: Dict[str, Any]) -> VideoFlow:
         """Mock flow creation"""
-        flow_id = uuid.uuid4()
-        source_id = flow_data.get('source_id', uuid.uuid4())
-        if isinstance(source_id, str):
-            try:
-                source_id = uuid.UUID(source_id)
-            except ValueError:
-                source_id = uuid.uuid4()
+        flow_id = str(uuid.uuid4())
+        source_id = flow_data.get('source_id', str(uuid.uuid4()))
+        # Keep source_id as string - no conversion needed
+        
+        # Create VideoEssenceParameters
+        from app.models.flows import VideoEssenceParameters
+        from app.models.core import SegmentDuration
+        frame_rate = SegmentDuration(numerator=25, denominator=1)
+        essence_params = VideoEssenceParameters(
+            frame_width=1920,
+            frame_height=1080,
+            frame_rate=frame_rate
+        )
         
         flow = VideoFlow(
             id=flow_id,
@@ -166,30 +161,18 @@ class MockVastDBManager:
             segments_updated=datetime.now(timezone.utc),
             metadata_version="1.0",
             generation=0,
-            frame_width=1920,
-            frame_height=1080,
-            frame_rate="25:1"
+            essence_parameters=essence_params
         )
         self.test_data['flows'][flow_id] = flow
         return flow
     
     def _mock_get_flow(self, flow_id: str) -> Optional[VideoFlow]:
         """Mock flow retrieval"""
-        if isinstance(flow_id, str):
-            try:
-                flow_id = uuid.UUID(flow_id)
-            except ValueError:
-                return None
+        # Keep flow_id as string for lookup
         return self.test_data['flows'].get(flow_id)
     
     def _mock_update_flow(self, flow_id: str, update_data: Dict[str, Any]) -> Optional[VideoFlow]:
         """Mock flow update"""
-        if isinstance(flow_id, str):
-            try:
-                flow_id = uuid.UUID(flow_id)
-            except ValueError:
-                return None
-        
         flow = self.test_data['flows'].get(flow_id)
         if flow:
             for key, value in update_data.items():
@@ -230,24 +213,23 @@ class MockVastDBManager:
     def _mock_create_segment(self, segment_data: Dict[str, Any]) -> FlowSegment:
         """Mock segment creation"""
         segment_id = str(uuid.uuid4())
-        flow_id = segment_data.get('flow_id', uuid.uuid4())
-        if isinstance(flow_id, str):
-            try:
-                flow_id = uuid.UUID(flow_id)
-            except ValueError:
-                flow_id = uuid.uuid4()
+        flow_id = segment_data.get('flow_id', str(uuid.uuid4()))
+        # Keep flow_id as string - no conversion needed
         
         # Create TAMS-compliant timerange
         start_time = segment_data.get('start_time', datetime.now(timezone.utc))
         end_time = segment_data.get('end_time', start_time + timedelta(minutes=5))
         start_ts = int(start_time.timestamp())
         end_ts = int(end_time.timestamp())
-        timerange = f"[{start_ts}:0_{end_ts}:0]"
+        timerange_value = f"[{start_ts}:0_{end_ts}:0]"
+        
+        # Create TimeRange object
+        from app.models.core import TimeRange
+        timerange = TimeRange(value=timerange_value)
         
         segment = FlowSegment(
             object_id=segment_id,
-            timerange=timerange,
-            storage_path=segment_data.get('storage_path', '/test/path')
+            timerange=timerange
         )
         self.test_data['segments'][segment_id] = segment
         return segment

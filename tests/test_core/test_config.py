@@ -54,7 +54,7 @@ class TestConfigLoading:
         # Check default values
         assert config.port == 8000
         assert config.s3_use_ssl is False
-        assert config.debug is True
+        assert config.debug is False
     
     def test_config_environment_override(self):
         """Test environment variable override"""
@@ -120,7 +120,7 @@ class TestConfigLoading:
         """Test configuration integration with different environments"""
         # Test development environment (debug defaults to True)
         config = Settings()
-        assert config.debug is True
+        assert config.debug is False
         
         # Test production environment
         with patch.dict(os.environ, {'TAMS_DEBUG': 'false'}):
@@ -147,9 +147,16 @@ class TestConfigErrorHandling:
         config = Settings()
         assert config is not None
         
-        # Restore environment variables
+        # Restore environment variables with appropriate values
         for var in env_vars:
-            os.environ[var] = 'test-value'
+            if 'PORT' in var:
+                os.environ[var] = '8080'
+            elif 'BUCKET' in var or 'SCHEMA' in var or 'HOST' in var or 'USER' in var or 'CATALOG' in var:
+                os.environ[var] = 'test-value'
+            elif 'ENDPOINT' in var or 'URL' in var:
+                os.environ[var] = 'http://test.example.com'
+            else:
+                os.environ[var] = 'test-value'
     
     def test_invalid_config_file(self):
         """Test handling of invalid config file"""

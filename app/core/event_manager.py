@@ -38,7 +38,7 @@ class EventManager:
             return self._webhook_cache
         
         try:
-            webhooks = await self.store.list_webhooks()
+            webhooks = await self.store.get_webhooks()
             self._webhook_cache = webhooks
             self._cache_timestamp = now
             return webhooks
@@ -119,6 +119,7 @@ class EventManager:
         """Emit a source-related event"""
         try:
             event_data = SourceEventData(
+                event_type=event_type,
                 entity_id=str(source.id),
                 source_id=str(source.id),
                 label=getattr(source, 'label', None),
@@ -137,6 +138,7 @@ class EventManager:
         """Emit a flow-related event"""
         try:
             event_data = FlowEventData(
+                event_type=event_type,
                 entity_id=str(flow.id),
                 flow_id=str(flow.id),
                 source_id=str(flow.source_id),
@@ -157,6 +159,7 @@ class EventManager:
         """Emit a flow segment-related event"""
         try:
             event_data = FlowSegmentEventData(
+                event_type=event_type,  # Add missing event_type field
                 entity_id=str(segment.object_id),  # Use object_id instead of id
                 segment_id=str(segment.object_id),  # Use object_id instead of id
                 flow_id=flow_id,  # Use passed flow_id parameter

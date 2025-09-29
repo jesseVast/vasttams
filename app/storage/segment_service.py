@@ -60,7 +60,7 @@ class SegmentStorageService:
                         # Create timerange object - required field
                         if timerange_start and timerange_end:
                             from ..models.core import TimeRange
-                            segment_data['timerange'] = TimeRange(value=f"{timerange_start}:{timerange_end}")
+                            segment_data['timerange'] = TimeRange(value=f"{timerange_start}_{timerange_end}")
                         elif timerange_start:
                             from ..models.core import TimeRange
                             segment_data['timerange'] = TimeRange(value=str(timerange_start))
@@ -91,7 +91,7 @@ class SegmentStorageService:
                         # Create timerange object - required field
                         if timerange_start and timerange_end:
                             from ..models.core import TimeRange
-                            segment_data['timerange'] = TimeRange(value=f"{timerange_start}:{timerange_end}")
+                            segment_data['timerange'] = TimeRange(value=f"{timerange_start}_{timerange_end}")
                         elif timerange_start:
                             from ..models.core import TimeRange
                             segment_data['timerange'] = TimeRange(value=str(timerange_start))
@@ -149,6 +149,47 @@ class SegmentStorageService:
         try:
             segment_data = segment.model_dump()
             segment_data['flow_id'] = flow_id
+            
+            # Handle timerange splitting for database storage
+            if 'timerange' in segment_data and segment_data['timerange']:
+                timerange_obj = segment_data['timerange']
+                if isinstance(timerange_obj, dict) and 'value' in timerange_obj:
+                    timerange_value = timerange_obj['value']
+                    # Split timerange into start and end for database storage
+                    if '_' in timerange_value:
+                        timerange_start, timerange_end = timerange_value.split('_', 1)
+                        segment_data['timerange_start'] = timerange_start
+                        segment_data['timerange_end'] = timerange_end
+                        logger.debug(f"Split timerange {timerange_value} into start: {timerange_start}, end: {timerange_end}")
+                    else:
+                        # If no underscore, treat as start only
+                        segment_data['timerange_start'] = timerange_value
+                        segment_data['timerange_end'] = timerange_value
+                        logger.debug(f"Set timerange {timerange_value} as both start and end")
+                    
+                    # Remove the original timerange field as it's not in the database schema
+                    del segment_data['timerange']
+                else:
+                    # Handle case where timerange is already a string
+                    timerange_value = str(timerange_obj)
+                    if '_' in timerange_value:
+                        timerange_start, timerange_end = timerange_value.split('_', 1)
+                        segment_data['timerange_start'] = timerange_start
+                        segment_data['timerange_end'] = timerange_end
+                    else:
+                        segment_data['timerange_start'] = timerange_value
+                        segment_data['timerange_end'] = timerange_value
+                    del segment_data['timerange']
+            
+            # Handle other JSON fields that need to be serialized
+            for field in ['ts_offset', 'last_duration', 'get_urls']:
+                if field in segment_data and segment_data[field] is not None:
+                    if isinstance(segment_data[field], (dict, list)):
+                        import json
+                        segment_data[field] = json.dumps(segment_data[field])
+                        logger.debug(f"Serialized {field} to JSON string")
+            
+            logger.debug("Creating segment with processed data: %s", segment_data)
             self.vast_db.insert_record("segments", segment_data)
             return True
         except Exception as e:

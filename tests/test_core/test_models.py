@@ -12,6 +12,7 @@ import uuid
 from pydantic import ValidationError
 
 from app.models.models import Source, VideoFlow, FlowSegment, Object
+from app.models.core import SegmentDuration
 from tests.test_utils.test_helpers import TestDataFactory
 
 
@@ -52,7 +53,7 @@ class TestSourceModel:
         """Test that field types are properly enforced"""
         source = TestDataFactory.create_source()
         
-        assert isinstance(source.id, uuid.UUID)
+        assert isinstance(source.id, str)
         assert isinstance(source.format, str)
         assert isinstance(source.label, str)
         assert isinstance(source.description, str)
@@ -101,9 +102,10 @@ class TestVideoFlowModel:
         assert flow.segments_updated is not None
         assert flow.metadata_version == "1.0"
         assert flow.generation == 0
-        assert flow.frame_width == 1920
-        assert flow.frame_height == 1080
-        assert flow.frame_rate == "25:1"
+        assert flow.essence_parameters.frame_width == 1920
+        assert flow.essence_parameters.frame_height == 1080
+        assert flow.essence_parameters.frame_rate.numerator == 25
+        assert flow.essence_parameters.frame_rate.denominator == 1
     
     def test_create_flow_with_custom_data(self):
         """Test creating a flow with custom data"""
@@ -124,8 +126,8 @@ class TestVideoFlowModel:
         """Test that field types are properly enforced"""
         flow = TestDataFactory.create_flow()
         
-        assert isinstance(flow.id, uuid.UUID)
-        assert isinstance(flow.source_id, uuid.UUID)
+        assert isinstance(flow.id, str)
+        assert isinstance(flow.source_id, str)
         assert isinstance(flow.format, str)
         assert isinstance(flow.codec, str)
         assert isinstance(flow.label, str)
@@ -137,9 +139,9 @@ class TestVideoFlowModel:
         assert isinstance(flow.segments_updated, datetime)
         assert isinstance(flow.metadata_version, str)
         assert isinstance(flow.generation, int)
-        assert isinstance(flow.frame_width, int)
-        assert isinstance(flow.frame_height, int)
-        assert isinstance(flow.frame_rate, str)
+        assert isinstance(flow.essence_parameters.frame_width, int)
+        assert isinstance(flow.essence_parameters.frame_height, int)
+        assert isinstance(flow.essence_parameters.frame_rate, SegmentDuration)
     
     def test_flow_duration_calculation(self):
         """Test flow duration calculation"""
@@ -176,15 +178,13 @@ class TestFlowSegmentModel:
         
         assert segment.object_id is not None
         assert segment.timerange is not None
-        assert segment.storage_path == "/test/path"
+        # FlowSegment doesn't have storage_path field
     
     def test_create_segment_with_custom_data(self):
         """Test creating a segment with custom data"""
-        custom_segment = TestDataFactory.create_segment(
-            storage_path="/custom/path"
-        )
+        custom_segment = TestDataFactory.create_segment()
         
-        assert custom_segment.storage_path == "/custom/path"
+        # FlowSegment doesn't have storage_path field
     
     def test_segment_required_fields(self):
         """Test that required fields are enforced"""
@@ -196,30 +196,33 @@ class TestFlowSegmentModel:
         segment = TestDataFactory.create_segment()
         
         assert isinstance(segment.object_id, str)
-        assert isinstance(segment.timerange, str)
-        assert isinstance(segment.storage_path, str)
+        assert hasattr(segment.timerange, 'value')
+        assert isinstance(segment.timerange.value, str)
+        # FlowSegment doesn't have storage_path field
     
     def test_segment_timerange_format(self):
         """Test segment timerange format validation"""
         segment = TestDataFactory.create_segment()
         
         # Timerange should be in format [start:0_end:0]
-        assert segment.timerange.startswith('[')
-        assert segment.timerange.endswith(']')
-        assert ':' in segment.timerange
-        assert '_' in segment.timerange
+        assert segment.timerange.value.startswith('[')
+        assert segment.timerange.value.endswith(']')
+        assert ':' in segment.timerange.value
+        assert '_' in segment.timerange.value
     
-    def test_segment_storage_path_validation(self):
-        """Test segment storage path validation"""
-        # Test with valid paths
-        valid_paths = ["/test/path", "/segments/123", "/storage/video"]
-        for path in valid_paths:
-            segment = TestDataFactory.create_segment(storage_path=path)
-            assert segment.storage_path == path
+    def test_segment_object_id_validation(self):
+        """Test segment object ID validation"""
+        # Test with valid object IDs
+        valid_object_ids = ["obj-123", "obj-456", "obj-789"]
+        for obj_id in valid_object_ids:
+            segment = TestDataFactory.create_segment()
+            segment.object_id = obj_id
+            assert segment.object_id == obj_id
         
-        # Test with empty path (should be allowed by model)
-        segment = TestDataFactory.create_segment(storage_path="")
-        assert segment.storage_path == ""
+        # Test with empty object ID (should be allowed by model)
+        segment = TestDataFactory.create_segment()
+        segment.object_id = ""
+        assert segment.object_id == ""
 
 
 class TestObjectModel:
@@ -383,13 +386,13 @@ class TestModelSerialization:
         segment_dict = segment.model_dump()
         assert isinstance(segment_dict, dict)
         assert segment_dict['object_id'] == segment.object_id
-        assert segment_dict['timerange'] == segment.timerange
+        assert segment_dict['timerange']['value'] == segment.timerange.value
         
         # Convert to JSON
         segment_json = segment.model_dump_json()
         assert isinstance(segment_json, str)
         assert segment.object_id in segment_json
-        assert segment.timerange in segment_json
+        assert segment.timerange.value in segment_json
     
     def test_object_serialization(self):
         """Test object model serialization"""
@@ -480,17 +483,17 @@ class TestModelEdgeCases:
     def test_flow_zero_dimensions(self):
         """Test flow with zero dimensions"""
         flow = TestDataFactory.create_flow()
-        flow.frame_width = 0
-        flow.frame_height = 0
+        flow.essence_parameters.frame_width = 0
+        flow.essence_parameters.frame_height = 0
         
-        assert flow.frame_width == 0
-        assert flow.frame_height == 0
+        assert flow.essence_parameters.frame_width == 0
+        assert flow.essence_parameters.frame_height == 0
     
     def test_segment_empty_path(self):
         """Test segment with empty storage path"""
-        segment = TestDataFactory.create_segment(storage_path="")
+        segment = TestDataFactory.create_segment()
         
-        assert segment.storage_path == ""
+        # FlowSegment doesn't have storage_path field
     
     def test_object_empty_references(self):
         """Test object with empty references - validates model constraint"""

@@ -277,8 +277,7 @@ class MockS3Store:
             'content_type': content_type,
             'metadata': {
                 'segment_id': segment.object_id,
-                'timerange': segment.timerange,
-                'storage_path': segment.storage_path
+                'timerange': segment.timerange.value if hasattr(segment.timerange, 'value') else str(segment.timerange)
             },
             'uploaded_at': datetime.now(timezone.utc)
         }

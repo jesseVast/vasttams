@@ -27,7 +27,7 @@ class TestDataFactory:
     ) -> Source:
         """Create a test Source object"""
         return Source(
-            id=uuid.uuid4(),
+            id=str(uuid.uuid4()),
             format=source_type,
             label=name,
             description=description,
@@ -41,21 +41,31 @@ class TestDataFactory:
     def create_flow(
         name: str = "Test Flow",
         description: str = "Test Description",
-        source_id: Optional[uuid.UUID] = None,
+        source_id: Optional[str] = None,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> VideoFlow:
         """Create a test VideoFlow object"""
         if source_id is None:
-            source_id = uuid.uuid4()
+            source_id = str(uuid.uuid4())
         if start_time is None:
             start_time = datetime.now(timezone.utc)
         if end_time is None:
             end_time = start_time + timedelta(hours=1)
         
+        # Create VideoEssenceParameters
+        from app.models.flows import VideoEssenceParameters
+        from app.models.core import SegmentDuration
+        frame_rate = SegmentDuration(numerator=25, denominator=1)
+        essence_params = VideoEssenceParameters(
+            frame_width=1920,
+            frame_height=1080,
+            frame_rate=frame_rate
+        )
+        
         return VideoFlow(
-            id=uuid.uuid4(),
+            id=str(uuid.uuid4()),
             source_id=source_id,
             format="urn:x-nmos:format:video",
             codec="video/mp4",
@@ -68,23 +78,20 @@ class TestDataFactory:
             segments_updated=end_time,
             metadata_version="1.0",
             generation=0,
-            frame_width=1920,
-            frame_height=1080,
-            frame_rate="25:1"
+            essence_parameters=essence_params
         )
     
     @staticmethod
     def create_segment(
-        flow_id: Optional[uuid.UUID] = None,
+        flow_id: Optional[str] = None,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         media_type: str = "video",
-        storage_path: str = "/test/path",
         metadata: Optional[Dict[str, Any]] = None
     ) -> FlowSegment:
         """Create a test FlowSegment object"""
         if flow_id is None:
-            flow_id = uuid.uuid4()
+            flow_id = str(uuid.uuid4())
         if start_time is None:
             start_time = datetime.now(timezone.utc)
         if end_time is None:
@@ -93,12 +100,15 @@ class TestDataFactory:
         # Convert time range to TAMS format
         start_ts = int(start_time.timestamp())
         end_ts = int(end_time.timestamp())
-        timerange = f"[{start_ts}:0_{end_ts}:0]"
+        timerange_value = f"[{start_ts}:0_{end_ts}:0]"
+        
+        # Create TimeRange object
+        from app.models.core import TimeRange
+        timerange = TimeRange(value=timerange_value)
         
         return FlowSegment(
             object_id=str(uuid.uuid4()),
-            timerange=timerange,
-            storage_path=storage_path
+            timerange=timerange
         )
     
     @staticmethod

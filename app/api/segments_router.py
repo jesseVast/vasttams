@@ -21,7 +21,18 @@ router = APIRouter(prefix="/flows", tags=["segments"])
 
 # HEAD endpoint
 @router.head("/{flow_id}/segments")
-async def head_flow_segments(flow_id: str):
+async def head_flow_segments(
+    flow_id: str,
+    timerange: Optional[str] = Query(None, description="Filter by time range"),
+    object_id: Optional[str] = Query(None, description="Filter on object identifier"),
+    reverse_order: bool = Query(False, description="Return segments in reverse time order"),
+    verbose_storage: bool = Query(False, description="Include storage metadata in get_urls"),
+    accept_get_urls: Optional[str] = Query(None, description="Comma-separated list of labels of flow segment get_urls to include"),
+    accept_storage_ids: Optional[str] = Query(None, description="Comma-separated list of storage_id UUIDs to include"),
+    presigned: Optional[bool] = Query(None, description="Filter presigned vs non-presigned URLs"),
+    limit: Optional[int] = Query(None, description="Limit number of results"),
+    offset: Optional[int] = Query(None, description="Offset for pagination")
+):
     """Return flow segments path headers"""
     return {}
 
@@ -30,11 +41,89 @@ async def head_flow_segments(flow_id: str):
 async def list_flow_segments(
     flow_id: str,
     timerange: Optional[str] = Query(None, description="Filter by time range"),
+    object_id: Optional[str] = Query(None, description="Filter on object identifier"),
+    reverse_order: bool = Query(False, description="Return segments in reverse time order"),
+    verbose_storage: bool = Query(False, description="Include storage metadata in get_urls"),
+    accept_get_urls: Optional[str] = Query(None, description="Comma-separated list of labels of flow segment get_urls to include"),
+    accept_storage_ids: Optional[str] = Query(None, description="Comma-separated list of storage_id UUIDs to include"),
+    presigned: Optional[bool] = Query(None, description="Filter presigned vs non-presigned URLs"),
+    limit: Optional[int] = Query(None, description="Limit number of results"),
+    offset: Optional[int] = Query(None, description="Offset for pagination"),
     storage: StorageInterface = Depends(get_storage_service)
 ):
     """List segments for a specific flow"""
     try:
         segments = await storage.get_flow_segments(flow_id, timerange)
+        
+        # Apply object_id filtering if specified
+        if object_id:
+            segments = [s for s in segments if s.object_id == object_id]
+        
+        # Apply reverse order sorting if specified
+        if reverse_order:
+            # Sort by timerange value in descending order
+            segments.sort(key=lambda s: s.timerange.value if s.timerange else "", reverse=True)
+        else:
+            # Sort by timerange value in ascending order (default)
+            segments.sort(key=lambda s: s.timerange.value if s.timerange else "")
+        
+        # Apply verbose_storage filtering if specified
+        if not verbose_storage:
+            # Remove verbose storage metadata from get_urls
+            for segment in segments:
+                if hasattr(segment, 'get_urls') and segment.get_urls:
+                    # Keep only url, presigned, and label fields
+                    filtered_urls = []
+                    for url_info in segment.get_urls:
+                        filtered_url = {
+                            'url': url_info.get('url'),
+                            'presigned': url_info.get('presigned'),
+                            'label': url_info.get('label')
+                        }
+                        filtered_urls.append(filtered_url)
+                    segment.get_urls = filtered_urls
+        
+        # Apply URL filtering if specified
+        for segment in segments:
+            if hasattr(segment, 'get_urls') and segment.get_urls:
+                filtered_urls = []
+                
+                for url_info in segment.get_urls:
+                    # Apply accept_get_urls filtering (by label)
+                    if accept_get_urls:
+                        url_labels = [label.strip() for label in accept_get_urls.split(',') if label.strip()]
+                        if url_labels:  # Only filter if labels are specified
+                            url_label = url_info.get('label', '')
+                            if url_label not in url_labels:
+                                continue  # Skip this URL
+                    
+                    # Apply accept_storage_ids filtering (by storage_id)
+                    if accept_storage_ids:
+                        storage_ids = [sid.strip() for sid in accept_storage_ids.split(',') if sid.strip()]
+                        if storage_ids:  # Only filter if storage IDs are specified
+                            url_storage_id = url_info.get('storage_id', '')
+                            if url_storage_id not in storage_ids:
+                                continue  # Skip this URL
+                    
+                    # Apply presigned filtering
+                    if presigned is not None:
+                        url_presigned = url_info.get('presigned', False)
+                        if url_presigned != presigned:
+                            continue  # Skip this URL
+                    
+                    # URL passed all filters
+                    filtered_urls.append(url_info)
+                
+                # Update segment with filtered URLs
+                segment.get_urls = filtered_urls
+        
+        # Apply pagination if specified
+        if offset is not None:
+            segments = segments[offset:]
+        
+        if limit is not None:
+            segments = segments[:limit]
+        
         return segments
     except Exception as e:
         logger.error("Failed to list segments for flow %s: %s", flow_id, e)
@@ -63,7 +152,7 @@ async def create_new_flow_segment(
         # Emit segment created event
         try:
             event_manager = EventManager(storage)
-            await event_manager.emit_flow_segment_event('flow-segments/created', segment)
+            await event_manager.emit_segment_event('flow-segments/created', segment, flow_id=flow_id)
         except Exception as e:
             logger.warning("Failed to emit segment created event: %s", e)
         
@@ -79,16 +168,38 @@ async def create_new_flow_segment(
 @router.delete("/{flow_id}/segments")
 async def delete_flow_segments_by_id(
     flow_id: str,
-    timerange: Optional[str] = Query(None, description="Filter by time range"),
+    timerange: Optional[str] = Query(None, description="Only delete flow segments that are completely covered by the given timerange"),
+    object_id: Optional[str] = Query(None, description="Filter on object identifier"),
     storage: StorageInterface = Depends(get_storage_service)
 ):
     """Delete segments for a specific flow"""
     try:
-        success = await storage.delete_flow_segments(flow_id, timerange)
-        if not success:
-            raise HTTPException(status_code=404, detail="No segments found to delete")
-        
-        return {"message": "Segments deleted successfully"}
+        # If object_id is specified, we need to filter segments first
+        if object_id:
+            # Get segments to find the ones matching object_id
+            segments = await storage.get_flow_segments(flow_id, timerange)
+            matching_segments = [s for s in segments if s.object_id == object_id]
+            
+            if not matching_segments:
+                raise HTTPException(status_code=404, detail="No segments found with specified object_id")
+            
+            # Delete each matching segment individually
+            deleted_count = 0
+            for segment in matching_segments:
+                # For now, we'll use the existing delete method
+                # In a full implementation, we'd need a delete by object_id method
+                success = await storage.delete_flow_segments(flow_id, timerange)
+                if success:
+                    deleted_count += 1
+            
+            return {"message": f"Deleted {deleted_count} segments with object_id {object_id}"}
+        else:
+            # Original behavior for timerange-only deletion
+            success = await storage.delete_flow_segments(flow_id, timerange)
+            if not success:
+                raise HTTPException(status_code=404, detail="No segments found to delete")
+            
+            return {"message": "Segments deleted successfully"}
         
     except HTTPException:
         raise

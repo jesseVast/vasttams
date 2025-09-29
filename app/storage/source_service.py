@@ -43,9 +43,45 @@ class SourceStorageService:
             
             # Convert to Source objects
             sources = []
-            for row in result:
-                source_data = dict(row)
-                sources.append(Source(**source_data))
+            # VAST returns a dict with 'data' field containing column arrays
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
+                if isinstance(data, dict) and data:
+                    # Convert column arrays to row dictionaries
+                    num_rows = len(next(iter(data.values())))
+                    for i in range(num_rows):
+                        source_data = {}
+                        for column, values in data.items():
+                            if column != '$row_id':  # Skip internal row IDs
+                                value = values[i] if i < len(values) else None
+                                
+                                # Handle tags field - parse JSON string if needed
+                                if column == 'tags' and value and isinstance(value, str):
+                                    try:
+                                        import json
+                                        value = json.loads(value)
+                                    except (json.JSONDecodeError, TypeError):
+                                        value = None
+                                
+                                source_data[column] = value
+                        
+                        # Compute source_collection from flow collections
+                        source_data['source_collection'] = await self._compute_source_collection(source_data.get('id'))
+                        sources.append(Source(**source_data))
+                elif isinstance(data, list):
+                    # If data is a list, iterate directly
+                    for row in data:
+                        source_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
+                        # Compute source_collection from flow collections
+                        source_data['source_collection'] = await self._compute_source_collection(source_data.get('id'))
+                        sources.append(Source(**source_data))
+            else:
+                # Fallback for direct list results
+                for row in result:
+                    source_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
+                    # Compute source_collection from flow collections
+                    source_data['source_collection'] = await self._compute_source_collection(source_data.get('id'))
+                    sources.append(Source(**source_data))
             
             return sources
         except Exception as e:
@@ -57,11 +93,52 @@ class SourceStorageService:
         try:
             result = self.vast_db.query("sources").select("*").where(f"id = '{source_id}'").execute()
             
-            if not result or len(result) == 0:
-                return None
+            # Handle VAST query result format (same as get_sources)
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
+                if isinstance(data, dict) and data:
+                    # Convert column arrays to row dictionaries
+                    num_rows = len(next(iter(data.values())))
+                    if num_rows == 0:
+                        return None
+                    
+                    # Get the first (and should be only) row
+                    source_data = {}
+                    for column, values in data.items():
+                        if column != '$row_id':  # Skip internal row IDs
+                            value = values[0] if len(values) > 0 else None
+                            
+                            # Handle tags field - parse JSON string if needed
+                            if column == 'tags' and value and isinstance(value, str):
+                                try:
+                                    import json
+                                    value = json.loads(value)
+                                except (json.JSONDecodeError, TypeError):
+                                    value = None
+                            
+                            source_data[column] = value
+                    
+                    # Compute source_collection from flow collections
+                    source_data['source_collection'] = await self._compute_source_collection(source_id)
+                    return Source(**source_data)
+                elif isinstance(data, list):
+                    # If data is a list, get first item
+                    if not data:
+                        return None
+                    source_data = dict(data[0]) if hasattr(data[0], '__iter__') and not isinstance(data[0], str) else data[0]
+                    # Compute source_collection from flow collections
+                    source_data['source_collection'] = await self._compute_source_collection(source_id)
+                    return Source(**source_data)
+            else:
+                # Fallback for direct list results
+                if not result or len(result) == 0:
+                    return None
+                source_data = dict(result[0]) if hasattr(result[0], '__iter__') and not isinstance(result[0], str) else result[0]
+                # Compute source_collection from flow collections
+                source_data['source_collection'] = await self._compute_source_collection(source_id)
+                return Source(**source_data)
             
-            source_data = dict(result[0])
-            return Source(**source_data)
+            return None
         except Exception as e:
             logger.error("Failed to get source %s: %s", source_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -73,7 +150,7 @@ class SourceStorageService:
             source.created = now
             source.updated = now
             
-            source_data = source.model_dump()
+            source_data = source.model_dump(exclude={'source_collection', 'collected_by'})
             self.vast_db.insert_record("sources", source_data)
             return True
         except Exception as e:
@@ -84,8 +161,34 @@ class SourceStorageService:
         """Update an existing source"""
         try:
             source.updated = datetime.now(timezone.utc)
-            source_data = source.model_dump()
+            # Only update mutable fields, exclude read-only fields
+            source_data = source.model_dump(exclude={'id', 'created', 'created_by', 'source_collection', 'collected_by'})
             
+            # Keep datetime fields as datetime objects for proper timestamp handling
+            # Convert the updated field back to datetime if it was serialized to string
+            if 'updated' in source_data and isinstance(source_data['updated'], str):
+                try:
+                    source_data['updated'] = datetime.fromisoformat(source_data['updated'].replace('Z', '+00:00'))
+                except ValueError:
+                    # If parsing fails, keep as string
+                    pass
+            
+            # Convert Tags object to JSON string for database compatibility
+            if 'tags' in source_data and source_data['tags'] is not None:
+                import json
+                if hasattr(source_data['tags'], 'root'):
+                    source_data['tags'] = json.dumps(source_data['tags'].root)
+                elif isinstance(source_data['tags'], dict):
+                    source_data['tags'] = json.dumps(source_data['tags'])
+                # If it's already a string, leave it as is
+            
+            # Filter out None values to avoid "unknown" type errors
+            source_data = {k: v for k, v in source_data.items() if v is not None}
+            
+            # Debug: Log the data being sent
+            logger.debug("Updating source %s with data: %s", source_id, source_data)
+            
+            # Use query builder with proper timestamp handling
             self.vast_db.query("sources").update().set(**source_data).where(f"id = '{source_id}'").execute()
             return True
         except Exception as e:
@@ -112,43 +215,88 @@ class SourceStorageService:
             logger.error("Failed to delete source %s: %s", source_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
     
-    async def get_source_collections(self, source_id: str) -> List[CollectionItem]:
-        """Get source collections"""
+    async def _compute_source_collection(self, source_id: str) -> List[CollectionItem]:
+        """Compute source_collection from flow collections as per TAMS spec"""
         try:
-            result = self.vast_db.query("source_collections").select("*").where(f"source_id = '{source_id}'").execute()
+            if not source_id:
+                return []
             
-            collections = []
-            for row in result:
-                collection_data = dict(row)
-                collections.append(CollectionItem(**collection_data))
+            # Get flows for this source
+            flows_result = self.vast_db.query("flows").select("id, flow_collection").where(f"source_id = '{source_id}'").execute()
             
-            return collections
+            collection_items = []
+            processed_collections = set()
+            
+            # Handle VAST query result format
+            if isinstance(flows_result, dict) and 'data' in flows_result:
+                data = flows_result['data']
+                if isinstance(data, dict) and 'flow_collection' in data:
+                    flow_collections = data['flow_collection']
+                    flow_ids = data.get('id', [])
+                    
+                    for i, flow_collection in enumerate(flow_collections):
+                        if flow_collection and isinstance(flow_collection, str):
+                            try:
+                                import json
+                                collection_data = json.loads(flow_collection)
+                                if isinstance(collection_data, list):
+                                    for item in collection_data:
+                                        if isinstance(item, dict) and 'id' in item and 'role' in item:
+                                            # Create CollectionItem for each collected flow
+                                            collection_item = CollectionItem(
+                                                id=item['id'],
+                                                role=item['role']
+                                            )
+                                            # Avoid duplicates
+                                            item_key = f"{item['id']}:{item['role']}"
+                                            if item_key not in processed_collections:
+                                                collection_items.append(collection_item)
+                                                processed_collections.add(item_key)
+                            except (json.JSONDecodeError, TypeError):
+                                continue
+                elif isinstance(data, list):
+                    for row in data:
+                        if hasattr(row, 'get') and row.get('flow_collection'):
+                            try:
+                                import json
+                                collection_data = json.loads(row['flow_collection'])
+                                if isinstance(collection_data, list):
+                                    for item in collection_data:
+                                        if isinstance(item, dict) and 'id' in item and 'role' in item:
+                                            collection_item = CollectionItem(
+                                                id=item['id'],
+                                                role=item['role']
+                                            )
+                                            item_key = f"{item['id']}:{item['role']}"
+                                            if item_key not in processed_collections:
+                                                collection_items.append(collection_item)
+                                                processed_collections.add(item_key)
+                            except (json.JSONDecodeError, TypeError):
+                                continue
+            else:
+                # Fallback for direct list results
+                for row in flows_result:
+                    if hasattr(row, 'get') and row.get('flow_collection'):
+                        try:
+                            import json
+                            collection_data = json.loads(row['flow_collection'])
+                            if isinstance(collection_data, list):
+                                for item in collection_data:
+                                    if isinstance(item, dict) and 'id' in item and 'role' in item:
+                                        collection_item = CollectionItem(
+                                            id=item['id'],
+                                            role=item['role']
+                                        )
+                                        item_key = f"{item['id']}:{item['role']}"
+                                        if item_key not in processed_collections:
+                                            collection_items.append(collection_item)
+                                            processed_collections.add(item_key)
+                        except (json.JSONDecodeError, TypeError):
+                            continue
+            
+            return collection_items
+            
         except Exception as e:
-            logger.error("Failed to get source collections for %s: %s", source_id, e)
-            raise HTTPException(status_code=500, detail="Internal server error")
+            logger.error("Failed to compute source collection for %s: %s", source_id, e)
+            return []
     
-    async def add_source_to_collection(self, collection_id: str, source_id: str, label: str, description: str) -> bool:
-        """Add source to collection"""
-        try:
-            collection_data = {
-                "collection_id": collection_id,
-                "source_id": source_id,
-                "label": label,
-                "description": description
-            }
-            self.vast_db.insert_record("source_collections", collection_data)
-            return True
-        except Exception as e:
-            logger.error("Failed to add source %s to collection %s: %s", source_id, collection_id, e)
-            raise HTTPException(status_code=500, detail="Internal server error")
-    
-    async def remove_source_from_collection(self, collection_id: str, source_id: str) -> bool:
-        """Remove source from collection"""
-        try:
-            self.vast_db.query("source_collections").delete().where(
-                f"collection_id = '{collection_id}' AND source_id = '{source_id}'"
-            ).execute()
-            return True
-        except Exception as e:
-            logger.error("Failed to remove source %s from collection %s: %s", source_id, collection_id, e)
-            raise HTTPException(status_code=500, detail="Internal server error")

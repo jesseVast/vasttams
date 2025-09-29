@@ -191,14 +191,12 @@ DELETE /sources/{source_id}
 ```
 
 **Query Parameters:**
-- `soft_delete` (optional): Perform soft delete (default: true)
 - `cascade` (optional): Cascade delete to associated flows (default: true)
-- `deleted_by` (optional): User/system performing deletion (default: "system")
 
 **Expected Response (204 No Content):**
 No response body
 
-**Note**: This endpoint supports soft delete by default, which marks the source as deleted without removing it from the database. Use `soft_delete=false` for hard delete.
+**Note**: This endpoint performs hard delete as per TAMS 7.0 specification.
 
 ---
 
@@ -382,14 +380,12 @@ DELETE /flows/{flow_id}
 ```
 
 **Query Parameters:**
-- `soft_delete` (optional): Perform soft delete (default: true)
 - `cascade` (optional): Cascade delete to associated segments (default: true)
-- `deleted_by` (optional): User/system performing deletion (default: "system")
 
 **Expected Response (204 No Content):**
 No response body
 
-**Note**: This endpoint supports soft delete by default, which marks the flow as deleted without removing it from the database. Use `soft_delete=false` for hard delete.
+**Note**: This endpoint performs hard delete as per TAMS 7.0 specification.
 
 ---
 
@@ -532,8 +528,6 @@ DELETE /flows/{flow_id}/segments
 **Query Parameters:**
 - `timerange` (optional): Delete segments within specific time range
 - `object_id` (optional): Delete specific segment by object ID
-- `soft_delete` (optional): Perform soft delete (default: true)
-- `deleted_by` (optional): User/system performing deletion (default: "system")
 
 **Expected Response (204 No Content):**
 No response body

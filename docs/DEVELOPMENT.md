@@ -71,10 +71,10 @@ app/storage/
 - **Cache Analytics**: Hit rates, expiration tracking, memory usage
 - **System Health**: Comprehensive health checks and status reporting
 
-#### **4. Hybrid Analytics Architecture** 🦆
-- **VAST for Filtering**: Efficient data extraction using predicates
-- **DuckDB for Processing**: Advanced SQL analytics on filtered data
-- **Memory Efficiency**: Only load relevant data into DuckDB
+#### **4. SQL Analytics Architecture** 🦆
+- **Direct SQL Queries**: Native SQL for efficient data extraction
+- **SQL Aggregation**: Advanced analytics using SQL aggregation functions
+- **Memory Efficiency**: Optimized queries with minimal data transfer
 - **Best of Both Worlds**: Performance + functionality
 
 #### **5. Enhanced Performance Features** ⚡
@@ -412,7 +412,7 @@ python -c "import pstats; p = pstats.Stats('profile.stats'); p.sort_stats('cumul
 - **Use Indexes**: Create indexes for frequently queried columns
 - **Limit Results**: Use pagination and result limiting
 - **Optimize Joins**: Minimize join complexity and use appropriate join types
-- **Use Predicates**: Leverage VAST predicates for efficient filtering
+- **Use SQL**: Leverage direct SQL queries for efficient filtering
 
 #### **Connection Management**
 - **Connection Pooling**: Reuse database connections
@@ -729,7 +729,7 @@ class FlowStorage:
         create_flow: Create a new flow
         get_flow: Retrieve flow by ID
         update_flow: Update existing flow
-        delete_flow: Delete flow (soft or hard delete)
+        delete_flow: Delete flow (TAMS 7.0 compliant)
         list_flows: List flows with filtering and pagination
     """
     

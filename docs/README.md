@@ -16,7 +16,7 @@ Welcome to the consolidated TAMS (Time-addressable Media Store) API documentatio
 - **Implementation Status**: Current development progress and features
 - **Modular Architecture**: VastDBManager refactoring and structure
 - **Column Management**: Dynamic schema evolution capabilities
-- **Soft Delete Extension**: Data safety and audit features
+- **TAMS 7.0 Compliance**: Full specification compliance
 - **Known Issues**: Common problems and solutions
 - **Performance Improvements**: Optimization strategies and results
 

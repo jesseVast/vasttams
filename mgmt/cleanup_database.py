@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from app.core.config import get_settings
-import vastdb
+from app.vaststore.vastdbmanager import VastDBManager
 
 # Configure logging
 # Configure logging based on environment
@@ -99,73 +99,69 @@ async def cleanup_database(dry_run=False):
     logger.info("VAST Schema: %s", settings.vast_schema)
     
     try:
-        # Connect to VAST directly
+        # Connect to VAST using VastDBManager
         logger.info("🔌 Connecting to VAST database...")
-        connection = vastdb.connect(
-            endpoint=settings.vast_endpoint,
-            access=settings.vast_access_key,
-            secret=settings.vast_secret_key,
-            timeout=30
+        vast_db = VastDBManager(
+            endpoints=[settings.vast_endpoint],
+            access_key=settings.vast_access_key,
+            secret_key=settings.vast_secret_key,
+            bucket=settings.vast_bucket,
+            schema=settings.vast_schema,
+            enable_trino=settings.vaststore_enable_trino,
+            trino_host=settings.trino_host,
+            trino_port=settings.trino_port,
+            trino_user=settings.trino_user,
+            trino_catalog=settings.trino_catalog
         )
         
         logger.info("✅ Connected to VAST database")
         
-        # Get current tables
-        with connection.transaction() as tx:
-            bucket = tx.bucket(settings.vast_bucket)
-            schema = bucket.schema(settings.vast_schema)
-            
-            # List existing tables
-            tables = list(schema.tables())
-            table_names = [t.name for t in tables]
-            
-            logger.info("Found %d tables: %s", len(table_names), table_names)
-            
-            if not table_names:
-                logger.info("✅ No tables found to delete")
-                return True
-            
-            # Get all tables dynamically and delete them
-            # We'll try to delete all tables found in the schema
-            tables_to_delete = table_names
-            
-            deleted_tables = []
-            failed_tables = []
-            
-            for table_name in tables_to_delete:
-                if table_name in table_names:
-                    try:
-                        if dry_run:
-                            logger.info(f"🔍 [DRY RUN] Would delete table '{table_name}'")
-                            deleted_tables.append(table_name)
-                        else:
-                            logger.info(f"🗑️ Deleting table '{table_name}'...")
-                            
-                            # Delete the table directly
-                            table = schema.table(table_name)
-                            table.drop()
-                            
-                            logger.info(f"✅ Successfully deleted table '{table_name}'")
-                            deleted_tables.append(table_name)
-                        
-                    except Exception as e:
-                        if dry_run:
-                            logger.warning(f"🔍 [DRY RUN] Would fail to delete table '{table_name}': {e}")
-                            failed_tables.append(table_name)
-                        else:
-                            logger.error(f"❌ Failed to delete table '{table_name}': {e}")
-                            failed_tables.append(table_name)
+        # Get current tables using VastDBManager
+        tables = vast_db.list_tables()
+        table_names = [t for t in tables] if tables else []
+        
+        logger.info("Found %d tables: %s", len(table_names), table_names)
+        
+        if not table_names:
+            logger.info("✅ No tables found to delete")
+            return True
+        
+        # Get all tables dynamically and delete them
+        tables_to_delete = table_names
+        
+        deleted_tables = []
+        failed_tables = []
+        
+        for table_name in tables_to_delete:
+            try:
+                if dry_run:
+                    logger.info(f"🔍 [DRY RUN] Would delete table '{table_name}'")
+                    deleted_tables.append(table_name)
                 else:
-                    logger.info(f"ℹ️ Table '{table_name}' not found, skipping")
+                    logger.info(f"🗑️ Deleting table '{table_name}'...")
+                    
+                    # Delete the table using VastDBManager
+                    vast_db.drop_table(table_name)
+                    
+                    logger.info(f"✅ Successfully deleted table '{table_name}'")
+                    deleted_tables.append(table_name)
+                
+            except Exception as e:
+                if dry_run:
+                    logger.warning(f"🔍 [DRY RUN] Would fail to delete table '{table_name}': {e}")
+                    failed_tables.append(table_name)
+                else:
+                    logger.error(f"❌ Failed to delete table '{table_name}': {e}")
+                    failed_tables.append(table_name)
             
-            # Verify deletion
-            if not dry_run:
-                remaining_tables = list(schema.tables())
-                remaining_names = [t.name for t in remaining_tables]
-                logger.info(f"Remaining tables after cleanup: {remaining_names}")
-            else:
-                remaining_names = []
-                logger.info("🔍 [DRY RUN] No actual deletion performed")
+        # Verify deletion
+        if not dry_run:
+            remaining_tables = vast_db.list_tables()
+            remaining_names = [t for t in remaining_tables] if remaining_tables else []
+            logger.info(f"Remaining tables after cleanup: {remaining_names}")
+        else:
+            remaining_names = []
+            logger.info("🔍 [DRY RUN] No actual deletion performed")
             
             # Summary
             logger.info("\n" + "=" * 60)

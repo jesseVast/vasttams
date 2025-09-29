@@ -5,7 +5,7 @@ This module contains models related to Flows in the TAMS API.
 """
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Union, Annotated, Literal
 from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict
 
 from .core import (
@@ -130,79 +130,44 @@ class VideoFlow(FlowCore):
     """Video flow model - TAMS compliant"""
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    format: str = Field(default="urn:x-nmos:format:video", description="Content format URN")
+    format: Literal["urn:x-nmos:format:video"] = Field(default="urn:x-nmos:format:video", description="Content format URN")
     essence_parameters: VideoEssenceParameters = Field(..., description="Video essence parameters")
     codec: str = Field(..., description="MIME type identification of the coding used")
-    
-    @field_validator('format')
-    @classmethod
-    def validate_format(cls, v: str) -> str:
-        if v != "urn:x-nmos:format:video":
-            raise ValueError('Video flow format must be urn:x-nmos:format:video')
-        return v
 
 
 class AudioFlow(FlowCore):
     """Audio flow model - TAMS compliant"""
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    format: str = Field(default="urn:x-nmos:format:audio", description="Content format URN")
+    format: Literal["urn:x-nmos:format:audio"] = Field(default="urn:x-nmos:format:audio", description="Content format URN")
     essence_parameters: AudioEssenceParameters = Field(..., description="Audio essence parameters")
     codec: str = Field(..., description="MIME type identification of the coding used")
-    
-    @field_validator('format')
-    @classmethod
-    def validate_format(cls, v: str) -> str:
-        if v != "urn:x-nmos:format:audio":
-            raise ValueError('Audio flow format must be urn:x-nmos:format:audio')
-        return v
 
 
 class ImageFlow(FlowCore):
     """Image flow model - TAMS compliant"""
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    format: str = Field(default="urn:x-tam:format:image", description="Content format URN")
+    format: Literal["urn:x-tam:format:image"] = Field(default="urn:x-tam:format:image", description="Content format URN")
     essence_parameters: ImageEssenceParameters = Field(..., description="Image essence parameters")
     codec: str = Field(..., description="MIME type identification of the coding used")
-    
-    @field_validator('format')
-    @classmethod
-    def validate_format(cls, v: str) -> str:
-        if v != "urn:x-tam:format:image":
-            raise ValueError('Image flow format must be urn:x-tam:format:image')
-        return v
 
 
 class DataFlow(FlowCore):
     """Data flow model - TAMS compliant"""
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    format: str = Field(default="urn:x-nmos:format:data", description="Content format URN")
+    format: Literal["urn:x-nmos:format:data"] = Field(default="urn:x-nmos:format:data", description="Content format URN")
     essence_parameters: DataEssenceParameters = Field(..., description="Data essence parameters")
     codec: str = Field(..., description="MIME type identification of the coding used")
-    
-    @field_validator('format')
-    @classmethod
-    def validate_format(cls, v: str) -> str:
-        if v != "urn:x-nmos:format:data":
-            raise ValueError('Data flow format must be urn:x-nmos:format:data')
-        return v
 
 
 class MultiFlow(FlowCore):
     """Multi flow model - TAMS compliant"""
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    format: str = Field(default="urn:x-nmos:format:multi", description="Content format URN")
-    
-    @field_validator('format')
-    @classmethod
-    def validate_format(cls, v: str) -> str:
-        if v != "urn:x-nmos:format:multi":
-            raise ValueError('Multi flow format must be urn:x-nmos:format:multi')
-        return v
+    format: Literal["urn:x-nmos:format:multi"] = Field(default="urn:x-nmos:format:multi", description="Content format URN")
 
 
 # Union type for all flow types
-Flow = Union[VideoFlow, AudioFlow, ImageFlow, DataFlow, MultiFlow]
+Flow = Annotated[Union[VideoFlow, AudioFlow, ImageFlow, DataFlow, MultiFlow], Field(discriminator='format')]

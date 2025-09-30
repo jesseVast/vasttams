@@ -12,6 +12,7 @@ import uuid
 
 from fastapi import HTTPException
 from .interfaces import StorageInterface
+from .timestamp_utils import get_tams_timestamp
 from ..models import (
     Source, Flow, FlowSegment, Object, Service, StorageBackend,
     SourceFilters, FlowFilters, FlowDetailFilters,
@@ -251,14 +252,14 @@ class TAMSStorageService(StorageInterface):
                         "video_flows": row[5] if row[5] is not None else 0,
                         "audio_flows": row[6] if row[6] is not None else 0,
                         "data_flows": row[7] if row[7] is not None else 0,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": get_tams_timestamp().isoformat()
                     }
                 else:
                     return {
                         "total_sources": 0, "total_flows": 0, "total_segments": 0,
                         "total_objects": 0, "total_storage_bytes": 0,
                         "video_flows": 0, "audio_flows": 0, "data_flows": 0,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": get_tams_timestamp().isoformat()
                     }
             
             elif query_type == "source_analytics":
@@ -299,13 +300,13 @@ class TAMSStorageService(StorageInterface):
                     return {
                         "sources": sources_data,
                         "total_sources": len(sources_data),
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": get_tams_timestamp().isoformat()
                     }
                 else:
                     return {
                         "sources": [],
                         "total_sources": 0,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": get_tams_timestamp().isoformat()
                     }
             
             elif query_type == "flow_usage":
@@ -324,13 +325,13 @@ class TAMSStorageService(StorageInterface):
                     return {
                         "total_flows": row[0] if row[0] is not None else 0,
                         "estimated_storage_bytes": row[1] if row[1] is not None else 0,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": get_tams_timestamp().isoformat()
                     }
                 else:
                     return {
                         "total_flows": 0,
                         "estimated_storage_bytes": 0,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": get_tams_timestamp().isoformat()
                     }
             
             elif query_type == "storage_usage":
@@ -349,13 +350,13 @@ class TAMSStorageService(StorageInterface):
                     return {
                         "total_objects": row[0] if row[0] is not None else 0,
                         "total_size_bytes": row[1] if row[1] is not None else 0,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": get_tams_timestamp().isoformat()
                     }
                 else:
                     return {
                         "total_objects": 0,
                         "total_size_bytes": 0,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": get_tams_timestamp().isoformat()
                     }
             
             elif query_type == "time_range_analysis":
@@ -371,18 +372,18 @@ class TAMSStorageService(StorageInterface):
                     row = result['data'][0]
                     return {
                         "total_segments": row[0] if row[0] is not None else 0,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": get_tams_timestamp().isoformat()
                     }
                 else:
                     return {
                         "total_segments": 0,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": get_tams_timestamp().isoformat()
                     }
             
             else:
                 return {
                     "error": f"Unknown analytics query type: {query_type}",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": get_tams_timestamp().isoformat()
                 }
                 
         except Exception as e:

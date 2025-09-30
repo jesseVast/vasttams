@@ -129,9 +129,9 @@ def _get_sources_schema() -> pa.Schema:
         pa.field("description", pa.string(), nullable=True),
         pa.field("created_by", pa.string(), nullable=True),
         pa.field("updated_by", pa.string(), nullable=True),
-        pa.field("created", pa.timestamp("us"), nullable=True),
-        pa.field("updated", pa.timestamp("us"), nullable=True),
-        pa.field("tags", pa.string(), nullable=True)  # JSON string
+        pa.field("created", pa.timestamp("ns"), nullable=True),
+        pa.field("updated", pa.timestamp("ns"), nullable=True),
+        pa.field("tags", pa.map_(pa.string(), pa.string()), nullable=True)  # Map of tag name to value
     ])
 
 
@@ -145,12 +145,12 @@ def _get_flows_schema() -> pa.Schema:
         pa.field("description", pa.string(), nullable=True),
         pa.field("created_by", pa.string(), nullable=True),
         pa.field("updated_by", pa.string(), nullable=True),
-        pa.field("tags", pa.string(), nullable=True),  # JSON string
+        pa.field("tags", pa.map_(pa.string(), pa.string()), nullable=True),  # Map of tag name to value
         pa.field("metadata_version", pa.string(), nullable=True),
         pa.field("generation", pa.int64(), nullable=True),
-        pa.field("created", pa.timestamp("us"), nullable=True),
-        pa.field("metadata_updated", pa.timestamp("us"), nullable=True),
-        pa.field("segments_updated", pa.timestamp("us"), nullable=True),
+        pa.field("created", pa.timestamp("ns"), nullable=True),
+        pa.field("metadata_updated", pa.timestamp("ns"), nullable=True),
+        pa.field("segments_updated", pa.timestamp("ns"), nullable=True),
         pa.field("read_only", pa.bool_(), nullable=True),
         pa.field("codec", pa.string(), nullable=True),
         pa.field("container", pa.string(), nullable=True),
@@ -179,7 +179,7 @@ def _get_segments_schema() -> pa.Schema:
         pa.field("sample_count", pa.int64(), nullable=True),
         pa.field("get_urls", pa.string(), nullable=True),        # JSON string
         pa.field("key_frame_count", pa.int32(), nullable=True),
-        pa.field("created", pa.timestamp("us"), nullable=True)
+        pa.field("created", pa.timestamp("ns"), nullable=True),
     ])
 
 
@@ -190,7 +190,7 @@ def _get_objects_schema() -> pa.Schema:
         pa.field("referenced_by_flows", pa.string(), nullable=True),  # JSON array string
         pa.field("first_referenced_by_flow", pa.string(), nullable=True),
         pa.field("size", pa.int64(), nullable=True),
-        pa.field("created", pa.timestamp("us"), nullable=True)
+        pa.field("created", pa.timestamp("ns"), nullable=True),
     ])
 
 
@@ -200,7 +200,7 @@ def _get_flow_object_references_schema() -> pa.Schema:
         pa.field("id", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("flow_id", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("object_id", pa.string(), nullable=True),  # VAST requires nullable strings
-        pa.field("created", pa.timestamp("us"), nullable=True)
+        pa.field("created", pa.timestamp("ns"), nullable=True),
     ])
 
 
@@ -210,7 +210,7 @@ def _get_flow_collections_schema() -> pa.Schema:
         pa.field("id", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("flow_id", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("collection_name", pa.string(), nullable=True),  # VAST requires nullable strings
-        pa.field("created", pa.timestamp("us"), nullable=True)
+        pa.field("created", pa.timestamp("ns"), nullable=True),
     ])
 
 
@@ -220,7 +220,7 @@ def _get_source_collections_schema() -> pa.Schema:
         pa.field("id", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("source_id", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("collection_name", pa.string(), nullable=True),  # VAST requires nullable strings
-        pa.field("created", pa.timestamp("us"), nullable=True)
+        pa.field("created", pa.timestamp("ns"), nullable=True),
     ])
 
 
@@ -232,8 +232,8 @@ def _get_webhooks_schema() -> pa.Schema:
         pa.field("enabled", pa.bool_(), nullable=True),
         pa.field("events", pa.string(), nullable=True),  # JSON array string
         pa.field("filters", pa.string(), nullable=True),  # JSON string
-        pa.field("created", pa.timestamp("us"), nullable=True),
-        pa.field("updated", pa.timestamp("us"), nullable=True)
+        pa.field("created", pa.timestamp("ns"), nullable=True),
+        pa.field("updated", pa.timestamp("ns"), nullable=True)
     ])
 
 
@@ -244,8 +244,8 @@ def _get_deletion_requests_schema() -> pa.Schema:
         pa.field("status", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("requested_by", pa.string(), nullable=True),
         pa.field("reason", pa.string(), nullable=True),
-        pa.field("created", pa.timestamp("us"), nullable=True),
-        pa.field("completed", pa.timestamp("us"), nullable=True)
+        pa.field("created", pa.timestamp("ns"), nullable=True),
+        pa.field("completed", pa.timestamp("ns"), nullable=True),
     ])
 
 
@@ -258,9 +258,9 @@ def _get_users_schema() -> pa.Schema:
         pa.field("password_hash", pa.string(), nullable=True),
         pa.field("is_active", pa.bool_(), nullable=True),
         pa.field("is_admin", pa.bool_(), nullable=True),
-        pa.field("created", pa.timestamp("us"), nullable=True),
-        pa.field("updated", pa.timestamp("us"), nullable=True),
-        pa.field("last_login", pa.timestamp("us"), nullable=True)
+        pa.field("created", pa.timestamp("ns"), nullable=True),
+        pa.field("updated", pa.timestamp("ns"), nullable=True),
+        pa.field("last_login", pa.timestamp("ns"), nullable=True),
     ])
 
 
@@ -271,9 +271,9 @@ def _get_api_tokens_schema() -> pa.Schema:
         pa.field("user_id", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("token_hash", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("name", pa.string(), nullable=True),
-        pa.field("expires_at", pa.timestamp("us"), nullable=True),
-        pa.field("created", pa.timestamp("us"), nullable=True),
-        pa.field("last_used", pa.timestamp("us"), nullable=True)
+        pa.field("expires_at", pa.timestamp("ns"), nullable=True),
+        pa.field("created", pa.timestamp("ns"), nullable=True),
+        pa.field("last_used", pa.timestamp("ns"), nullable=True),
     ])
 
 
@@ -283,8 +283,8 @@ def _get_refresh_tokens_schema() -> pa.Schema:
         pa.field("id", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("user_id", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("token_hash", pa.string(), nullable=True),  # VAST requires nullable strings
-        pa.field("expires_at", pa.timestamp("us"), nullable=True),
-        pa.field("created", pa.timestamp("us"), nullable=True)
+        pa.field("expires_at", pa.timestamp("ns"), nullable=True),
+        pa.field("created", pa.timestamp("ns"), nullable=True),
     ])
 
 
@@ -297,5 +297,5 @@ def _get_auth_logs_schema() -> pa.Schema:
         pa.field("ip_address", pa.string(), nullable=True),
         pa.field("user_agent", pa.string(), nullable=True),
         pa.field("details", pa.string(), nullable=True),  # JSON string
-        pa.field("created", pa.timestamp("us"), nullable=True)
+        pa.field("created", pa.timestamp("ns"), nullable=True),
     ])

@@ -1,6 +1,85 @@
 # BBC TAMS Project Notes
 
-## 🎯 **CURRENT STATUS: TIMERANGE HANDLING IMPLEMENTED** (2025-09-28)
+> **⚠️ NOTICE: This file has been restructured for better organization**
+> 
+> **New Location**: All notes have been moved to the `notes/` folder with date-based organization.
+> 
+> **Current Status**: See `notes/current.md`
+> 
+> **Today's Notes**: See `notes/2025-01-27.md`
+> 
+> **Usage Guidelines**: See `notes/README.md`
+
+## 🔄 **MIGRATION STATUS**
+
+This file contained 4,521+ lines and was becoming unwieldy. It has been restructured into:
+
+- **`notes/current.md`** - Current project status and active work
+- **`notes/YYYY-MM-DD.md`** - Daily notes for specific dates
+- **`notes/archive/`** - Archived completed work
+- **`notes/edits/`** - Code changes tracking by date
+
+## 📁 **NEW STRUCTURE**
+
+```
+notes/
+├── README.md              # Usage guidelines
+├── current.md             # Current status and active work
+├── 2025-01-27.md          # Today's notes
+├── archive/               # Completed work
+└── edits/                 # Code changes by date
+    └── 2025-01-27.md      # Today's edits
+```
+
+## 🎯 **CURRENT STATUS**
+
+### **📋 NEW: TAMS APPNOTES INTEGRATION PLAN**
+**Date**: January 2025  
+**Task**: Create comprehensive plan to integrate TAMS appnotes best practices  
+**Status**: ✅ **COMPLETED** - Integration plan created and documented
+
+#### **📚 Plan Overview**
+- **Document**: `TAMS_APPNOTES_INTEGRATION_PLAN.md` created
+- **Source**: Official TAMS appnotes from [GitHub](https://github.com/bbc/tams/tree/main/docs/appnotes)
+- **Scope**: 4 key appnotes covering timestamps, tags, data types, and OpenTimelineIO integration
+- **Phases**: 4-phase implementation plan over 8 weeks
+
+#### **🔧 Key Appnotes to Integrate**
+1. **Timestamps in TAMS** (0008) - High-resolution timestamp management
+2. **Tag Names** (0003) - Enhanced metadata and tagging system
+3. **TAMS for Non-Media Data** (0004) - Data type assessment and storage strategy
+4. **OpenTimelineIO Integration** (0015) - Composition and render optimization
+
+#### **📊 Implementation Status**
+- **Planning**: ✅ Complete
+- **Audit Phase**: 🔄 Pending
+- **Core Improvements**: ⏳ Planned
+- **Advanced Features**: ⏳ Planned
+- **Testing & Validation**: ⏳ Planned
+
+## 🎯 **PREVIOUS STATUS: AUTOMATIC SOURCE CREATION IMPLEMENTED** (2025-09-28)
+
+### **✅ COMPLETED: AUTOMATIC SOURCE CREATION FOR FLOWS**
+**Date**: September 28, 2025  
+**Task**: Implement automatic source creation when flows are created with non-existent source_id  
+**Status**: ✅ **COMPLETED** - Automatic source creation working correctly
+
+#### **🏗️ TAMS Specification Compliance**
+- **Problem**: Flows required existing sources, but TAMS spec requires automatic source creation
+- **Solution**: Implemented `_ensure_source_exists` method in FlowStorageService
+- **Result**: Sources are created automatically when flows reference non-existent source IDs
+
+#### **🔧 Implementation Details**
+- **Source Creation**: Automatically create source when flow references non-existent source_id
+- **Metadata Replication**: Copy flow metadata (label, description, tags) to source
+- **Error Handling**: Graceful handling of source creation failures
+- **Database Integration**: Proper source insertion with timestamps and validation
+
+#### **✅ Test Results**
+- **Automatic Source Creation**: Working correctly ✅
+- **Metadata Replication**: Flow metadata properly copied to source ✅
+- **API Compliance**: Follows AWS TAMS specification ✅
+- **Error Handling**: Graceful failure handling ✅
 
 ### **✅ COMPLETED: TIMERANGE HANDLING IN TAMS APPLICATION LAYER**
 **Date**: September 28, 2025  

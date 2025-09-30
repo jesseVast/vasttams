@@ -97,6 +97,7 @@ async def update_flow_by_id(
         
         # Create Flow object from the data based on format
         format_type = flow_data.get("format")
+        
         if format_type == "urn:x-nmos:format:video":
             from ..models.flows import VideoFlow
             flow = VideoFlow(**flow_data)
@@ -115,7 +116,6 @@ async def update_flow_by_id(
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported flow format: {format_type}")
         
-        logger.debug(f"Updating flow {flow_id} with data: {flow.model_dump()}")
         success = await storage.update_flow(flow_id, flow)
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")

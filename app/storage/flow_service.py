@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from .interfaces import StorageInterface
+from .timestamp_utils import get_tams_timestamp, get_timeline_synchronizer
 from ..models import Flow, FlowFilters, FlowDetailFilters, VideoFlow, AudioFlow, ImageFlow, DataFlow, MultiFlow, Source
 
 logger = logging.getLogger(__name__)
@@ -188,7 +189,7 @@ class FlowStorageService:
     async def create_flow(self, flow: Flow) -> bool:
         """Create a new flow"""
         try:
-            now = datetime.now(timezone.utc)
+            now = get_tams_timestamp()
             flow.created = now
             flow.metadata_updated = now
             flow.segments_updated = now
@@ -197,6 +198,11 @@ class FlowStorageService:
             await self._ensure_source_exists(flow)
             
             flow_data = flow.model_dump()
+            
+            # Convert timestamp fields to PyArrow format using centralized function
+            from app.storage.timestamp_utils import prepare_data_for_pyarrow
+            flow_data = prepare_data_for_pyarrow(flow_data)
+            
             logger.debug("Creating flow with data: %s", flow_data)
             result = self.vast_db.insert_record("flows", flow_data)
             logger.debug("Flow creation result: %s", result)
@@ -209,18 +215,14 @@ class FlowStorageService:
     async def update_flow(self, flow_id: str, flow: Flow) -> bool:
         """Update an existing flow"""
         try:
-            flow.metadata_updated = datetime.now(timezone.utc)
+            flow.metadata_updated = get_tams_timestamp()
+            
             # Only update mutable fields, exclude read-only fields
             flow_data = flow.model_dump(exclude={'id', 'created', 'created_by', 'collected_by'})
             
-            # Keep datetime fields as datetime objects for proper timestamp handling
-            # Convert the updated field back to datetime if it was serialized to string
-            if 'metadata_updated' in flow_data and isinstance(flow_data['metadata_updated'], str):
-                try:
-                    flow_data['metadata_updated'] = datetime.fromisoformat(flow_data['metadata_updated'].replace('Z', '+00:00'))
-                except ValueError:
-                    # If parsing fails, keep as string
-                    pass
+            # Convert timestamp fields to SQL format for query builder using centralized function
+            from app.storage.timestamp_utils import prepare_data_for_sql
+            flow_data = prepare_data_for_sql(flow_data)
             
             # Convert Tags object to JSON string for database compatibility
             if 'tags' in flow_data and flow_data['tags'] is not None:
@@ -249,9 +251,6 @@ class FlowStorageService:
             
             # Filter out None values to avoid "unknown" type errors
             flow_data = {k: v for k, v in flow_data.items() if v is not None}
-            
-            # Debug: Log the data being sent
-            logger.debug("Updating flow %s with data: %s", flow_id, flow_data)
             
             # Use query builder with proper timestamp handling
             self.vast_db.query("flows").update().set(**flow_data).where(f"id = '{flow_id}'").execute()
@@ -482,8 +481,8 @@ class FlowStorageService:
                 
                 # Insert source into database
                 source_data = source.model_dump(exclude={'source_collection', 'collected_by'})
-                source_data['created'] = datetime.now(timezone.utc)
-                source_data['updated'] = datetime.now(timezone.utc)
+                source_data['created'] = get_tams_timestamp()
+                source_data['updated'] = get_tams_timestamp()
                 
                 self.vast_db.insert_record("sources", source_data)
                 logger.info("Successfully created source %s with metadata from flow", flow.source_id)

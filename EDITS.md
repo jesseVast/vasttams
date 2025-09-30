@@ -1,5 +1,70 @@
 # BBC TAMS Project - Code Changes Tracking
 
+> **⚠️ NOTICE: This file has been restructured for better organization**
+> 
+> **New Location**: All edit tracking has been moved to the `notes/edits/` folder with date-based organization.
+> 
+> **Today's Edits**: See `notes/edits/2025-01-27.md`
+> 
+> **Usage Guidelines**: See `notes/README.md`
+
+## 🔄 **MIGRATION STATUS**
+
+This file contained 3,897+ lines and was becoming unwieldy. It has been restructured into:
+
+- **`notes/edits/YYYY-MM-DD.md`** - Daily edit tracking
+- **`notes/archive/`** - Archived completed work
+- **`notes/current.md`** - Current project status
+
+## 📁 **NEW STRUCTURE**
+
+```
+notes/
+├── README.md              # Usage guidelines
+├── current.md             # Current status and active work
+├── 2025-01-27.md          # Today's notes
+├── archive/               # Completed work
+└── edits/                 # Code changes by date
+    └── 2025-01-27.md      # Today's edits
+```
+
+## 📝 **RECENT EDITS**
+
+## Edit #43: TAMS Appnotes Integration Plan (January 2025)
+
+### Summary
+Created comprehensive integration plan based on official TAMS application notes to ensure best practices and compliance with BBC TAMS specifications.
+
+### Files Created
+- **New**: `TAMS_APPNOTES_INTEGRATION_PLAN.md` - Comprehensive integration plan
+- **Updated**: `NOTES.md` - Added appnotes integration status section
+
+### Key Components
+1. **Appnotes Analysis**: Reviewed 4 key appnotes from official TAMS documentation
+2. **Implementation Plan**: 4-phase implementation over 8 weeks
+3. **Technical Specifications**: Detailed technical requirements and file structure
+4. **Success Metrics**: Measurable goals for compliance and performance
+5. **Risk Mitigation**: Identified risks and mitigation strategies
+
+### Appnotes Covered
+- **0008-timestamps-in-TAMS**: High-resolution timestamp management
+- **0003-tag-names**: Enhanced metadata and tagging system  
+- **0004-tams-for-data**: Data type assessment and storage strategy
+- **0015-using-tams-in-opentimelineio**: OpenTimelineIO integration
+
+### Benefits
+- Ensures compliance with official TAMS specifications
+- Provides structured approach to implementing best practices
+- Creates measurable goals for implementation success
+- Establishes clear timeline and phases for development
+- Documents all requirements and technical specifications
+
+### Next Steps
+- Begin Phase 1: Foundation Review and Codebase Audit
+- Implement timestamp enhancements per appnote 0008
+- Enhance tag management system per appnote 0003
+- Research OpenTimelineIO integration per appnote 0015
+
 ## Edit #42: Timerange Handling in TAMS Application Layer (September 28, 2025)
 
 ### Summary

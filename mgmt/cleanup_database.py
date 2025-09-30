@@ -122,6 +122,17 @@ async def cleanup_database(dry_run=False):
         
         logger.info("Found %d tables: %s", len(table_names), table_names)
         
+        # Filter out empty or problematic table names
+        valid_tables = []
+        for table_name in table_names:
+            if table_name and table_name.strip() and table_name != "":
+                valid_tables.append(table_name)
+            else:
+                logger.warning(f"Skipping empty or invalid table name: '{table_name}'")
+        
+        table_names = valid_tables
+        logger.info("Valid tables to delete: %s", table_names)
+        
         if not table_names:
             logger.info("✅ No tables found to delete")
             return True
@@ -134,6 +145,11 @@ async def cleanup_database(dry_run=False):
         
         for table_name in tables_to_delete:
             try:
+                # Skip empty or invalid table names
+                if not table_name or not table_name.strip():
+                    logger.warning(f"Skipping empty table name: '{table_name}'")
+                    continue
+                
                 if dry_run:
                     logger.info(f"🔍 [DRY RUN] Would delete table '{table_name}'")
                     deleted_tables.append(table_name)
@@ -162,49 +178,57 @@ async def cleanup_database(dry_run=False):
         else:
             remaining_names = []
             logger.info("🔍 [DRY RUN] No actual deletion performed")
-            
-            # Summary
-            logger.info("\n" + "=" * 60)
+        
+        # Summary
+        logger.info("\n" + "=" * 60)
+        if dry_run:
+            logger.info("📊 DRY RUN SUMMARY - No tables were actually deleted")
+        else:
+            logger.info("📊 CLEANUP SUMMARY")
+        logger.info("=" * 60)
+        logger.info(f"Tables found initially: {len(table_names)}")
+        logger.info(f"Tables successfully deleted: {len(deleted_tables)}")
+        logger.info(f"Tables that failed to delete: {len(failed_tables)}")
+        logger.info(f"Tables remaining: {len(remaining_names)}")
+        
+        if deleted_tables:
             if dry_run:
-                logger.info("📊 DRY RUN SUMMARY - No tables were actually deleted")
+                logger.info(f"🔍 [DRY RUN] Would have deleted: {deleted_tables}")
             else:
-                logger.info("📊 CLEANUP SUMMARY")
-            logger.info("=" * 60)
-            logger.info(f"Tables found initially: {len(table_names)}")
-            logger.info(f"Tables successfully deleted: {len(deleted_tables)}")
-            logger.info(f"Tables that failed to delete: {len(failed_tables)}")
-            logger.info(f"Tables remaining: {len(remaining_names)}")
-            
-            if deleted_tables:
-                if dry_run:
-                    logger.info(f"🔍 [DRY RUN] Would have deleted: {deleted_tables}")
-                else:
-                    logger.info(f"✅ Successfully deleted: {deleted_tables}")
-            
-            if failed_tables:
-                if dry_run:
-                    logger.warning(f"🔍 [DRY RUN] Would have failed to delete: {failed_tables}")
-                else:
-                    logger.error(f"❌ Failed to delete: {failed_tables}")
-            
-            if remaining_names:
-                if dry_run:
-                    logger.info(f"🔍 [DRY RUN] Tables would remain: {remaining_names}")
-                else:
-                    logger.warning(f"⚠️ Tables still remaining: {remaining_names}")
+                logger.info(f"✅ Successfully deleted: {deleted_tables}")
+        
+        if failed_tables:
+            if dry_run:
+                logger.warning(f"🔍 [DRY RUN] Would have failed to delete: {failed_tables}")
             else:
-                if dry_run:
-                    logger.info("🔍 [DRY RUN] All tables would be deleted!")
-                else:
-                    logger.info("🎉 All tables successfully deleted!")
-            
-            return len(failed_tables) == 0 and len(remaining_names) == 0
+                logger.error(f"❌ Failed to delete: {failed_tables}")
+        
+        if remaining_names:
+            if dry_run:
+                logger.info(f"🔍 [DRY RUN] Tables would remain: {remaining_names}")
+            else:
+                logger.warning(f"⚠️ Tables still remaining: {remaining_names}")
+        else:
+            if dry_run:
+                logger.info("🔍 [DRY RUN] All tables would be deleted!")
+            else:
+                logger.info("🎉 All tables successfully deleted!")
+        
+        return len(failed_tables) == 0 and len(remaining_names) == 0
             
     except Exception as e:
         logger.error(f"❌ Database cleanup failed: {e}")
         import traceback
         traceback.print_exc()
         return False
+    finally:
+        # Ensure VastDBManager is properly closed
+        try:
+            if 'vast_db' in locals():
+                vast_db.close()
+                logger.info("✅ VastDBManager connection closed")
+        except Exception as e:
+            logger.warning(f"⚠️ Warning: Error closing VastDBManager: {e}")
 
 async def main():
     """Main function."""

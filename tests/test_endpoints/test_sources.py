@@ -12,7 +12,7 @@ Tests for all source-related endpoints including:
 
 import requests
 from datetime import datetime
-from test_utils import (
+from .test_utils import (
     BASE_URL, test_data, print_section, print_subsection, print_result,
     assert_response_success, assert_response_status, assert_response_any_status,
     create_test_source, cleanup_test_data, generate_uuid

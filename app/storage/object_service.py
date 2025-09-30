@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from .interfaces import StorageInterface
+from .timestamp_utils import get_tams_timestamp
 from ..models import Object
 
 logger = logging.getLogger(__name__)
@@ -51,10 +52,15 @@ class ObjectStorageService:
     async def create_object(self, obj: Object) -> bool:
         """Create a new object"""
         try:
-            now = datetime.now(timezone.utc)
+            now = get_tams_timestamp()
             obj.created = now
             
             object_data = obj.model_dump()
+            
+            # Convert timestamp fields to PyArrow format using centralized function
+            from app.storage.timestamp_utils import prepare_data_for_pyarrow
+            object_data = prepare_data_for_pyarrow(object_data)
+            
             self.vast_db.insert_record("objects", object_data)
             return True
         except Exception as e:

@@ -204,3 +204,7 @@ tests/test_simple_table.py
 logs/*
 
 .env.backup
+
+# Notes folder - contains daily notes and project tracking
+notes/
+

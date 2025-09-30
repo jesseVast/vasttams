@@ -1,28 +1,17 @@
 #!/usr/bin/env python3
 """
-TAMS Table Query Tool
+TAMS Table Query Tool - Query and export data from TAMS tables.
 
-A comprehensive script to query any TAMS table and output results in JSON or CSV format.
-Supports all TAMS tables: sources, flows, segments, objects, users, etc.
+This tool allows you to query any TAMS table and export the results in JSON or CSV format.
 
 Usage:
-    python query_tables.py --table sources --format json
-    python query_tables.py --table flows --format csv --output flows.csv
-    python query_tables.py --table segments --format json --limit 100
-    python query_tables.py --list-tables
-    python query_tables.py --table users --format json --stats
-
-Options:
-    --table TABLE       Table name to query (sources, flows, segments, objects, users, etc.)
-    --format FORMAT     Output format: json, csv (default: json)
-    --output FILE       Output file path (default: stdout)
-    --limit N           Limit number of records returned (default: no limit)
-    --stats             Show table statistics
-    --list-tables       List all available tables
-    --help              Show this help message
+    python mgmt/query_tables_sync.py --list-tables
+    python mgmt/query_tables_sync.py --table sources --format json
+    python mgmt/query_tables_sync.py --table flows --format csv --limit 100
+    python mgmt/query_tables_sync.py --table users --format json --output users.json
+    python mgmt/query_tables_sync.py --table segments --stats
 """
 
-import asyncio
 import sys
 import json
 import csv
@@ -51,7 +40,7 @@ class TAMSTableQuery:
         self.settings = get_settings()
         self.db_manager = None
     
-    async def initialize(self):
+    def initialize(self):
         """Initialize database connection"""
         try:
             self.db_manager = VastDBManager(
@@ -60,35 +49,53 @@ class TAMSTableQuery:
                 secret_key=self.settings.vast_secret_key,
                 bucket=self.settings.vast_bucket,
                 schema=self.settings.vast_schema,
+                enable_trino=self.settings.vaststore_enable_trino,
+                trino_host=self.settings.trino_host,
+                trino_port=self.settings.trino_port,
+                trino_user=self.settings.trino_user,
+                trino_catalog=self.settings.trino_catalog,
                 auto_connect=True
             )
-            print("✅ Connected to VAST database", file=sys.stderr)
+            print("✅ Connected to VAST database")
         except Exception as e:
-            print(f"❌ Failed to connect to database: {e}", file=sys.stderr)
-            sys.exit(1)
+            print(f"❌ Failed to connect to VAST database: {e}", file=sys.stderr)
+            self.db_manager = None
     
-    async def list_tables(self):
-        """List all available tables"""
+    def close(self):
+        """Close database connection"""
+        if self.db_manager:
+            try:
+                # VastDBManager doesn't require explicit closing
+                pass
+            except Exception as e:
+                print(f"Error closing VastDBManager: {e}", file=sys.stderr)
+    
+    def list_tams_tables(self) -> List[str]:
+        """List all tables in the configured TAMS schema"""
+        if not self.db_manager:
+            return []
         try:
             tables = self.db_manager.list_tables()
-            print("📋 Available TAMS tables:")
-            for table in sorted(tables):
-                print(f"   • {table}")
-            print(f"\nTotal: {len(tables)} tables")
+            return sorted(tables)
         except Exception as e:
             print(f"❌ Error listing tables: {e}", file=sys.stderr)
-            sys.exit(1)
+            return []
     
-    async def get_table_stats(self, table_name: str) -> Dict[str, Any]:
-        """Get table statistics"""
+    def get_table_stats(self, table_name: str) -> Dict[str, Any]:
+        """Get statistics for a given table"""
+        if not self.db_manager:
+            return {}
         try:
             stats = self.db_manager.get_table_stats(table_name)
+            print(f"📊 Statistics for table '{table_name}':")
+            for key, value in stats.items():
+                print(f"   {key}: {value}")
             return stats
         except Exception as e:
             print(f"❌ Error getting table stats: {e}", file=sys.stderr)
             return {}
     
-    async def query_table(self, table_name: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    def query_table(self, table_name: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Query table data using query builder"""
         try:
             # Use query builder to select all columns
@@ -131,136 +138,87 @@ class TAMSTableQuery:
     def output_json(self, data: List[Dict[str, Any]], output_file: Optional[str] = None):
         """Output data in JSON format"""
         output = json.dumps(data, indent=2, default=str)
-        
         if output_file:
             with open(output_file, 'w') as f:
                 f.write(output)
-            print(f"✅ JSON output written to {output_file}", file=sys.stderr)
+            print(f"✅ Data written to {output_file}")
         else:
             print(output)
     
     def output_csv(self, data: List[Dict[str, Any]], output_file: Optional[str] = None):
         """Output data in CSV format"""
         if not data:
-            if output_file:
-                with open(output_file, 'w') as f:
-                    f.write("")
-                print(f"✅ Empty CSV written to {output_file}", file=sys.stderr)
+            print("No data to output.", file=sys.stderr)
             return
         
-        # Get all unique keys from all records
-        all_keys = set()
-        for record in data:
-            all_keys.update(record.keys())
-        fieldnames = sorted(all_keys)
+        fieldnames = list(data[0].keys())
         
         if output_file:
             with open(output_file, 'w', newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(data)
-            print(f"✅ CSV output written to {output_file}", file=sys.stderr)
+            print(f"✅ Data written to {output_file}")
         else:
-            import io
-            output = io.StringIO()
-            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(data)
-            print(output.getvalue())
-    
-    async def close(self):
-        """Close database connection"""
-        if self.db_manager:
-            try:
-                if hasattr(self.db_manager, 'close'):
-                    self.db_manager.close()
-            except Exception as e:
-                print(f"Warning: Error closing database connection: {e}", file=sys.stderr)
 
 
-async def main():
-    """Main function"""
+def main():
     parser = argparse.ArgumentParser(
-        description="TAMS Table Query Tool",
+        description="TAMS Table Query Tool - Query and export data from TAMS tables.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog="""
+Examples:
+  python mgmt/query_tables_sync.py --list-tables
+  python mgmt/query_tables_sync.py --table sources --format json
+  python mgmt/query_tables_sync.py --table flows --format csv --limit 100
+  python mgmt/query_tables_sync.py --table users --format json --output users.json
+  python mgmt/query_tables_sync.py --table segments --stats
+        """
     )
-    
-    parser.add_argument(
-        '--table', '-t',
-        choices=TAMSTableQuery.VALID_TABLES,
-        help='Table name to query'
-    )
-    
-    parser.add_argument(
-        '--format', '-f',
-        choices=['json', 'csv'],
-        default='json',
-        help='Output format (default: json)'
-    )
-    
-    parser.add_argument(
-        '--output', '-o',
-        help='Output file path (default: stdout)'
-    )
-    
-    parser.add_argument(
-        '--limit', '-l',
-        type=int,
-        help='Limit number of records returned'
-    )
-    
-    parser.add_argument(
-        '--stats', '-s',
-        action='store_true',
-        help='Show table statistics'
-    )
-    
-    parser.add_argument(
-        '--list-tables',
-        action='store_true',
-        help='List all available tables'
-    )
+    parser.add_argument('--list-tables', action='store_true', help='List all available TAMS tables')
+    parser.add_argument('--table', type=str, help='Specify the table to query (e.g., sources, flows)')
+    parser.add_argument('--format', type=str, choices=['json', 'csv'], default='json', help='Output format (json or csv)')
+    parser.add_argument('--output', type=str, help='Output file path (if not specified, output to stdout)')
+    parser.add_argument('--limit', type=int, help='Limit the number of records returned')
+    parser.add_argument('--stats', action='store_true', help='Show table statistics instead of data')
     
     args = parser.parse_args()
     
-    # Initialize query tool
     query_tool = TAMSTableQuery()
-    await query_tool.initialize()
+    query_tool.initialize()
+    
+    if not query_tool.db_manager:
+        return 1  # Exit with error
     
     try:
         if args.list_tables:
-            await query_tool.list_tables()
-            return
-        
-        if not args.table:
-            print("❌ Error: --table is required (use --list-tables to see available tables)", file=sys.stderr)
-            sys.exit(1)
-        
-        # Show table statistics if requested
-        if args.stats:
-            print(f"📊 Statistics for table '{args.table}':", file=sys.stderr)
-            stats = await query_tool.get_table_stats(args.table)
-            if stats:
-                for key, value in stats.items():
-                    print(f"   {key}: {value}", file=sys.stderr)
-            print(file=sys.stderr)
-        
-        # Query table data
-        print(f"🔍 Querying table '{args.table}'...", file=sys.stderr)
-        records = await query_tool.query_table(args.table, args.limit)
-        
-        print(f"✅ Found {len(records)} records", file=sys.stderr)
-        
-        # Output data
-        if args.format == 'json':
-            query_tool.output_json(records, args.output)
-        elif args.format == 'csv':
-            query_tool.output_csv(records, args.output)
-    
+            tables = query_tool.list_tams_tables()
+            print("📋 Available TAMS tables:")
+            for table in tables:
+                print(f"   • {table}")
+            print(f"\nTotal: {len(tables)} tables")
+        elif args.table:
+            if args.stats:
+                query_tool.get_table_stats(args.table)
+            else:
+                print(f"🔍 Querying table '{args.table}'...")
+                data = query_tool.query_table(args.table, args.limit)
+                print(f"✅ Found {len(data)} records")
+                if data:
+                    if args.format == 'json':
+                        query_tool.output_json(data, args.output)
+                    elif args.format == 'csv':
+                        query_tool.output_csv(data, args.output)
+                else:
+                    print("No records found.")
+        else:
+            parser.print_help()
     finally:
-        await query_tool.close()
+        query_tool.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from .interfaces import StorageInterface
+from .timestamp_utils import get_tams_timestamp
 from ..models import Source, SourceFilters, Tags, CollectionItem
 
 logger = logging.getLogger(__name__)
@@ -146,11 +147,16 @@ class SourceStorageService:
     async def create_source(self, source: Source) -> bool:
         """Create a new source"""
         try:
-            now = datetime.now(timezone.utc)
+            now = get_tams_timestamp()
             source.created = now
             source.updated = now
             
             source_data = source.model_dump(exclude={'source_collection', 'collected_by'})
+            
+            # Convert timestamp fields to PyArrow format using centralized function
+            from app.storage.timestamp_utils import prepare_data_for_pyarrow
+            source_data = prepare_data_for_pyarrow(source_data)
+            
             self.vast_db.insert_record("sources", source_data)
             return True
         except Exception as e:
@@ -160,18 +166,13 @@ class SourceStorageService:
     async def update_source(self, source_id: str, source: Source) -> bool:
         """Update an existing source"""
         try:
-            source.updated = datetime.now(timezone.utc)
+            source.updated = get_tams_timestamp()
             # Only update mutable fields, exclude read-only fields
             source_data = source.model_dump(exclude={'id', 'created', 'created_by', 'source_collection', 'collected_by'})
             
-            # Keep datetime fields as datetime objects for proper timestamp handling
-            # Convert the updated field back to datetime if it was serialized to string
-            if 'updated' in source_data and isinstance(source_data['updated'], str):
-                try:
-                    source_data['updated'] = datetime.fromisoformat(source_data['updated'].replace('Z', '+00:00'))
-                except ValueError:
-                    # If parsing fails, keep as string
-                    pass
+            # Convert timestamp fields to SQL format for query builder using centralized function
+            from app.storage.timestamp_utils import prepare_data_for_sql
+            source_data = prepare_data_for_sql(source_data)
             
             # Convert Tags object to JSON string for database compatibility
             if 'tags' in source_data and source_data['tags'] is not None:

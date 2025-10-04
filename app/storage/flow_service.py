@@ -213,26 +213,22 @@ class FlowStorageService:
             raise HTTPException(status_code=500, detail="Internal server error")
     
     async def update_flow(self, flow_id: str, flow: Flow) -> bool:
-        """Update an existing flow"""
+        """Update an existing flow using update-before-upsert approach"""
         try:
             flow.metadata_updated = get_tams_timestamp()
             
-            # Only update mutable fields, exclude read-only fields
-            flow_data = flow.model_dump(exclude={'id', 'created', 'created_by', 'collected_by'})
+            # Extract tags separately for handling in tags table
+            tags_data = None
+            if hasattr(flow, 'tags') and flow.tags is not None:
+                tags_data = flow.tags
             
-            # Convert timestamp fields to SQL format for query builder using centralized function
+            # Only update mutable fields, exclude read-only fields and tags
+            flow_data = flow.model_dump(exclude={'id', 'created', 'created_by', 'collected_by', 'tags'})
+            
+            # Convert timestamp fields to SQL format using centralized function
             from app.storage.timestamp_utils import prepare_data_for_sql
             flow_data = prepare_data_for_sql(flow_data)
-            
-            # Convert Tags object to JSON string for database compatibility
-            if 'tags' in flow_data and flow_data['tags'] is not None:
-                import json
-                if hasattr(flow_data['tags'], 'root'):
-                    flow_data['tags'] = json.dumps(flow_data['tags'].root)
-                elif isinstance(flow_data['tags'], dict):
-                    flow_data['tags'] = json.dumps(flow_data['tags'])
-                # If it's already a string, leave it as is
-            
+
             # Convert essence_parameters to JSON string for database compatibility
             if 'essence_parameters' in flow_data and flow_data['essence_parameters'] is not None:
                 import json
@@ -240,7 +236,7 @@ class FlowStorageService:
                     flow_data['essence_parameters'] = json.dumps(flow_data['essence_parameters'].model_dump())
                 elif isinstance(flow_data['essence_parameters'], dict):
                     flow_data['essence_parameters'] = json.dumps(flow_data['essence_parameters'])
-            
+
             # Convert flow_collection to JSON string for database compatibility
             if 'flow_collection' in flow_data and flow_data['flow_collection'] is not None:
                 import json
@@ -248,13 +244,77 @@ class FlowStorageService:
                     flow_data['flow_collection'] = json.dumps(flow_data['flow_collection'].root)
                 elif isinstance(flow_data['flow_collection'], list):
                     flow_data['flow_collection'] = json.dumps(flow_data['flow_collection'])
-            
+
             # Filter out None values to avoid "unknown" type errors
             flow_data = {k: v for k, v in flow_data.items() if v is not None}
             
-            # Use query builder with proper timestamp handling
-            self.vast_db.query("flows").update().set(**flow_data).where(f"id = '{flow_id}'").execute()
-            return True
+            # Try UPDATE first
+            try:
+                if flow_data:
+                    # Build SQL update statement directly
+                    set_clauses = []
+                    for column, value in flow_data.items():
+                        if column in ['metadata_updated', 'segments_updated'] and isinstance(value, str) and value.startswith('CAST('):
+                            # Handle timestamp fields that are already CAST expressions
+                            set_clauses.append(f"{column} = {value}")
+                        else:
+                            # Handle regular fields
+                            if isinstance(value, str):
+                                escaped_value = value.replace("'", "''")
+                                set_clauses.append(f"{column} = '{escaped_value}'")
+                            elif value is None:
+                                set_clauses.append(f"{column} = NULL")
+                            else:
+                                set_clauses.append(f"{column} = {value}")
+                    
+                    if set_clauses:
+                        flows_table = self.vast_db.get_qualified_table_name("flows")
+                        sql = f"UPDATE {flows_table} SET {', '.join(set_clauses)} WHERE id = '{flow_id}'"
+                        logger.debug("Updating flow %s with SQL: %s", flow_id, sql)
+                        self.vast_db.execute_sql(sql)
+                        logger.info("Successfully updated flow %s", flow_id)
+                else:
+                    logger.warning("No fields to update for flow %s", flow_id)
+                
+                # Handle tags separately using tag service
+                if tags_data is not None:
+                    await self.tag_service.update_flow_tags(flow_id, tags_data)
+                
+                return True
+                
+            except Exception as update_error:
+                logger.warning("UPDATE failed for flow %s, trying upsert approach: %s", flow_id, update_error)
+                
+                # If UPDATE fails, try DELETE + INSERT (upsert)
+                try:
+                    # Delete existing flow
+                    flows_table = self.vast_db.get_qualified_table_name("flows")
+                    delete_sql = f"DELETE FROM {flows_table} WHERE id = '{flow_id}'"
+                    self.vast_db.execute_sql(delete_sql)
+                    logger.info("Deleted existing flow %s for upsert", flow_id)
+                    
+                    # Insert new flow data
+                    flow_data['id'] = flow_id
+                    flow_data['created'] = get_tams_timestamp()
+                    
+                    # Convert timestamp fields to PyArrow format for insertion
+                    from app.storage.timestamp_utils import prepare_data_for_pyarrow
+                    flow_data = prepare_data_for_pyarrow(flow_data)
+                    
+                    logger.debug("Inserting flow %s with data: %s", flow_id, flow_data)
+                    self.vast_db.insert_record("flows", flow_data)
+                    logger.info("Successfully inserted flow %s via upsert", flow_id)
+                    
+                    # Handle tags separately using tag service
+                    if tags_data is not None:
+                        await self.tag_service.update_flow_tags(flow_id, tags_data)
+                    
+                    return True
+                    
+                except Exception as upsert_error:
+                    logger.error("Both UPDATE and upsert failed for flow %s: %s", flow_id, upsert_error)
+                    raise upsert_error
+                    
         except Exception as e:
             logger.error("Failed to update flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -262,7 +322,10 @@ class FlowStorageService:
     async def update_flow_description(self, flow_id: str, description: str) -> bool:
         """Update flow description only"""
         try:
-            self.vast_db.query("flows").update().set(description=description).where(f"id = '{flow_id}'").execute()
+            escaped_description = description.replace("'", "''")
+            flows_table = self.vast_db.get_qualified_table_name("flows")
+            sql = f"UPDATE {flows_table} SET description = '{escaped_description}' WHERE id = '{flow_id}'"
+            self.vast_db.execute_sql(sql)
             return True
         except Exception as e:
             logger.error("Failed to update flow description %s: %s", flow_id, e)
@@ -271,7 +334,9 @@ class FlowStorageService:
     async def delete_flow_description(self, flow_id: str) -> bool:
         """Delete flow description only"""
         try:
-            self.vast_db.query("flows").update().set(description=None).where(f"id = '{flow_id}'").execute()
+            flows_table = self.vast_db.get_qualified_table_name("flows")
+            sql = f"UPDATE {flows_table} SET description = NULL WHERE id = '{flow_id}'"
+            self.vast_db.execute_sql(sql)
             return True
         except Exception as e:
             logger.error("Failed to delete flow description %s: %s", flow_id, e)
@@ -280,7 +345,10 @@ class FlowStorageService:
     async def update_flow_label(self, flow_id: str, label: str) -> bool:
         """Update flow label only"""
         try:
-            self.vast_db.query("flows").update().set(label=label).where(f"id = '{flow_id}'").execute()
+            escaped_label = label.replace("'", "''")
+            flows_table = self.vast_db.get_qualified_table_name("flows")
+            sql = f"UPDATE {flows_table} SET label = '{escaped_label}' WHERE id = '{flow_id}'"
+            self.vast_db.execute_sql(sql)
             return True
         except Exception as e:
             logger.error("Failed to update flow label %s: %s", flow_id, e)
@@ -289,7 +357,9 @@ class FlowStorageService:
     async def delete_flow_label(self, flow_id: str) -> bool:
         """Delete flow label only"""
         try:
-            self.vast_db.query("flows").update().set(label=None).where(f"id = '{flow_id}'").execute()
+            flows_table = self.vast_db.get_qualified_table_name("flows")
+            sql = f"UPDATE {flows_table} SET label = NULL WHERE id = '{flow_id}'"
+            self.vast_db.execute_sql(sql)
             return True
         except Exception as e:
             logger.error("Failed to delete flow label %s: %s", flow_id, e)
@@ -298,7 +368,9 @@ class FlowStorageService:
     async def update_flow_read_only(self, flow_id: str, read_only: bool) -> bool:
         """Update flow read_only status only"""
         try:
-            self.vast_db.query("flows").update().set(read_only=read_only).where(f"id = '{flow_id}'").execute()
+            flows_table = self.vast_db.get_qualified_table_name("flows")
+            sql = f"UPDATE {flows_table} SET read_only = {str(read_only).lower()} WHERE id = '{flow_id}'"
+            self.vast_db.execute_sql(sql)
             return True
         except Exception as e:
             logger.error("Failed to update flow read_only %s: %s", flow_id, e)

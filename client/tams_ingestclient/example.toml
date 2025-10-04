@@ -1,0 +1,67 @@
+# TAMS Ingest Client Configuration Example
+# This file demonstrates all available configuration options
+
+[tams_ingest]
+
+# Core settings
+enable_logging = true
+log_level = "INFO"
+max_concurrent_uploads = 5
+auto_create_source = true
+auto_create_flow = true
+upload_to_s3 = true
+
+# TAMS API configuration
+[tams_ingest.tams_api]
+base_url = "http://localhost:8000"
+api_key = ""  # Optional API key
+timeout = 30
+retry_attempts = 3
+verify_ssl = false
+
+# S3 configuration for media uploads
+[tams_ingest.s3]
+bucket = "tams-videos"
+prefix = "ingested"
+region = "us-east-1"
+endpoint_url = ""  # Optional, for MinIO or other S3-compatible services
+access_key = ""    # Optional, will use AWS credentials if not provided
+secret_key = ""    # Optional, will use AWS credentials if not provided
+use_ssl = true
+
+# Video processing configuration
+[tams_ingest.video_processing]
+chunk_duration = 30
+segment_overlap = 0
+video_codec = "h264"
+audio_codec = "aac"
+
+# Auto-detection settings
+auto_detect_codec = true
+auto_detect_resolution = true
+auto_detect_framerate = true
+auto_detect_bitrate = true
+
+# Processing options
+enable_thumbnails = false
+thumbnail_interval = 10
+enable_metadata_extraction = true
+
+# Environment variable examples:
+# TAMS_BASE_URL=http://localhost:8000
+# TAMS_API_KEY=your_api_key_here
+# S3_BUCKET=your-bucket-name
+# S3_PREFIX=your-prefix
+# CHUNK_DURATION=30
+# LOG_LEVEL=INFO
+
+
+
+
+
+
+
+
+
+
+

@@ -164,34 +164,92 @@ class SourceStorageService:
             raise HTTPException(status_code=500, detail="Internal server error")
     
     async def update_source(self, source_id: str, source: Source) -> bool:
-        """Update an existing source"""
+        """Update an existing source using update-before-upsert approach"""
         try:
             source.updated = get_tams_timestamp()
-            # Only update mutable fields, exclude read-only fields
-            source_data = source.model_dump(exclude={'id', 'created', 'created_by', 'source_collection', 'collected_by'})
             
-            # Convert timestamp fields to SQL format for query builder using centralized function
+            # Extract tags separately for handling in tags table
+            tags_data = None
+            if hasattr(source, 'tags') and source.tags is not None:
+                tags_data = source.tags
+            
+            # Only update mutable fields, exclude read-only fields and tags
+            source_data = source.model_dump(exclude={'id', 'created', 'created_by', 'source_collection', 'collected_by', 'tags'})
+            
+            # Convert timestamp fields to SQL format using centralized function
             from app.storage.timestamp_utils import prepare_data_for_sql
             source_data = prepare_data_for_sql(source_data)
-            
-            # Convert Tags object to JSON string for database compatibility
-            if 'tags' in source_data and source_data['tags'] is not None:
-                import json
-                if hasattr(source_data['tags'], 'root'):
-                    source_data['tags'] = json.dumps(source_data['tags'].root)
-                elif isinstance(source_data['tags'], dict):
-                    source_data['tags'] = json.dumps(source_data['tags'])
-                # If it's already a string, leave it as is
             
             # Filter out None values to avoid "unknown" type errors
             source_data = {k: v for k, v in source_data.items() if v is not None}
             
-            # Debug: Log the data being sent
-            logger.debug("Updating source %s with data: %s", source_id, source_data)
-            
-            # Use query builder with proper timestamp handling
-            self.vast_db.query("sources").update().set(**source_data).where(f"id = '{source_id}'").execute()
-            return True
+            # Try UPDATE first
+            try:
+                if source_data:
+                    # Build SQL update statement directly
+                    set_clauses = []
+                    for column, value in source_data.items():
+                        if column == 'updated' and isinstance(value, str) and value.startswith('CAST('):
+                            # Handle timestamp fields that are already CAST expressions
+                            set_clauses.append(f"{column} = {value}")
+                        else:
+                            # Handle regular fields
+                            if isinstance(value, str):
+                                escaped_value = value.replace("'", "''")
+                                set_clauses.append(f"{column} = '{escaped_value}'")
+                            elif value is None:
+                                set_clauses.append(f"{column} = NULL")
+                            else:
+                                set_clauses.append(f"{column} = {value}")
+                    
+                    if set_clauses:
+                        sources_table = self.vast_db.get_qualified_table_name("sources")
+                        sql = f"UPDATE {sources_table} SET {', '.join(set_clauses)} WHERE id = '{source_id}'"
+                        logger.debug("Updating source %s with SQL: %s", source_id, sql)
+                        self.vast_db.execute_sql(sql)
+                        logger.info("Successfully updated source %s", source_id)
+                else:
+                    logger.warning("No fields to update for source %s", source_id)
+                
+                # Handle tags separately using tag service
+                if tags_data is not None:
+                    await self.tag_service.update_source_tags(source_id, tags_data)
+                
+                return True
+                
+            except Exception as update_error:
+                logger.warning("UPDATE failed for source %s, trying upsert approach: %s", source_id, update_error)
+                
+                # If UPDATE fails, try DELETE + INSERT (upsert)
+                try:
+                    # Delete existing source
+                    sources_table = self.vast_db.get_qualified_table_name("sources")
+                    delete_sql = f"DELETE FROM {sources_table} WHERE id = '{source_id}'"
+                    self.vast_db.execute_sql(delete_sql)
+                    logger.info("Deleted existing source %s for upsert", source_id)
+                    
+                    # Insert new source data
+                    source_data['id'] = source_id
+                    source_data['created'] = get_tams_timestamp()
+                    
+                    # Convert timestamp fields to PyArrow format for insertion
+                    from app.storage.timestamp_utils import prepare_data_for_pyarrow
+                    source_data = prepare_data_for_pyarrow(source_data)
+                    
+                    logger.debug("Inserting source %s with data: %s", source_id, source_data)
+                    self.vast_db.insert_record("sources", source_data)
+                    logger.info("Successfully inserted source %s via upsert", source_id)
+                    
+                    # Handle tags separately using tag service
+                    if tags_data is not None:
+                        await self.tag_service.update_source_tags(source_id, tags_data)
+                    
+                    return True
+                    
+                except Exception as upsert_error:
+                    logger.error("Both UPDATE and upsert failed for source %s: %s", source_id, upsert_error)
+                    raise upsert_error
+                    
         except Exception as e:
             logger.error("Failed to update source %s: %s", source_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")

@@ -33,6 +33,7 @@ def get_tams_table_schemas() -> Dict[str, pa.Schema]:
         "api_tokens": _get_api_tokens_schema(),
         "refresh_tokens": _get_refresh_tokens_schema(),
         "auth_logs": _get_auth_logs_schema(),
+        "tags": _get_tags_schema(),
     }
 
 
@@ -112,6 +113,15 @@ def get_table_projections() -> Dict[str, List[List[str]]]:
             ["user_id"],
             ["event_type"],
             ["created"]
+        ],
+        "tags": [
+            ["id"],
+            ["entity_type", "entity_id"],
+            ["entity_type", "tag_name"],
+            ["entity_id", "tag_name"],
+            ["created_at"],
+            ["updated_at"],
+            ["deleted_date"]
         ]
     }
 
@@ -130,8 +140,7 @@ def _get_sources_schema() -> pa.Schema:
         pa.field("created_by", pa.string(), nullable=True),
         pa.field("updated_by", pa.string(), nullable=True),
         pa.field("created", pa.timestamp("ns"), nullable=True),
-        pa.field("updated", pa.timestamp("ns"), nullable=True),
-        pa.field("tags", pa.map_(pa.string(), pa.string()), nullable=True)  # Map of tag name to value
+        pa.field("updated", pa.timestamp("ns"), nullable=True)
     ])
 
 
@@ -145,7 +154,6 @@ def _get_flows_schema() -> pa.Schema:
         pa.field("description", pa.string(), nullable=True),
         pa.field("created_by", pa.string(), nullable=True),
         pa.field("updated_by", pa.string(), nullable=True),
-        pa.field("tags", pa.map_(pa.string(), pa.string()), nullable=True),  # Map of tag name to value
         pa.field("metadata_version", pa.string(), nullable=True),
         pa.field("generation", pa.int64(), nullable=True),
         pa.field("created", pa.timestamp("ns"), nullable=True),
@@ -298,4 +306,20 @@ def _get_auth_logs_schema() -> pa.Schema:
         pa.field("user_agent", pa.string(), nullable=True),
         pa.field("details", pa.string(), nullable=True),  # JSON string
         pa.field("created", pa.timestamp("ns"), nullable=True),
+    ])
+
+
+def _get_tags_schema() -> pa.Schema:
+    """Get tags table schema"""
+    return pa.schema([
+        pa.field("id", pa.string(), nullable=True),  # UUID4 for the tag record
+        pa.field("entity_type", pa.string(), nullable=True),  # 'source' or 'flow'
+        pa.field("entity_id", pa.string(), nullable=True),  # ID of the source or flow
+        pa.field("tag_name", pa.string(), nullable=True),  # Name of the tag
+        pa.field("tag_value", pa.string(), nullable=True),  # Value of the tag (can be NULL)
+        pa.field("created_at", pa.timestamp("ns"), nullable=True),  # When the tag was created
+        pa.field("updated_at", pa.timestamp("ns"), nullable=True),  # When the tag was last updated
+        pa.field("created_date", pa.timestamp("ns"), nullable=True),  # Metadata: creation date
+        pa.field("updated_date", pa.timestamp("ns"), nullable=True),  # Metadata: last update date
+        pa.field("deleted_date", pa.timestamp("ns"), nullable=True),  # Metadata: soft delete date (NULL if not deleted)
     ])

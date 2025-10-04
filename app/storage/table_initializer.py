@@ -57,7 +57,8 @@ class TAMSTableInitializer:
                 "sources", "flows", "objects",  # Core entity tables
                 "segments", "flow_object_references",  # Relationship tables
                 "flow_collections", "source_collections",  # Collection tables
-                "webhooks", "deletion_requests"  # Utility tables
+                "webhooks", "deletion_requests",  # Utility tables
+                "tags"  # Tags table for metadata
             ]
             
             for table_name in table_order:

@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timezone
 
 from .schemas import get_tams_table_schemas, get_table_projections
-from ..core.config import get_settings
+from ...core.config import get_settings
 
 logger = logging.getLogger(__name__)
 

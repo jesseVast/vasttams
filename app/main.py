@@ -25,23 +25,29 @@ from pydantic import ValidationError
 import uvicorn
 from uuid import UUID
 
-from .models import (
-    Service, ServiceResponse, Source, SourcesResponse, Flow, FlowsResponse,
-    FlowSegment, Object, Webhook, WebhookPost, WebhooksResponse,
-    FlowStoragePost, FlowStorage, DeletionRequest, DeletionRequestsResponse,
-    SourceFilters, FlowFilters, FlowDetailFilters, PagingInfo, Tags, EventStreamMechanism, 
-    DeletionRequestsList, StorageBackend, StorageBackendsList, HttpRequest, MediaObject
-)
+# Import models from their resource modules
+from .flows.models import Flow
+from .sources.models import Source
+from .segments.models import FlowSegment
+from .objects.models import Object
+from .service.models import Service
+from .service.webhooks import Webhook, WebhookPost
+from .service.deletion import DeletionRequest, DeletionRequestsList, DeletionRequestsResponse
+from .service.storage_models import StorageBackend, StorageBackendsList
+
+# Import shared/common models
+from .common.models import Tags, EventStreamMechanism, HttpRequest, MediaObject, FlowStoragePost, FlowStorage
+from .common.filters import SourceFilters, FlowFilters, FlowDetailFilters
+from .common.responses import ServiceResponse, SourcesResponse, FlowsResponse, WebhooksResponse, PagingInfo
 
 # Storage now handled by storage service architecture
 from .core.config import get_settings, update_settings
 from .core.utils import log_pydantic_validation_error
-from .api.flows_router import router as flows_router
-from .api.segments_router import router as segments_router
-from .api.sources_router import router as sources_router
-from .api.objects_router import router as objects_router
-from .api.service_router import router as service_router
-from .api.deletion_requests_router import router as deletion_requests_router
+from .flows.router import router as flows_router
+from .segments.router import router as segments_router
+from .sources.router import router as sources_router
+from .objects.router import router as objects_router
+from .service.router import router as service_router
 
 from .core.dependencies import get_vast_db, get_s3_client
 from .core.telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
@@ -68,7 +74,7 @@ async def lifespan(app: FastAPI):
         
         # Initialize storage service and verify tables
         from .core.dependencies import get_vast_db
-        from .storage.table_initializer import TAMSTableInitializer
+        from .common.storage.table_initializer import TAMSTableInitializer
         
         vast_db = get_vast_db()
         if vast_db:

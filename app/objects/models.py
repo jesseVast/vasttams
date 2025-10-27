@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict
 
-from .core import TimeRange
+from ..common.models import TimeRange
 
 
 class Object(BaseModel):

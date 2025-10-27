@@ -1,40 +1,56 @@
 """
-TAMS Table Schemas
+TAMS Table Schemas Registry
 
-This module defines PyArrow schemas for all TAMS database tables based on the Pydantic models.
-These schemas are used for table creation and ensure consistency between the API models and database structure.
+This module aggregates PyArrow schemas from resource modules.
+Schemas are now defined in their respective resource modules for better organization.
 """
 
 import pyarrow as pa
 from typing import Dict, List, Optional
 import logging
 
+# Import schemas from resource modules
+from ...flows.schemas import (
+    get_flows_schema, get_flow_collections_schema, get_flow_object_references_schema
+)
+from ...sources.schemas import (
+    get_sources_schema, get_source_collections_schema
+)
+from ...segments.schemas import get_segments_schema
+from ...objects.schemas import (
+    get_objects_schema, get_object_instances_schema
+)
+from ...service.schemas import (
+    get_webhooks_schema, get_deletion_requests_schema,
+    get_users_schema, get_api_tokens_schema, get_refresh_tokens_schema, get_auth_logs_schema
+)
+
 logger = logging.getLogger(__name__)
 
 
 def get_tams_table_schemas() -> Dict[str, pa.Schema]:
     """
-    Get all TAMS table schemas based on Pydantic models.
+    Get all TAMS table schemas from resource modules.
     
     Returns:
         Dict[str, pa.Schema]: Dictionary mapping table names to PyArrow schemas
     """
     return {
-        "sources": _get_sources_schema(),
-        "flows": _get_flows_schema(),
-        "segments": _get_segments_schema(),
-        "objects": _get_objects_schema(),
-        "object_instances": _get_object_instances_schema(),
-        "flow_object_references": _get_flow_object_references_schema(),
-        "flow_collections": _get_flow_collections_schema(),
-        "source_collections": _get_source_collections_schema(),
-        "webhooks": _get_webhooks_schema(),
-        "deletion_requests": _get_deletion_requests_schema(),
-        "users": _get_users_schema(),
-        "api_tokens": _get_api_tokens_schema(),
-        "refresh_tokens": _get_refresh_tokens_schema(),
-        "auth_logs": _get_auth_logs_schema(),
-        "tags": _get_tags_schema(),
+        "sources": get_sources_schema(),
+        "flows": get_flows_schema(),
+        "segments": get_segments_schema(),
+        "objects": get_objects_schema(),
+        "object_instances": get_object_instances_schema(),
+        "flow_object_references": get_flow_object_references_schema(),
+        "flow_collections": get_flow_collections_schema(),
+        "source_collections": get_source_collections_schema(),
+        "webhooks": get_webhooks_schema(),
+        "deletion_requests": get_deletion_requests_schema(),
+        "users": get_users_schema(),
+        "api_tokens": get_api_tokens_schema(),
+        "refresh_tokens": get_refresh_tokens_schema(),
+        "auth_logs": get_auth_logs_schema(),
+        "tags": _get_tags_schema(),  # Tags stay here as shared
     }
 
 

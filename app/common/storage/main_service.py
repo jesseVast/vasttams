@@ -17,8 +17,7 @@ from .timestamp_utils import get_tams_timestamp
 from ...flows.models import Flow, FlowFilters, FlowDetailFilters
 from ...sources.models import Source
 from ...segments.models import FlowSegment
-from ...objects.models import Object, ObjectInstance  
-from .interfaces import StorageInterface
+from ...objects.models import Object, ObjectInstance
 
 # Import service classes from their resource modules
 from ...flows.service import FlowStorageService

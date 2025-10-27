@@ -56,7 +56,7 @@ from .storage import (
     FlowStoragePost,
 )
 
-from .objects import Object
+from .objects import Object, ObjectInstance, ObjectInstancePost
 
 from .deletion import DeletionRequest, DeletionRequestsList
 
@@ -135,6 +135,8 @@ __all__ = [
     
     # Objects
     "Object",
+    "ObjectInstance",
+    "ObjectInstancePost",
     
     # Deletion
     "DeletionRequest",

@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from .interfaces import StorageInterface
 from .timestamp_utils import get_tams_timestamp
-from ..models import Object
+from ..models import Object, ObjectInstance
 
 logger = logging.getLogger(__name__)
 
@@ -89,4 +89,81 @@ class ObjectStorageService:
             return objects
         except Exception as e:
             logger.error("Failed to get objects: %s", e)
+            raise HTTPException(status_code=500, detail="Internal server error")
+    
+    # Object Instance Management (TAMS 8.0)
+    
+    async def create_object_instance(self, object_id: str, instance: ObjectInstance) -> bool:
+        """Create a new instance for an object (TAMS 8.0)"""
+        try:
+            # Verify object exists
+            obj = await self.get_object(object_id)
+            if not obj:
+                return False
+            
+            # Prepare instance data
+            instance_data = instance.model_dump()
+            instance_data['object_id'] = object_id
+            instance_data['created'] = get_tams_timestamp()
+            
+            # Convert timestamp fields for PyArrow
+            from app.storage.timestamp_utils import prepare_data_for_pyarrow
+            instance_data = prepare_data_for_pyarrow(instance_data)
+            
+            # Insert instance record
+            self.vast_db.insert_record("object_instances", instance_data)
+            
+            logger.info("Created object instance %s for object %s", instance.label, object_id)
+            return True
+        except Exception as e:
+            logger.error("Failed to create object instance for %s: %s", object_id, e)
+            raise HTTPException(status_code=500, detail="Internal server error")
+    
+    async def list_object_instances(self, object_id: str) -> List[ObjectInstance]:
+        """List all instances for an object (TAMS 8.0)"""
+        try:
+            # Verify object exists
+            obj = await self.get_object(object_id)
+            if not obj:
+                return []
+            
+            # Query instances for this object
+            result = self.vast_db.query("object_instances").select("*").where(f"object_id = '{object_id}'").execute()
+            
+            instances = []
+            rows = result.get('data', []) if isinstance(result, dict) else result
+            
+            for row in rows:
+                instance_data = dict(row)
+                # Create ObjectInstance without object_id field (not part of model)
+                instance_dict = {k: v for k, v in instance_data.items() if k in ['label', 'storage_id', 'url', 'controlled', 'metadata']}
+                instances.append(ObjectInstance(**instance_dict))
+            
+            return instances
+        except Exception as e:
+            logger.error("Failed to list object instances for %s: %s", object_id, e)
+            raise HTTPException(status_code=500, detail="Internal server error")
+    
+    async def delete_object_instance(self, object_id: str, label: Optional[str] = None, storage_id: Optional[str] = None) -> bool:
+        """Delete an object instance by label or storage_id (TAMS 8.0)"""
+        try:
+            # Verify object exists
+            obj = await self.get_object(object_id)
+            if not obj:
+                return False
+            
+            # Build where clause
+            if label:
+                query = self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}' AND label = '{label}'")
+            elif storage_id:
+                query = self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}' AND storage_id = '{storage_id}'")
+            else:
+                return False
+            
+            query.execute()
+            
+            logger.info("Deleted object instance for object %s (label=%s, storage_id=%s)", object_id, label, storage_id)
+            return True
+        except Exception as e:
+            logger.error("Failed to delete object instance for %s: %s", object_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")

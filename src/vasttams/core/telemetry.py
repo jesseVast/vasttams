@@ -413,7 +413,7 @@ def enhanced_health_check():
     health_status = {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "version": "7.0",
+                    "version": "8.0.0",
         "system": {
             "memory_usage_bytes": memory_info.used,
             "memory_total_bytes": memory_info.total,

@@ -15,17 +15,23 @@ Options:
 """
 
 import sys
+import os
 import asyncio
 import logging
 import argparse
 from pathlib import Path
 
-# Add the parent directory to the path so we can import app modules
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add the src directory to the path so we can import vasttams modules
+root_dir = os.path.abspath(str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(root_dir) / "src"))
+sys.path.insert(0, root_dir)
 
-from app.core.config import get_settings
-from app.core.dependencies import get_vast_db
-from app.common.storage.table_initializer import TAMSTableInitializer
+# Change to root directory so config/config.json is found
+os.chdir(root_dir)
+
+from vasttams.core.config import get_settings
+from vasttams.core.dependencies import get_vast_db
+from vasttams.common.storage.table_initializer import TAMSTableInitializer
 
 # Configure logging
 logging.basicConfig(

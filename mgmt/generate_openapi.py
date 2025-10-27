@@ -10,15 +10,20 @@ import os
 import sys
 from pathlib import Path
 
-# Add the app directory to the Python path
-sys.path.insert(0, str(Path(__file__).parent / "app"))
+# Add the src directory to the Python path
+root_dir = os.path.abspath(str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(root_dir) / "src"))
+sys.path.insert(0, root_dir)
+
+# Change to root directory so config/config.json is found
+os.chdir(root_dir)
 
 try:
-    from app.main import app
+    from vasttams.main import app
 except ImportError:
     # Fallback for direct execution
     sys.path.insert(0, str(Path(__file__).parent))
-    from app.main import app
+    from vasttams.main import app
 
 def generate_openapi_json():
     """Generate OpenAPI JSON specification"""

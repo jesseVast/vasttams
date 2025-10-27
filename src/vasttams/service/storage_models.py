@@ -14,11 +14,14 @@ class StorageBackend(BaseModel):
     """Storage backend information - TAMS compliant"""
     model_config = ConfigDict(str_strip_whitespace=True)
     
+    id: str = Field(..., description="Storage backend identifier")
+    label: Optional[str] = Field(None, description="Freeform string label for a storage backend")
     store_type: str = Field(..., description="The generic store type")
     provider: str = Field(..., description="The cloud provider of the storage")
     store_product: str = Field(..., description="The storage product name")
     region: Optional[str] = Field(None, description="The region in the cloud this storage backend resides")
     availability_zone: Optional[str] = Field(None, description="The availability zone in the cloud region")
+    default_storage: Optional[bool] = Field(False, description="If true, this is the default storage backend")
     
     @field_validator('store_type')
     @classmethod
@@ -40,6 +43,11 @@ class StorageBackend(BaseModel):
         if not v or not v.strip():
             raise ValueError('Store product cannot be empty')
         return v.strip()
+    
+    @field_validator('id')
+    @classmethod
+    def validate_id(cls, v: str) -> str:
+        return validate_tams_uuid(v)
 
 
 class StorageBackendsList(BaseModel):

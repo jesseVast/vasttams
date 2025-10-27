@@ -13,19 +13,22 @@ Usage:
 """
 
 import sys
+import os
 import json
 import csv
 import argparse
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-# Add the parent directory to the path so we can import app modules
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add the src directory to the path
+root_dir = os.path.abspath(str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(root_dir) / "src"))
+sys.path.insert(0, root_dir)
+
+# Change to root directory so config/config.json is found
+os.chdir(root_dir)
 
 from vastdbmanager import VastDBManager
-
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from vasttams.core.config import get_settings
 

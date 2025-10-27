@@ -45,22 +45,8 @@ async def update_service(
         logger.error("Failed to update service info: %s", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.head("/storage-backends")
-async def head_storage_backends():
-    """Return storage backends path headers"""
-    return {}
-
-@router.get("/storage-backends")
-async def get_storage_backends(
-    storage: StorageInterface = Depends(get_storage_service)
-):
-    """Provide information about the storage backends available on this service instance"""
-    try:
-        storage_backends = await storage.get_storage_backends()
-        return storage_backends
-    except Exception as e:
-        logger.error("Failed to get storage backends: %s", e)
-        raise HTTPException(status_code=500, detail="Internal server error")
+# Storage backends endpoints moved to dedicated storage_backends_router
+# They are now at /service/storage-backends via the dedicated module
 
 @router.head("/webhooks")
 async def head_webhooks():

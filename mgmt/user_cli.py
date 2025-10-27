@@ -15,13 +15,20 @@ import bcrypt
 from datetime import datetime, timezone
 from typing import Optional
 
-# Add the app directory to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# Add the src directory to the path
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(root_dir, 'src'))
+sys.path.insert(0, root_dir)
+
+# Change to root directory so config/config.json is found
+os.chdir(root_dir)
 
 from vastdbmanager import VastDBManager
 from vasts3 import S3Client
-from app.models.models import User, UserCreate, UserUpdate, UserPasswordChange
-from app.core.config import get_settings
+from vasttams.auth.models import User
+from vasttams.core.config import get_settings
+
+# Note: UserCreate, UserUpdate, UserPasswordChange need to be defined in auth.models if used
 
 
 class UserManager:

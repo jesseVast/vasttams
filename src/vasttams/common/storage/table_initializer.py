@@ -54,6 +54,7 @@ class TAMSTableInitializer:
             # Create tables in dependency order
             table_order = [
                 "users", "api_tokens", "refresh_tokens", "auth_logs",  # Auth tables first
+                "storage_backends",  # Storage configuration tables
                 "sources", "flows", "objects",  # Core entity tables
                 "segments", "flow_object_references",  # Relationship tables
                 "flow_collections", "source_collections",  # Collection tables
@@ -136,17 +137,22 @@ class TAMSTableInitializer:
                     logger.info(f"Table {table_name} already exists, skipping creation")
                     return True
             
-            # Create the table
+            # Create the table with projections
             logger.info(f"Creating table: {table_name}")
-            table = self.vast_db.create_table(table_name, schema, projections)
+            
+            # Only pass projections if enabled
+            projections_to_use = projections if self.settings.enable_table_projections else {}
+            
+            table = self.vast_db.create_table(table_name, schema, projections_to_use)
             
             if table is None:
                 logger.error(f"Failed to create table: {table_name}")
                 return False
             
-            # Add projections if enabled
-            if self.settings.enable_table_projections and projections:
-                await self._add_table_projections(table_name, projections)
+            if self.settings.enable_table_projections:
+                logger.info(f"Table {table_name} created with projections enabled")
+            else:
+                logger.info(f"Table {table_name} created without projections")
             
             logger.info(f"Successfully created table: {table_name}")
             return True

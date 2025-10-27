@@ -49,6 +49,7 @@ from .segments.router import router as segments_router
 from .sources.router import router as sources_router
 from .objects.router import router as objects_router
 from .service.router import router as service_router
+from .storagebackends.router import router as storage_backends_router
 from .auth.router import router as auth_router
 
 from .core.dependencies import get_vast_db, get_s3_client
@@ -197,6 +198,7 @@ app.include_router(segments_router)
 app.include_router(sources_router)
 app.include_router(objects_router)
 app.include_router(service_router)
+app.include_router(storage_backends_router)
 app.include_router(auth_router)
 
 # OpenAPI JSON endpoint

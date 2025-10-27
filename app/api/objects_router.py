@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
 from pydantic import ValidationError
-from ..models import Object
+from ..models import Object, ObjectInstance, ObjectInstancePost
 from ..storage import get_storage_service
 from ..storage.interfaces import StorageInterface
 from ..core.event_manager import EventManager
@@ -79,6 +79,101 @@ async def delete_object_by_id(
         raise
     except Exception as e:
         logger.error("Failed to delete object %s: %s", object_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# Object Instances Management (TAMS 8.0)
+
+@router.post("/{object_id}/instances", response_model=ObjectInstance)
+async def create_object_instance(
+    object_id: str,
+    instance: ObjectInstancePost = Body(...),
+    storage: StorageInterface = Depends(get_storage_service)
+):
+    """Register a new instance for an object (TAMS 8.0)"""
+    try:
+        # Validate that object exists
+        obj = await storage.get_object(object_id)
+        if not obj:
+            raise HTTPException(status_code=404, detail="Object not found")
+        
+        # Create instance via storage service
+        instance_obj = ObjectInstance(
+            label=instance.label,
+            storage_id=instance.storage_id,
+            url=instance.url,
+            controlled=instance.controlled,
+            metadata=instance.metadata
+        )
+        
+        success = await storage.create_object_instance(object_id, instance_obj)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to create object instance")
+        
+        return instance_obj
+        
+    except HTTPException:
+        raise
+    except ValidationError as e:
+        log_pydantic_validation_error("Object Instance", e)
+        raise HTTPException(status_code=400, detail="Invalid object instance data")
+    except Exception as e:
+        logger.error("Failed to create object instance for %s: %s", object_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{object_id}/instances", response_model=List[ObjectInstance])
+async def list_object_instances(
+    object_id: str,
+    storage: StorageInterface = Depends(get_storage_service)
+):
+    """List all instances for an object (TAMS 8.0)"""
+    try:
+        # Validate that object exists
+        obj = await storage.get_object(object_id)
+        if not obj:
+            raise HTTPException(status_code=404, detail="Object not found")
+        
+        # Get instances via storage service
+        instances = await storage.list_object_instances(object_id)
+        return instances
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to list object instances for %s: %s", object_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/{object_id}/instances")
+async def delete_object_instance(
+    object_id: str,
+    label: Optional[str] = Query(None, description="Delete instance with this label"),
+    storage_id: Optional[str] = Query(None, description="Delete instance with this storage_id"),
+    storage: StorageInterface = Depends(get_storage_service)
+):
+    """Delete an object instance by label or storage_id (TAMS 8.0)"""
+    try:
+        # Validate that object exists
+        obj = await storage.get_object(object_id)
+        if not obj:
+            raise HTTPException(status_code=404, detail="Object not found")
+        
+        # Either label or storage_id must be provided
+        if not label and not storage_id:
+            raise HTTPException(status_code=400, detail="Either label or storage_id must be provided")
+        
+        # Delete instance via storage service
+        success = await storage.delete_object_instance(object_id, label=label, storage_id=storage_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Object instance not found")
+        
+        return {"message": "Object instance deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to delete object instance for %s: %s", object_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
  

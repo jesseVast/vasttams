@@ -22,7 +22,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.core.config import get_settings
-from app.storage.vast_store import VASTStore
+from app.common.storage.schemas import get_table_projections
+from vastdbmanager import VastDBManager
 
 import logging
 import argparse

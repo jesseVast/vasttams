@@ -7,7 +7,7 @@ This module contains models related to webhooks in the TAMS API.
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
-from .core import validate_tams_uuid, Tags
+from ..common.models import validate_tams_uuid, Tags
 
 
 class Webhook(BaseModel):

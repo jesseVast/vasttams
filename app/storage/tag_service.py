@@ -4,11 +4,14 @@ Generic Tag Storage Service
 This module handles all tag-related storage operations for any entity type.
 It provides a generic interface for tag management that works with sources,
 flows, or any future entity types.
+
+TAMS 8.0: Supports both string and array tag values.
 """
 
 import logging
 import uuid
-from typing import Optional, Dict, Any, List, Tuple
+import json
+from typing import Optional, Dict, Any, List, Tuple, Union
 
 from .tag_manager import get_tag_manager, validate_tags, standardize_tags
 from ..models import Tags
@@ -41,7 +44,24 @@ class TagStorageService:
                 tags_dict = {}
                 for row in result['data']:
                     if isinstance(row, dict) and 'tag_name' in row and 'tag_value' in row:
-                        tags_dict[row['tag_name']] = row['tag_value']
+                        tag_name = row['tag_name']
+                        tag_value = row['tag_value']
+                        
+                        # TAMS 8.0: Parse array values from JSON if present
+                        if isinstance(tag_value, str):
+                            # Try to parse as JSON array
+                            try:
+                                parsed = json.loads(tag_value)
+                                if isinstance(parsed, list):
+                                    tags_dict[tag_name] = parsed  # Array value
+                                else:
+                                    tags_dict[tag_name] = tag_value  # String value
+                            except (json.JSONDecodeError, ValueError):
+                                tags_dict[tag_name] = tag_value  # String value
+                        elif isinstance(tag_value, list):
+                            tags_dict[tag_name] = tag_value  # Already an array
+                        else:
+                            tags_dict[tag_name] = tag_value  # Other type
                     else:
                         logger.warning("Unexpected row format: %s", row)
                 return Tags(tags_dict) if tags_dict else None
@@ -79,12 +99,19 @@ class TagStorageService:
                 
                 for tag_name, tag_value in tags_dict.items():
                     tag_id = str(uuid.uuid4())
+                    
+                    # TAMS 8.0: Serialize array values to JSON
+                    if isinstance(tag_value, list):
+                        tag_value_str = json.dumps(tag_value)
+                    else:
+                        tag_value_str = tag_value
+                    
                     tag_data = {
                         'id': tag_id,
                         'entity_type': entity_type,
                         'entity_id': entity_id,
                         'tag_name': tag_name,
-                        'tag_value': tag_value,
+                        'tag_value': tag_value_str,
                         'created_at': now,
                         'updated_at': now,
                         'created_date': now,

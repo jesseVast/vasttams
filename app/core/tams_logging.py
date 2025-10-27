@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 import sys
-from app.core.config import get_settings
+from .config import get_settings
 
 
 class TAMSHumanReadableFormatter(logging.Formatter):

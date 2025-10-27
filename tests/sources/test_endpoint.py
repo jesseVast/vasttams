@@ -153,24 +153,25 @@ class TestSourceEndpointCRUD:
         response = requests.post(f"{BASE_URL}/sources", json=source_data)
         assert response.status_code == 201
         
-        # Update it based on example
-        updated_data = {
-            "id": source_id,
-            "format": example_source["format"],
-            "label": example_source.get("label", "Updated Label"),
-            "description": example_source.get("description", "Description from TAMS 8.0 example")
-        }
-        
-        response = requests.put(f"{BASE_URL}/sources/{source_id}", json=updated_data)
+        # TAMS 8.0 uses PUT /sources/{id}/label and /description with query parameters
+        updated_label = example_source.get("label", "Updated Label")
+        response = requests.put(
+            f"{BASE_URL}/sources/{source_id}/label?label={updated_label}"
+        )
         assert response.status_code in [200, 204]
         
-        # Verify update
+        updated_description = example_source.get("description", "Description from TAMS 8.0 example")
+        response = requests.put(
+            f"{BASE_URL}/sources/{source_id}/description?description={updated_description}"
+        )
+        assert response.status_code in [200, 204]
+        
+        # Verify updates
         response = requests.get(f"{BASE_URL}/sources/{source_id}")
         assert response.status_code == 200
-        
         updated = response.json()
-        if "label" in updated_data:
-            assert updated.get("label") == updated_data["label"]
+        assert updated.get("label") == updated_label
+        assert updated.get("description") == updated_description
         
         # Cleanup
         requests.delete(f"{BASE_URL}/sources/{source_id}")

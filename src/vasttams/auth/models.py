@@ -45,4 +45,15 @@ class UserSession(BaseModel):
     auth_method: AuthMethod
     created_at: datetime
     expires_at: Optional[datetime] = None
-    metadata: Dict[str, Any] = {} 
+    metadata: Dict[str, Any] = {}
+
+
+class User(BaseModel):
+    """User model for authentication"""
+    user_id: str
+    username: str
+    password_hash: Optional[str] = None
+    auth_method: AuthMethod = AuthMethod.BASIC
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict) 

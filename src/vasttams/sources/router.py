@@ -157,6 +157,9 @@ async def delete_source_by_id(
 ):
     """Delete a source (hard delete only - TAMS compliant)"""
     try:
+        # Log the cascade parameter for debugging
+        logger.info("Deleting source %s with cascade=%s", source_id, cascade)
+        
         # Get source before deletion for event emission
         source = await storage.get_source(source_id)
         

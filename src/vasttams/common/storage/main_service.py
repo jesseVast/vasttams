@@ -112,6 +112,9 @@ class TAMSStorageService(StorageInterface):
         return await self.segment_service.delete_flow_segments(flow_id, timerange)
     
     # Object operations - delegate to object service
+    async def get_objects(self) -> List[Object]:
+        return await self.object_service.get_objects()
+    
     async def get_object(self, object_id: str) -> Optional[Object]:
         return await self.object_service.get_object(object_id)
     

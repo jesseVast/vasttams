@@ -21,7 +21,7 @@ def main():
     logger = logging.getLogger(__name__)
     logger.info(f"Starting VastTAMS API server on {settings.host}:{settings.port}")
     
-    # Start the server
+    # Start the server (note: need to update path to src/vasttams)
     uvicorn.run(
         "vasttams.main:app",
         host=settings.host,

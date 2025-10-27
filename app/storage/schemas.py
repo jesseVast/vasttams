@@ -24,6 +24,7 @@ def get_tams_table_schemas() -> Dict[str, pa.Schema]:
         "flows": _get_flows_schema(),
         "segments": _get_segments_schema(),
         "objects": _get_objects_schema(),
+        "object_instances": _get_object_instances_schema(),
         "flow_object_references": _get_flow_object_references_schema(),
         "flow_collections": _get_flow_collections_schema(),
         "source_collections": _get_source_collections_schema(),
@@ -145,7 +146,7 @@ def _get_sources_schema() -> pa.Schema:
 
 
 def _get_flows_schema() -> pa.Schema:
-    """Get flows table schema"""
+    """Get flows table schema - TAMS 8.0 with VFR support"""
     return pa.schema([
         pa.field("id", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("source_id", pa.string(), nullable=True),  # VAST requires nullable strings
@@ -169,7 +170,8 @@ def _get_flows_schema() -> pa.Schema:
         pa.field("flow_collection", pa.string(), nullable=True),  # JSON string
         pa.field("collected_by", pa.string(), nullable=True),  # JSON string
         pa.field("container_mapping", pa.string(), nullable=True),  # JSON string
-        pa.field("essence_parameters", pa.string(), nullable=True)  # JSON string
+        pa.field("essence_parameters", pa.string(), nullable=True),  # JSON string with VFR support
+        pa.field("vfr", pa.bool_(), nullable=True)  # TAMS 8.0: Variable frame rate flag
     ])
 
 
@@ -192,12 +194,27 @@ def _get_segments_schema() -> pa.Schema:
 
 
 def _get_objects_schema() -> pa.Schema:
-    """Get objects table schema"""
+    """Get objects table schema - TAMS 8.0 with timerange support"""
     return pa.schema([
         pa.field("id", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("referenced_by_flows", pa.string(), nullable=True),  # JSON array string
         pa.field("first_referenced_by_flow", pa.string(), nullable=True),
+        pa.field("timerange", pa.string(), nullable=True),  # TAMS 8.0: Required timerange field
         pa.field("size", pa.int64(), nullable=True),
+        pa.field("created", pa.timestamp("ns"), nullable=True),
+    ])
+
+
+def _get_object_instances_schema() -> pa.Schema:
+    """Get object instances table schema - TAMS 8.0"""
+    return pa.schema([
+        pa.field("id", pa.string(), nullable=True),  # Instance ID
+        pa.field("object_id", pa.string(), nullable=True),  # Foreign key to objects
+        pa.field("label", pa.string(), nullable=True),  # Human-readable label (required for uncontrolled)
+        pa.field("storage_id", pa.string(), nullable=True),  # Storage backend identifier
+        pa.field("url", pa.string(), nullable=True),  # URL for accessing this instance
+        pa.field("controlled", pa.bool_(), nullable=True),  # Whether TAMS controls this instance
+        pa.field("metadata", pa.string(), nullable=True),  # Additional metadata as JSON
         pa.field("created", pa.timestamp("ns"), nullable=True),
     ])
 

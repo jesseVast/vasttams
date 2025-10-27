@@ -7,10 +7,12 @@ It provides basic endpoint structure that can be expanded later.
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
-from .models import Flow, FlowFilters, FlowDetailFilters, FlowStoragePost, FlowStorage
-from ..common.models import Tags, HttpRequest, MediaObject
+from .models import Flow
+from ..common.filters import FlowFilters, FlowDetailFilters
+from ..common.models import Tags, HttpRequest
+from ..service.storage_models import FlowStoragePost, FlowStorage, MediaObject
 from ..common.responses import FlowsResponse
-from ..common.storage import get_storage_service
+from ..common.storage.dependencies import get_storage_service
 from ..common.storage.interfaces import StorageInterface
 from ..core.config import get_settings
 from ..core.event_manager import EventManager

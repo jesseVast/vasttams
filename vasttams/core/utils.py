@@ -19,7 +19,8 @@ import re
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 import httpx
-from ..models import Webhook, DeletionRequest
+from ..service.webhooks import Webhook
+from ..service.deletion import DeletionRequest
 # Note: database imports removed as they're not in the new structure
 from sqlalchemy.orm import Session
 from uuid import UUID

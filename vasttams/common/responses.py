@@ -7,11 +7,11 @@ This module contains response wrapper models for the TAMS API.
 from typing import List, Optional
 from pydantic import BaseModel, Field, ConfigDict
 
-from .service import Service
-from .sources import Source
-from .flows import Flow
-from .webhooks import Webhook
-from .deletion import DeletionRequestsList
+from ..service.models import Service
+from ..sources.models import Source
+from ..flows.models import Flow
+from ..service.webhooks import Webhook
+from ..service.deletion import DeletionRequestsList
 
 
 class PagingInfo(BaseModel):

@@ -11,8 +11,7 @@ __version__ = "8.0.0"
 __author__ = "Jesse Thaloor"
 __description__ = "Time-addressable Media Store API"
 
-# Import main app for easy access
-from .main import app
-
-__all__ = ["app"]
+# Don't import app by default to avoid loading FastAPI unnecessarily
+# Import directly: from vasttams.main import app
+__all__ = ["__version__"]
 

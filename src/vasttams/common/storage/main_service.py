@@ -14,7 +14,8 @@ from fastapi import HTTPException
 from .interfaces import StorageInterface
 from .timestamp_utils import get_tams_timestamp
 # Import models from their resource modules
-from ...flows.models import Flow, FlowFilters, FlowDetailFilters
+from ...flows.models import Flow
+from ..filters import FlowFilters, FlowDetailFilters
 from ...sources.models import Source
 from ...segments.models import FlowSegment
 from ...objects.models import Object, ObjectInstance
@@ -24,14 +25,13 @@ from ...flows.service import FlowStorageService
 from ...sources.service import SourceStorageService  
 from ...segments.service import SegmentStorageService
 from ...objects.service import ObjectStorageService
-from ...tags.service import TagStorageService
+from ..tags.service import TagStorageService
 
 # Import shared models from common
 from ..filters import SourceFilters
-from ..models import (
-    Service, StorageBackend, FlowStorage, FlowStoragePost, 
-    MediaObject, HttpRequest, Tags, CollectionItem, TimeRange
-)
+from ..models import Tags, CollectionItem, TimeRange, HttpRequest
+from ...service.models import Service
+from ...service.storage_models import StorageBackend, MediaObject, FlowStorage, FlowStoragePost
 
 # Import config from core (unchanged location)
 from ...core.config import get_settings

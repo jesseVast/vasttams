@@ -23,7 +23,11 @@ from typing import Dict, Any, List, Optional
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from vastdbmanager import VastDBManager
-from app.core.config import get_settings
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from vasttams.core.config import get_settings
 
 
 class TAMSTableQuery:
@@ -49,7 +53,7 @@ class TAMSTableQuery:
                 secret_key=self.settings.vast_secret_key,
                 bucket=self.settings.vast_bucket,
                 schema=self.settings.vast_schema,
-                enable_trino=self.settings.vaststore_enable_trino,
+                enable_trino=True,  # Always enable Trino for queries
                 trino_host=self.settings.trino_host,
                 trino_port=self.settings.trino_port,
                 trino_user=self.settings.trino_user,
@@ -114,19 +118,22 @@ class TAMSTableQuery:
             # Convert result to list of records
             records = []
             if isinstance(result, dict):
-                # Get the length of the first column to determine number of records
-                first_key = next(iter(result.keys()))
-                if first_key != '$row_id' and hasattr(result[first_key], '__len__'):
-                    num_records = len(result[first_key])
+                # Handle Trino result format with 'data' key
+                if 'data' in result and isinstance(result['data'], list):
+                    # Direct list of records
+                    records = result['data']
+                elif 'data' in result and isinstance(result['data'], dict):
+                    # Columnar format - convert to row format
+                    data = result['data']
+                    num_records = len(next(iter(data.values()))) if data else 0
                     
                     for i in range(num_records):
                         record = {}
-                        for key, values in result.items():
-                            if key != '$row_id':  # Skip internal row IDs
-                                if hasattr(values, '__len__') and i < len(values):
-                                    record[key] = values[i]
-                                else:
-                                    record[key] = values
+                        for key, values in data.items():
+                            if hasattr(values, '__len__') and i < len(values):
+                                record[key] = values[i]
+                            else:
+                                record[key] = values
                         records.append(record)
             
             return records

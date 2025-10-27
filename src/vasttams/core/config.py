@@ -18,6 +18,12 @@ DEFAULT_CORS_HEADERS = ["*"]
 class Settings(BaseSettings):
     """Application settings"""
     
+    # Configure environment variable prefix for TAMS variables
+    model_config = {
+        "env_prefix": "TAMS_",  # Environment variables will be prefixed with TAMS_
+        "case_sensitive": False
+    }
+    
     # API settings
     api_title: str = "TAMS API"
     api_version: str = "7.0"
@@ -29,245 +35,127 @@ class Settings(BaseSettings):
     debug: bool = Field(default=False, description="Enable debug mode (should be False in production)")
     
     # VAST Database settings
-    vast_endpoint: str = Field(
-        default="http://localhost:9090",
-        description="VAST database endpoint URL",
-        env="VAST_ENDPOINT"
-    )
-    vast_access_key: str = Field(
-        default="",
-        description="VAST database access key",
-        env="VAST_ACCESS_KEY"
-    )
-    vast_secret_key: str = Field(
-        default="",
-        description="VAST database secret key",
-        env="VAST_SECRET_KEY"
-    )
-    vast_bucket: str = Field(
-        default="tams",
-        description="VAST database bucket name",
-        env="VAST_BUCKET"
-    )
-    vast_schema: str = Field(
-        default="tams7",
-        description="VAST database schema name",
-        env="VAST_SCHEMA"
-    )
+    vast_endpoint: str = Field(default="http://localhost:9090",
+        description="VAST database endpoint URL")
+    vast_access_key: str = Field(default="",
+        description="VAST database access key")
+    vast_secret_key: str = Field(default="",
+        description="VAST database secret key")
+    vast_bucket: str = Field(default="tams",
+        description="VAST database bucket name")
+    vast_schema: str = Field(default="tams7",
+        description="VAST database schema name")
     
     # Trino settings for vaststore SQL capabilities
-    trino_host: str = Field(
-        default="docker1",
-        description="Trino server host",
-        env="TRINO_HOST"
-    )
-    trino_port: int = Field(
-        default=8080,
-        description="Trino server port",
-        env="TRINO_PORT"
-    )
-    trino_user: str = Field(
-        default="admin",
-        description="Trino username",
-        env="TRINO_USER"
-    )
-    trino_catalog: str = Field(
-        default="vast",
-        description="Trino catalog name",
-        env="TRINO_CATALOG"
-    )
+    trino_host: str = Field(default="docker1",
+        description="Trino server host")
+    trino_port: int = Field(default=8080,
+        description="Trino server port")
+    trino_user: str = Field(default="admin",
+        description="Trino username")
+    trino_catalog: str = Field(default="vast",
+        description="Trino catalog name")
     
     # VastStore settings
-    vaststore_enable_trino: bool = Field(
-        default=True,
-        description="Enable Trino integration for vaststore SQL capabilities",
-        env="VASTSTORE_ENABLE_TRINO"
-    )
-    vaststore_s3_chunk_size: int = Field(
-        default=8 * 1024 * 1024,  # 8MB
-        description="S3 multipart upload chunk size in bytes",
-        env="VASTSTORE_S3_CHUNK_SIZE"
-    )
-    vaststore_s3_max_concurrent_parts: int = Field(
-        default=10,
-        description="Maximum concurrent parts for S3 multipart uploads",
-        env="VASTSTORE_S3_MAX_CONCURRENT_PARTS"
-    )
+    vaststore_enable_trino: bool = Field(default=True,
+        description="Enable Trino integration for vaststore SQL capabilities")
+    vaststore_s3_chunk_size: int = Field(default=8 * 1024 * 1024,  # 8MB
+        description="S3 multipart upload chunk size in bytes")
+    vaststore_s3_max_concurrent_parts: int = Field(default=10,
+        description="Maximum concurrent parts for S3 multipart uploads")
     
     # Logging settings
-    log_level: str = Field(
-        default="INFO",
-        description="Application log level",
-        env="LOG_LEVEL"
-    )
-    log_format: str = Field(
-        default="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
-        description="Log message format"
-    )
+    log_level: str = Field(default="INFO",
+        description="Application log level")
+    log_format: str = Field(default="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
+        description="Log message format")
     
     # S3 settings for flow segment storage
-    s3_endpoint_url: str = Field(
-        default="http://localhost:9000",
-        description="S3-compatible storage endpoint URL",
-        env="S3_ENDPOINT_URL"
-    )
-    s3_access_key_id: str = Field(
-        default="",
-        description="S3 access key ID",
-        env="S3_ACCESS_KEY_ID"
-    )
-    s3_secret_access_key: str = Field(
-        default="",
-        description="S3 secret access key",
-        env="S3_SECRET_ACCESS_KEY"
-    )
-    s3_bucket_name: str = Field(
-        default="tams",
-        description="S3 bucket name for media storage",
-        env="S3_BUCKET_NAME"
-    )
+    s3_endpoint_url: str = Field(default="http://localhost:9000",
+        description="S3-compatible storage endpoint URL")
+    s3_access_key_id: str = Field(default="",
+        description="S3 access key ID")
+    s3_secret_access_key: str = Field(default="",
+        description="S3 secret access key")
+    s3_bucket_name: str = Field(default="tams",
+        description="S3 bucket name for media storage")
     s3_use_ssl: bool = False
-    s3_region: str = Field(
-        default="us-east-1",
-        description="S3 region for presigned URL generation (use us-east-1 for custom endpoints)",
-        env="S3_REGION"
-    )
+    s3_region: str = Field(default="us-east-1",
+        description="S3 region for presigned URL generation (use us-east-1 for custom endpoints)")
     
     # Presigned URL configuration - Runtime configurable
-    s3_presigned_url_upload_timeout: int = Field(
-        default=3600, 
-        description="Presigned URL timeout for upload operations in seconds (default: 1 hour)",
-        env="S3_PRESIGNED_URL_UPLOAD_TIMEOUT"
-    )
+    s3_presigned_url_upload_timeout: int = Field(default=3600, 
+        description="Presigned URL timeout for upload operations in seconds (default: 1 hour)")
     
-    s3_presigned_url_download_timeout: int = Field(
-        default=3600, 
-        description="Presigned URL timeout for download operations in seconds (default: 1 hour)",
-        env="S3_PRESIGNED_URL_DOWNLOAD_TIMEOUT"
-    )
+    s3_presigned_url_download_timeout: int = Field(default=3600, 
+        description="Presigned URL timeout for download operations in seconds (default: 1 hour)")
     
     # Storage backend configuration for get_urls
-    default_storage_backend_id: str = Field(
-        default="default",
-        description="Default storage backend ID for get_urls generation",
-        env="DEFAULT_STORAGE_BACKEND_ID"
-    )
+    default_storage_backend_id: str = Field(default="default",
+        description="Default storage backend ID for get_urls generation")
     
     # TAMS storage path configuration
-    tams_storage_path: str = Field(
-        default="tams",
-        description="Base path for TAMS media storage organization",
-        env="TAMS_STORAGE_PATH"
-    )
+    tams_storage_path: str = Field(default="tams",
+        description="Base path for TAMS media storage organization")
     
     # S3 TAMS root path (legacy support)
-    s3_tams_root: str = Field(
-        default="/tams",
-        description="S3 TAMS root path for legacy compatibility",
-        env="S3_TAMS_ROOT"
-    )
+    s3_tams_root: str = Field(default="/tams",
+        description="S3 TAMS root path for legacy compatibility")
     
     # get_urls configuration
-    get_urls_max_count: int = Field(
-        default=5,
-        description="Maximum number of get_urls to generate per segment",
-        env="GET_URLS_MAX_COUNT"
-    )
+    get_urls_max_count: int = Field(default=5,
+        description="Maximum number of get_urls to generate per segment")
     
     # Storage API settings
-    flow_storage_default_limit: int = Field(
-        default=10,
-        description="Default limit for flow storage allocation when no limit is specified in the request",
-        env="FLOW_STORAGE_DEFAULT_LIMIT"
-    )
+    flow_storage_default_limit: int = Field(default=10,
+        description="Default limit for flow storage allocation when no limit is specified in the request")
     
-    segment_storage_default_limit: int = Field(
-        default=10,
-        description="Default limit for segment storage allocation when no limit is specified in the request",
-        env="SEGMENT_STORAGE_DEFAULT_LIMIT"
-    )
+    segment_storage_default_limit: int = Field(default=10,
+        description="Default limit for segment storage allocation when no limit is specified in the request")
     
-    async_deletion_threshold: int = Field(
-        default=1000,
-        description="Threshold for triggering async deletion workflow (number of segments)",
-        env="ASYNC_DELETION_THRESHOLD"
-    )
+    async_deletion_threshold: int = Field(default=1000,
+        description="Threshold for triggering async deletion workflow (number of segments)")
     
     # Table projections settings
-    enable_table_projections: bool = Field(
-        default=False,
-        description="Enable table projections for improved query performance. Creates projections for: source(id), flow(id), segment(id,flow_id,object_id), object(id), flow_object_references(id)",
-        env="ENABLE_TABLE_PROJECTIONS"
-    )
+    enable_table_projections: bool = Field(default=False,
+        description="Enable table projections for improved query performance. Creates projections for: source(id), flow(id), segment(id,flow_id,object_id), object(id), flow_object_references(id)")
     
     # TAMS API Compliance settings
-    tams_compliance_mode: bool = Field(
-        default=True,
-        description="Enable strict TAMS API compliance mode",
-        env="TAMS_COMPLIANCE_MODE"
-    )
+    tams_compliance_mode: bool = Field(default=True,
+        description="Enable strict TAMS API compliance mode")
     
-    tams_validation_level: str = Field(
-        default="strict",
-        description="TAMS validation level: strict, relaxed, or minimal",
-        env="TAMS_VALIDATION_LEVEL"
-    )
+    tams_validation_level: str = Field(default="strict",
+        description="TAMS validation level: strict, relaxed, or minimal")
     
     # TAMS-specific validation settings
-    enable_uuid_validation: bool = Field(
-        default=True,
-        description="Enable strict UUID validation according to TAMS specification",
-        env="ENABLE_UUID_VALIDATION"
-    )
+    enable_uuid_validation: bool = Field(default=True,
+        description="Enable strict UUID validation according to TAMS specification")
     
-    enable_timestamp_validation: bool = Field(
-        default=True,
-        description="Enable strict timestamp validation according to TAMS specification",
-        env="ENABLE_TIMESTAMP_VALIDATION"
-    )
+    enable_timestamp_validation: bool = Field(default=True,
+        description="Enable strict timestamp validation according to TAMS specification")
     
-    enable_content_format_validation: bool = Field(
-        default=True,
-        description="Enable strict content format URN validation according to TAMS specification",
-        env="ENABLE_CONTENT_FORMAT_VALIDATION"
-    )
+    enable_content_format_validation: bool = Field(default=True,
+        description="Enable strict content format URN validation according to TAMS specification")
     
-    enable_mime_type_validation: bool = Field(
-        default=True,
-        description="Enable strict MIME type validation according to TAMS specification",
-        env="ENABLE_MIME_TYPE_VALIDATION"
-    )
+    enable_mime_type_validation: bool = Field(default=True,
+        description="Enable strict MIME type validation according to TAMS specification")
     
     # TAMS error handling settings
-    tams_error_reporting: bool = Field(
-        default=True,
-        description="Enable TAMS-specific error reporting and logging",
-        env="TAMS_ERROR_REPORTING"
-    )
+    tams_error_reporting: bool = Field(default=True,
+        description="Enable TAMS-specific error reporting and logging")
     
-    tams_audit_logging: bool = Field(
-        default=True,
-        description="Enable TAMS compliance audit logging",
-        env="TAMS_AUDIT_LOGGING"
-    )
+    tams_audit_logging: bool = Field(default=True,
+        description="Enable TAMS compliance audit logging")
     
     # TAMS performance settings
-    tams_cache_enabled: bool = Field(
-        default=True,
-        description="Enable TAMS-specific caching for improved performance",
-        env="TAMS_CACHE_ENABLED"
-    )
+    tams_cache_enabled: bool = Field(default=True,
+        description="Enable TAMS-specific caching for improved performance")
     
-    tams_cache_ttl: int = Field(
-        default=300,
-        description="TAMS cache TTL in seconds",
-        env="TAMS_CACHE_TTL"
-    )
+    tams_cache_ttl: int = Field(default=300,
+        description="TAMS cache TTL in seconds")
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-        env_prefix = "TAMS_"  # Environment variables will be prefixed with TAMS_
+    # Note: Environment variables are handled via Config class below
+    # The BaseSettings class handles environment variable loading
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

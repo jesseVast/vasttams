@@ -32,11 +32,12 @@ from .segments.models import FlowSegment
 from .objects.models import Object
 from .service.models import Service
 from .service.webhooks import Webhook, WebhookPost
-from .service.deletion import DeletionRequest, DeletionRequestsList, DeletionRequestsResponse
+from .service.deletion import DeletionRequest, DeletionRequestsList
 from .service.storage_models import StorageBackend, StorageBackendsList
 
 # Import shared/common models
-from .common.models import Tags, EventStreamMechanism, HttpRequest, MediaObject, FlowStoragePost, FlowStorage
+from .common.models import Tags, EventStreamMechanism, HttpRequest
+from .service.storage_models import MediaObject, FlowStoragePost, FlowStorage
 from .common.filters import SourceFilters, FlowFilters, FlowDetailFilters
 from .common.responses import ServiceResponse, SourcesResponse, FlowsResponse, WebhooksResponse, PagingInfo
 

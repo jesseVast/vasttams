@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 # Import models from resource modules
 from ..service.webhooks import Webhook
-from ..models.legacy import (
+from ..common.models import (
     Event, EventData, SourceEventData, FlowEventData, FlowSegmentEventData,
     ObjectEventData, CollectionEventData
 )

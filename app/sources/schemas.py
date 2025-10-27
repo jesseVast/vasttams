@@ -5,6 +5,7 @@ This module defines the PyArrow schemas for source-related tables.
 """
 
 import pyarrow as pa
+from typing import List
 
 
 def get_sources_schema() -> pa.Schema:
@@ -29,4 +30,23 @@ def get_source_collections_schema() -> pa.Schema:
         pa.field("collection_name", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("created", pa.timestamp("ns"), nullable=True),
     ])
+
+
+def get_sources_projections() -> List[List[str]]:
+    """Get sources table projection definitions"""
+    return [
+        ["id"],
+        ["id", "format"],
+        ["id", "created"],
+        ["format", "created"]
+    ]
+
+
+def get_source_collections_projections() -> List[List[str]]:
+    """Get source_collections table projection definitions"""
+    return [
+        ["id"],
+        ["id", "source_id"],
+        ["source_id"]
+    ]
 

@@ -24,7 +24,8 @@ from ...service.schemas import (
     get_webhooks_schema, get_deletion_requests_schema
 )
 from ...auth.schemas import (
-    get_users_schema, get_api_tokens_schema, get_refresh_tokens_schema, get_auth_logs_schema
+    get_users_schema, get_api_tokens_schema, get_refresh_tokens_schema, 
+    get_auth_logs_schema, get_auth_provider_configs_schema
 )
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,7 @@ def get_tams_table_schemas() -> Dict[str, pa.Schema]:
         "api_tokens": get_api_tokens_schema(),
         "refresh_tokens": get_refresh_tokens_schema(),
         "auth_logs": get_auth_logs_schema(),
+        "auth_provider_configs": get_auth_provider_configs_schema(),
         "tags": _get_tags_schema(),  # Tags stay here as shared
     }
 

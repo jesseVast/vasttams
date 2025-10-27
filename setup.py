@@ -19,9 +19,9 @@ if os.path.exists(readme_path):
         long_description = fh.read()
 
 setup(
-    name="tams",
+    name="vasttams",
     version=version,
-    author="Jesse TTAMS Team",
+    author="Jesse Thaloor",
     author_email="jthaloor@vastdata.com",
     description="Time-addressable Media Store API",
     long_description=long_description,

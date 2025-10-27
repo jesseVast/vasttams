@@ -5,7 +5,7 @@ This module contains the fundamental types and models used throughout the TAMS A
 """
 
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field, RootModel, field_validator, field_serializer, ConfigDict
 import re
 import uuid
@@ -110,13 +110,18 @@ class TimeRange(BaseModel):
         return validate_timerange(v)
 
 
-class Tags(RootModel[Dict[str, str]]):
-    """Tags model - flexible key-value pairs using Pydantic v2 RootModel"""
+class Tags(RootModel[Dict[str, Union[str, List[str]]]]):
+    """
+    Tags model with TAMS 8.0 array support.
     
-    def __getitem__(self, key: str) -> str:
+    Value can be either a string or an array of strings.
+    Enables more flexible tag management and filtering.
+    """
+    
+    def __getitem__(self, key: str) -> Union[str, List[str]]:
         return self.root[key]
     
-    def __setitem__(self, key: str, value: str):
+    def __setitem__(self, key: str, value: Union[str, List[str]]):
         self.root[key] = value
     
     def __contains__(self, key: str) -> bool:
@@ -134,8 +139,32 @@ class Tags(RootModel[Dict[str, str]]):
     def items(self):
         return self.root.items()
     
-    def update(self, other_dict: Dict[str, str]):
+    def update(self, other_dict: Dict[str, Union[str, List[str]]]):
         self.root.update(other_dict)
+    
+    def is_string_value(self, key: str) -> bool:
+        """Check if tag value is a string"""
+        value = self.root.get(key)
+        return isinstance(value, str)
+    
+    def is_array_value(self, key: str) -> bool:
+        """Check if tag value is an array"""
+        value = self.root.get(key)
+        return isinstance(value, list)
+    
+    def as_string(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        """Get tag value as string, return default if array"""
+        value = self.root.get(key)
+        if isinstance(value, str):
+            return value
+        return default
+    
+    def as_array(self, key: str, default: Optional[List[str]] = None) -> Optional[List[str]]:
+        """Get tag value as array, return default if string"""
+        value = self.root.get(key)
+        if isinstance(value, list):
+            return value
+        return default
 
 
 class CollectionItem(BaseModel):

@@ -24,12 +24,18 @@ from .core import (
 # ============================================================================
 
 class VideoEssenceParameters(BaseModel):
-    """Video flow essence parameters"""
+    """
+    Video flow essence parameters with TAMS 8.0 VFR support.
+    
+    Supports both fixed frame rate (frame_rate set, vfr=False) and 
+    variable frame rate (vfr=True, frame_rate must be None).
+    """
     model_config = ConfigDict(str_strip_whitespace=True)
     
     frame_width: int = Field(..., gt=0, description="Width of the picture in pixels")
     frame_height: int = Field(..., gt=0, description="Height of the picture in pixels")
-    frame_rate: Optional[SegmentDuration] = Field(None, description="Frames per second")
+    frame_rate: Optional[SegmentDuration] = Field(None, description="Frames per second. MUST be set if vfr=false or omitted. MUST NOT be set if vfr=true")
+    vfr: Optional[bool] = Field(default=False, description="If true, frame rate is variable and frame_rate must be omitted. If false or omitted, frame rate is fixed and frame_rate must be set")
     bit_depth: Optional[int] = Field(None, gt=0, description="Number of significant bits per sample")
     interlace_mode: Optional[str] = Field(None, description="Interlaced video mode")
     colorspace: Optional[str] = Field(None, description="Colorspace used for the video")
@@ -45,6 +51,27 @@ class VideoEssenceParameters(BaseModel):
     
     # AVC parameters
     avc_parameters: Optional[Dict[str, Any]] = Field(None, description="AVC codec parameters")
+    
+    @field_validator('frame_rate', 'vfr')
+    @classmethod
+    def validate_vfr_frame_rate(cls, v, info):
+        """
+        Validate VFR/frame_rate mutual exclusivity per ADR-0041.
+        If vfr=True, frame_rate must be None.
+        If vfr=False or omitted, frame_rate must be set.
+        """
+        data = info.data if hasattr(info, 'data') else {}
+        vfr_value = data.get('vfr', False)
+        frame_rate_value = data.get('frame_rate')
+        
+        # Only validate when both values are being set
+        if 'vfr' in data and 'frame_rate' in data:
+            if vfr_value and frame_rate_value is not None:
+                raise ValueError("If vfr=True, frame_rate MUST NOT be set")
+            if not vfr_value and frame_rate_value is None:
+                raise ValueError("If vfr=False or omitted, frame_rate MUST be set")
+        
+        return v
 
 
 class AudioEssenceParameters(BaseModel):

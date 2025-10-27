@@ -8,14 +8,17 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict
 
+from .core import TimeRange
+
 
 class Object(BaseModel):
-    """Media object information - TAMS compliant"""
+    """Media object information - TAMS 8.0 compliant with timerange support"""
     model_config = ConfigDict(str_strip_whitespace=True)
     
     id: str = Field(..., description="The media object identifier")
     referenced_by_flows: List[str] = Field(..., description="List of Flows that reference this media object via Flow Segments in this store")
     first_referenced_by_flow: Optional[str] = Field(None, description="The first Flow that had a Flow Segment reference the media object in this store")
+    timerange: TimeRange = Field(..., description="The timerange covering the sample timestamps embedded in or derived from the Media Object itself, on the Media Object's timeline")
     size: Optional[int] = Field(None, ge=0, description="Size of the media object in bytes")
     created: Optional[datetime] = Field(None, description="Date-time the media object was created")
     

@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any, Union, Annotated, Literal
 from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict
 
-from .core import (
+from ..common.models import (
     Tags, 
     FlowCollection, 
     ContainerMapping, 

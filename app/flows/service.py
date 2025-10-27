@@ -10,9 +10,10 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
-from .interfaces import StorageInterface
-from .timestamp_utils import get_tams_timestamp, get_timeline_synchronizer
-from ..models import Flow, FlowFilters, FlowDetailFilters, VideoFlow, AudioFlow, ImageFlow, DataFlow, MultiFlow, Source
+from ..common.storage.interfaces import StorageInterface
+from ..common.storage.timestamp_utils import get_tams_timestamp, get_timeline_synchronizer
+from .models import Flow, FlowFilters, FlowDetailFilters, VideoFlow, AudioFlow, ImageFlow, DataFlow, MultiFlow
+from ..sources.models import Source
 
 logger = logging.getLogger(__name__)
 

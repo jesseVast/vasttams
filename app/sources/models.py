@@ -9,7 +9,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict
 import re
 
-from .core import Tags, CollectionItem, validate_tams_uuid, validate_content_format
+from ..common.models import Tags, CollectionItem, validate_tams_uuid, validate_content_format
 
 
 class Source(BaseModel):

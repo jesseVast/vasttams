@@ -10,9 +10,11 @@ from typing import List, Optional
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
-from .interfaces import StorageInterface
-from .timestamp_utils import get_tams_timestamp
-from ..models import Source, SourceFilters, Tags, CollectionItem
+from ..common.storage.interfaces import StorageInterface
+from ..common.storage.timestamp_utils import get_tams_timestamp
+from .models import Source
+from ..common.filters import SourceFilters
+from ..common.models import Tags, CollectionItem
 
 logger = logging.getLogger(__name__)
 

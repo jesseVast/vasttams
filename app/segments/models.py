@@ -7,7 +7,7 @@ This module contains models related to Flow Segments in the TAMS API.
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
-from .core import validate_tams_uuid, TimeRange, Timestamp
+from ..common.models import validate_tams_uuid, TimeRange, Timestamp
 
 
 class GetUrl(BaseModel):

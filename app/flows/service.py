@@ -12,7 +12,8 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from ..common.storage.interfaces import StorageInterface
 from ..common.storage.timestamp_utils import get_tams_timestamp, get_timeline_synchronizer
-from .models import Flow, FlowFilters, FlowDetailFilters, VideoFlow, AudioFlow, ImageFlow, DataFlow, MultiFlow
+from .models import Flow, VideoFlow, AudioFlow, ImageFlow, DataFlow, MultiFlow
+from ..common.filters import FlowFilters, FlowDetailFilters
 from ..sources.models import Source
 
 logger = logging.getLogger(__name__)

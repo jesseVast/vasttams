@@ -6,7 +6,7 @@ abstracting away the concrete storage implementations from the API layer.
 """
 
 from functools import lru_cache
-from ..core.dependencies import get_vast_db, get_s3_client
+from ...core.dependencies import get_vast_db, get_s3_client
 from .main_service import TAMSStorageService
 from .interfaces import StorageInterface
 

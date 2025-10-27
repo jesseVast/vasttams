@@ -1,0 +1,176 @@
+name: CI Workflow
+run-name: ${{ format('{0} triggered {1} on {2}', (github.event_name == 'workflow_dispatch' && format('User {0}', github.actor) || format('{0} event', github.event_name) ), github.workflow, github.ref) }}
+on:
+  schedule:
+    - cron: '0 4 * * 1'
+
+  pull_request:
+
+  push:
+    branches:
+      - 'main'
+
+  workflow_run:
+    workflows: [Release Workflow]
+    types:
+      - completed
+
+  workflow_dispatch:
+    inputs:
+      forceDocsUpload:
+        description: 'Force API docs upload'
+        default: false
+        type: boolean
+
+jobs:
+  CI:
+    name: CI
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Lint Markdown docs
+        run: make lint-markdown
+
+      - name: Lint specification
+        run: make lint-apispec
+
+  configure_build:
+    name: Configure Build
+    runs-on: ubuntu-22.04
+    if: ${{ ! (( github.event_name == 'pull_request' ) && github.event.pull_request.head.repo.fork ) }}
+    outputs:
+      branches_list: ${{ steps.generate-matrix.outputs.branches_list }}
+      shouldUpload: ${{ steps.shouldUpload.outputs.upload }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # check out the entire repo history for SHA verification in lastSuccessful step
+
+      - name: Identify latest successful run
+        id: lastSuccessful
+        uses: SamhammerAG/last-successful-build-action@1c368a27a90596574a71ac0ede422a897d0e8e84  # @v4
+        with:
+          branch: ${{ github.ref_name }}
+          workflow: ${{ github.workflow }}
+          verify: true
+
+      - name: Determine if this workflow should upload artefacts
+        id: shouldUpload
+        shell: bash
+        run: |
+          if [ "${{ steps.lastSuccessful.outputs.sha }}" != "${{ github.sha }}" ] && [ "${{ github.ref_name }}" == "main" ] || [[ ${{ github.ref_name }} == refs/tags/* ]]
+          then
+            echo "upload=true" >> $GITHUB_OUTPUT;
+          else
+            echo "upload=false" >> $GITHUB_OUTPUT;
+          fi
+
+      - name: Get Tags
+        id: get_tags
+        uses: octokit/request-action@v2.x
+        if: ${{ inputs.forceDocsUpload || ( steps.shouldUpload.outputs.upload == 'true' ) }}
+        with:
+          route: GET /repos/${{ github.repository }}/git/matching-refs/tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Matrix
+        id: generate-matrix
+        run: |
+          if [ "${{ steps.shouldUpload.outputs.upload }}" == "true" ] || [ "${{ inputs.forceDocsUpload }}" == "true" ]
+          then
+            branches_list=$(echo '${{ steps.get_tags.outputs.data }}' | jq -cr '[.[].ref] | . += ["main"]' )
+            echo "branches_list=${branches_list}" >> $GITHUB_OUTPUT
+          else
+            echo "branches_list=[\"${{ github.ref }}\"]" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    name: Build
+    runs-on: ubuntu-22.04
+    needs:
+      - CI
+      - configure_build
+    strategy:
+      matrix:
+        branch: ${{ fromJSON(needs.configure_build.outputs.branches_list) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+
+      - name: Render API docs
+        run: make render
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ inputs.forceDocsUpload || ( needs.configure_build.outputs.shouldUpload == 'true' ) }}
+        with:
+          name: ${{ strategy.job-index }}
+          path: './api/docs'
+          retention-days: 1
+
+  DeployPages:
+    name: Deploy Pages
+    # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    runs-on: ubuntu-22.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs:
+      - configure_build
+      - build
+    if: ${{ inputs.forceDocsUpload || ( needs.configure_build.outputs.shouldUpload == 'true' ) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download artifacts
+        run: gh run download ${{ vars.GITHUB_RUN_ID }} --dir branches
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create public folder
+        run: |
+          mkdir public
+          cd public
+          echo "<html><body><h1>TAMS Documentation</h1><p>" >> ./index.html
+          branches=$(echo '${{ needs.configure_build.outputs.branches_list }}' | jq -r '.[]')
+          i=0
+          for branch in ${branches}
+          do
+            short_branch=$(basename ${branch})
+            mkdir -p -- $short_branch
+            mv ../branches/$i/* ./$short_branch
+
+            echo "<li><a href=\"./${short_branch}/index.html\">${short_branch}</a></li>" >> index.html
+
+            i=$((i+1))
+          done
+          echo "</p></body></html>" >> index.html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Adding summary
+        run: |
+          echo "Documentation URL: ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY

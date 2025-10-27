@@ -210,8 +210,19 @@ class FlowStorageService:
             raise HTTPException(status_code=500, detail="Internal server error")
     
     async def create_flow(self, flow: Flow) -> bool:
-        """Create a new flow"""
+        """Create a new flow (TAMS 8.0 with VFR validation)"""
         try:
+            # TAMS 8.0: Validate VFR/frame_rate mutex for video flows
+            if isinstance(flow, VideoFlow) and flow.essence_parameters:
+                vfr = flow.essence_parameters.vfr or False
+                frame_rate = flow.essence_parameters.frame_rate
+                
+                # Validate per ADR-0041
+                if vfr and frame_rate is not None:
+                    raise ValueError("If vfr=True, frame_rate MUST NOT be set")
+                if not vfr and frame_rate is None:
+                    raise ValueError("If vfr=False or omitted, frame_rate MUST be set")
+            
             now = get_tams_timestamp()
             flow.created = now
             flow.metadata_updated = now
@@ -222,6 +233,10 @@ class FlowStorageService:
             
             flow_data = flow.model_dump()
             
+            # TAMS 8.0: Extract and store VFR field separately
+            if isinstance(flow, VideoFlow) and flow.essence_parameters:
+                flow_data['vfr'] = flow.essence_parameters.vfr
+            
             # Convert timestamp fields to PyArrow format using centralized function
             from app.storage.timestamp_utils import prepare_data_for_pyarrow
             flow_data = prepare_data_for_pyarrow(flow_data)
@@ -231,13 +246,27 @@ class FlowStorageService:
             logger.debug("Flow creation result: %s", result)
             logger.debug("Flow created successfully with ID: %s", flow.id)
             return True
+        except ValueError as ve:
+            logger.error("VFR validation error creating flow: %s", ve)
+            raise HTTPException(status_code=400, detail=str(ve))
         except Exception as e:
             logger.error("Failed to create flow: %s", e)
             raise HTTPException(status_code=500, detail="Internal server error")
     
     async def update_flow(self, flow_id: str, flow: Flow) -> bool:
-        """Update an existing flow using update-before-upsert approach"""
+        """Update an existing flow using update-before-upsert approach (TAMS 8.0 with VFR validation)"""
         try:
+            # TAMS 8.0: Validate VFR/frame_rate mutex for video flows
+            if isinstance(flow, VideoFlow) and flow.essence_parameters:
+                vfr = flow.essence_parameters.vfr or False
+                frame_rate = flow.essence_parameters.frame_rate
+                
+                # Validate per ADR-0041
+                if vfr and frame_rate is not None:
+                    raise ValueError("If vfr=True, frame_rate MUST NOT be set")
+                if not vfr and frame_rate is None:
+                    raise ValueError("If vfr=False or omitted, frame_rate MUST be set")
+            
             flow.metadata_updated = get_tams_timestamp()
             
             # Extract tags separately for handling in tags table
@@ -247,6 +276,10 @@ class FlowStorageService:
             
             # Only update mutable fields, exclude read-only fields and tags
             flow_data = flow.model_dump(exclude={'id', 'created', 'created_by', 'collected_by', 'tags'})
+            
+            # TAMS 8.0: Extract and store VFR field separately
+            if isinstance(flow, VideoFlow) and flow.essence_parameters:
+                flow_data['vfr'] = flow.essence_parameters.vfr
             
             # Convert timestamp fields to SQL format using centralized function
             from app.storage.timestamp_utils import prepare_data_for_sql
@@ -338,6 +371,9 @@ class FlowStorageService:
                     logger.error("Both UPDATE and upsert failed for flow %s: %s", flow_id, upsert_error)
                     raise upsert_error
                     
+        except ValueError as ve:
+            logger.error("VFR validation error updating flow: %s", ve)
+            raise HTTPException(status_code=400, detail=str(ve))
         except Exception as e:
             logger.error("Failed to update flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")

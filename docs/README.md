@@ -12,11 +12,11 @@ Welcome to the consolidated TAMS (Time-addressable Media Store) API documentatio
 - **Security Architecture**: Security principles and implementation
 - **Future Architecture**: Planned enhancements and evolution
 
-### **🔧 [DEVELOPMENT.md](DEVELOPMENT.md)**
-- **Implementation Status**: Current development progress and features
-- **Modular Architecture**: VastDBManager refactoring and structure
-- **Column Management**: Dynamic schema evolution capabilities
-- **TAMS 7.0 Compliance**: Full specification compliance
+### **🔧 [ARCHITECTURE.md](ARCHITECTURE.md)**
+- **Implementation Details**: TAMS 8.0 specification compliance
+- **Modular Architecture**: Resource-based organization
+- **Schema Management**: PyArrow schemas and table initialization
+- **Storage Services**: Database and S3 integration
 - **Known Issues**: Common problems and solutions
 - **Performance Improvements**: Optimization strategies and results
 
@@ -32,18 +32,18 @@ Welcome to the consolidated TAMS (Time-addressable Media Store) API documentatio
 
 ### **For Developers**
 - Start with [ARCHITECTURE.md](ARCHITECTURE.md) to understand the system
-- Use [DEVELOPMENT.md](DEVELOPMENT.md) for implementation details
+- Use [ARCHITECTURE.md](ARCHITECTURE.md) for implementation details
 - Reference [DEPLOYMENT.md](DEPLOYMENT.md) for local development setup
 
 ### **For DevOps Engineers**
 - Focus on [DEPLOYMENT.md](DEPLOYMENT.md) for deployment procedures
 - Use [ARCHITECTURE.md](ARCHITECTURE.md) for infrastructure planning
-- Check [DEVELOPMENT.md](DEVELOPMENT.md) for system requirements
+- Check [USAGE.md](USAGE.md) for API usage examples
 
 ### **For System Administrators**
 - Begin with [ARCHITECTURE.md](ARCHITECTURE.md) for system overview
 - Use [DEPLOYMENT.md](DEPLOYMENT.md) for security and monitoring setup
-- Reference [DEVELOPMENT.md](DEVELOPMENT.md) for troubleshooting
+- Reference [TAMS_COMPLIANCE_QUICK_REFERENCE.md](TAMS_COMPLIANCE_QUICK_REFERENCE.md) for compliance
 
 ## 📖 **Additional Resources**
 
@@ -77,5 +77,5 @@ This documentation is automatically consolidated from multiple scattered `.md` f
 
 ---
 
-*Last Updated: August 2024*
-*Version: 1.0*
+*Last Updated: January 2025*
+*Version: 8.0*

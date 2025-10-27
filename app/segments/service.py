@@ -320,7 +320,7 @@ class SegmentStorageService:
             object_data = obj.model_dump()
             
             # Convert timestamp fields to PyArrow format using centralized function
-            from app.storage.timestamp_utils import prepare_data_for_pyarrow
+            from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
             object_data = prepare_data_for_pyarrow(object_data)
             
             self.vast_db.insert_record("objects", object_data)

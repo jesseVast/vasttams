@@ -94,7 +94,7 @@ class TagStorageService:
             
             # Then, insert new tags
             if tags_dict:
-                from app.storage.timestamp_utils import get_tams_timestamp, prepare_data_for_pyarrow
+                from ..storage.timestamp_utils import get_tams_timestamp, prepare_data_for_pyarrow
                 now = get_tams_timestamp()
                 
                 for tag_name, tag_value in tags_dict.items():

@@ -179,7 +179,7 @@ class SourceStorageService:
             source_data = source.model_dump(exclude={'source_collection', 'collected_by'})
             
             # Convert timestamp fields to PyArrow format using centralized function
-            from app.storage.timestamp_utils import prepare_data_for_pyarrow
+            from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
             source_data = prepare_data_for_pyarrow(source_data)
             
             self.vast_db.insert_record("sources", source_data)
@@ -202,7 +202,7 @@ class SourceStorageService:
             source_data = source.model_dump(exclude={'id', 'created', 'created_by', 'source_collection', 'collected_by', 'tags'})
             
             # Convert timestamp fields to SQL format using centralized function
-            from app.storage.timestamp_utils import prepare_data_for_sql
+            from ..common.storage.timestamp_utils import prepare_data_for_sql
             source_data = prepare_data_for_sql(source_data)
             
             # Filter out None values to avoid "unknown" type errors
@@ -258,7 +258,7 @@ class SourceStorageService:
                     source_data['created'] = get_tams_timestamp()
                     
                     # Convert timestamp fields to PyArrow format for insertion
-                    from app.storage.timestamp_utils import prepare_data_for_pyarrow
+                    from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
                     source_data = prepare_data_for_pyarrow(source_data)
                     
                     logger.debug("Inserting source %s with data: %s", source_id, source_data)

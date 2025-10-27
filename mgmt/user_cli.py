@@ -18,8 +18,8 @@ from typing import Optional
 # Add the app directory to the path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from app.vaststore.vastdbmanager import VastDBManager
-from app.vaststore.s3 import S3Client
+from vastdbmanager import VastDBManager
+from vasts3 import S3Client
 from app.models.models import User, UserCreate, UserUpdate, UserPasswordChange
 from app.core.config import get_settings
 

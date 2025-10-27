@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from app.core.config import get_settings
-from app.vaststore.vastdbmanager import VastDBManager
+from vastdbmanager import VastDBManager
 
 # Configure logging
 # Configure logging based on environment

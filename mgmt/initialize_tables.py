@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.core.config import get_settings
 from app.core.dependencies import get_vast_db
-from app.storage.table_initializer import TAMSTableInitializer
+from app.common.storage.table_initializer import TAMSTableInitializer
 
 # Configure logging
 logging.basicConfig(

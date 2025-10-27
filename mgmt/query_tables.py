@@ -22,7 +22,7 @@ from typing import Dict, Any, List, Optional
 # Add the parent directory to the path so we can import app modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.vaststore.vastdbmanager import VastDBManager
+from vastdbmanager import VastDBManager
 from app.core.config import get_settings
 
 

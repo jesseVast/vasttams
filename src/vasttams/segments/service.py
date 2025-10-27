@@ -16,7 +16,8 @@ from ..common.storage.timestamp_utils import (
     prepare_data_for_pyarrow
 )
 from .models import FlowSegment
-from ..common.models import FlowStorage, FlowStoragePost, MediaObject, HttpRequest
+from ..service.storage_models import FlowStorage, FlowStoragePost, MediaObject
+from ..common.models import HttpRequest
 
 logger = logging.getLogger(__name__)
 

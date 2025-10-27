@@ -13,7 +13,7 @@ import uuid
 import json
 from typing import Optional, Dict, Any, List, Tuple, Union
 
-from .tag_manager import get_tag_manager, validate_tags, standardize_tags
+from .manager import get_tag_manager, validate_tags, standardize_tags
 from ..models import Tags
 from ..storage.timestamp_utils import get_tams_timestamp, prepare_data_for_pyarrow
 
@@ -43,11 +43,15 @@ class TagStorageService:
             
             if result and result.get('data'):
                 tags_dict = {}
-                for row in result['data']:
-                    if isinstance(row, dict) and 'tag_name' in row and 'tag_value' in row:
-                        tag_name = row['tag_name']
-                        tag_value = row['tag_value']
-                        
+                data = result['data']
+                
+                # Handle both columnar (Trino) and row-oriented result formats
+                if isinstance(data, dict) and 'tag_name' in data and 'tag_value' in data:
+                    # Columnar format (Trino): {'tag_name': ['name1', 'name2'], 'tag_value': ['val1', 'val2']}
+                    tag_names = data['tag_name']
+                    tag_values = data['tag_value']
+                    
+                    for tag_name, tag_value in zip(tag_names, tag_values):
                         # TAMS 8.0: Parse array values from JSON if present
                         if isinstance(tag_value, str):
                             # Try to parse as JSON array
@@ -63,8 +67,31 @@ class TagStorageService:
                             tags_dict[tag_name] = tag_value  # Already an array
                         else:
                             tags_dict[tag_name] = tag_value  # Other type
-                    else:
-                        logger.warning("Unexpected row format: %s", row)
+                else:
+                    # Row-oriented format (fallback)
+                    for row in (data if isinstance(data, list) else []):
+                        if isinstance(row, dict) and 'tag_name' in row and 'tag_value' in row:
+                            tag_name = row['tag_name']
+                            tag_value = row['tag_value']
+                            
+                            # TAMS 8.0: Parse array values from JSON if present
+                            if isinstance(tag_value, str):
+                                # Try to parse as JSON array
+                                try:
+                                    parsed = json.loads(tag_value)
+                                    if isinstance(parsed, list):
+                                        tags_dict[tag_name] = parsed  # Array value
+                                    else:
+                                        tags_dict[tag_name] = tag_value  # String value
+                                except (json.JSONDecodeError, ValueError):
+                                    tags_dict[tag_name] = tag_value  # String value
+                            elif isinstance(tag_value, list):
+                                tags_dict[tag_name] = tag_value  # Already an array
+                            else:
+                                tags_dict[tag_name] = tag_value  # Other type
+                        else:
+                            logger.warning("Unexpected row format: %s", row)
+                
                 return Tags(tags_dict) if tags_dict else None
             return None
         except Exception as e:

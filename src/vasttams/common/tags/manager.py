@@ -20,7 +20,7 @@ from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
 
-from .timestamp_utils import get_tams_timestamp
+from ..storage.timestamp_utils import get_tams_timestamp
 
 logger = logging.getLogger(__name__)
 

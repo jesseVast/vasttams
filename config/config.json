@@ -11,7 +11,7 @@
   "vast_access_key": "SRSPW0DQT9T70Y787U68",
   "vast_secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
   "vast_bucket": "jthaloor-db",
-  "vast_schema": "tams",
+  "vast_schema": "tams8-dev",
   
   "trino_host": "docker1",
   "trino_port": 8080,
@@ -29,6 +29,7 @@
   "s3_access_key_id": "SRSPW0DQT9T70Y787U68",
   "s3_secret_access_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
   "s3_bucket_name": "jthaloor-s3",
+  "s3_root_path": "/tams8-dev",
   "s3_use_ssl": false,
   "s3_region": "us-east-1",
   

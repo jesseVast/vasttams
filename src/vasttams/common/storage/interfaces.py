@@ -10,12 +10,14 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from ..models import (
-    Source, Flow, FlowSegment, Object, ObjectInstance, Service, StorageBackend,
-    SourceFilters, FlowFilters, FlowDetailFilters,
-    FlowStorage, FlowStoragePost, MediaObject,
-    Tags, CollectionItem, TimeRange
-)
+from ...sources.models import Source
+from ...flows.models import Flow
+from ...segments.models import FlowSegment
+from ...objects.models import Object, ObjectInstance
+from ...service.models import Service
+from ...service.storage_models import StorageBackend, MediaObject, FlowStorage, FlowStoragePost
+from ..filters import SourceFilters, FlowFilters, FlowDetailFilters
+from ..models import Tags, CollectionItem, TimeRange
 
 
 class StorageInterface(ABC):

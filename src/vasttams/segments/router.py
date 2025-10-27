@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
 from pydantic import ValidationError
 from .models import FlowSegment
-from ..common.models import FlowStorage, FlowStoragePost
+from ..service.storage_models import FlowStorage, FlowStoragePost
 from ..common.storage import get_storage_service
 from ..common.storage.interfaces import StorageInterface
 from ..core.event_manager import EventManager

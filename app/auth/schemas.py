@@ -52,3 +52,19 @@ def get_auth_logs_schema() -> pa.Schema:
         pa.field("created", pa.timestamp("ns"), nullable=True),
     ])
 
+
+def get_auth_provider_configs_schema() -> pa.Schema:
+    """Get auth_provider_configs table schema"""
+    return pa.schema([
+        pa.field("method", pa.string(), nullable=True),  # Primary key: method name
+        pa.field("enabled", pa.bool_(), nullable=True),  # Whether provider is enabled
+        pa.field("config", pa.string(), nullable=True),  # JSON string for provider-specific config
+        pa.field("jwt_secret", pa.string(), nullable=True),  # JWT secret key
+        pa.field("jwt_algorithm", pa.string(), nullable=True),  # JWT algorithm (HS256, etc.)
+        pa.field("jwt_expire_minutes", pa.int64(), nullable=True),  # JWT expiration
+        pa.field("description", pa.string(), nullable=True),  # Human-readable description
+        pa.field("order", pa.int64(), nullable=True),  # Order for trying providers
+        pa.field("created", pa.timestamp("ns"), nullable=True),
+        pa.field("updated", pa.timestamp("ns"), nullable=True),
+    ])
+

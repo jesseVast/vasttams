@@ -1,3 +1,6 @@
+# TAMS (Time-addressable Media Store) API Requirements
+# This file contains all dependencies for the application
+
 # FastAPI and web framework
 fastapi==0.115.14
 uvicorn[standard]==0.34.3
@@ -27,12 +30,12 @@ psycopg2-binary==2.9.9
 redis==5.0.1
 httpx==0.28.1
 
-# Testing
+# Testing (included for development and CI/CD)
 pytest==7.4.3
 pytest-asyncio==0.21.1
 pytest-cov==4.1.0
 
-# VAST database and analytics (vaststore)
+# VAST database and analytics
 vastdb>=1.3.10
 ibis-framework>=9.0.0
 pyarrow==16.1.0
@@ -67,3 +70,7 @@ opentelemetry-exporter-prometheus==0.56b0
 opentelemetry-exporter-jaeger==1.21.0
 opentelemetry-exporter-otlp-proto-http==1.15.0
 psutil==7.0.0
+
+# Optional development dependencies (install with: pip install -e ".[dev]")
+# These are defined in setup.py and pyproject.toml
+# ipython, ipdb, black, flake8, mypy, isort, pre-commit, etc.

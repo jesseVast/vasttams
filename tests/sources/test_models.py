@@ -1,42 +1,29 @@
 #!/usr/bin/env python3
 """
-Tests for Sources Module
+Model Unit Tests for Sources Module
 
-Comprehensive tests for the refactored sources module including:
-- Router endpoints
-- Service layer
-- Models validation
-- Integration with config.json
+Unit tests for Source Pydantic models (no API calls, no database).
+Tests model validation, field constraints, and data structures.
 """
 
 import pytest
 import sys
-import os
-import json
 from pathlib import Path
 
 # Add src to path for imports
 src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-# Import only specific modules to avoid loading full app
-from vasttams.sources import models as source_models
-from vasttams.common import filters as common_filters
-from vasttams.common import models as common_models
-from vasttams.core import config as core_config
-
-# Use aliases for cleaner access
-Source = source_models.Source
-SourceFilters = common_filters.SourceFilters
-Tags = common_models.Tags
-get_settings = core_config.get_settings
+from vasttams.sources.models import Source
+from vasttams.common.filters import SourceFilters
+from vasttams.common.models import Tags
 
 import logging
 logger = logging.getLogger(__name__)
 
 
 class TestSourceModels:
-    """Test Source Pydantic models"""
+    """Test Source Pydantic models - unit tests only (no API, no DB)"""
     
     def test_source_creation_minimal(self):
         """Test creating a source with minimal required fields"""
@@ -125,39 +112,4 @@ class TestSourceFilters:
             SourceFilters(limit=1001)
 
 
-class TestSourceRouter:
-    """Test Source router endpoints using HTTP client"""
-    
-    @pytest.fixture
-    def api_base_url(self):
-        """Get API base URL from config"""
-        config = get_settings()
-        return f"http://{config.host}:{config.port}"
-    
-    def test_placeholder(self, api_base_url):
-        """Placeholder test for router endpoints"""
-        # TODO: Add actual HTTP tests
-        # These tests will use the API client to test endpoints
-        # against a running server instance
-        pass
-
-
-class TestSourceServiceIntegration:
-    """Test Source service integration with VAST database"""
-    
-    @pytest.fixture
-    def config(self):
-        """Get configuration from config.json"""
-        return get_settings()
-    
-    def test_placeholder(self, config):
-        """Placeholder test for service integration"""
-        # TODO: Add actual integration tests
-        # These tests will test the service layer with actual
-        # VAST database connections
-        assert config is not None  # Config is loaded
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
 

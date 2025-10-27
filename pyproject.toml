@@ -82,13 +82,16 @@ dev = [
 ]
 
 [project.scripts]
-tams = "app.main:main"
+tams = "vasttams.main:main"
 
 [tool.setuptools]
-packages = ["app"]
+packages = ["vasttams"]
+
+[tool.setuptools.package-dir]
+"" = "src"
 
 [tool.setuptools.package-data]
-app = ["**/*.json", "**/*.yaml", "**/*.yml"]
+vasttams = ["**/*.json", "**/*.yaml", "**/*.yml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

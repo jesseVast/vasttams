@@ -5,6 +5,7 @@ This module defines the PyArrow schemas for authentication-related tables.
 """
 
 import pyarrow as pa
+from typing import List
 
 
 def get_users_schema() -> pa.Schema:
@@ -67,4 +68,50 @@ def get_auth_provider_configs_schema() -> pa.Schema:
         pa.field("created", pa.timestamp("ns"), nullable=True),
         pa.field("updated", pa.timestamp("ns"), nullable=True),
     ])
+
+
+def get_users_projections() -> List[List[str]]:
+    """Get users table projection definitions"""
+    return [
+        ["id"],
+        ["username"],
+        ["email"]
+    ]
+
+
+def get_api_tokens_projections() -> List[List[str]]:
+    """Get api_tokens table projection definitions"""
+    return [
+        ["id"],
+        ["user_id"],
+        ["token_hash"]
+    ]
+
+
+def get_refresh_tokens_projections() -> List[List[str]]:
+    """Get refresh_tokens table projection definitions"""
+    return [
+        ["id"],
+        ["user_id"],
+        ["token_hash"]
+    ]
+
+
+def get_auth_logs_projections() -> List[List[str]]:
+    """Get auth_logs table projection definitions"""
+    return [
+        ["id"],
+        ["user_id"],
+        ["event_type"],
+        ["created"]
+    ]
+
+
+def get_auth_provider_configs_projections() -> List[List[str]]:
+    """Get auth_provider_configs table projection definitions"""
+    return [
+        ["method"],
+        ["enabled"],
+        ["order"]
+    ]
 

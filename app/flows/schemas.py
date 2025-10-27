@@ -5,6 +5,7 @@ This module defines the PyArrow schema for the flows table.
 """
 
 import pyarrow as pa
+from typing import List
 
 
 def get_flows_schema() -> pa.Schema:
@@ -55,4 +56,32 @@ def get_flow_object_references_schema() -> pa.Schema:
         pa.field("object_id", pa.string(), nullable=True),  # VAST requires nullable strings
         pa.field("created", pa.timestamp("ns"), nullable=True),
     ])
+
+
+def get_flows_projections() -> List[List[str]]:
+    """Get flows table projection definitions for performance optimization"""
+    return [
+        ["id"],
+        ["id", "source_id"],
+        ["id", "format"],
+        ["source_id", "format"]
+    ]
+
+
+def get_flow_collections_projections() -> List[List[str]]:
+    """Get flow_collections table projection definitions"""
+    return [
+        ["id"],
+        ["id", "flow_id"],
+        ["flow_id"]
+    ]
+
+
+def get_flow_object_references_projections() -> List[List[str]]:
+    """Get flow_object_references table projection definitions"""
+    return [
+        ["flow_id"],
+        ["object_id"],
+        ["flow_id", "object_id"]
+    ]
 

@@ -5,6 +5,7 @@ This module defines the PyArrow schemas for object-related tables.
 """
 
 import pyarrow as pa
+from typing import List
 
 
 def get_objects_schema() -> pa.Schema:
@@ -31,4 +32,22 @@ def get_object_instances_schema() -> pa.Schema:
         pa.field("metadata", pa.string(), nullable=True),  # Additional metadata as JSON
         pa.field("created", pa.timestamp("ns"), nullable=True),
     ])
+
+
+def get_objects_projections() -> List[List[str]]:
+    """Get objects table projection definitions"""
+    return [
+        ["id"],
+        ["id", "first_referenced_by_flow"],
+        ["created"]
+    ]
+
+
+def get_object_instances_projections() -> List[List[str]]:
+    """Get object_instances table projection definitions"""
+    return [
+        ["object_id"],
+        ["object_id", "storage_id"],
+        ["id"]
+    ]
 

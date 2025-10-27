@@ -6,6 +6,7 @@ Authentication schemas have been moved to app/auth/schemas.py.
 """
 
 import pyarrow as pa
+from typing import List
 
 
 def get_webhooks_schema() -> pa.Schema:
@@ -46,4 +47,22 @@ def get_deletion_requests_schema() -> pa.Schema:
         pa.field("expiry", pa.timestamp("ns"), nullable=True),
         pa.field("error", pa.string(), nullable=True),  # JSON string
     ])
+
+
+def get_webhooks_projections() -> List[List[str]]:
+    """Get webhooks table projection definitions"""
+    return [
+        ["id"],
+        ["id", "enabled"],
+        ["enabled"]
+    ]
+
+
+def get_deletion_requests_projections() -> List[List[str]]:
+    """Get deletion_requests table projection definitions"""
+    return [
+        ["id"],
+        ["id", "status"],
+        ["status", "created"]
+    ]
 

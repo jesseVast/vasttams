@@ -186,19 +186,29 @@ class TAMSStorageService(StorageInterface):
     async def get_storage_backends(self) -> List[StorageBackend]:
         """Get storage backends"""
         try:
-            # For now, return a default S3 backend
-            # In a real implementation, this would query the database
-            return [
-                StorageBackend(
-                    id=str(uuid.uuid4()),
-                    store_type="s3",
-                    provider="minio",
-                    store_product="minio",
-                    region="us-east-1",
-                    label="Default S3 Storage",
-                    default_storage=True
-                )
-            ]
+            from ..storagebackends.service import StorageBackendService
+            
+            # Use the dedicated storage backend service
+            backend_service = StorageBackendService(self.vast_db, self.s3_client)
+            backends = await backend_service.get_storage_backends()
+            
+            # If no backends in database, return a default one
+            if not backends:
+                logger.warning("No storage backends found in database, returning default")
+                return [
+                    StorageBackend(
+                        id="60af2ab4-e8a5-4c65-a09b-d35983680315",
+                        label="default-s3-storage",
+                        store_type="http_object_store",
+                        provider="minio",
+                        store_product="minio",
+                        region="us-east-1",
+                        availability_zone="a",
+                        default_storage=True
+                    )
+                ]
+            
+            return backends
         except Exception as e:
             logger.error("Failed to get storage backends: %s", e)
             raise HTTPException(status_code=500, detail="Internal server error")

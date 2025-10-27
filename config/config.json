@@ -45,7 +45,7 @@
   "segment_storage_default_limit": 10,
   "async_deletion_threshold": 1000,
   
-  "enable_table_projections": false,
+  "enable_table_projections": true,
   
   "tams_compliance_mode": true,
   "tams_validation_level": "strict",

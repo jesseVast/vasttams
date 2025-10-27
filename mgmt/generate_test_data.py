@@ -34,6 +34,7 @@ Usage Examples:
 For help: python generate_test_data.py --help
 """
 
+import os
 import asyncio
 import aiohttp
 import json

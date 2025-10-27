@@ -5,10 +5,16 @@ This script doesn't require a database connection.
 """
 
 import sys
+import os
 from pathlib import Path
 
-# Add the parent directory to the path so we can import app modules
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add the src directory to the path
+root_dir = os.path.abspath(str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(root_dir) / "src"))
+sys.path.insert(0, root_dir)
+
+# Change to root directory so config/config.json is found
+os.chdir(root_dir)
 
 
 def get_vast_version():
@@ -58,7 +64,11 @@ def get_config_info():
     """Get configuration information."""
     
     try:
-        from app.core.config import get_settings
+        # Add src to path for imports
+        import sys
+        sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+        
+        from vasttams.core.config import get_settings
         
         print("\n🔧 Configuration Information")
         print("=" * 30)

@@ -13,10 +13,15 @@ import os
 import argparse
 from pathlib import Path
 
-# Add the app directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add the src directory to the path
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(root_dir, 'src'))
+sys.path.insert(0, root_dir)
 
-from app.core.config import get_settings
+# Change to root directory so config/config.json is found
+os.chdir(root_dir)
+
+from vasttams.core.config import get_settings
 from vastdbmanager import VastDBManager
 
 # Configure logging

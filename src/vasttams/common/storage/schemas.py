@@ -34,6 +34,7 @@ from ...auth.schemas import (
     get_auth_logs_projections, get_auth_provider_configs_projections
 )
 from ..tags.schemas import get_tags_schema, get_tags_projections
+from ...storagebackends.schemas import get_storage_backends_schema, get_storage_backends_projections
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ def get_tams_table_schemas() -> Dict[str, pa.Schema]:
         "auth_logs": get_auth_logs_schema(),
         "auth_provider_configs": get_auth_provider_configs_schema(),
         "tags": get_tags_schema(),
+        "storage_backends": get_storage_backends_schema(),
     }
 
 
@@ -88,6 +90,7 @@ def get_table_projections() -> Dict[str, List[List[str]]]:
         "auth_logs": get_auth_logs_projections(),
         "auth_provider_configs": get_auth_provider_configs_projections(),
         "tags": get_tags_projections(),
+        "storage_backends": get_storage_backends_projections(),
     }
 
 

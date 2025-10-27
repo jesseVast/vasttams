@@ -42,18 +42,41 @@ class FlowStorageService:
         self.s3_client = s3_client
     
     async def get_flows(self, filters: FlowFilters) -> List[Flow]:
-        """Get flows with filtering"""
+        """Get flows with filtering (TAMS 8.0 with tag filtering)"""
         try:
             # Build query using vaststore
             query = self.vast_db.query("flows").select("*")
             
-            # Add filters
+            # Add standard filters
             if filters.source_id:
                 query = query.where(f"source_id = '{filters.source_id}'")
             if filters.label:
                 query = query.where(f"label = '{filters.label}'")
             if filters.format:
                 query = query.where(f"format = '{filters.format}'")
+            
+            # TAMS 8.0: Add tag filters if present
+            if filters.tag_filters:
+                for tag_name, tag_values in filters.tag_filters.items():
+                    # tag_values can be string or list
+                    if isinstance(tag_values, list):
+                        # "OR" query: tag value matches at least one in the list
+                        conditions = []
+                        for val in tag_values:
+                            conditions.append(f"JSON_CONTAINS(tags, '\"{val}\"', '$.\"{tag_name}\"') OR JSON_CONTAINS(tags, '[\"{val}\"]', '$.\"{tag_name}\"')")
+                        tag_filter = " OR ".join(conditions)
+                        query = query.where(f"({tag_filter})")
+                    else:
+                        # Single string value
+                        query = query.where(f"(JSON_EXTRACT(tags, '$.\"{tag_name}\"') = '\"{tag_values}\"' OR JSON_CONTAINS(JSON_EXTRACT(tags, '$.\"{tag_name}\"'), '\"{tag_values}\"'))")
+            
+            # TAMS 8.0: Add tag_exists filters if present
+            if filters.tag_exists_filters:
+                for tag_name, exists in filters.tag_exists_filters.items():
+                    if exists:
+                        query = query.where(f"JSON_EXTRACT(tags, '$.\"{tag_name}\"') IS NOT NULL")
+                    else:
+                        query = query.where(f"JSON_EXTRACT(tags, '$.\"{tag_name}\"') IS NULL")
             
             # Add limit
             if filters.limit:

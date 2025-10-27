@@ -1,0 +1,41 @@
+# MANIFEST.in for TAMS package
+
+include README.md
+include LICENSE
+include requirements.txt
+include requirements-dev.txt
+include requirements-prod.txt
+include pyproject.toml
+
+# Include configuration files
+recursive-include config *.json
+
+# Include API schemas
+recursive-include api *.yaml *.yml *.json
+
+# Include TAMS 8.0 specification
+recursive-include tams-8.0 *.yaml *.yml *.json *.md
+
+# Exclude tests
+global-exclude test_*.py
+global-exclude *_test.py
+global-exclude tests/
+
+# Exclude build artifacts
+global-exclude __pycache__/
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude .git
+global-exclude .gitignore
+
+# Exclude IDE files
+global-exclude .vscode/
+global-exclude .idea/
+global-exclude *.swp
+global-exclude *.swo
+global-exclude *~
+
+# Exclude documentation build
+global-exclude docs/_build/
+global-exclude site/
+

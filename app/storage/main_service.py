@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from .interfaces import StorageInterface
 from .timestamp_utils import get_tams_timestamp
 from ..models import (
-    Source, Flow, FlowSegment, Object, Service, StorageBackend,
+    Source, Flow, FlowSegment, Object, ObjectInstance, Service, StorageBackend,
     SourceFilters, FlowFilters, FlowDetailFilters,
     FlowStorage, FlowStoragePost, MediaObject, HttpRequest,
     Tags, CollectionItem, TimeRange
@@ -110,6 +110,16 @@ class TAMSStorageService(StorageInterface):
     
     async def delete_object(self, object_id: str) -> bool:
         return await self.object_service.delete_object(object_id)
+    
+    # Object instance operations (TAMS 8.0) - delegate to object service
+    async def create_object_instance(self, object_id: str, instance: ObjectInstance) -> bool:
+        return await self.object_service.create_object_instance(object_id, instance)
+    
+    async def list_object_instances(self, object_id: str) -> List[ObjectInstance]:
+        return await self.object_service.list_object_instances(object_id)
+    
+    async def delete_object_instance(self, object_id: str, label: Optional[str] = None, storage_id: Optional[str] = None) -> bool:
+        return await self.object_service.delete_object_instance(object_id, label, storage_id)
     
     # Storage allocation operations - delegate to segment service
     async def create_flow_storage(self, flow_id: str, storage_request: FlowStoragePost) -> Optional[FlowStorage]:

@@ -11,7 +11,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from ..models import (
-    Source, Flow, FlowSegment, Object, Service, StorageBackend,
+    Source, Flow, FlowSegment, Object, ObjectInstance, Service, StorageBackend,
     SourceFilters, FlowFilters, FlowDetailFilters,
     FlowStorage, FlowStoragePost, MediaObject,
     Tags, CollectionItem, TimeRange
@@ -128,6 +128,22 @@ class StorageInterface(ABC):
     @abstractmethod
     async def delete_object(self, object_id: str) -> bool:
         """Delete an object"""
+        pass
+    
+    # Object instance operations (TAMS 8.0)
+    @abstractmethod
+    async def create_object_instance(self, object_id: str, instance: ObjectInstance) -> bool:
+        """Create a new object instance"""
+        pass
+    
+    @abstractmethod
+    async def list_object_instances(self, object_id: str) -> List[ObjectInstance]:
+        """List all instances for an object"""
+        pass
+    
+    @abstractmethod
+    async def delete_object_instance(self, object_id: str, label: Optional[str] = None, storage_id: Optional[str] = None) -> bool:
+        """Delete an object instance by label or storage_id"""
         pass
     
     # Storage allocation operations

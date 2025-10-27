@@ -3,14 +3,14 @@ requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tams"
+name = "vasttams"
 version = "8.0.0"
 description = "Time-addressable Media Store API"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
-    {name = "TAMS Team", email = "tams@example.com"}
+    {name = "Jesse Thaloor", email = "jthaloor@vastdata.com"}
 ]
 keywords = ["media", "time-addressable", "fastapi", "vast", "database"]
 classifiers = [

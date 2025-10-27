@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+
+# Args needed for base images
+ARG CLOUDFIT_BASE_NAME=python
+ARG CLOUDFIT_BASE_LABEL=3.10
+
+###############################################################################
+# Stage: apilayer - Base layer with API specs installed
+###############################################################################
+FROM ${CLOUDFIT_BASE_NAME}:${CLOUDFIT_BASE_LABEL} AS layer
+WORKDIR /api/
+
+# Install api example, schemas, etc.
+COPY ./examples ./examples
+COPY ./schemas ./schemas
+COPY ./TimeAddressableMediaStore.yaml .
+
+###############################################################################
+# Stage: bundle - Bundles specification and schemas into a single file
+###############################################################################
+FROM redocly/cli AS bundle
+
+COPY ./bundle-api.sh /bundle-api.sh
+
+# Copy in documentation source files
+COPY --from=layer /api /data
+
+ENTRYPOINT [ "/bundle-api.sh" ]
+
+###############################################################################
+# Stage: oaslint - Validates OpenAPI specifications
+###############################################################################
+FROM stoplight/spectral:6.10 AS oaslint
+
+WORKDIR /data/
+
+COPY .spectral.yaml /data/
+
+# Copy in documentation source files
+COPY --from=layer /api /data

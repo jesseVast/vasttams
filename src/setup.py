@@ -27,7 +27,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/jesseVast/vasttams",
-    package_dir={"": "src"},
+    package_dir={"": "."},
     packages=find_packages(where="src", exclude=["tests", "tests.*", "*.tests", "*.tests.*", "mgmt", "mgmt.*"]),
     include_package_data=True,
     python_requires=">=3.9",

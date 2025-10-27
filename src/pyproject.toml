@@ -88,7 +88,7 @@ tams = "vasttams.main:main"
 packages = ["vasttams"]
 
 [tool.setuptools.package-dir]
-"" = "src"
+"" = "."
 
 [tool.setuptools.package-data]
 vasttams = ["**/*.json", "**/*.yaml", "**/*.yml"]

@@ -3,9 +3,11 @@ Service API router for TAMS
 """
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
-from ..models import Service, StorageBackend, Webhook, WebhookPost
-from ..storage import get_storage_service
-from ..storage.interfaces import StorageInterface
+from .models import Service
+from .storage_models import StorageBackend
+from .webhooks import Webhook, WebhookPost
+from ..common.storage.dependencies import get_storage_service
+from ..common.storage.interfaces import StorageInterface
 import logging
 
 logger = logging.getLogger(__name__)

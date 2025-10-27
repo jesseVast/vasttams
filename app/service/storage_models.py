@@ -7,7 +7,7 @@ This module contains models related to storage backends and flow storage in the 
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
-from .core import HttpRequest, validate_tams_uuid
+from ..common.models import HttpRequest, validate_tams_uuid
 
 
 class StorageBackend(BaseModel):

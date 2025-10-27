@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, RootModel, field_validator, field_serializer, ConfigDict
 
-from .core import TimeRange, validate_tams_uuid
+from ..common.models import TimeRange, validate_tams_uuid
 
 
 class DeletionRequest(BaseModel):

@@ -13,18 +13,29 @@ import uuid
 from fastapi import HTTPException
 from .interfaces import StorageInterface
 from .timestamp_utils import get_tams_timestamp
+# Import models from their resource modules
+from ...flows.models import Flow, FlowFilters, FlowDetailFilters
+from ...sources.models import Source
+from ...segments.models import FlowSegment
+from ...objects.models import Object, ObjectInstance  
+from .interfaces import StorageInterface
+
+# Import service classes from their resource modules
+from ...flows.service import FlowStorageService
+from ...sources.service import SourceStorageService  
+from ...segments.service import SegmentStorageService
+from ...objects.service import ObjectStorageService
+from ...tags.service import TagStorageService
+
+# Import shared models from common
+from ..filters import SourceFilters
 from ..models import (
-    Source, Flow, FlowSegment, Object, ObjectInstance, Service, StorageBackend,
-    SourceFilters, FlowFilters, FlowDetailFilters,
-    FlowStorage, FlowStoragePost, MediaObject, HttpRequest,
-    Tags, CollectionItem, TimeRange
+    Service, StorageBackend, FlowStorage, FlowStoragePost, 
+    MediaObject, HttpRequest, Tags, CollectionItem, TimeRange
 )
-from .source_service import SourceStorageService
-from .flow_service import FlowStorageService
-from .segment_service import SegmentStorageService
-from .object_service import ObjectStorageService
-from .tag_service import TagStorageService
-from ..core.config import get_settings
+
+# Import config from core (unchanged location)
+from ...core.config import get_settings
 
 logger = logging.getLogger(__name__)
 

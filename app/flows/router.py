@@ -7,9 +7,10 @@ It provides basic endpoint structure that can be expanded later.
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Optional
-from ..models import Flow, FlowsResponse, FlowFilters, FlowDetailFilters, Tags, FlowStoragePost, FlowStorage, HttpRequest, MediaObject
-from ..storage import get_storage_service
-from ..storage.interfaces import StorageInterface
+from .models import Flow, FlowFilters, FlowDetailFilters, FlowStoragePost, FlowStorage
+from ..common.models import Tags, HttpRequest, MediaObject
+from ..common.storage import get_storage_service
+from ..common.storage.interfaces import StorageInterface
 from ..core.config import get_settings
 from ..core.event_manager import EventManager
 from ..core.utils import log_pydantic_validation_error, safe_model_parse

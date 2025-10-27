@@ -3,8 +3,8 @@ Dependencies module for TAMS API.
 Contains dependency injection functions to avoid circular imports.
 """
 from fastapi import HTTPException
-from ..vaststore.vastdbmanager import VastDBManager
-from ..vaststore.s3 import S3Client, S3Config
+from vastdbmanager import VastDBManager
+from vasts3 import S3Client, S3Config
 from .config import get_settings
 
 # Global storage instances

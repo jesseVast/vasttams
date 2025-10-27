@@ -1,8 +1,0 @@
-{
-    "title": "Tags",
-    "description": "Key value is a freeform string.",
-    "type": "object",
-    "additionalProperties": {
-            "type": "string"
-    }
-}

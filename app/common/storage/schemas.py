@@ -21,7 +21,9 @@ from ...objects.schemas import (
     get_objects_schema, get_object_instances_schema
 )
 from ...service.schemas import (
-    get_webhooks_schema, get_deletion_requests_schema,
+    get_webhooks_schema, get_deletion_requests_schema
+)
+from ...auth.schemas import (
     get_users_schema, get_api_tokens_schema, get_refresh_tokens_schema, get_auth_logs_schema
 )
 

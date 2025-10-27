@@ -11,7 +11,12 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from ..common.storage.interfaces import StorageInterface
-from ..common.storage.timestamp_utils import get_tams_timestamp, get_timeline_synchronizer
+from ..common.storage.timestamp_utils import (
+    get_tams_timestamp, 
+    get_timeline_synchronizer,
+    prepare_data_for_pyarrow,
+    prepare_data_for_sql
+)
 from .models import Flow, VideoFlow, AudioFlow, ImageFlow, DataFlow, MultiFlow
 from ..common.filters import FlowFilters, FlowDetailFilters
 from ..sources.models import Source
@@ -240,7 +245,6 @@ class FlowStorageService:
                 flow_data['vfr'] = flow.essence_parameters.vfr
             
             # Convert timestamp fields to PyArrow format using centralized function
-            from ...common.storage.timestamp_utils import prepare_data_for_pyarrow
             flow_data = prepare_data_for_pyarrow(flow_data)
             
             logger.debug("Creating flow with data: %s", flow_data)
@@ -284,7 +288,6 @@ class FlowStorageService:
                 flow_data['vfr'] = flow.essence_parameters.vfr
             
             # Convert timestamp fields to SQL format using centralized function
-            from ...common.storage.timestamp_utils import prepare_data_for_sql
             flow_data = prepare_data_for_sql(flow_data)
 
             # Convert essence_parameters to JSON string for database compatibility
@@ -356,7 +359,6 @@ class FlowStorageService:
                     flow_data['created'] = get_tams_timestamp()
                     
                     # Convert timestamp fields to PyArrow format for insertion
-                    from ...common.storage.timestamp_utils import prepare_data_for_pyarrow
                     flow_data = prepare_data_for_pyarrow(flow_data)
                     
                     logger.debug("Inserting flow %s with data: %s", flow_id, flow_data)

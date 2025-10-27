@@ -11,7 +11,10 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from ..common.storage.interfaces import StorageInterface
-from ..common.storage.timestamp_utils import get_tams_timestamp
+from ..common.storage.timestamp_utils import (
+    get_tams_timestamp,
+    prepare_data_for_pyarrow
+)
 from .models import Object, ObjectInstance
 
 logger = logging.getLogger(__name__)

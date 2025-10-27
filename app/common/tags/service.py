@@ -15,6 +15,7 @@ from typing import Optional, Dict, Any, List, Tuple, Union
 
 from .tag_manager import get_tag_manager, validate_tags, standardize_tags
 from ..models import Tags
+from ..storage.timestamp_utils import get_tams_timestamp, prepare_data_for_pyarrow
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,6 @@ class TagStorageService:
             
             # Then, insert new tags
             if tags_dict:
-                from ..storage.timestamp_utils import get_tams_timestamp, prepare_data_for_pyarrow
                 now = get_tams_timestamp()
                 
                 for tag_name, tag_value in tags_dict.items():

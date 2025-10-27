@@ -294,7 +294,7 @@ class Settings(BaseSettings):
         
         # If mounted config doesn't exist, check for local development config
         if not os.path.exists(config_file_path):
-            config_file_path = "config/development.json"
+            config_file_path = "config/config.json"
         
         if os.path.exists(config_file_path):
             try:

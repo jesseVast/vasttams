@@ -7,17 +7,18 @@ This module contains models related to webhooks in the TAMS API.
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
-from .core import validate_tams_uuid
+from .core import validate_tams_uuid, Tags
 
 
 class Webhook(BaseModel):
-    """Webhook configuration - TAMS compliant"""
+    """Webhook configuration - TAMS 8.0 compliant with tag support"""
     model_config = ConfigDict(str_strip_whitespace=True)
     
     url: str = Field(..., description="The URL to which the API should make HTTP POST requests with event data")
     api_key_name: str = Field(..., description="The HTTP header name that is added to the event POST")
     api_key_value: Optional[str] = Field(None, description="The value that the HTTP header 'api_key_name' will be set to")
     events: List[str] = Field(..., description="List of event types to receive")
+    tags: Optional[Tags] = Field(None, description="Tags for filtering and organizing webhooks (TAMS 8.0)")
     
     # TAMS-specific filtering fields
     flow_ids: Optional[List[str]] = Field(None, description="Limit Flow and Flow Segment events to Flows in the given list of Flow IDs")

@@ -5,7 +5,7 @@ This module contains models related to media objects in the TAMS API.
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict
 
 from .core import TimeRange
@@ -49,3 +49,46 @@ class Object(BaseModel):
     @field_serializer('created')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return value.isoformat() if value else None
+
+
+class ObjectInstance(BaseModel):
+    """Object instance with storage information - TAMS 8.0 compliant"""
+    model_config = ConfigDict(str_strip_whitespace=True)
+    
+    label: str = Field(..., description="Human-readable label for this instance")
+    storage_id: Optional[str] = Field(None, description="Storage backend identifier")
+    url: str = Field(..., description="URL for accessing this instance")
+    controlled: Optional[bool] = Field(None, description="Whether this instance is controlled by the TAMS service")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional storage metadata")
+    
+    @field_validator('label', 'url')
+    @classmethod
+    def validate_non_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Label and URL cannot be empty')
+        return v.strip()
+    
+    @field_validator('storage_id')
+    @classmethod
+    def validate_storage_id(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and (not v or not v.strip()):
+            raise ValueError('Storage ID cannot be empty if provided')
+        return v.strip() if v else None
+
+
+class ObjectInstancePost(BaseModel):
+    """Request model for creating/updating object instances"""
+    model_config = ConfigDict(str_strip_whitespace=True)
+    
+    label: str = Field(..., description="Human-readable label for this instance (required for uncontrolled instances per ADR-0042)")
+    storage_id: Optional[str] = Field(None, description="Storage backend identifier")
+    url: str = Field(..., description="URL for accessing this instance")
+    controlled: Optional[bool] = Field(None, description="Whether this instance is controlled by the TAMS service")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional storage metadata")
+    
+    @field_validator('label', 'url')
+    @classmethod
+    def validate_non_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Label and URL cannot be empty')
+        return v.strip()

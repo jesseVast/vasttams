@@ -8,9 +8,12 @@ for TAMS event streaming compliance.
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
-from app.models import (
+
+# Import models from resource modules
+from ..service.webhooks import Webhook
+from ..models.legacy import (
     Event, EventData, SourceEventData, FlowEventData, FlowSegmentEventData,
-    ObjectEventData, CollectionEventData, Webhook
+    ObjectEventData, CollectionEventData
 )
 # Note: VASTStore imported via string to avoid circular import
 from .utils import send_webhook_notification

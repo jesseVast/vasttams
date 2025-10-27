@@ -110,8 +110,9 @@ class TestObjectInstances:
         response = requests.get(f"{BASE_URL}/objects")
         if response.status_code == 200:
             data = response.json()
-            if data.get("data") and len(data["data"]) > 0:
-                object_id = data["data"][0]["id"]
+            # API returns a list directly, not a dict with "data" key
+            if isinstance(data, list) and len(data) > 0:
+                object_id = data[0]["id"]
                 
                 # List instances
                 response = requests.get(f"{BASE_URL}/objects/{object_id}/instances")
@@ -133,9 +134,10 @@ class TestObjectTimerange:
         response = requests.get(f"{BASE_URL}/objects")
         if response.status_code == 200:
             data = response.json()
-            if data.get("data") and len(data["data"]) > 0:
+            # API returns a list directly, not a dict with "data" key
+            if isinstance(data, list) and len(data) > 0:
                 # Check first object has timerange
-                obj = data["data"][0]
+                obj = data[0]
                 assert "timerange" in obj, "Objects must include timerange per TAMS 8.0"
                 
                 timerange = obj["timerange"]

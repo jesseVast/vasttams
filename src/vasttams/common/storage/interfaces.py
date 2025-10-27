@@ -118,6 +118,11 @@ class StorageInterface(ABC):
     
     # Object operations
     @abstractmethod
+    async def get_objects(self) -> List[Object]:
+        """Get all objects"""
+        pass
+    
+    @abstractmethod
     async def get_object(self, object_id: str) -> Optional[Object]:
         """Get a specific object by ID"""
         pass

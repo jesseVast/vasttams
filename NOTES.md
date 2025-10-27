@@ -33,7 +33,48 @@ notes/
 
 ## 🎯 **CURRENT STATUS**
 
-### **📋 NEW: TAMS APPNOTES INTEGRATION PLAN**
+### **📋 NEW: SOURCE CASCADE DELETE & TAMS 8.0 COMPLIANCE UPDATES** (October 27, 2025)
+**Date**: October 27, 2025  
+**Task**: Implement source cascade delete functionality and update tests for TAMS 8.0 compliance  
+**Status**: ✅ **COMPLETED** - Cascade delete implemented and tests updated
+
+#### **🏗️ Source Cascade Delete Implementation**
+- **Problem**: Sources couldn't be deleted when they had dependent flows
+- **Solution**: Implemented cascade delete that removes flows and their segments
+- **Result**: Proper cleanup of dependent resources before source deletion
+- **TAMS Compliance**: Follows TAMS specification for cascade operations with 409 Conflict for dependency violations
+
+#### **🔧 Key Implementation Details**
+- **Cascade Delete Method**: Added `_cascade_delete_flows` in SourceStorageService
+- **Flow ID Extraction**: Handles both columnar and row-oriented VAST query results
+- **Segment Cleanup**: Deletes all segments for dependent flows before deleting flows
+- **Enhanced Logging**: Added comprehensive debug logging for cascade operations
+- **Error Handling**: Proper 409 Conflict response when cascade=False and dependencies exist
+
+#### **📊 Test Updates**
+- **Cascade Delete Tests**: Added comprehensive tests for cascade scenarios
+- **TAMS 8.0 Partial Updates**: Updated from PUT /sources/{id} to partial update endpoints
+- **Segment Deletion**: Added tests per ADR-0004 compliance
+- **Format Validation**: Updated format validation for supported formats
+- **Test Cleanup**: Removed problematic service mock tests
+
+#### **✅ Test Results**
+- **Source Cascade Delete**: ✅ Working correctly (cascade=True deletes flows, cascade=False returns 409)
+- **TAMS 8.0 Partial Updates**: ✅ Aligned with specification (PUT /sources/{id}/label, /description)
+- **Segment Deletion**: ✅ Per ADR-0004 compliance
+- **Format Validation**: ✅ Updated for video/audio/data formats
+
+**Files Modified**:
+- `src/vasttams/sources/router.py` - Added cascade logging
+- `src/vasttams/sources/service.py` - Implemented cascade delete with flow/segment cleanup
+- `tests/sources/test_database.py` - Added cascade delete tests
+- `tests/sources/test_crud.py` - Updated for TAMS 8.0 partial updates
+- `tests/sources/test_endpoint.py` - Updated for TAMS 8.0 partial updates
+- `tests/sources/test_compliance.py` - Fixed format validation
+- `tests/segments/test_database.py` - Added segment deletion tests
+- `tests/flows/test_mock.py` - Removed problematic mock tests
+
+### **📋 TAMS APPNOTES INTEGRATION PLAN**
 **Date**: January 2025  
 **Task**: Create comprehensive plan to integrate TAMS appnotes best practices  
 **Status**: ✅ **COMPLETED** - Integration plan created and documented

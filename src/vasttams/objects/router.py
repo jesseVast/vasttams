@@ -19,12 +19,25 @@ async def head_object(object_id: str):
     """Return object path headers"""
     return {}
 
-@router.options("/objects")
+@router.options("")
 async def options_objects():
     """Objects endpoint OPTIONS method for CORS preflight"""
     return {}
 
-# GET endpoint
+# GET endpoint - List all objects
+@router.get("", response_model=List[Object])
+async def list_objects(
+    storage: StorageInterface = Depends(get_storage_service)
+):
+    """List all objects"""
+    try:
+        objects = await storage.get_objects()
+        return objects
+    except Exception as e:
+        logger.error("Failed to list objects: %s", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# GET endpoint - Get specific object by ID
 @router.get("/{object_id}", response_model=Object)
 async def get_object_by_id(
     object_id: str,

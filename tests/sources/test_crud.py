@@ -111,7 +111,10 @@ class TestSourceCRUD:
             assert "format" in source
     
     def test_update_source(self, clean_source_id, api_available):
-        """Test UPDATE operation - PUT /sources/{id} per TAMS 8.0 spec"""
+        """
+        Test UPDATE operation - No PUT /sources/{id} endpoint per TAMS 8.0 spec
+        Note: TAMS 8.0 uses partial updates (PUT /sources/{id}/label, /description)
+        """
         if not api_available:
             pytest.skip("API not available")
         
@@ -123,20 +126,16 @@ class TestSourceCRUD:
         }
         requests.post(f"{BASE_URL}/sources", json=source_data)
         
-        # Update it
-        updated_data = {
-            "id": clean_source_id,
-            "format": "urn:x-nmos:format:video",
-            "label": f"Updated Label {clean_source_id[:8]}"
-        }
-        response = requests.put(f"{BASE_URL}/sources/{clean_source_id}", json=updated_data)
-        assert response.status_code in [200, 204], f"Failed to update source: {response.text}"
+        # TAMS 8.0 uses PUT /sources/{id}/label with query parameter
+        updated_label = f"Updated Label {clean_source_id[:8]}"
+        response = requests.put(f"{BASE_URL}/sources/{clean_source_id}/label?label={updated_label}")
+        assert response.status_code in [200, 204], f"Failed to update source label: {response.text}"
         
         # Verify update
         response = requests.get(f"{BASE_URL}/sources/{clean_source_id}")
         assert response.status_code == 200
         retrieved = response.json()
-        assert retrieved["label"] == updated_data["label"]
+        assert retrieved["label"] == updated_label
         
         # Cleanup
         requests.delete(f"{BASE_URL}/sources/{clean_source_id}")

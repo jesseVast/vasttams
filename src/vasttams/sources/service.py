@@ -284,14 +284,22 @@ class SourceStorageService:
             raise HTTPException(status_code=500, detail="Internal server error")
     
     async def delete_source(self, source_id: str, cascade: bool = True) -> bool:
-        """Delete a source"""
+        """Delete a source with optional cascade to dependent flows"""
         try:
+            logger.info("delete_source called with cascade=%s", cascade)
+            
             # Check for dependencies if cascade is False
             if not cascade:
                 # Check if source has flows
                 flows_result = self.vast_db.query("flows").select("id").where(f"source_id = '{source_id}'").execute()
                 if flows_result and len(flows_result) > 0:
                     raise ValueError("Cannot delete source with existing flows. Use cascade=True to delete flows first.")
+            
+            # Cascade delete: Delete dependent flows first (and their segments)
+            if cascade:
+                logger.info("Calling _cascade_delete_flows for source %s", source_id)
+                await self._cascade_delete_flows(source_id)
+                logger.info("_cascade_delete_flows completed for source %s", source_id)
             
             # Delete source
             self.vast_db.query("sources").delete().where(f"id = '{source_id}'").execute()
@@ -301,6 +309,56 @@ class SourceStorageService:
             raise e
         except Exception as e:
             logger.error("Failed to delete source %s: %s", source_id, e)
+            raise HTTPException(status_code=500, detail="Internal server error")
+    
+    async def _cascade_delete_flows(self, source_id: str) -> bool:
+        """Delete all flows and their segments for a source (cascade delete)"""
+        try:
+            # Get all flow IDs for this source
+            flows_result = self.vast_db.query("flows").select("id").where(f"source_id = '{source_id}'").execute()
+            
+            if not flows_result or len(flows_result) == 0:
+                return True  # No flows to delete
+            
+            # Extract flow IDs from result (handle both columnar and row-oriented formats)
+            flow_ids = []
+            if isinstance(flows_result, dict) and 'data' in flows_result:
+                # Trino columnar format: {'data': {'id': [...], ...}}
+                data = flows_result['data']
+                if isinstance(data, dict) and 'id' in data:
+                    flow_ids = data['id'] if isinstance(data['id'], list) else [data['id']]
+                elif isinstance(data, list):
+                    # Row-oriented format: list of dicts
+                    for row in data:
+                        if isinstance(row, dict) and 'id' in row:
+                            flow_ids.append(row['id'])
+            elif isinstance(flows_result, list):
+                # Row-oriented format
+                for row in flows_result:
+                    if isinstance(row, dict) and 'id' in row:
+                        flow_ids.append(row['id'])
+                    elif isinstance(row, str):
+                        flow_ids.append(row)
+            
+            logger.debug("Found %d flows to delete for source %s", len(flow_ids), source_id)
+            
+            # Delete segments for each flow
+            for flow_id in flow_ids:
+                try:
+                    self.vast_db.query("segments").delete().where(f"flow_id = '{flow_id}'").execute()
+                    logger.debug("Deleted segments for flow %s", flow_id)
+                except Exception as e:
+                    logger.warning("Failed to delete segments for flow %s: %s", flow_id, e)
+                    # Continue with other flows
+            
+            # Delete all flows for this source
+            if flow_ids:
+                self.vast_db.query("flows").delete().where(f"source_id = '{source_id}'").execute()
+                logger.info("Deleted %d flows for source %s", len(flow_ids), source_id)
+            
+            return True
+        except Exception as e:
+            logger.error("Failed to cascade delete flows for source %s: %s", source_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
     
     async def _compute_source_collection(self, source_id: str) -> List[CollectionItem]:

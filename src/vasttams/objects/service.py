@@ -84,10 +84,33 @@ class ObjectStorageService:
         try:
             result = self.vast_db.query("objects").select("*").execute()
             
+            # Handle VAST query result format (same as get_object)
             objects = []
-            for row in result:
-                object_data = dict(row)
-                objects.append(Object(**object_data))
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
+                if isinstance(data, dict) and data:
+                    # Convert column arrays to row dictionaries
+                    num_rows = len(next(iter(data.values())))
+                    for i in range(num_rows):
+                        object_data = {}
+                        for column, values in data.items():
+                            if column != '$row_id':  # Skip internal row IDs
+                                value = values[i] if i < len(values) else None
+                                object_data[column] = value
+                        if object_data:
+                            objects.append(Object(**object_data))
+                elif isinstance(data, list):
+                    # If data is a list, iterate directly
+                    for row in data:
+                        object_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
+                        if object_data:
+                            objects.append(Object(**object_data))
+            else:
+                # Fallback for direct list results
+                for row in result if isinstance(result, list) else []:
+                    object_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
+                    if object_data:
+                        objects.append(Object(**object_data))
             
             return objects
         except Exception as e:

@@ -174,3 +174,101 @@ class TestSourceBatchOperations:
         for source_id in source_ids:
             requests.delete(f"{BASE_URL}/sources/{source_id}")
 
+
+class TestSourceCascadeDelete:
+    """Test cascade delete functionality for sources"""
+    
+    def test_delete_source_with_cascade_deletes_flows(self, api_available):
+        """Test that deleting a source with cascade=True deletes dependent flows"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        # Create a test source
+        source_id = str(uuid.uuid4())
+        source_data = {
+            "id": source_id,
+            "format": "urn:x-nmos:format:video"
+        }
+        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        assert response.status_code == 201, f"Failed to create source: {response.text}"
+        
+        # Create a flow for this source
+        flow_id = str(uuid.uuid4())
+        flow_data = {
+            "id": flow_id,
+            "source_id": source_id,
+            "format": "urn:x-nmos:format:video",
+            "codec": "video/H264",
+            "essence_parameters": {
+                "frame_width": 1920,
+                "frame_height": 1080,
+                "frame_rate": {"numerator": 25, "denominator": 1}
+            }
+        }
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        assert response.status_code == 201, f"Failed to create flow: {response.text}"
+        
+        # Verify flow exists
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}")
+        assert response.status_code == 200
+        created_flow = response.json()
+        assert created_flow["id"] == flow_id
+        
+        # Delete source with cascade=True (should delete the flow)
+        response = requests.delete(f"{BASE_URL}/sources/{source_id}?cascade=true")
+        assert response.status_code == 200, f"Failed to delete source: {response.text}"
+        
+        # Verify source is deleted
+        response = requests.get(f"{BASE_URL}/sources/{source_id}")
+        assert response.status_code == 404
+        
+        # Verify flow is also deleted (cascade worked)
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}")
+        assert response.status_code == 404, "Flow should be deleted when source is deleted with cascade"
+    
+    def test_delete_source_without_cascade_prevents_deletion(self, api_available):
+        """Test that deleting a source with cascade=False prevents deletion if flows exist"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        # Create a test source
+        source_id = str(uuid.uuid4())
+        source_data = {
+            "id": source_id,
+            "format": "urn:x-nmos:format:video"
+        }
+        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        assert response.status_code == 201, f"Failed to create source: {response.text}"
+        
+        # Create a flow for this source
+        flow_id = str(uuid.uuid4())
+        flow_data = {
+            "id": flow_id,
+            "source_id": source_id,
+            "format": "urn:x-nmos:format:video",
+            "codec": "video/H264",
+            "essence_parameters": {
+                "frame_width": 1920,
+                "frame_height": 1080,
+                "frame_rate": {"numerator": 25, "denominator": 1}
+            }
+        }
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        assert response.status_code == 201, f"Failed to create flow: {response.text}"
+        
+        # Try to delete source with cascade=False (should fail)
+        response = requests.delete(f"{BASE_URL}/sources/{source_id}?cascade=false")
+        assert response.status_code == 409, "Should return 409 Conflict when cascade=False and flows exist"
+        
+        # Verify source still exists
+        response = requests.get(f"{BASE_URL}/sources/{source_id}")
+        assert response.status_code == 200
+        
+        # Verify flow still exists
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}")
+        assert response.status_code == 200
+        
+        # Cleanup
+        requests.delete(f"{BASE_URL}/flows/{flow_id}")
+        requests.delete(f"{BASE_URL}/sources/{source_id}")
+

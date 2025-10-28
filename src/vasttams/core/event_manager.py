@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 
 # Import models from resource modules
-from ..service.webhooks import Webhook
+from ..webhooks.models import Webhook
 from ..common.models import (
     Event, EventData, SourceEventData, FlowEventData, FlowSegmentEventData,
     ObjectEventData, CollectionEventData

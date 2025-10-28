@@ -24,9 +24,9 @@ from ...objects.schemas import (
     get_objects_projections, get_object_instances_projections
 )
 from ...service.schemas import (
-    get_webhooks_schema, get_deletion_requests_schema,
-    get_webhooks_projections, get_deletion_requests_projections
+    get_deletion_requests_schema, get_deletion_requests_projections
 )
+from ...webhooks.schemas import get_webhooks_schema, get_webhooks_projections
 from ...auth.schemas import (
     get_users_schema, get_api_tokens_schema, get_refresh_tokens_schema, 
     get_auth_logs_schema, get_auth_provider_configs_schema,

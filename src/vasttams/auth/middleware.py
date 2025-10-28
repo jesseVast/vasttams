@@ -5,7 +5,7 @@ Authentication middleware for TAMS API 7.0
 import logging
 from typing import Optional
 from fastapi import Request, HTTPException, Depends
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .core import AuthManager
 from .models import UserSession, AuthMethod
@@ -53,11 +53,15 @@ class AuthMiddleware:
                 logger.debug("Authentication successful for user: %s via %s", 
                            auth_result.username, auth_result.auth_method)
             
+            # Get role from auth result, default to VIEWER
+            from ..models import UserRole
+            
             user_session = UserSession(
                 user_id=auth_result.user_id,
                 username=auth_result.username,
+                role=auth_result.role or UserRole.VIEWER,
                 auth_method=auth_result.auth_method,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 metadata=auth_result.metadata
             )
             request.state.user_session = user_session

@@ -18,6 +18,7 @@ from ..common.storage.timestamp_utils import (
     prepare_data_for_sql
 )
 from .models import Flow, VideoFlow, AudioFlow, ImageFlow, DataFlow, MultiFlow
+from .bitrate_calculator import BitRateCalculator
 from ..common.filters import FlowFilters, FlowDetailFilters
 from ..sources.models import Source
 
@@ -216,6 +217,66 @@ class FlowStorageService:
             logger.error("Failed to get flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
     
+    async def _calculate_and_update_bit_rates(self, flow_id: str) -> None:
+        """
+        Calculate and update bit rates for a flow from its segments
+        
+        Args:
+            flow_id: Flow identifier
+        """
+        try:
+            # Get flow to check if bit rates need calculation
+            flow = await self.get_flow(flow_id)
+            if not flow:
+                return
+            
+            # Check if bit rates are already set
+            if flow.avg_bit_rate and flow.max_bit_rate:
+                logger.debug(f"Bit rates already set for flow {flow_id}")
+                return
+            
+            # Get flow segments
+            from ..segments.service import SegmentStorageService
+            from ..core.config import get_settings
+            segment_service = SegmentStorageService(self.vast_db, self.s3_client, get_settings())
+            
+            segments = await segment_service.get_flow_segments(flow_id)
+            
+            if not segments:
+                logger.debug(f"No segments found for flow {flow_id}, skipping bit rate calculation")
+                return
+            
+            # Calculate bit rates
+            calculator = BitRateCalculator()
+            
+            # Get target segment duration from flow
+            target_duration = 1.0  # Default 1 second
+            if flow.segment_duration:
+                target_duration = flow.segment_duration.numerator / flow.segment_duration.denominator
+            
+            # Calculate bit rates
+            avg_bit_rate = await calculator.calculate_avg_bit_rate(segments)
+            max_bit_rate = await calculator.calculate_max_bit_rate(segments, target_duration)
+            
+            # Update flow with calculated bit rates
+            if avg_bit_rate or max_bit_rate:
+                from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
+                update_data = {}
+                
+                if avg_bit_rate:
+                    update_data['avg_bit_rate'] = avg_bit_rate
+                if max_bit_rate:
+                    update_data['max_bit_rate'] = max_bit_rate
+                
+                if update_data:
+                    # Prepare and update
+                    prepared_data = prepare_data_for_pyarrow(update_data)
+                    self.vast_db.insert_record("flows", prepared_data)  # Will use UPSERT logic
+                    logger.info(f"Updated bit rates for flow {flow_id}: avg={avg_bit_rate}, max={max_bit_rate}")
+        
+        except Exception as e:
+            logger.warning(f"Failed to calculate bit rates for flow {flow_id}: {e}")
+    
     async def create_flow(self, flow: Flow) -> bool:
         """Create a new flow (TAMS 8.0 with VFR validation)"""
         try:
@@ -251,6 +312,14 @@ class FlowStorageService:
             result = self.vast_db.insert_record("flows", flow_data)
             logger.debug("Flow creation result: %s", result)
             logger.debug("Flow created successfully with ID: %s", flow.id)
+            
+            # Auto-calculate bit rates if not provided
+            if not flow.avg_bit_rate or not flow.max_bit_rate:
+                try:
+                    await self._calculate_and_update_bit_rates(flow.id)
+                except Exception as e:
+                    logger.warning("Failed to auto-calculate bit rates: %s", e)
+            
             return True
         except ValueError as ve:
             logger.error("VFR validation error creating flow: %s", ve)

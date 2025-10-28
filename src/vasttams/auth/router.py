@@ -11,6 +11,8 @@ from .models import AuthMethod
 from .service import AuthProviderService
 from .core import AuthManager
 from ..core.dependencies import get_vast_db
+from .rbac import require_admin, require_editor, require_viewer
+from .middleware import UserSession
 import logging
 
 logger = logging.getLogger(__name__)
@@ -33,7 +35,8 @@ def get_auth_service() -> AuthProviderService:
 
 @router.get("", response_model=List[AuthProviderConfig])
 async def list_auth_providers(
-    service: AuthProviderService = Depends(get_auth_service)
+    service: AuthProviderService = Depends(get_auth_service),
+    user_session: UserSession = Depends(require_viewer)
 ):
     """List all authentication provider configurations"""
     try:
@@ -115,7 +118,8 @@ async def update_auth_provider(
 
 @router.post("/reload")
 async def reload_auth_providers(
-    service: AuthProviderService = Depends(get_auth_service)
+    service: AuthProviderService = Depends(get_auth_service),
+    user_session: UserSession = Depends(require_admin)
 ):
     """Reload authentication providers with current configurations"""
     try:

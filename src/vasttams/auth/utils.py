@@ -4,7 +4,7 @@ import hashlib
 import logging
 import secrets
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ def is_token_expired(expires_at: Optional[datetime]) -> bool:
             logger.debug("Token has no expiration date")
         return False
     
-    is_expired = datetime.utcnow() > expires_at
+    is_expired = datetime.now(timezone.utc) > expires_at
     
     if logger.isEnabledFor(logging.DEBUG):
         logger.debug("Token expiration check: %s (expires: %s)", 
@@ -70,7 +70,7 @@ def is_token_expired(expires_at: Optional[datetime]) -> bool:
 
 def calculate_token_expiry(minutes: int = DEFAULT_TOKEN_EXPIRE_MINUTES) -> datetime:
     """Calculate token expiry time"""
-    expiry = datetime.utcnow() + timedelta(minutes=minutes)
+    expiry = datetime.now(timezone.utc) + timedelta(minutes=minutes)
     if logger.isEnabledFor(logging.DEBUG):
         logger.debug("Calculated token expiry: %s (in %d minutes)", expiry, minutes)
     return expiry 

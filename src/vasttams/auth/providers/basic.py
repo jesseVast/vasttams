@@ -11,7 +11,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from ..models import User
 
 from .base import AuthProvider
-from ..models import AuthResult, AuthMethod
+from ..models import AuthResult, AuthMethod, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -150,16 +150,19 @@ class BasicAuthProvider(AuthProvider):
                 user = await self.vast_store.get_user_by_username(username)
                 if user and user.is_active and user.password_hash:
                     if self.verify_password(password, user.password_hash):
+                        # Extract role from user
+                        role = getattr(user, 'role', UserRole.VIEWER)
+                        
                         if logger.isEnabledFor(logging.DEBUG):
-                            logger.debug("Database authentication successful for user: %s", username)
+                            logger.debug("Database authentication successful for user: %s with role: %s", username, role)
                         return AuthResult(
                             success=True,
                             user_id=user.user_id,
                             username=user.username,
+                            role=role,
                             metadata={
                                 "auth_type": "basic", 
-                                "auth_source": "database",
-                                "is_admin": user.is_admin
+                                "auth_source": "database"
                             }
                         )
                     else:
@@ -173,16 +176,19 @@ class BasicAuthProvider(AuthProvider):
             if username in self.fallback_users:
                 stored_hash = self.fallback_users[username]
                 if self.verify_password(password, stored_hash):
+                    # Determine role from username
+                    role = UserRole.ADMIN if username == "admin" else UserRole.VIEWER
+                    
                     if logger.isEnabledFor(logging.DEBUG):
-                        logger.debug("Fallback authentication successful for user: %s", username)
+                        logger.debug("Fallback authentication successful for user: %s with role: %s", username, role)
                     return AuthResult(
                         success=True,
                         user_id=username,
                         username=username,
+                        role=role,
                         metadata={
                             "auth_type": "basic", 
-                            "auth_source": "fallback",
-                            "is_admin": username == "admin"
+                            "auth_source": "fallback"
                         }
                     )
                 else:

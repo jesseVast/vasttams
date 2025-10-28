@@ -22,7 +22,8 @@ from .utils import (
     make_request,
 )
 from .telemetry import TelemetryManager
-from .event_manager import EventManager
+# EventManager moved to events module
+# from .event_manager import EventManager
 
 __all__ = [
     "Settings",
@@ -45,5 +46,5 @@ __all__ = [
     "parse_query_filters",
     "build_paging_response",
     "make_request",
-    "EventManager",
+    # EventManager moved to events module
 ] 

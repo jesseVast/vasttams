@@ -8,7 +8,7 @@ from fastapi import Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from .base import AuthProvider
-from ..models import AuthResult, AuthMethod, AuthConfig
+from ..models import AuthResult, AuthMethod, AuthConfig, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -72,10 +72,15 @@ class JWTProvider(AuthProvider):
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug("JWT token decoded successfully for user: %s", payload.get("username"))
             
+            # Extract role from JWT payload
+            role_str = payload.get("role")
+            role = UserRole(role_str) if role_str else None
+            
             return AuthResult(
                 success=True,
                 user_id=payload.get("sub"),
                 username=payload.get("username"),
+                role=role,
                 metadata=payload
             )
             
@@ -89,18 +94,24 @@ class JWTProvider(AuthProvider):
             logger.error("Unexpected error during JWT authentication: %s", e)
             return AuthResult(success=False, error="Authentication error")
     
-    def create_token(self, user_id: str, username: str, **kwargs) -> str:
+    def create_token(self, user_id: str, username: str, role: UserRole = None, **kwargs) -> str:
         """Create a JWT token"""
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug("Creating JWT token for user: %s", username)
+            logger.debug("Creating JWT token for user: %s with role: %s", username, role)
+        
+        from datetime import timezone
         
         payload = {
             "sub": user_id,
             "username": username,
-            "iat": datetime.utcnow(),
-            "exp": datetime.utcnow() + timedelta(minutes=self.jwt_expire_minutes),
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=self.jwt_expire_minutes),
             **kwargs
         }
+        
+        # Add role to payload if provided
+        if role:
+            payload["role"] = role.value
         
         token = jwt.encode(
             payload,

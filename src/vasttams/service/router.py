@@ -8,6 +8,8 @@ from .storage_models import StorageBackend
 from .webhooks import Webhook, WebhookPost
 from ..common.storage.dependencies import get_storage_service
 from ..common.storage.interfaces import StorageInterface
+from ..auth.rbac import require_admin, require_editor, require_viewer
+from ..auth.middleware import UserSession
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,7 +23,8 @@ async def head_service():
 
 @router.get("")
 async def get_service(
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_viewer)
 ):
     """Provide information about the service"""
     try:
@@ -48,33 +51,6 @@ async def update_service(
 # Storage backends endpoints moved to dedicated storage_backends_router
 # They are now at /service/storage-backends via the dedicated module
 
-@router.head("/webhooks")
-async def head_webhooks():
-    """Return webhooks path headers"""
-    return {}
-
-@router.get("/webhooks")
-async def get_webhooks(
-    storage: StorageInterface = Depends(get_storage_service)
-):
-    """Get the list of registered webhook URLs"""
-    try:
-        webhooks = await storage.get_webhooks()
-        return webhooks
-    except Exception as e:
-        logger.error("Failed to get webhooks: %s", e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.post("/webhooks")
-async def create_webhook(
-    webhook: WebhookPost,
-    storage: StorageInterface = Depends(get_storage_service)
-):
-    """Register a webhook URL"""
-    try:
-        created_webhook = await storage.create_webhook(webhook)
-        return created_webhook
-    except Exception as e:
-        logger.error("Failed to create webhook: %s", e)
-        raise HTTPException(status_code=500, detail="Internal server error")
+# Webhooks endpoints moved to dedicated webhooks_router
+# They are now at /service/webhooks via the dedicated module
 

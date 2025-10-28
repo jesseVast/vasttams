@@ -10,12 +10,16 @@ from typing import List, Optional
 from .models import Flow
 from ..common.filters import FlowFilters, FlowDetailFilters
 from ..common.models import Tags, HttpRequest
+from ..common.c2pa_utils import validate_c2pa_in_metadata  # C2PA support
+from ..auth.rbac import require_admin, require_editor, require_viewer
+from ..auth.middleware import UserSession
 from ..service.storage_models import FlowStoragePost, FlowStorage, MediaObject
 from ..common.responses import FlowsResponse
 from ..common.storage.dependencies import get_storage_service
 from ..common.storage.interfaces import StorageInterface
 from ..core.config import get_settings
-from ..core.event_manager import EventManager
+from ..events import EventManager
+from ..core.dependencies import get_vast_db
 from ..core.utils import log_pydantic_validation_error, safe_model_parse
 import logging
 
@@ -39,6 +43,7 @@ async def head_flow(flow_id: str):
 async def list_flows(
     source_id: Optional[str] = Query(None, description="Filter by source ID"),
     timerange: Optional[str] = Query(None, description="Filter by time range"),
+    user_session: UserSession = Depends(require_viewer),
     format: Optional[str] = Query(None, description="Filter by format"),
     codec: Optional[str] = Query(None, description="Filter by codec"),
     label: Optional[str] = Query(None, description="Filter by label"),
@@ -71,6 +76,7 @@ async def list_flows(
 async def get_flow_by_id(
     flow_id: str,
     include_timerange: bool = Query(False, description="Include timerange in response"),
+    user_session: UserSession = Depends(require_viewer),
     timerange: Optional[str] = Query(None, description="Filter by time range"),
     storage: StorageInterface = Depends(get_storage_service)
 ):
@@ -92,7 +98,8 @@ async def get_flow_by_id(
 async def update_flow_by_id(
     flow_id: str,
     flow_data: dict,
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_editor)
 ):
     """Update a flow"""
     try:
@@ -103,19 +110,19 @@ async def update_flow_by_id(
         format_type = flow_data.get("format")
         
         if format_type == "urn:x-nmos:format:video":
-            from ..models.flows import VideoFlow
+            from .models import VideoFlow
             flow = VideoFlow(**flow_data)
         elif format_type == "urn:x-nmos:format:audio":
-            from ..models.flows import AudioFlow
+            from .models import AudioFlow
             flow = AudioFlow(**flow_data)
         elif format_type == "urn:x-tam:format:image":
-            from ..models.flows import ImageFlow
+            from .models import ImageFlow
             flow = ImageFlow(**flow_data)
         elif format_type == "urn:x-nmos:format:data":
-            from ..models.flows import DataFlow
+            from .models import DataFlow
             flow = DataFlow(**flow_data)
         elif format_type == "urn:x-nmos:format:multi":
-            from ..models.flows import MultiFlow
+            from .models import MultiFlow
             flow = MultiFlow(**flow_data)
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported flow format: {format_type}")
@@ -131,7 +138,8 @@ async def update_flow_by_id(
         
         # Emit flow updated event
         try:
-            event_manager = EventManager(storage)
+            vast_db = get_vast_db()
+            event_manager = EventManager(vast_db)
             await event_manager.emit_flow_event('flows/updated', updated_flow)
         except Exception as e:
             logger.warning("Failed to emit flow updated event: %s", e)
@@ -147,6 +155,7 @@ async def update_flow_by_id(
 @router.delete("/{flow_id}")
 async def delete_flow_by_id(
     flow_id: str,
+    user_session: UserSession = Depends(require_admin),
     cascade: bool = Query(True, description="Cascade delete related segments"),
     storage: StorageInterface = Depends(get_storage_service)
 ):
@@ -162,7 +171,8 @@ async def delete_flow_by_id(
         # Emit flow deleted event
         if flow:
             try:
-                event_manager = EventManager(storage)
+                vast_db = get_vast_db()
+                event_manager = EventManager(vast_db)
                 await event_manager.emit_flow_event('flows/deleted', flow)
             except Exception as e:
                 logger.warning("Failed to emit flow deleted event: %s", e)
@@ -184,17 +194,26 @@ async def delete_flow_by_id(
 @router.post("", response_model=Flow, status_code=201)
 async def create_new_flow(
     flow: Flow,
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_editor)
 ):
     """Create a new flow"""
     try:
+        # Validate C2PA provenance if present in tags
+        if flow.tags and flow.tags.root:
+            tags_dict = flow.tags.root
+            c2pa_is_valid = validate_c2pa_in_metadata(tags_dict)
+            if not c2pa_is_valid:
+                logger.warning("Flow %s has invalid C2PA metadata in tags", flow.id)
+        
         success = await storage.create_flow(flow)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to create flow")
         
         # Emit flow created event
         try:
-            event_manager = EventManager(storage)
+            vast_db = get_vast_db()
+            event_manager = EventManager(vast_db)
             await event_manager.emit_flow_event('flows/created', flow)
         except Exception as e:
             logger.warning("Failed to emit flow created event: %s", e)
@@ -563,6 +582,41 @@ async def delete_flow_avg_bit_rate(
         return
     except Exception as e:
         logger.error("Failed to delete flow avg bit rate for %s: %s", flow_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/{flow_id}/recalculate-bit-rates", status_code=200)
+async def recalculate_flow_bit_rates(
+    flow_id: str,
+    storage: StorageInterface = Depends(get_storage_service)
+):
+    """Manually recalculate and update bit rates for a flow from its segments"""
+    try:
+        # Verify flow exists
+        flow = await storage.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        # Calculate bit rates
+        from ..flows.service import FlowStorageService
+        from ..core.dependencies import get_s3_client
+        s3_client = get_s3_client()
+        vast_db = get_vast_db()
+        
+        flow_service = FlowStorageService(vast_db, s3_client)
+        await flow_service._calculate_and_update_bit_rates(flow_id)
+        
+        # Return updated flow
+        updated_flow = await storage.get_flow(flow_id)
+        return {
+            "flow_id": flow_id,
+            "avg_bit_rate": updated_flow.avg_bit_rate,
+            "max_bit_rate": updated_flow.max_bit_rate,
+            "message": "Bit rates recalculated successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to recalculate bit rates for flow %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{flow_id}/read_only")

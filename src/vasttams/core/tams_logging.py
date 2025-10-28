@@ -3,7 +3,7 @@
 import logging
 import logging.config
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 import sys
@@ -246,7 +246,7 @@ def log_tams_compliance_event(
         "tams_compliance_data": {
             "event_type": event_type,
             "compliance_status": compliance_status,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "details": details or {}
         }
     }
@@ -278,7 +278,7 @@ def log_tams_validation_result(
             "field_path": field_path,
             "validation_result": validation_result,
             "validation_rule": validation_rule,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "details": details or {}
         }
     }
@@ -304,7 +304,7 @@ def log_tams_api_request(
             "method": method,
             "user_id": user_id,
             "request_id": request_id,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "details": details or {}
         }
     }
@@ -333,7 +333,7 @@ def log_tams_storage_operation(
             "entity_type": entity_type,
             "entity_id": entity_id,
             "success": success,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "details": details or {}
         }
     }

@@ -12,8 +12,11 @@ from .models import FlowSegment
 from ..service.storage_models import FlowStorage, FlowStoragePost
 from ..common.storage import get_storage_service
 from ..common.storage.interfaces import StorageInterface
-from ..core.event_manager import EventManager
+from ..events import EventManager
+from ..core.dependencies import get_vast_db
 from ..core.utils import log_pydantic_validation_error, safe_model_parse
+from ..auth.rbac import require_admin, require_editor, require_viewer
+from ..auth.middleware import UserSession
 import logging
 
 logger = logging.getLogger(__name__)
@@ -152,7 +155,8 @@ async def create_new_flow_segment(
         
         # Emit segment created event
         try:
-            event_manager = EventManager(storage)
+            vast_db = get_vast_db()
+            event_manager = EventManager(vast_db)
             await event_manager.emit_segment_event('flow-segments/created', segment, flow_id=flow_id)
         except Exception as e:
             logger.warning("Failed to emit segment created event: %s", e)

@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List
 from .models import StorageBackend, StorageBackendPost, StorageBackendPatch, StorageBackendsList
 from .service import StorageBackendService
+from ..auth.rbac import require_admin, require_editor, require_viewer
+from ..auth.middleware import UserSession
 import logging
 
 logger = logging.getLogger(__name__)
@@ -40,7 +42,8 @@ async def list_storage_backends(
 @router.post("", response_model=StorageBackend, status_code=201)
 async def create_storage_backend(
     backend: StorageBackendPost,
-    service: StorageBackendService = Depends(get_storage_backend_service)
+    service: StorageBackendService = Depends(get_storage_backend_service),
+    user_session: UserSession = Depends(require_editor)
 ):
     """Create a new storage backend"""
     return await service.create_storage_backend(backend)
@@ -55,7 +58,8 @@ async def head_storage_backend(backend_id: str):
 @router.get("/{backend_id}", response_model=StorageBackend)
 async def get_storage_backend(
     backend_id: str,
-    service: StorageBackendService = Depends(get_storage_backend_service)
+    service: StorageBackendService = Depends(get_storage_backend_service),
+    user_session: UserSession = Depends(require_viewer)
 ):
     """Get a specific storage backend by ID"""
     backend = await service.get_storage_backend(backend_id)

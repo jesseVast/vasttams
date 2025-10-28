@@ -3,7 +3,7 @@
 from typing import Dict, Any, Optional, List
 from enum import Enum
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class TAMSErrorCode(str, Enum):
@@ -82,7 +82,7 @@ class TAMSComplianceError(Exception):
         self.details = details or {}
         self.field_path = field_path
         self.compliance_requirement = compliance_requirement
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
         
         super().__init__(self.message)
     

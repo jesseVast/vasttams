@@ -35,16 +35,27 @@ def get_s3_client() -> S3Client:
     global s3_client
     if s3_client is None:
         settings = get_settings()
-        config = S3Config(
-            endpoint_url=settings.s3_endpoint_url,
-            bucket_name=settings.s3_bucket_name,
-            access_key=settings.s3_access_key_id,
-            secret_key=settings.s3_secret_access_key,
-            region=settings.s3_region,
-            use_ssl=settings.s3_use_ssl,
-            chunk_size=settings.vaststore_s3_chunk_size,
-            max_concurrent_parts=settings.vaststore_s3_max_concurrent_parts
-        )
+        config_params = {
+            "endpoint_url": settings.s3_endpoint_url,
+            "bucket_name": settings.s3_bucket_name,
+            "access_key": settings.s3_access_key_id,
+            "secret_key": settings.s3_secret_access_key,
+            "region": settings.s3_region,
+            "use_ssl": settings.s3_use_ssl,
+            "chunk_size": settings.vaststore_s3_chunk_size,
+            "max_concurrent_parts": settings.vaststore_s3_max_concurrent_parts
+        }
+        # Add key_prefix if s3_root_path is configured and S3Config supports it
+        if hasattr(settings, 's3_root_path') and settings.s3_root_path:
+            try:
+                # Normalize key_prefix: strip leading/trailing slashes to avoid double slashes
+                # The S3 client will handle adding slashes as needed
+                key_prefix = settings.s3_root_path.strip('/')
+                config_params["key_prefix"] = key_prefix
+            except TypeError:
+                # S3Config doesn't support key_prefix parameter
+                pass
+        config = S3Config(**config_params)
         s3_client = S3Client(config)
     return s3_client
 

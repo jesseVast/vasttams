@@ -21,6 +21,7 @@ from fastapi import FastAPI, HTTPException, Query, Depends, BackgroundTasks, Fil
 from fastapi.responses import JSONResponse
 from fastapi.openapi.utils import get_openapi
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 import uvicorn
 from uuid import UUID
@@ -50,7 +51,7 @@ from .sources.router import router as sources_router
 from .objects.router import router as objects_router
 from .service.router import router as service_router
 from .storagebackends.router import router as storage_backends_router
-from .auth.router import router as auth_router
+from .auth.router import router as auth_router, login_router, users_router
 from .webhooks.router import router as webhooks_router
 from .hls.router import router as hls_router
 
@@ -161,6 +162,30 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Add authentication middleware
+from .auth.core import AuthManager
+from .auth.providers.jwt import JWTProvider
+from .auth.providers.basic import BasicAuthProvider
+
+_auth_manager = AuthManager()
+_auth_manager.add_provider(JWTProvider())
+vast_db = get_vast_db()
+if vast_db:
+    _auth_manager.add_provider(BasicAuthProvider(vast_store=vast_db))
+
+from .auth.middleware import AuthMiddleware
+auth_middleware = AuthMiddleware(_auth_manager, require_auth=False)
+app.middleware("http")(auth_middleware)
+
 # Add telemetry middleware
 app.middleware("http")(telemetry_middleware)
 
@@ -227,6 +252,8 @@ app.include_router(objects_router)
 app.include_router(service_router)
 app.include_router(storage_backends_router)
 app.include_router(auth_router)
+app.include_router(login_router)
+app.include_router(users_router)
 app.include_router(webhooks_router)
 app.include_router(hls_router)
 

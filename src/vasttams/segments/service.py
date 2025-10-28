@@ -244,7 +244,9 @@ class SegmentStorageService:
                 date = f"{now.day:02d}"
                 
                 # Use TAMS path format: {tams_storage_path}/{year}/{month}/{date}/{object_id}
-                storage_path = f"{self.settings.tams_storage_path}/{year}/{month}/{date}/{object_id}"
+                # Normalize paths to avoid double slashes
+                tams_path = self.settings.tams_storage_path.strip('/')
+                storage_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
                 
                 # Generate presigned URL for upload
                 presigned_url = await self._generate_presigned_url(

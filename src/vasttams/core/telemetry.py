@@ -221,10 +221,30 @@ class TelemetryManager:
         return self.tracer
     
     def record_http_metrics(self, request: Request, response: Response, duration: float):
-        """Record HTTP request metrics"""
+        """Record HTTP request metrics with user context"""
         method = request.method
         endpoint = request.url.path
         status_code = response.status_code
+        
+        # Get user information from request state
+        user_info = "anonymous"
+        user_context = {}
+        if hasattr(request.state, 'user_session'):
+            user_session = request.state.user_session
+            if user_session:
+                user_info = user_session.username
+                user_context = {
+                    "username": user_session.username,
+                    "user_id": user_session.user_id,
+                    "role": user_session.role.value if hasattr(user_session.role, 'value') else str(user_session.role)
+                }
+        
+        # Log request with user context
+        logger.info(
+            "%s %s - user=%s, duration=%.3fs, status=%d",
+            method, endpoint, user_info, duration, status_code,
+            extra={"user_context": user_context, "api_context": {"endpoint": endpoint, "method": method}}
+        )
         
         # Record request count
         metrics.http_requests_total.labels(

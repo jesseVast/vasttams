@@ -79,6 +79,8 @@ class Settings(BaseSettings):
         description="S3 secret access key")
     s3_bucket_name: str = Field(default="tams",
         description="S3 bucket name for media storage")
+    s3_root_path: Optional[str] = Field(default=None,
+        description="S3 key prefix for all objects (e.g., /tams8-dev)")
     s3_use_ssl: bool = False
     s3_region: str = Field(default="us-east-1",
         description="S3 region for presigned URL generation (use us-east-1 for custom endpoints)")

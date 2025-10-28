@@ -54,7 +54,7 @@ class AuthMiddleware:
                            auth_result.username, auth_result.auth_method)
             
             # Get role from auth result, default to VIEWER
-            from ..models import UserRole
+            from .models import UserRole
             
             user_session = UserSession(
                 user_id=auth_result.user_id,

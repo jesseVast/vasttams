@@ -6,10 +6,14 @@ from .models import Source
 from ..common.filters import SourceFilters
 from ..common.responses import SourcesResponse
 from ..common.models import Tags
+from ..common.c2pa_utils import validate_c2pa_in_metadata  # C2PA support
 from ..common.storage import get_storage_service
 from ..common.storage.interfaces import StorageInterface
-from ..core.event_manager import EventManager
+from ..events import EventManager
+from ..core.dependencies import get_vast_db
 from ..core.utils import log_pydantic_validation_error, safe_model_parse
+from ..auth.rbac import require_admin, require_editor, require_viewer
+from ..auth.middleware import UserSession
 import logging
 
 logger = logging.getLogger(__name__)
@@ -41,7 +45,8 @@ async def list_sources(
     format: Optional[str] = Query(None, description="Filter by format"),
     page: Optional[str] = Query(None, description="Pagination key"),
     limit: Optional[int] = Query(100, ge=1, le=1000, description="Number of results to return"),
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_viewer)
 ):
     """List sources with optional filtering"""
     try:
@@ -55,7 +60,8 @@ async def list_sources(
 @router.get("/{source_id}", response_model=Source)
 async def get_source_by_id(
     source_id: str,
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_viewer)
 ):
     """Get a specific source by ID"""
     try:
@@ -73,12 +79,20 @@ async def get_source_by_id(
 @router.post("", response_model=Source, status_code=201)
 async def create_new_source(
     source: Source,
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_editor)
 ):
     """Create a new source"""
     try:
         # Log successful validation
         logger.info("Creating source with ID: %s, format: %s", source.id, source.format)
+        
+        # Validate C2PA provenance if present in tags
+        if source.tags and source.tags.root:
+            tags_dict = source.tags.root
+            c2pa_is_valid = validate_c2pa_in_metadata(tags_dict)
+            if not c2pa_is_valid:
+                logger.warning("Source %s has invalid C2PA metadata in tags", source.id)
         
         success = await storage.create_source(source)
         if not success:
@@ -87,7 +101,8 @@ async def create_new_source(
         
         # Emit source created event
         try:
-            event_manager = EventManager(storage)
+            vast_db = get_vast_db()
+            event_manager = EventManager(vast_db)
             await event_manager.emit_source_event('sources/created', source)
         except Exception as e:
             logger.warning("Failed to emit source created event: %s", e)
@@ -133,7 +148,8 @@ async def create_sources_batch(
         
         # Emit source created events for batch creation
         try:
-            event_manager = EventManager(storage)
+            vast_db = get_vast_db()
+            event_manager = EventManager(vast_db)
             for source in created_sources:
                 await event_manager.emit_source_event('sources/created', source)
         except Exception as e:
@@ -153,7 +169,8 @@ async def create_sources_batch(
 async def delete_source_by_id(
     source_id: str,
     cascade: bool = Query(True, description="Cascade delete related flows"),
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_admin)
 ):
     """Delete a source (hard delete only - TAMS compliant)"""
     try:
@@ -170,7 +187,8 @@ async def delete_source_by_id(
         # Emit source deleted event
         if source:
             try:
-                event_manager = EventManager(storage)
+                vast_db = get_vast_db()
+                event_manager = EventManager(vast_db)
                 await event_manager.emit_source_event('sources/deleted', source)
             except Exception as e:
                 logger.warning("Failed to emit source deleted event: %s", e)
@@ -263,7 +281,8 @@ async def update_source_tag(
     source_id: str,
     name: str,
     value: str = Body(..., media_type="text/plain"),
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_editor)
 ):
     """Update Source Tag Value"""
     try:
@@ -298,7 +317,8 @@ async def update_source_tag(
 async def delete_source_tag(
     source_id: str,
     name: str,
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_editor)
 ):
     """Delete Source Tag"""
     try:
@@ -354,7 +374,8 @@ async def get_source_description(
 async def update_source_description(
     source_id: str,
     description: str,
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_editor)
 ):
     """Update source description"""
     try:
@@ -384,7 +405,8 @@ async def update_source_description(
 @router.delete("/{source_id}/description")
 async def delete_source_description(
     source_id: str,
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_editor)
 ):
     """Delete source description"""
     try:
@@ -439,7 +461,8 @@ async def get_source_label(
 async def update_source_label(
     source_id: str,
     label: str,
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_editor)
 ):
     """Update source label"""
     try:
@@ -469,7 +492,8 @@ async def update_source_label(
 @router.delete("/{source_id}/label")
 async def delete_source_label(
     source_id: str,
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_editor)
 ):
     """Delete source label"""
     try:

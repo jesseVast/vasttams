@@ -4,8 +4,11 @@ from pydantic import ValidationError
 from .models import Object, ObjectInstance, ObjectInstancePost
 from ..common.storage import get_storage_service
 from ..common.storage.interfaces import StorageInterface
-from ..core.event_manager import EventManager
+from ..events import EventManager
+from ..core.dependencies import get_vast_db
 from ..core.utils import log_pydantic_validation_error, safe_model_parse
+from ..auth.rbac import require_admin, require_editor, require_viewer
+from ..auth.middleware import UserSession
 import logging
 from datetime import datetime, timezone
 
@@ -41,7 +44,8 @@ async def list_objects(
 @router.get("/{object_id}", response_model=Object)
 async def get_object_by_id(
     object_id: str,
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_viewer)
 ):
     """Get a specific object by ID"""
     try:
@@ -63,7 +67,8 @@ async def get_object_by_id(
 @router.delete("/{object_id}")
 async def delete_object_by_id(
     object_id: str,
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_admin)
 ):
     """Delete an object (hard delete only - TAMS compliant)"""
     try:
@@ -77,7 +82,8 @@ async def delete_object_by_id(
         # Emit object deleted event
         if obj:
             try:
-                event_manager = EventManager(storage)
+                vast_db = get_vast_db()
+                event_manager = EventManager(vast_db)
                 await event_manager.emit_object_event('objects/deleted', obj)
             except Exception as e:
                 logger.warning("Failed to emit object deleted event: %s", e)
@@ -138,7 +144,8 @@ async def create_object_instance(
 @router.get("/{object_id}/instances", response_model=List[ObjectInstance])
 async def list_object_instances(
     object_id: str,
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_viewer)
 ):
     """List all instances for an object (TAMS 8.0)"""
     try:

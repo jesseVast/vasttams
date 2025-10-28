@@ -28,10 +28,19 @@ class AuthProviderService:
             if result and result.get('data'):
                 configs = []
                 for row in result['data']:
+                    import json
+                    
+                    config_dict = {}
+                    if row.get('config'):
+                        try:
+                            config_dict = json.loads(row['config']) if isinstance(row['config'], str) else row['config']
+                        except (json.JSONDecodeError, TypeError):
+                            config_dict = {}
+                    
                     config = AuthProviderConfig(
                         method=AuthMethod(row['method']),
                         enabled=row.get('enabled', True),
-                        config=row.get('config', {}),
+                        config=config_dict,
                         jwt_secret=row.get('jwt_secret'),
                         jwt_algorithm=row.get('jwt_algorithm'),
                         jwt_expire_minutes=row.get('jwt_expire_minutes'),
@@ -86,10 +95,12 @@ class AuthProviderService:
                 f"method = '{method.value}'"
             ).execute()
             
+            import json
+            
             data = {
                 'method': method.value,
                 'enabled': config.enabled,
-                'config': config.config,
+                'config': json.dumps(config.config) if config.config else None,
                 'jwt_secret': config.jwt_secret,
                 'jwt_algorithm': config.jwt_algorithm,
                 'jwt_expire_minutes': config.jwt_expire_minutes,
@@ -98,13 +109,29 @@ class AuthProviderService:
             }
             
             if existing and existing.get('data'):
-                # Update existing
-                self.vast_db.query("auth_provider_configs").update(data).where(
-                    f"method = '{method.value}'"
-                ).execute()
+                # Update existing using SQL
+                from ..common.storage.timestamp_utils import prepare_data_for_sql
+                update_data = prepare_data_for_sql(data)
+                
+                set_clauses = []
+                for column, value in update_data.items():
+                    if isinstance(value, str):
+                        escaped_value = value.replace("'", "''")
+                        set_clauses.append(f"{column} = '{escaped_value}'")
+                    elif value is None:
+                        set_clauses.append(f"{column} = NULL")
+                    else:
+                        set_clauses.append(f"{column} = {value}")
+                
+                if set_clauses:
+                    table = self.vast_db.get_qualified_table_name("auth_provider_configs")
+                    sql = f"UPDATE {table} SET {', '.join(set_clauses)} WHERE method = '{method.value}'"
+                    self.vast_db.execute_sql(sql)
             else:
-                # Insert new
-                self.vast_db.query("auth_provider_configs").insert(data).execute()
+                # Insert new record
+                from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
+                insert_data = prepare_data_for_pyarrow(data)
+                self.vast_db.insert_record("auth_provider_configs", insert_data)
             
             # Reload auth manager if provided
             if self.auth_manager:

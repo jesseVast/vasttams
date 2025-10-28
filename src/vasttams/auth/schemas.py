@@ -15,6 +15,7 @@ def get_users_schema() -> pa.Schema:
         pa.field("username", pa.string(), nullable=True),
         pa.field("email", pa.string(), nullable=True),
         pa.field("password_hash", pa.string(), nullable=True),
+        pa.field("role", pa.string(), nullable=True),  # User role (admin, editor, viewer)
         pa.field("created", pa.timestamp("ns"), nullable=True),
         pa.field("updated", pa.timestamp("ns"), nullable=True),
     ])
@@ -75,7 +76,8 @@ def get_users_projections() -> List[List[str]]:
     return [
         ["id"],
         ["username"],
-        ["email"]
+        ["email"],
+        ["role"]
     ]
 
 

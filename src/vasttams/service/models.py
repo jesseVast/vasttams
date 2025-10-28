@@ -7,7 +7,12 @@ This module contains models related to the TAMS service information.
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
-from ..common.models import EventStreamMechanism
+# Import EventStreamMechanism from events module to avoid circular import
+try:
+    from ..events.models import EventStreamMechanism
+except ImportError:
+    # Fallback for backward compatibility
+    from ..common.models import EventStreamMechanism
 
 
 class Service(BaseModel):

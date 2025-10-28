@@ -51,6 +51,8 @@ from .objects.router import router as objects_router
 from .service.router import router as service_router
 from .storagebackends.router import router as storage_backends_router
 from .auth.router import router as auth_router
+from .webhooks.router import router as webhooks_router
+from .hls.router import router as hls_router
 
 from .core.dependencies import get_vast_db, get_s3_client
 from .core.telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
@@ -103,6 +105,31 @@ async def lifespan(app: FastAPI):
                     logger.error(f"❌ Failed to create tables: {failed}")
             else:
                 logger.info("✅ All required tables exist")
+            
+            # Initialize default users if they don't exist
+            try:
+                from .auth.user_service import UserService
+                from .auth.models import UserRole
+                
+                user_service = UserService(vast_db)
+                default_users = [
+                    ("admin", UserRole.ADMIN),
+                    ("editor", UserRole.EDITOR),
+                    ("viewer", UserRole.VIEWER)
+                ]
+                
+                logger.info("Checking for default users...")
+                for username, role in default_users:
+                    existing_user = await user_service.get_user_by_username(username)
+                    if not existing_user:
+                        logger.info(f"Creating default user: {username} with role {role.value}")
+                        await user_service.create_user(username, "vastdata", role)
+                    else:
+                        logger.debug(f"Default user {username} already exists")
+                
+                logger.info("✅ Default users verified")
+            except Exception as e:
+                logger.warning(f"Could not initialize default users: {e}")
         
         logger.info("TAMS API startup complete")
         yield
@@ -200,6 +227,8 @@ app.include_router(objects_router)
 app.include_router(service_router)
 app.include_router(storage_backends_router)
 app.include_router(auth_router)
+app.include_router(webhooks_router)
+app.include_router(hls_router)
 
 # OpenAPI JSON endpoint
 @app.get("/openapi.json")

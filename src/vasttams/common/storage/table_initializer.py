@@ -53,7 +53,7 @@ class TAMSTableInitializer:
         try:
             # Create tables in dependency order
             table_order = [
-                "users", "api_tokens", "refresh_tokens", "auth_logs",  # Auth tables first
+                "users", "api_tokens", "refresh_tokens", "auth_logs", "auth_provider_configs",  # Auth tables first
                 "storage_backends",  # Storage configuration tables
                 "sources", "flows", "objects",  # Core entity tables
                 "segments", "flow_object_references",  # Relationship tables

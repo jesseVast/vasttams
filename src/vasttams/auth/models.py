@@ -19,12 +19,19 @@ class AuthMethod(str, Enum):
     URL_TOKEN = "url_token"  # API key in query
     NONE = "none"          # No authentication
 
+class UserRole(str, Enum):
+    """User roles for RBAC"""
+    ADMIN = "admin"        # Full access to all operations
+    EDITOR = "editor"      # Read + write (no delete)
+    VIEWER = "viewer"       # Read-only access
+
 class AuthResult(BaseModel):
     """Result of authentication attempt"""
     success: bool
     user_id: Optional[str] = None
     username: Optional[str] = None
     auth_method: Optional[AuthMethod] = None
+    role: Optional[UserRole] = None
     metadata: Dict[str, Any] = {}
     error: Optional[str] = None
 
@@ -39,9 +46,10 @@ class AuthConfig(BaseModel):
     require_auth: bool = False
 
 class UserSession(BaseModel):
-    """Simple user session (no roles/permissions)"""
+    """User session with role-based permissions"""
     user_id: str
     username: str
+    role: UserRole
     auth_method: AuthMethod
     created_at: datetime
     expires_at: Optional[datetime] = None
@@ -53,6 +61,7 @@ class User(BaseModel):
     user_id: str
     username: str
     password_hash: Optional[str] = None
+    role: UserRole = UserRole.VIEWER
     auth_method: AuthMethod = AuthMethod.BASIC
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

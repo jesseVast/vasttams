@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Typography, Paper, Box } from '@mui/material';
+import { Container, Typography, Paper, Box, CircularProgress } from '@mui/material';
 import { authService, sourceService, flowService, userService } from '../services/api';
 
 interface Statistics {
@@ -55,8 +55,9 @@ const Dashboard: React.FC = () => {
       </Box>
 
       {stats.loading ? (
-        <Box sx={{ mt: 3 }}>
-          <Typography>Loading statistics...</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+          <CircularProgress />
+          <Typography sx={{ ml: 2 }}>Loading statistics...</Typography>
         </Box>
       ) : (
         <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mt: 2 }}>

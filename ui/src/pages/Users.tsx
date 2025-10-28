@@ -20,6 +20,8 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  CircularProgress,
+  Box,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { User } from '../types';
@@ -27,6 +29,9 @@ import { userService } from '../services/api';
 
 const Users: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [newUser, setNewUser] = useState({ username: '', role: 'viewer' as const, password: '' });
 
@@ -36,30 +41,39 @@ const Users: React.FC = () => {
 
   const loadUsers = async () => {
     try {
+      setLoading(true);
       const data = await userService.list();
       setUsers(data);
     } catch (error) {
       console.error('Failed to load users:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCreate = async () => {
     try {
+      setCreating(true);
       await userService.create(newUser.username, newUser.role, newUser.password);
       setOpen(false);
       setNewUser({ username: '', role: 'viewer', password: '' });
       loadUsers();
     } catch (error) {
       console.error('Failed to create user:', error);
+    } finally {
+      setCreating(false);
     }
   };
 
   const handleDelete = async (username: string) => {
     try {
+      setDeleting(username);
       await userService.delete(username);
       loadUsers();
     } catch (error) {
       console.error('Failed to delete user:', error);
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -81,39 +95,47 @@ const Users: React.FC = () => {
         </Button>
       </div>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Username</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Created</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.user_id}>
-                <TableCell>{user.username}</TableCell>
-                <TableCell>
-                  <Chip label={user.role} color={getRoleColor(user.role)} size="small" />
-                </TableCell>
-                <TableCell>{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</TableCell>
-                <TableCell>
-                  <Button
-                    size="small"
-                    color="error"
-                    startIcon={<DeleteIcon />}
-                    onClick={() => handleDelete(user.username)}
-                  >
-                    Delete
-                  </Button>
-                </TableCell>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+          <CircularProgress />
+          <Typography sx={{ ml: 2 }}>Loading users...</Typography>
+        </Box>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Username</TableCell>
+                <TableCell>Role</TableCell>
+                <TableCell>Created</TableCell>
+                <TableCell>Actions</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {users.map((user) => (
+                <TableRow key={user.user_id}>
+                  <TableCell>{user.username}</TableCell>
+                  <TableCell>
+                    <Chip label={user.role} color={getRoleColor(user.role)} size="small" />
+                  </TableCell>
+                  <TableCell>{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</TableCell>
+                  <TableCell>
+                    <Button
+                      size="small"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={() => handleDelete(user.username)}
+                      disabled={deleting === user.username}
+                    >
+                      {deleting === user.username ? <CircularProgress size={16} /> : 'Delete'}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       <Dialog open={open} onClose={() => setOpen(false)}>
         <DialogTitle>Add User</DialogTitle>
@@ -151,8 +173,13 @@ const Users: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={handleCreate} variant="contained" sx={{ backgroundColor: '#616161', '&:hover': { backgroundColor: '#757575' } }}>
-            Create
+          <Button 
+            onClick={handleCreate} 
+            variant="contained" 
+            disabled={creating}
+            sx={{ backgroundColor: '#616161', '&:hover': { backgroundColor: '#757575' } }}
+          >
+            {creating ? <CircularProgress size={20} /> : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>

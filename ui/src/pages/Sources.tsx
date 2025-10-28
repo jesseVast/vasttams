@@ -21,6 +21,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  CircularProgress,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info';
@@ -29,6 +30,8 @@ import { sourceService } from '../services/api';
 
 const Sources: React.FC = () => {
   const [sources, setSources] = useState<Source[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedSource, setSelectedSource] = useState<Source | null>(null);
@@ -45,23 +48,27 @@ const Sources: React.FC = () => {
 
   const loadSources = async () => {
     try {
+      setLoading(true);
       const data = await sourceService.list();
       setSources(data);
     } catch (error) {
       console.error('Failed to load sources:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const generateUUID = () => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
       const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      const v = c === 'x' ? r : ((r & 0x3) | 0x8);
       return v.toString(16);
     });
   };
 
   const handleCreate = async () => {
     try {
+      setCreating(true);
       const id = generateUUID();
       const now = new Date().toISOString();
       const sourceData = {
@@ -78,6 +85,8 @@ const Sources: React.FC = () => {
       loadSources();
     } catch (error) {
       console.error('Failed to create source:', error);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -97,43 +106,50 @@ const Sources: React.FC = () => {
         </Button>
       </Box>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Label</TableCell>
-              <TableCell>Description</TableCell>
-              <TableCell>Format</TableCell>
-              <TableCell>Created</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {sources.map((source) => (
-              <TableRow key={source.id}>
-                <TableCell>{source.id}</TableCell>
-                <TableCell>{source.label || '-'}</TableCell>
-                <TableCell>{source.description || '-'}</TableCell>
-                <TableCell>{source.format}</TableCell>
-                <TableCell>{source.created ? new Date(source.created).toLocaleDateString() : '-'}</TableCell>
-                <TableCell>
-                  <Button
-                    size="small"
-                    startIcon={<InfoIcon />}
-                    onClick={() => {
-                      setSelectedSource(source);
-                      setDetailsOpen(true);
-                    }}
-                  >
-                    Details
-                  </Button>
-                </TableCell>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+          <CircularProgress />
+          <Typography sx={{ ml: 2 }}>Loading sources...</Typography>
+        </Box>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>ID</TableCell>
+                <TableCell>Label</TableCell>
+                <TableCell>Description</TableCell>
+                <TableCell>Format</TableCell>
+                <TableCell>Created</TableCell>
+                <TableCell>Actions</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {sources.map((source) => (
+                <TableRow key={source.id}>
+                  <TableCell>{source.id}</TableCell>
+                  <TableCell>{source.label || '-'}</TableCell>
+                  <TableCell>{source.description || '-'}</TableCell>
+                  <TableCell>{source.format}</TableCell>
+                  <TableCell>{source.created ? new Date(source.created).toLocaleDateString() : '-'}</TableCell>
+                  <TableCell>
+                    <Button
+                      size="small"
+                      startIcon={<InfoIcon />}
+                      onClick={() => {
+                        setSelectedSource(source);
+                        setDetailsOpen(true);
+                      }}
+                    >
+                      Details
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       <Dialog open={open} onClose={() => setOpen(false)}>
         <DialogTitle>Create Source</DialogTitle>
@@ -178,8 +194,13 @@ const Sources: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={handleCreate} variant="contained" sx={{ backgroundColor: '#616161', '&:hover': { backgroundColor: '#757575' } }}>
-            Create
+          <Button 
+            onClick={handleCreate} 
+            variant="contained" 
+            disabled={creating}
+            sx={{ backgroundColor: '#616161', '&:hover': { backgroundColor: '#757575' } }}
+          >
+            {creating ? <CircularProgress size={20} /> : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>

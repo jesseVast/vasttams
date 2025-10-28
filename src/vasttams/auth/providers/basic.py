@@ -12,6 +12,7 @@ from ..models import User
 
 from .base import AuthProvider
 from ..models import AuthResult, AuthMethod, UserRole
+from ..user_service import UserService
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,10 @@ class BasicAuthProvider(AuthProvider):
     """HTTP Basic authentication provider with database support"""
     
     def __init__(self, vast_store=None, fallback_users: dict = None):
-        # Database store for persistent user authentication
+        # Initialize UserService if vast_store is provided
+        self.user_service = UserService(vast_store) if vast_store else None
+        
+        # Keep vast_store for backward compatibility
         self.vast_store = vast_store
         
         # Fallback in-memory users for development/testing
@@ -77,20 +81,16 @@ class BasicAuthProvider(AuthProvider):
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug("Adding user for basic auth: %s", username)
         
-        if self.vast_store:
-            # Add to database
-            import uuid
-            
-            user = User(
-                user_id=str(uuid.uuid4()),
-                username=username,
-                password_hash=self.hash_password(password),
-                is_active=True
-            )
-            success = await self.vast_store.create_user(user)
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug("User added to database: %s", "success" if success else "failed")
-            return success
+        if self.user_service:
+            # Add to database using UserService
+            try:
+                user = await self.user_service.create_user(username, password)
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug("User added to database: success")
+                return True
+            except Exception as e:
+                logger.error("Failed to add user to database: %s", e)
+                return False
         else:
             # Fallback to in-memory
             self.fallback_users[username] = self.hash_password(password)
@@ -103,18 +103,12 @@ class BasicAuthProvider(AuthProvider):
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug("Removing user from basic auth: %s", username)
         
-        if self.vast_store:
-            # Remove from database
-            user = await self.vast_store.get_user_by_username(username)
-            if user:
-                success = await self.vast_store.delete_user(user.user_id)
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("User removed from database: %s", "success" if success else "failed")
-                return success
-            else:
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("User not found in database: %s", username)
-            return False
+        if self.user_service:
+            # Remove from database using UserService
+            success = await self.user_service.delete_user(username)
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("User removed from database: %s", "success" if success else "failed")
+            return success
         else:
             # Fallback to in-memory
             if username in self.fallback_users:
@@ -146,10 +140,10 @@ class BasicAuthProvider(AuthProvider):
                 logger.debug("Processing basic auth for username: %s", username)
             
             # Try database authentication first
-            if self.vast_store:
-                user = await self.vast_store.get_user_by_username(username)
-                if user and user.is_active and user.password_hash:
-                    if self.verify_password(password, user.password_hash):
+            if self.user_service:
+                user = await self.user_service.get_user_by_username(username)
+                if user and user.password_hash:
+                    if self.user_service.verify_password(password, user.password_hash):
                         # Extract role from user
                         role = getattr(user, 'role', UserRole.VIEWER)
                         
@@ -170,7 +164,7 @@ class BasicAuthProvider(AuthProvider):
                             logger.debug("Database password verification failed for user: %s", username)
                 else:
                     if logger.isEnabledFor(logging.DEBUG):
-                        logger.debug("User not found or inactive in database: %s", username)
+                        logger.debug("User not found in database: %s", username)
             
             # Fallback to in-memory authentication
             if username in self.fallback_users:

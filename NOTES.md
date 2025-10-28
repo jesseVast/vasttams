@@ -33,7 +33,41 @@ notes/
 
 ## 🎯 **CURRENT STATUS**
 
-### **📋 NEW: SOURCE CASCADE DELETE & TAMS 8.0 COMPLIANCE UPDATES** (October 27, 2025)
+### **📋 NEW: S3 PRESIGNED URL GENERATION & DOUBLE SLASH FIX** (October 28, 2025)
+**Date**: October 28, 2025  
+**Task**: Implement real S3 presigned URL generation and fix double slash issues in S3 key paths  
+**Status**: ✅ **COMPLETED** - End-to-end S3 upload workflow working
+
+#### **🏗️ S3 Presigned URL Implementation**
+- **Problem**: Flow storage endpoint was returning mock data instead of real S3 presigned URLs
+- **Solution**: Implemented real S3 presigned URL generation using VAST S3 client
+- **Result**: Complete S3 object upload workflow from source → flow → segment working
+- **TAMS Compliance**: Follows TAMS specification for storage allocation and presigned URLs
+
+#### **🔧 Key Implementation Details**
+- **Real Presigned URLs**: Replaced mock allocation with `s3_client.generate_presigned_url()` calls
+- **Storage Path Format**: `{tams_storage_path}/{year}/{month}/{date}/{object_id}`
+- **Path Normalization**: Strip leading/trailing slashes to avoid double slashes in S3 keys
+- **Key Prefix Support**: Integrate `s3_root_path` as `key_prefix` in S3Config for namespace isolation
+
+#### **📊 Files Updated**
+- `src/vasttams/common/storage/main_service.py` - Real S3 presigned URL generation
+- `src/vasttams/core/dependencies.py` - Normalized key_prefix handling
+- `src/vasttams/segments/service.py` - Consistent path normalization
+- `tests/s3_upload_test.py` - Updated for proper API response format
+
+#### **✅ Test Results**
+- ✅ S3 presigned URL generation working
+- ✅ Upload to S3 successful (200 OK)
+- ✅ Segment creation successful
+- ✅ Complete workflow tested and validated
+
+#### **🎯 S3 Key Path Format**
+- **Storage Path**: `tams/2025/10/28/{object_id}` (normalized, no leading slash)
+- **Full S3 Key**: `tams8-dev/tams/2025/10/28/{object_id}` (with key_prefix)
+- **No Double Slashes**: Path normalization applied in 3 locations for consistency
+
+### **📋 SOURCE CASCADE DELETE & TAMS 8.0 COMPLIANCE UPDATES** (October 27, 2025)
 **Date**: October 27, 2025  
 **Task**: Implement source cascade delete functionality and update tests for TAMS 8.0 compliance  
 **Status**: ✅ **COMPLETED** - Cascade delete implemented and tests updated

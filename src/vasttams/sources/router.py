@@ -84,19 +84,22 @@ async def create_new_source(
 ):
     """Create a new source"""
     try:
-        # Log successful validation
-        logger.info("Creating source with ID: %s, format: %s", source.id, source.format)
+        # Get username for logging
+        username = user_session.username if user_session else "system"
+        
+        # Log successful validation with user context
+        logger.info("User %s creating source with ID: %s, format: %s", username, source.id, source.format)
         
         # Validate C2PA provenance if present in tags
         if source.tags and source.tags.root:
             tags_dict = source.tags.root
             c2pa_is_valid = validate_c2pa_in_metadata(tags_dict)
             if not c2pa_is_valid:
-                logger.warning("Source %s has invalid C2PA metadata in tags", source.id)
+                logger.warning("User %s: Source %s has invalid C2PA metadata in tags", username, source.id)
         
         success = await storage.create_source(source)
         if not success:
-            logger.error("Storage layer failed to create source %s", source.id)
+            logger.error("User %s: Storage layer failed to create source %s", username, source.id)
             raise HTTPException(status_code=500, detail="Failed to create source")
         
         # Emit source created event
@@ -105,9 +108,9 @@ async def create_new_source(
             event_manager = EventManager(vast_db)
             await event_manager.emit_source_event('sources/created', source)
         except Exception as e:
-            logger.warning("Failed to emit source created event: %s", e)
+            logger.warning("User %s: Failed to emit source created event: %s", username, e)
         
-        logger.info("Successfully created source: %s", source.id)
+        logger.info("User %s successfully created source: %s", username, source.id)
         return source
     except ValidationError as e:
         # This shouldn't happen as FastAPI handles validation before the function,

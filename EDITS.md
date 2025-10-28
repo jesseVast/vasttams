@@ -30,6 +30,50 @@ notes/
 
 ## 📝 **RECENT EDITS**
 
+## Edit #45: S3 Presigned URL Generation & Double Slash Fix (October 28, 2025)
+
+### Summary
+Implemented real S3 presigned URL generation to replace mock storage allocation, and fixed double slash issues in S3 key path construction. Complete end-to-end S3 object upload workflow is now working.
+
+### Files Modified
+- **src/vasttams/common/storage/main_service.py**: 
+  - Replaced mock storage allocation with real S3 presigned URL generation
+  - Fixed storage path construction to avoid double slashes
+  - Normalized tams_storage_path by stripping leading/trailing slashes
+- **src/vasttams/core/dependencies.py**:
+  - Normalized s3_root_path by stripping leading/trailing slashes when used as key_prefix
+  - Prevents double slashes in S3 key paths
+- **src/vasttams/segments/service.py**:
+  - Applied same path normalization fix for consistency
+- **tests/s3_upload_test.py**:
+  - Fixed to parse presigned URL from FlowStorage response format
+  - Added proper TimeRange object creation for segments
+  - Reduced presigned URL limit from 50 to 1 for testing
+
+### Key Changes
+1. **Real S3 Presigned URL Generation**: Replaced mock allocation with actual `s3_client.generate_presigned_url()` calls
+   - Generated TAMS-compliant storage paths: `{tams_storage_path}/{year}/{month}/{date}/{object_id}`
+   - Integrated with VAST S3 client for real presigned URL generation
+2. **Double Slash Fix**: Normalized all path construction to avoid `//` in S3 keys
+   - Strip leading/trailing slashes from `tams_storage_path` before concatenation
+   - Strip leading/trailing slashes from `s3_root_path` when used as `key_prefix`
+3. **End-to-End Workflow**: Complete S3 upload workflow now working
+   - Source creation → Flow creation → Presigned URL → S3 upload → Segment creation
+4. **Test Updates**: Updated test script to handle proper API response format
+   - Parse presigned URL from `media_objects` array
+   - Use proper TimeRange object for segment creation
+
+### Test Results
+- ✅ S3 presigned URL generation working
+- ✅ Upload to S3 successful (200 OK)
+- ✅ Segment creation successful
+- ✅ Complete workflow tested and validated
+
+### Technical Details
+- **Storage Path Format**: `tams/2025/10/28/{object_id}` (no leading slash)
+- **Full S3 Key**: `tams8-dev/tams/2025/10/28/{object_id}` (with key_prefix)
+- **Path Normalization**: Applied in 3 locations to ensure consistency
+
 ## Edit #44: Source Cascade Delete & TAMS 8.0 Compliance Updates (October 27, 2025)
 
 ### Summary

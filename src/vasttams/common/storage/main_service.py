@@ -448,26 +448,63 @@ class TAMSStorageService(StorageInterface):
     
     # Flow storage operations
     async def allocate_flow_storage(self, flow_id: str, storage_request: FlowStoragePost) -> FlowStorage:
-        """Allocate storage for a flow"""
+        """Allocate storage for a flow with real S3 presigned URLs"""
         try:
-            # For now, return a mock storage allocation
-            # In a real implementation, this would create actual storage allocation
-            from ..models import MediaObject, HttpRequest
+            from ...service.storage_models import MediaObject, HttpRequest
+            from ...common.storage.timestamp_utils import get_tams_timestamp
+            import uuid
             
-            # Create a mock media object for testing
-            mock_media_object = MediaObject(
-                object_id=f"mock-object-{flow_id}",
-                put_url=HttpRequest(
-                    method="PUT",
-                    url=f"https://mock-storage.example.com/objects/{flow_id}",
-                    headers={"Content-Type": "application/octet-stream"}
-                ),
-                metadata={"storage_path": f"/flows/{flow_id}/media"}
+            # Generate object IDs
+            limit = storage_request.limit or 1
+            object_ids = [str(uuid.uuid4()) for _ in range(limit)]
+            
+            # Generate storage locations with presigned URLs
+            media_objects = []
+            for object_id in object_ids:
+                # Generate TAMS-compliant storage path
+                now = get_tams_timestamp()
+                year = str(now.year)
+                month = f"{now.month:02d}"
+                date = f"{now.day:02d}"
+                
+                # Use TAMS path format: {tams_storage_path}/{year}/{month}/{date}/{object_id}
+                # Normalize paths to avoid double slashes
+                # Remove leading/trailing slashes from tams_storage_path
+                tams_path = self.settings.tams_storage_path.strip('/')
+                storage_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
+                
+                # Generate presigned URL for upload
+                presigned_url = await self.generate_presigned_url(
+                    key=storage_path,
+                    operation="put_object",
+                    expiration=self.settings.s3_presigned_url_upload_timeout
+                )
+                
+                if not presigned_url:
+                    raise HTTPException(status_code=500, detail=f"Failed to generate presigned URL for object {object_id}")
+                
+                # Create MediaObject with the presigned URL
+                media_object = MediaObject(
+                    object_id=object_id,
+                    put_url=HttpRequest(
+                        url=presigned_url,
+                        headers={}
+                    ),
+                    metadata={"storage_path": storage_path}
+                )
+                
+                media_objects.append(media_object)
+            
+            # Create FlowStorage response
+            from ...service.storage_models import FlowStorage
+            flow_storage = FlowStorage(
+                flow_id=flow_id,
+                media_objects=media_objects
             )
             
-            return FlowStorage(
-                media_objects=[mock_media_object]
-            )
+            return flow_storage
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error("Failed to allocate storage for flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")

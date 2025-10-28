@@ -186,7 +186,7 @@ class TAMSStorageService(StorageInterface):
     async def get_storage_backends(self) -> List[StorageBackend]:
         """Get storage backends"""
         try:
-            from ..storagebackends.service import StorageBackendService
+            from ...storagebackends.service import StorageBackendService
             
             # Use the dedicated storage backend service
             backend_service = StorageBackendService(self.vast_db, self.s3_client)

@@ -53,22 +53,23 @@ class URLTokenProvider(AuthProvider):
         
         if self.vast_store:
             # Add to database
-            from app.models import ApiToken
-            
-            api_token = ApiToken(
-                token_id=token,
-                user_id=user_id,
-                token_name=description,
-                token_type="url_token",
-                token_hash=token,  # Store the actual token (in production, hash this)
-                created_at=datetime.now(timezone.utc),
-                expires_at=None,  # No expiration by default
-                is_active=True
-            )
-            success = await self.vast_store.create_api_token(api_token)
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug("Token added to database: %s", "success" if success else "failed")
-            return success
+            # Note: ApiToken model would need to be defined or imported from appropriate module
+            # For now, this is not implemented
+            logger.warning("ApiToken model import not available - token storage to database not implemented")
+            # TODO: Implement ApiToken model and database storage
+            # api_token = ApiToken(
+            #     token_id=token,
+            #     user_id=user_id,
+            #     token_name=description,
+            #     token_type="url_token",
+            #     token_hash=token,
+            #     created_at=datetime.now(timezone.utc),
+            #     expires_at=None,
+            #     is_active=True
+            # )
+            # success = await self.vast_store.create_api_token(api_token)
+            # return success
+            return False
         else:
             # Fallback to in-memory
             self.fallback_tokens[token] = {"user_id": user_id, "username": username}

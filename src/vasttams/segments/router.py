@@ -80,9 +80,9 @@ async def list_flow_segments(
                     filtered_urls = []
                     for url_info in segment.get_urls:
                         filtered_url = {
-                            'url': url_info.get('url'),
-                            'presigned': url_info.get('presigned'),
-                            'label': url_info.get('label')
+                            'url': url_info.get('url') if isinstance(url_info, dict) else getattr(url_info, 'url', None),
+                            'presigned': url_info.get('presigned') if isinstance(url_info, dict) else getattr(url_info, 'presigned', None),
+                            'label': url_info.get('label') if isinstance(url_info, dict) else getattr(url_info, 'label', None)
                         }
                         filtered_urls.append(filtered_url)
                     segment.get_urls = filtered_urls
@@ -93,6 +93,15 @@ async def list_flow_segments(
                 filtered_urls = []
                 
                 for url_info in segment.get_urls:
+                    # Normalize url_info to dict
+                    if not isinstance(url_info, dict):
+                        url_info = {
+                            'url': getattr(url_info, 'url', None),
+                            'label': getattr(url_info, 'label', None),
+                            'storage_id': getattr(url_info, 'storage_id', None),
+                            'presigned': getattr(url_info, 'presigned', None)
+                        }
+                    
                     # Apply accept_get_urls filtering (by label)
                     if accept_get_urls:
                         url_labels = [label.strip() for label in accept_get_urls.split(',') if label.strip()]

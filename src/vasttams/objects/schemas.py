@@ -16,6 +16,7 @@ def get_objects_schema() -> pa.Schema:
         pa.field("first_referenced_by_flow", pa.string(), nullable=True),
         pa.field("timerange", pa.string(), nullable=True),  # TAMS 8.0: Required timerange field
         pa.field("size", pa.int64(), nullable=True),
+        pa.field("metadata", pa.string(), nullable=True),  # JSON metadata (storage_id, storage_path, etc.)
         pa.field("created", pa.timestamp("ns"), nullable=True),
     ])
 

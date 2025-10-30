@@ -43,7 +43,7 @@ async def list_storage_backends(
 async def create_storage_backend(
     backend: StorageBackendPost,
     service: StorageBackendService = Depends(get_storage_backend_service),
-    user_session: UserSession = Depends(require_editor)
+    user_session: UserSession = Depends(require_admin)
 ):
     """Create a new storage backend"""
     return await service.create_storage_backend(backend)
@@ -72,7 +72,8 @@ async def get_storage_backend(
 async def update_storage_backend(
     backend_id: str,
     backend: StorageBackendPatch,
-    service: StorageBackendService = Depends(get_storage_backend_service)
+    service: StorageBackendService = Depends(get_storage_backend_service),
+    user_session: UserSession = Depends(require_admin)
 ):
     """Update a storage backend"""
     return await service.update_storage_backend(backend_id, backend)
@@ -81,7 +82,8 @@ async def update_storage_backend(
 @router.delete("/{backend_id}", status_code=204)
 async def delete_storage_backend(
     backend_id: str,
-    service: StorageBackendService = Depends(get_storage_backend_service)
+    service: StorageBackendService = Depends(get_storage_backend_service),
+    user_session: UserSession = Depends(require_admin)
 ):
     """Delete a storage backend (only if no objects reference it)"""
     await service.delete_storage_backend(backend_id)

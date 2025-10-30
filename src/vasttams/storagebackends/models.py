@@ -23,6 +23,9 @@ class StorageBackend(BaseModel):
     store_product: str = Field(..., description="The storage product name")
     region: Optional[str] = Field(None, description="The region in the cloud this storage backend resides")
     availability_zone: Optional[str] = Field(None, description="The availability zone in the cloud region")
+    endpoint_url: Optional[str] = Field(None, description="S3-compatible endpoint URL for this backend")
+    access_key: Optional[str] = Field(None, description="Access key for this backend (write-only)")
+    secret_key: Optional[str] = Field(None, description="Secret key for this backend (write-only)")
     default_storage: Optional[bool] = Field(False, description="If true, this is the default storage backend")
     created_at: Optional[datetime] = Field(None, description="Date-time the storage backend was created")
     updated_at: Optional[datetime] = Field(None, description="Date-time the storage backend was last updated")
@@ -81,6 +84,9 @@ class StorageBackendPost(BaseModel):
     store_product: str = Field(..., description="The storage product name")
     region: Optional[str] = Field(None, description="The region in the cloud this storage backend resides")
     availability_zone: Optional[str] = Field(None, description="The availability zone in the cloud region")
+    endpoint_url: Optional[str] = Field(None, description="S3-compatible endpoint URL for this backend")
+    access_key: Optional[str] = Field(None, description="Access key for this backend (write-only)")
+    secret_key: Optional[str] = Field(None, description="Secret key for this backend (write-only)")
     default_storage: Optional[bool] = Field(False, description="If true, this is the default storage backend")
 
 
@@ -94,6 +100,9 @@ class StorageBackendPatch(BaseModel):
     store_product: Optional[str] = Field(None, description="The storage product name")
     region: Optional[str] = Field(None, description="The region in the cloud this storage backend resides")
     availability_zone: Optional[str] = Field(None, description="The availability zone in the cloud region")
+    endpoint_url: Optional[str] = Field(None, description="S3-compatible endpoint URL for this backend")
+    access_key: Optional[str] = Field(None, description="Access key for this backend (write-only)")
+    secret_key: Optional[str] = Field(None, description="Secret key for this backend (write-only)")
     default_storage: Optional[bool] = Field(None, description="If true, this is the default storage backend")
 
 

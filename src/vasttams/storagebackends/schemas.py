@@ -18,6 +18,9 @@ def get_storage_backends_schema() -> pa.Schema:
         pa.field('store_product', pa.string()),
         pa.field('region', pa.string()),
         pa.field('availability_zone', pa.string()),
+        pa.field('endpoint_url', pa.string()),
+        pa.field('access_key', pa.string()),
+        pa.field('secret_key', pa.string()),
         pa.field('default_storage', pa.bool_()),
         pa.field('created_at', pa.timestamp('ns', tz='UTC')),
         pa.field('updated_at', pa.timestamp('ns', tz='UTC')),
@@ -28,7 +31,7 @@ def get_storage_backends_projections() -> List[List[str]]:
     """Get projections for storage_backends table"""
     return [
         ['id'],  # Base projection
-        ['id', 'label', 'store_type', 'provider'],  # Common query projection
+        ['id', 'label', 'store_type', 'provider', 'endpoint_url'],  # Common query projection
         ['id', 'default_storage'],  # Default storage lookup
     ]
 

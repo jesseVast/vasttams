@@ -65,23 +65,30 @@ class SegmentStorageService:
                         
                         # Create timerange object - required field
                         if timerange_start and timerange_end:
-                            from ..models.core import TimeRange
+                            from ..common.models import TimeRange
                             segment_data['timerange'] = TimeRange(value=f"{timerange_start}_{timerange_end}")
                         elif timerange_start:
-                            from ..models.core import TimeRange
+                            from ..common.models import TimeRange
                             segment_data['timerange'] = TimeRange(value=str(timerange_start))
                         else:
                             # Provide a default timerange if both are missing
-                            from ..models.core import TimeRange
+                            from ..common.models import TimeRange
                             segment_data['timerange'] = TimeRange(value="0:0")
                         
                         # Parse JSON fields
-                        for field in ['ts_offset', 'last_duration']:
+                        for field in ['ts_offset', 'last_duration', 'get_urls']:
                             if field in segment_data and isinstance(segment_data[field], str):
                                 try:
                                     import json
-                                    segment_data[field] = json.loads(segment_data[field])
-                                except (json.JSONDecodeError, TypeError):
+                                    parsed = json.loads(segment_data[field])
+                                    if field == 'get_urls' and isinstance(parsed, list):
+                                        # Convert list of dicts to GetUrl objects
+                                        from .models import GetUrl
+                                        segment_data[field] = [GetUrl(**url) if isinstance(url, dict) else url for url in parsed]
+                                    else:
+                                        segment_data[field] = parsed
+                                except (json.JSONDecodeError, TypeError) as e:
+                                    logger.debug(f"Failed to parse {field}: {e}")
                                     pass
                         
                         segments.append(FlowSegment(**segment_data))
@@ -96,14 +103,14 @@ class SegmentStorageService:
                         
                         # Create timerange object - required field
                         if timerange_start and timerange_end:
-                            from ..models.core import TimeRange
+                            from ..common.models import TimeRange
                             segment_data['timerange'] = TimeRange(value=f"{timerange_start}_{timerange_end}")
                         elif timerange_start:
-                            from ..models.core import TimeRange
+                            from ..common.models import TimeRange
                             segment_data['timerange'] = TimeRange(value=str(timerange_start))
                         else:
                             # Provide a default timerange if both are missing
-                            from ..models.core import TimeRange
+                            from ..common.models import TimeRange
                             segment_data['timerange'] = TimeRange(value="0:0")
                         
                         # Parse JSON fields
@@ -125,14 +132,14 @@ class SegmentStorageService:
                     
                     # Create timerange object - required field
                     if timerange_start and timerange_end:
-                        from ..models.core import TimeRange
+                        from ..common.models import TimeRange
                         segment_data['timerange'] = TimeRange(value=f"{timerange_start}_{timerange_end}")
                     elif timerange_start:
-                        from ..models.core import TimeRange
+                        from ..common.models import TimeRange
                         segment_data['timerange'] = TimeRange(value=str(timerange_start))
                     else:
                         # Provide a default timerange if both are missing
-                        from ..models.core import TimeRange
+                        from ..common.models import TimeRange
                         segment_data['timerange'] = TimeRange(value="0:0")
                     
                     # Parse JSON fields
@@ -144,6 +151,18 @@ class SegmentStorageService:
                             except (json.JSONDecodeError, TypeError):
                                 pass
                     segments.append(FlowSegment(**segment_data))
+            
+            # Populate get_urls if missing (per TAMS spec - service should auto-populate controlled URLs)
+            for segment in segments:
+                if not segment.get_urls or len(segment.get_urls) == 0:
+                    logger.debug(f"Auto-populating get_urls for segment with object_id: {segment.object_id}")
+                    # Generate get_urls for the object_id
+                    get_urls = await self._generate_get_urls(segment.object_id)
+                    if get_urls:
+                        logger.debug(f"Generated {len(get_urls)} get_urls for object_id: {segment.object_id}")
+                        segment.get_urls = get_urls
+                    else:
+                        logger.warning(f"Failed to generate get_urls for object_id: {segment.object_id}")
             
             return segments
         except Exception as e:
@@ -220,6 +239,23 @@ class SegmentStorageService:
         """Create storage allocation for a flow"""
         try:
             import uuid
+            import json
+            
+            # Get default storage backend
+            storage_id = None
+            if storage_request.storage_id:
+                storage_id = storage_request.storage_id
+            else:
+                # Get default storage backend
+                from ...storagebackends.service import StorageBackendService
+                backend_service = StorageBackendService(self.vast_db, self.s3_client)
+                backends = await backend_service.get_storage_backends()
+                default_backend = next((b for b in backends if b.default_storage), None)
+                if default_backend:
+                    storage_id = default_backend.id
+                    logger.debug(f"Using default storage backend: {storage_id}")
+                else:
+                    logger.warning("No default storage backend found, storage_id will be None")
             
             # Generate object IDs if not provided
             if storage_request.object_ids:
@@ -270,12 +306,19 @@ class SegmentStorageService:
                 
                 media_objects.append(media_object)
                 
-                # Create Object record in database for TAMS compliance
-                from ..models import Object
+                # Create Object record in database with storage_id and storage_path in metadata
+                from ..objects.models import Object
+                object_metadata = {
+                    "storage_path": storage_path
+                }
+                if storage_id:
+                    object_metadata["storage_id"] = storage_id
+                
                 obj = Object(
                     id=object_id,
                     referenced_by_flows=[flow_id],
                     first_referenced_by_flow=flow_id,
+                    metadata=object_metadata,
                     created=now
                 )
                 await self._create_object(obj)
@@ -312,7 +355,17 @@ class SegmentStorageService:
             if not rows or len(rows) == 0:
                 return None
             
-            return dict(rows[0]) if hasattr(rows[0], '__iter__') and not isinstance(rows[0], str) else rows[0]
+            obj_data = dict(rows[0]) if hasattr(rows[0], '__iter__') and not isinstance(rows[0], str) else rows[0]
+            
+            # Parse metadata JSON string if present
+            if 'metadata' in obj_data and isinstance(obj_data['metadata'], str):
+                try:
+                    import json
+                    obj_data['metadata'] = json.loads(obj_data['metadata'])
+                except (json.JSONDecodeError, TypeError):
+                    obj_data['metadata'] = None
+            
+            return obj_data
         except Exception as e:
             logger.error("Failed to get object %s: %s", object_id, e)
             return None
@@ -335,9 +388,24 @@ class SegmentStorageService:
             logger.error("Failed to create object: %s", e)
             return False
     
-    async def _generate_presigned_url(self, key: str, operation: str, expiration: int = 3600) -> Optional[str]:
-        """Generate presigned URL for S3 operations"""
+    async def _generate_presigned_url(self, key: str, operation: str, expiration: int = 3600, storage_backend: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """Generate presigned URL; prefer backend-specific endpoint/credentials if provided."""
         try:
+            if storage_backend and (storage_backend.get('endpoint_url') or storage_backend.get('access_key')):
+                from vasts3 import S3Client, S3Config
+                cfg = S3Config(
+                    endpoint_url=storage_backend.get('endpoint_url'),
+                    bucket_name=self.settings.s3_bucket_name,
+                    access_key=storage_backend.get('access_key'),
+                    secret_key=storage_backend.get('secret_key'),
+                    region=storage_backend.get('region') or self.settings.s3_region,
+                    use_ssl=self.settings.s3_use_ssl,
+                    chunk_size=self.settings.vaststore_s3_chunk_size,
+                    max_concurrent_parts=self.settings.vaststore_s3_max_concurrent_parts,
+                    key_prefix=self.settings.s3_root_path.strip('/') if getattr(self.settings, 's3_root_path', None) else None,
+                )
+                tmp_client = S3Client(cfg)
+                return tmp_client.generate_presigned_url(key=key, operation=operation, expiration=expiration)
             return self.s3_client.generate_presigned_url(
                 key=key,
                 operation=operation,
@@ -345,6 +413,117 @@ class SegmentStorageService:
             )
         except Exception as e:
             logger.error("Failed to generate presigned URL: %s", e)
+            return None
+    
+    async def _generate_get_urls(self, object_id: str) -> Optional[List[Dict[str, Any]]]:
+        """Generate get_urls for an object_id"""
+        try:
+            # Get the object to find its storage path and storage_id
+            obj_dict = await self._get_object(object_id)
+            
+            # Try to get storage path and storage_id from object metadata
+            storage_path = None
+            storage_id = None
+            if obj_dict:
+                # Handle both Object model (with _internal_metadata) and raw dict
+                metadata = None
+                if hasattr(obj_dict, '_internal_metadata'):
+                    metadata = obj_dict._internal_metadata
+                elif isinstance(obj_dict, dict):
+                    metadata_raw = obj_dict.get('metadata', {})
+                    if isinstance(metadata_raw, str):
+                        import json
+                        try:
+                            metadata = json.loads(metadata_raw)
+                        except:
+                            metadata = {}
+                    elif isinstance(metadata_raw, dict):
+                        metadata = metadata_raw
+                
+                if metadata and isinstance(metadata, dict):
+                    storage_path = metadata.get('storage_path')
+                    storage_id = metadata.get('storage_id')
+                
+                # If no storage path in metadata, reconstruct from created timestamp
+                if not storage_path:
+                    created = obj_dict.get('created') if isinstance(obj_dict, dict) else getattr(obj_dict, 'created', None)
+                    if created:
+                        # Parse created timestamp if it's a string
+                        if isinstance(created, str):
+                            from datetime import datetime
+                            try:
+                                dt = datetime.fromisoformat(created.replace('Z', '+00:00'))
+                            except:
+                                dt = get_tams_timestamp()
+                        else:
+                            dt = created if hasattr(created, 'year') else get_tams_timestamp()
+                        
+                        year = str(dt.year)
+                        month = f"{dt.month:02d}"
+                        date = f"{dt.day:02d}"
+                        tams_path = self.settings.tams_storage_path.strip('/')
+                        storage_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
+            
+            # Fallback: if object doesn't exist or path can't be determined, use current date
+            if not storage_path:
+                logger.warning(f"Object {object_id} not found or no storage path, using current date for path reconstruction")
+                now = get_tams_timestamp()
+                year = str(now.year)
+                month = f"{now.month:02d}"
+                date = f"{now.day:02d}"
+                tams_path = self.settings.tams_storage_path.strip('/')
+                storage_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
+            
+            # Generate presigned GET URL
+            backend_info = None
+            if storage_id:
+                try:
+                    from ..storagebackends.service import StorageBackendService
+                    backend_service = StorageBackendService(self.vast_db, self.s3_client)
+                    backend = await backend_service.get_storage_backend(storage_id)
+                    if backend:
+                        backend_info = backend.model_dump()
+                except Exception as e:
+                    logger.warning(f"Failed to load storage backend {storage_id}: {e}")
+            get_url = await self._generate_presigned_url(
+                key=storage_path,
+                operation="get_object",
+                expiration=self.settings.s3_presigned_url_download_timeout if hasattr(self.settings, 's3_presigned_url_download_timeout') else 3600,
+                storage_backend=backend_info
+            )
+            
+            if not get_url:
+                return None
+            
+            # If no storage_id from object metadata, try to get default storage backend
+            if not storage_id:
+                from ...storagebackends.service import StorageBackendService
+                backend_service = StorageBackendService(self.vast_db, self.s3_client)
+                backends = await backend_service.get_storage_backends()
+                default_backend = next((b for b in backends if b.default_storage), None)
+                if default_backend:
+                    storage_id = default_backend.id
+                    logger.debug(f"Using default storage backend for get_urls: {storage_id}")
+                else:
+                    # Generate a valid TAMS UUID as last resort
+                    import uuid
+                    storage_id = str(uuid.uuid4())
+                    logger.warning(f"No storage_id found for object {object_id}, generated UUID: {storage_id}")
+            
+            # Return get_urls in TAMS format
+            from .models import GetUrl
+            get_url_obj = GetUrl(
+                url=get_url,
+                storage_id=storage_id,
+                presigned=True,
+                controlled=True,
+                store_type="http_object_store",
+                provider=self.settings.s3_provider if hasattr(self.settings, 's3_provider') else "aws",
+                store_product=self.settings.s3_store_product if hasattr(self.settings, 's3_store_product') else "s3"
+            )
+            return [get_url_obj]
+        except Exception as e:
+            logger.error(f"Failed to generate get_urls for object {object_id}: {e}")
             return None
     
     async def get_segments_with_flow_and_object_details(self, flow_id: str) -> List[Dict[str, Any]]:

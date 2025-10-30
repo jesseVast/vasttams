@@ -25,6 +25,17 @@ settings = get_settings()
 BASE_URL = f"http://{settings.host}:{settings.port}"
 
 
+def _login_admin_headers():
+    resp = requests.post(
+        f"{BASE_URL}/auth/login",
+        json={"username": "admin", "password": "vastdata"}
+    )
+    if resp.status_code != 200:
+        return {}
+    token = resp.json().get("access_token")
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 @pytest.fixture(scope="module")
 def api_available():
     """Check if API server is running"""
@@ -45,7 +56,8 @@ class TestStorageBackendEndpointCRUD:
             pytest.skip("API not available")
         
         # Call the API
-        response = requests.get(f"{BASE_URL}/service/storage-backends")
+        headers = _login_admin_headers()
+        response = requests.get(f"{BASE_URL}/service/storage-backends", headers=headers)
         assert response.status_code == 200
         
         backends = response.json()
@@ -57,7 +69,8 @@ class TestStorageBackendEndpointCRUD:
             pytest.skip("API not available")
         
         # First get all backends
-        list_response = requests.get(f"{BASE_URL}/service/storage-backends")
+        headers = _login_admin_headers()
+        list_response = requests.get(f"{BASE_URL}/service/storage-backends", headers=headers)
         assert list_response.status_code == 200
         
         backends = list_response.json()
@@ -66,7 +79,7 @@ class TestStorageBackendEndpointCRUD:
         
         # Get the first backend
         backend_id = backends[0]["id"]
-        response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}")
+        response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
         assert response.status_code == 200
         
         backend = response.json()
@@ -86,9 +99,11 @@ class TestStorageBackendEndpointCRUD:
             "default_storage": False
         }
         
+        headers = _login_admin_headers()
         response = requests.post(
             f"{BASE_URL}/service/storage-backends",
-            json=backend_data
+            json=backend_data,
+            headers=headers
         )
         
         # May succeed or fail with validation error
@@ -99,7 +114,7 @@ class TestStorageBackendEndpointCRUD:
             backend_id = created["id"]
             
             # Cleanup
-            requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}")
+            requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
 
 
 @pytest.mark.usefixtures("api_available")
@@ -124,9 +139,11 @@ class TestStorageBackendDeleteValidation:
                 "default_storage": False
             }
             
+            headers = _login_admin_headers()
             create_response = requests.post(
                 f"{BASE_URL}/service/storage-backends",
-                json=backend_data
+                json=backend_data,
+                headers=headers
             )
             
             if create_response.status_code != 201:
@@ -137,12 +154,13 @@ class TestStorageBackendDeleteValidation:
             
             # Delete should succeed (no objects reference it)
             delete_response = requests.delete(
-                f"{BASE_URL}/service/storage-backends/{backend_id}"
+                f"{BASE_URL}/service/storage-backends/{backend_id}",
+                headers=headers
             )
             assert delete_response.status_code == 204
             
         finally:
             # Extra cleanup
             if backend_id:
-                requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}")
+                requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
 

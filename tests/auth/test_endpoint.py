@@ -24,6 +24,17 @@ settings = get_settings()
 BASE_URL = f"http://{settings.host}:{settings.port}"
 
 
+def _login_admin_headers():
+    resp = requests.post(
+        f"{BASE_URL}/auth/login",
+        json={"username": "admin", "password": "vastdata"}
+    )
+    if resp.status_code != 200:
+        return {}
+    token = resp.json().get("access_token")
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 @pytest.fixture(scope="module")
 def api_available():
     """Check if API server is running"""
@@ -43,7 +54,8 @@ class TestAuthEndpoint:
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/auth/providers")
+        headers = _login_admin_headers()
+        response = requests.get(f"{BASE_URL}/auth/providers", headers=headers)
         assert response.status_code == 200
         
         providers = response.json()
@@ -54,7 +66,8 @@ class TestAuthEndpoint:
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/auth/providers/bearer")
+        headers = _login_admin_headers()
+        response = requests.get(f"{BASE_URL}/auth/providers/bearer", headers=headers)
         
         # May succeed or fail with 404
         assert response.status_code in [200, 404]
@@ -69,7 +82,8 @@ class TestAuthEndpoint:
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/auth/providers/basic")
+        headers = _login_admin_headers()
+        response = requests.get(f"{BASE_URL}/auth/providers/basic", headers=headers)
         
         # May succeed or fail with 404
         assert response.status_code in [200, 404]
@@ -88,9 +102,11 @@ class TestAuthEndpoint:
             "enabled": True
         }
         
+        headers = _login_admin_headers()
         response = requests.put(
             f"{BASE_URL}/auth/providers/bearer",
-            json=update_data
+            json=update_data,
+            headers=headers
         )
         
         # May succeed, fail with 404, or fail with 500 (internal error)
@@ -101,7 +117,8 @@ class TestAuthEndpoint:
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.post(f"{BASE_URL}/auth/providers/reload")
+        headers = _login_admin_headers()
+        response = requests.post(f"{BASE_URL}/auth/providers/reload", headers=headers)
         assert response.status_code in [200, 500]
         
         if response.status_code == 200:

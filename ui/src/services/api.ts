@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User, Source, Flow, Segment, AuthResponse } from '../types';
+import { User, Source, Flow, Segment, AuthResponse, AnalyticsSummary } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -146,6 +146,23 @@ export const storageBackendService = {
 
   delete: async (id: string): Promise<void> => {
     await api.delete(`/service/storage-backends/${id}`);
+  },
+};
+
+export const analyticsService = {
+  getSummary: async (): Promise<AnalyticsSummary> => {
+    const response = await api.get('/analytics/summary');
+    return response.data;
+  },
+
+  getSourceAnalytics: async (): Promise<any[]> => {
+    const response = await api.get('/analytics/sources');
+    return response.data || [];
+  },
+
+  getFlowAnalytics: async (): Promise<any[]> => {
+    const response = await api.get('/analytics/flows');
+    return response.data || [];
   },
 };
 

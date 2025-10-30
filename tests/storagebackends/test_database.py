@@ -25,6 +25,17 @@ settings = get_settings()
 BASE_URL = f"http://{settings.host}:{settings.port}"
 
 
+def _login_admin_headers():
+    resp = requests.post(
+        f"{BASE_URL}/auth/login",
+        json={"username": "admin", "password": "vastdata"}
+    )
+    if resp.status_code != 200:
+        return {}
+    token = resp.json().get("access_token")
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 @pytest.fixture(scope="module")
 def api_available():
     """Check if API server is running"""
@@ -58,14 +69,15 @@ class TestStorageBackendDatabaseIntegration:
                 "default_storage": False
             }
             
-            response = requests.post(f"{BASE_URL}/service/storage-backends", json=backend_data)
+            headers = _login_admin_headers()
+            response = requests.post(f"{BASE_URL}/service/storage-backends", json=backend_data, headers=headers)
             assert response.status_code == 201, f"Failed to create backend: {response.text}"
             
             created = response.json()
             backend_id = created["id"]
             
             # Verify it's in the database
-            get_response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}")
+            get_response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
             assert get_response.status_code == 200
             
             retrieved = get_response.json()
@@ -77,14 +89,15 @@ class TestStorageBackendDatabaseIntegration:
         finally:
             # Cleanup
             if backend_id:
-                requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}")
+                requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
     
     def test_list_storage_backends_from_database(self, api_available):
         """Test listing storage backends from the database"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/service/storage-backends")
+        headers = _login_admin_headers()
+        response = requests.get(f"{BASE_URL}/service/storage-backends", headers=headers)
         assert response.status_code == 200
         
         backends = response.json()
@@ -115,9 +128,11 @@ class TestStorageBackendDatabaseIntegration:
                 "default_storage": False
             }
             
+            headers = _login_admin_headers()
             create_response = requests.post(
                 f"{BASE_URL}/service/storage-backends",
-                json=backend_data
+                json=backend_data,
+                headers=headers
             )
             
             if create_response.status_code != 201:
@@ -134,12 +149,13 @@ class TestStorageBackendDatabaseIntegration:
             
             update_response = requests.put(
                 f"{BASE_URL}/service/storage-backends/{backend_id}",
-                json=update_data
+                json=update_data,
+                headers=headers
             )
             assert update_response.status_code == 200
             
             # Verify update persisted
-            get_response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}")
+            get_response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
             assert get_response.status_code == 200
             
             updated = get_response.json()
@@ -149,5 +165,5 @@ class TestStorageBackendDatabaseIntegration:
         finally:
             # Cleanup
             if backend_id:
-                requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}")
+                requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
 

@@ -31,15 +31,26 @@ export interface Flow {
 }
 
 export interface Segment {
-  id: string;
-  flow_id: string;
   object_id: string;
   timerange: {
-    start: string;
-    end: string;
+    value: string;  // TAMS format: "[start_end)" or "start_end"
   };
-  created?: string;
-  updated?: string;
+  ts_offset?: {
+    value: string;  // Optional timestamp offset
+  };
+  last_duration?: {
+    value: string;  // Optional last duration
+  };
+  sample_offset?: number;
+  sample_count?: number;
+  get_urls?: Array<{
+    url: string;
+    storage_id?: string;
+    presigned?: boolean;
+    label?: string;
+    controlled?: boolean;
+  }>;
+  key_frame_count?: number;
 }
 
 export interface AuthResponse {
@@ -71,5 +82,52 @@ export interface StorageBackend {
   region?: string;
   availability_zone?: string;
   default_storage?: boolean;
+}
+
+export interface CountStatistics {
+  total_sources: number;
+  total_flows: number;
+  total_segments: number;
+  total_objects: number;
+  flows_per_source_avg: number;
+  segments_per_flow_avg: number;
+}
+
+export interface StorageStatistics {
+  total_size_bytes: number;
+  total_size_mb: number;
+  total_size_gb: number;
+  average_size_bytes: number;
+  min_size_bytes: number | null;
+  max_size_bytes: number | null;
+  object_count_with_size: number;
+}
+
+export interface FormatBreakdown {
+  video_flows: number;
+  audio_flows: number;
+  image_flows: number;
+  data_flows: number;
+  multi_flows: number;
+  total_flows: number;
+}
+
+export interface TimeStatistics {
+  earliest_source_created: string | null;
+  latest_source_created: string | null;
+  earliest_flow_created: string | null;
+  latest_flow_created: string | null;
+  earliest_segment_created: string | null;
+  latest_segment_created: string | null;
+  earliest_object_created: string | null;
+  latest_object_created: string | null;
+}
+
+export interface AnalyticsSummary {
+  counts: CountStatistics;
+  storage: StorageStatistics;
+  formats: FormatBreakdown;
+  time: TimeStatistics;
+  generated_at: string;
 }
 

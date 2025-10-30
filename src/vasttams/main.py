@@ -54,6 +54,7 @@ from .storagebackends.router import router as storage_backends_router
 from .auth.router import router as auth_router, login_router, users_router
 from .webhooks.router import router as webhooks_router
 from .hls.router import router as hls_router
+from .analytics.router import router as analytics_router
 
 from .core.dependencies import get_vast_db, get_s3_client
 from .core.telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
@@ -131,6 +132,34 @@ async def lifespan(app: FastAPI):
                 logger.info("✅ Default users verified")
             except Exception as e:
                 logger.warning(f"Could not initialize default users: {e}")
+            
+            # Initialize default storage backend if none exists and S3 config present
+            try:
+                from .storagebackends.service import StorageBackendService
+                settings = get_settings()
+                backend_service = StorageBackendService(vast_db, get_s3_client())
+                existing = await backend_service.get_storage_backends()
+                if not existing and settings.s3_endpoint_url and settings.s3_bucket_name:
+                    from .storagebackends.models import StorageBackendPost
+                    logger.info("No storage backends found. Creating default from S3 config...")
+                    backend_post = StorageBackendPost(
+                        label="default-s3",
+                        store_type="http_object_store",
+                        provider=getattr(settings, 's3_provider', 'minio'),
+                        store_product=getattr(settings, 's3_store_product', 'minio'),
+                        region=settings.s3_region,
+                        availability_zone=None,
+                        endpoint_url=settings.s3_endpoint_url,
+                        access_key=settings.s3_access_key_id,
+                        secret_key=settings.s3_secret_access_key,
+                        default_storage=True
+                    )
+                    await backend_service.create_storage_backend(backend_post)
+                    logger.info("✅ Default storage backend created")
+                else:
+                    logger.info("Storage backends present or S3 config missing; skipping default creation")
+            except Exception as e:
+                logger.warning(f"Could not initialize default storage backend: {e}")
         
         logger.info("TAMS API startup complete")
         yield
@@ -256,6 +285,7 @@ app.include_router(login_router)
 app.include_router(users_router)
 app.include_router(webhooks_router)
 app.include_router(hls_router)
+app.include_router(analytics_router)
 
 # OpenAPI JSON endpoint
 @app.get("/openapi.json")

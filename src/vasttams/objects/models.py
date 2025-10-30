@@ -22,6 +22,9 @@ class Object(BaseModel):
     size: Optional[int] = Field(None, ge=0, description="Size of the media object in bytes")
     created: Optional[datetime] = Field(None, description="Date-time the media object was created")
     
+    # NOTE: metadata is stored in database but NOT exposed in API responses per TAMS spec
+    # (object.json has unevaluatedProperties: false)
+    
     @field_validator('id')
     @classmethod
     def validate_id(cls, v: str) -> str:

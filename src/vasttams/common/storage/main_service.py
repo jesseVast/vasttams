@@ -6,6 +6,7 @@ the focused storage services into a unified interface.
 """
 
 import logging
+import json
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import uuid
@@ -218,9 +219,27 @@ class TAMSStorageService(StorageInterface):
         """Check if a flow is read-only"""
         return await self.flow_service.check_flow_read_only(flow_id)
     
-    async def generate_presigned_url(self, key: str, operation: str, expiration: int = 3600) -> Optional[str]:
-        """Generate presigned URL for S3 operations"""
+    async def generate_presigned_url(self, key: str, operation: str, expiration: int = 3600, storage_backend: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """Generate presigned URL for S3 operations, preferring provided storage backend credentials."""
         try:
+            if storage_backend and (storage_backend.get('endpoint_url') or storage_backend.get('access_key')):
+                # Build a temporary S3 client using backend-specific config
+                from vasts3 import S3Client, S3Config
+                settings = self.settings
+                cfg = S3Config(
+                    endpoint_url=storage_backend.get('endpoint_url') or settings.s3_endpoint_url,
+                    bucket_name=settings.s3_bucket_name,
+                    access_key=storage_backend.get('access_key') or settings.s3_access_key_id,
+                    secret_key=storage_backend.get('secret_key') or settings.s3_secret_access_key,
+                    region=storage_backend.get('region') or settings.s3_region,
+                    use_ssl=settings.s3_use_ssl,
+                    chunk_size=settings.vaststore_s3_chunk_size,
+                    max_concurrent_parts=settings.vaststore_s3_max_concurrent_parts,
+                    key_prefix=getattr(settings, 's3_root_path', None).strip('/') if getattr(settings, 's3_root_path', None) else None,
+                )
+                tmp_client = S3Client(cfg)
+                return tmp_client.generate_presigned_url(key=key, operation=operation, expiration=expiration)
+            # Fallback to default client
             return self.s3_client.generate_presigned_url(
                 key=key,
                 operation=operation,
@@ -453,6 +472,17 @@ class TAMSStorageService(StorageInterface):
             from ...service.storage_models import MediaObject, HttpRequest
             from ...common.storage.timestamp_utils import get_tams_timestamp
             import uuid
+            backend_info = None
+            # If a storage_id was specified, fetch that backend to use its endpoint/credentials
+            if getattr(storage_request, 'storage_id', None):
+                try:
+                    from ...storagebackends.service import StorageBackendService
+                    backend_service = StorageBackendService(self.vast_db, self.s3_client)
+                    backend = await backend_service.get_storage_backend(storage_request.storage_id)
+                    if backend:
+                        backend_info = backend.model_dump()
+                except Exception as e:
+                    logger.warning(f"Failed to load storage backend {storage_request.storage_id}: {e}")
             
             # Generate object IDs
             limit = storage_request.limit or 1
@@ -477,7 +507,8 @@ class TAMSStorageService(StorageInterface):
                 presigned_url = await self.generate_presigned_url(
                     key=storage_path,
                     operation="put_object",
-                    expiration=self.settings.s3_presigned_url_upload_timeout
+                    expiration=self.settings.s3_presigned_url_upload_timeout,
+                    storage_backend=backend_info
                 )
                 
                 if not presigned_url:
@@ -494,6 +525,27 @@ class TAMSStorageService(StorageInterface):
                 )
                 
                 media_objects.append(media_object)
+
+                # Persist object row so segments can reference and URLs can be generated dynamically
+                try:
+                    metadata = {"storage_path": storage_path}
+                    if backend_info and backend_info.get('id'):
+                        metadata["storage_id"] = backend_info['id']
+                    # Build raw row dict (avoid Pydantic Object model to bypass timerange requirement)
+                    obj_row = {
+                        "id": object_id,
+                        "referenced_by_flows": json.dumps([flow_id]),
+                        "first_referenced_by_flow": flow_id,
+                        "timerange": None,
+                        "size": None,
+                        "metadata": json.dumps(metadata),
+                        "created": get_tams_timestamp(),
+                    }
+                    # Convert timestamps to PyArrow format
+                    obj_row = prepare_data_for_pyarrow(obj_row)
+                    self.vast_db.insert_record("objects", obj_row)
+                except Exception as e:
+                    logger.warning(f"Failed to persist object {object_id}: {e}")
             
             # Create FlowStorage response
             from ...service.storage_models import FlowStorage

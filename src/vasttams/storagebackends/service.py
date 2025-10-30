@@ -51,6 +51,9 @@ class StorageBackendService:
                                 backend_data[column] = value
                         
                         if backend_data:
+                            # Mask secrets in responses
+                            backend_data['access_key'] = None
+                            backend_data['secret_key'] = None
                             backends.append(StorageBackend(**backend_data))
                 elif isinstance(data, list):
                     for row in data:
@@ -61,6 +64,12 @@ class StorageBackendService:
                 for row in result if isinstance(result, list) else []:
                     backend_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
                     if backend_data:
+                        backend_data['access_key'] = None
+                        backend_data['secret_key'] = None
+                        backends.append(StorageBackend(**backend_data))
+                    if backend_data:
+                        backend_data['access_key'] = None
+                        backend_data['secret_key'] = None
                         backends.append(StorageBackend(**backend_data))
             
             return backends
@@ -93,16 +102,22 @@ class StorageBackendService:
                             
                             backend_data[column] = value
                     
+                    backend_data['access_key'] = None
+                    backend_data['secret_key'] = None
                     return StorageBackend(**backend_data)
                 elif isinstance(data, list):
                     if not data:
                         return None
                     backend_data = dict(data[0]) if hasattr(data[0], '__iter__') and not isinstance(data[0], str) else data[0]
+                    backend_data['access_key'] = None
+                    backend_data['secret_key'] = None
                     return StorageBackend(**backend_data)
             else:
                 if not result or len(result) == 0:
                     return None
                 backend_data = dict(result[0]) if hasattr(result[0], '__iter__') and not isinstance(result[0], str) else result[0]
+                backend_data['access_key'] = None
+                backend_data['secret_key'] = None
                 return StorageBackend(**backend_data)
             
             return None
@@ -148,6 +163,9 @@ class StorageBackendService:
                 store_product=backend.store_product,
                 region=backend.region,
                 availability_zone=backend.availability_zone,
+                endpoint_url=backend.endpoint_url,
+                access_key=backend.access_key,
+                secret_key=backend.secret_key,
                 default_storage=backend.default_storage,
                 created_at=now,
                 updated_at=now

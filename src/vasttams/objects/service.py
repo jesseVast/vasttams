@@ -47,7 +47,29 @@ class ObjectStorageService:
                 return None
             
             object_data = dict(rows[0]) if hasattr(rows[0], '__iter__') and not isinstance(rows[0], str) else rows[0]
-            return Object(**object_data)
+            
+            # Remove metadata from object_data before creating Object model
+            # (metadata is internal-only, not part of TAMS API contract)
+            internal_metadata = None
+            if 'metadata' in object_data:
+                if isinstance(object_data['metadata'], str):
+                    try:
+                        import json
+                        internal_metadata = json.loads(object_data['metadata'])
+                    except (json.JSONDecodeError, TypeError):
+                        internal_metadata = None
+                else:
+                    internal_metadata = object_data['metadata']
+                del object_data['metadata']
+            
+            obj = Object(**object_data)
+            
+            # Store metadata internally on the object instance for internal use only
+            # (not exposed via API, stored as private attribute)
+            if internal_metadata:
+                obj._internal_metadata = internal_metadata
+            
+            return obj
         except Exception as e:
             logger.error("Failed to get object %s: %s", object_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -55,10 +77,18 @@ class ObjectStorageService:
     async def create_object(self, obj: Object) -> bool:
         """Create a new object"""
         try:
+            import json
             now = get_tams_timestamp()
             obj.created = now
             
             object_data = obj.model_dump()
+            
+            # Serialize metadata to JSON string
+            if 'metadata' in object_data and object_data['metadata'] is not None:
+                if isinstance(object_data['metadata'], dict):
+                    object_data['metadata'] = json.dumps(object_data['metadata'])
+                elif not isinstance(object_data['metadata'], str):
+                    object_data['metadata'] = json.dumps(object_data['metadata'])
             
             # Convert timestamp fields to PyArrow format using centralized function
             from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
@@ -98,12 +128,18 @@ class ObjectStorageService:
                                 value = values[i] if i < len(values) else None
                                 object_data[column] = value
                         if object_data:
+                            # Strip metadata before creating Object (internal-only)
+                            if 'metadata' in object_data:
+                                del object_data['metadata']
                             objects.append(Object(**object_data))
                 elif isinstance(data, list):
                     # If data is a list, iterate directly
                     for row in data:
                         object_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
                         if object_data:
+                            # Strip metadata before creating Object (internal-only)
+                            if 'metadata' in object_data:
+                                del object_data['metadata']
                             objects.append(Object(**object_data))
             else:
                 # Fallback for direct list results

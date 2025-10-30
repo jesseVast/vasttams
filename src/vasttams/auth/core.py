@@ -62,8 +62,8 @@ class AuthManager:
                         if logger.isEnabledFor(logging.DEBUG):
                             logger.debug("Provider %s failed: %s", provider.__class__.__name__, result.error)
                 except Exception as e:
-                    logger.warning("Provider %s raised exception: %s", provider.__class__.__name__, e)
+                    logger.debug("Provider %s raised exception: %s", provider.__class__.__name__, e)
                     continue
         
-        logger.warning("All authentication providers failed")
+        logger.debug("All authentication providers failed")
         return AuthResult(success=False, error="Authentication failed") 

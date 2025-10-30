@@ -113,12 +113,17 @@ class SegmentStorageService:
                             from ..common.models import TimeRange
                             segment_data['timerange'] = TimeRange(value="0:0")
                         
-                        # Parse JSON fields
-                        for field in ['ts_offset', 'last_duration']:
+                        # Parse JSON fields (including get_urls into GetUrl models)
+                        for field in ['ts_offset', 'last_duration', 'get_urls']:
                             if field in segment_data and isinstance(segment_data[field], str):
                                 try:
                                     import json
-                                    segment_data[field] = json.loads(segment_data[field])
+                                    parsed = json.loads(segment_data[field])
+                                    if field == 'get_urls' and isinstance(parsed, list):
+                                        from .models import GetUrl
+                                        segment_data[field] = [GetUrl(**url) if isinstance(url, dict) else url for url in parsed]
+                                    else:
+                                        segment_data[field] = parsed
                                 except (json.JSONDecodeError, TypeError):
                                     pass
                         segments.append(FlowSegment(**segment_data))
@@ -142,12 +147,17 @@ class SegmentStorageService:
                         from ..common.models import TimeRange
                         segment_data['timerange'] = TimeRange(value="0:0")
                     
-                    # Parse JSON fields
-                    for field in ['ts_offset', 'last_duration']:
+                    # Parse JSON fields (including get_urls into GetUrl models)
+                    for field in ['ts_offset', 'last_duration', 'get_urls']:
                         if field in segment_data and isinstance(segment_data[field], str):
                             try:
                                 import json
-                                segment_data[field] = json.loads(segment_data[field])
+                                parsed = json.loads(segment_data[field])
+                                if field == 'get_urls' and isinstance(parsed, list):
+                                    from .models import GetUrl
+                                    segment_data[field] = [GetUrl(**url) if isinstance(url, dict) else url for url in parsed]
+                                else:
+                                    segment_data[field] = parsed
                             except (json.JSONDecodeError, TypeError):
                                 pass
                     segments.append(FlowSegment(**segment_data))
@@ -216,6 +226,81 @@ class SegmentStorageService:
             
             logger.debug("Creating segment with processed data: %s", segment_data)
             self.vast_db.insert_record("segments", segment_data)
+            
+            # Maintain normalized relationship and object reference tracking
+            try:
+                import json as _json
+                import uuid as _uuid
+                # 1) Insert into flow_object_references if not already present
+                existing = self.vast_db.query("flow_object_references").select("id").where(
+                    f"flow_id = '{flow_id}' AND object_id = '{segment_data.get('object_id')}'"
+                ).execute()
+                already_exists = False
+                if isinstance(existing, dict) and 'data' in existing:
+                    data = existing['data']
+                    # VAST returns column arrays; check if any rows exist
+                    if isinstance(data, dict) and data and any(len(col) > 0 for col in data.values() if isinstance(col, list)):
+                        already_exists = True
+                    elif isinstance(data, list) and len(data) > 0:
+                        already_exists = True
+                elif isinstance(existing, list) and len(existing) > 0:
+                    already_exists = True
+                
+                if not already_exists:
+                    ref_row = {
+                        "id": str(_uuid.uuid4()),
+                        "flow_id": flow_id,
+                        "object_id": segment_data.get('object_id'),
+                        "created": get_tams_timestamp()
+                    }
+                    ref_row = prepare_data_for_pyarrow(ref_row)
+                    self.vast_db.insert_record("flow_object_references", ref_row)
+                
+                # 2) Update objects.referenced_by_flows and first_referenced_by_flow if needed
+                obj_id = segment_data.get('object_id')
+                if obj_id:
+                    obj_result = self.vast_db.query("objects").select("referenced_by_flows", "first_referenced_by_flow").where(
+                        f"id = '{obj_id}'"
+                    ).execute()
+                    # Normalize result to dict of values
+                    ref_list: list = []
+                    first_ref = None
+                    if isinstance(obj_result, dict) and 'data' in obj_result and isinstance(obj_result['data'], dict) and obj_result['data']:
+                        data = obj_result['data']
+                        # Extract first row
+                        try:
+                            referenced_by_flows_col = data.get('referenced_by_flows', [])
+                            first_ref_col = data.get('first_referenced_by_flow', [])
+                            referenced_by_flows_raw = referenced_by_flows_col[0] if isinstance(referenced_by_flows_col, list) and referenced_by_flows_col else None
+                            first_ref = first_ref_col[0] if isinstance(first_ref_col, list) and first_ref_col else None
+                        except Exception:
+                            referenced_by_flows_raw = None
+                            first_ref = None
+                    else:
+                        referenced_by_flows_raw = None
+                        first_ref = None
+                    
+                    if isinstance(referenced_by_flows_raw, str) and referenced_by_flows_raw:
+                        try:
+                            ref_list = _json.loads(referenced_by_flows_raw)
+                        except Exception:
+                            ref_list = []
+                    elif isinstance(referenced_by_flows_raw, list):
+                        ref_list = referenced_by_flows_raw
+                    else:
+                        ref_list = []
+                    
+                    if flow_id not in ref_list:
+                        ref_list.append(flow_id)
+                        update_fields = {
+                            "referenced_by_flows": _json.dumps(ref_list)
+                        }
+                        if not first_ref:
+                            update_fields["first_referenced_by_flow"] = flow_id
+                        update_fields = prepare_data_for_pyarrow(update_fields)
+                        self.vast_db.query("objects").update(update_fields).where(f"id = '{obj_id}'").execute()
+            except Exception as rel_err:
+                logger.warning("Failed to update flow-object references for flow %s, object %s: %s", flow_id, segment_data.get('object_id'), rel_err)
             return True
         except Exception as e:
             logger.error("Failed to create flow segment: %s", e)
@@ -235,11 +320,56 @@ class SegmentStorageService:
             logger.error("Failed to delete flow segments for %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
     
+    def _derive_content_type_from_flow(self, flow: Any) -> str:
+        """
+        Derive content-type (container MIME type) from Flow format/codec per TAMS 8.0 spec.
+        AppNote 0018 requires content-type inheritance from Flow when storage is allocated.
+        """
+        try:
+            flow_format = getattr(flow, 'format', None)
+            flow_codec = getattr(flow, 'codec', None)
+            
+            # Common TAMS container mappings based on format
+            # Default to video/mp2t (MPEG-TS) for video flows as shown in TAMS examples
+            if flow_format == "urn:x-nmos:format:video":
+                # Video flows: typically MPEG-TS container
+                return "video/mp2t"
+            elif flow_format == "urn:x-nmos:format:audio":
+                # Audio flows: can vary, default to MPEG-TS
+                return "video/mp2t"  # Audio can also be in MPEG-TS
+            elif flow_format == "urn:x-nmos:format:image":
+                # Image flows: derive from codec if available
+                if flow_codec:
+                    # Codec like "image/jpeg" can serve as container for images
+                    return flow_codec
+                return "image/jpeg"  # Default for images
+            elif flow_format == "urn:x-nmos:format:data":
+                return "application/octet-stream"  # Default for data
+            else:
+                # Fallback: try to use codec if available, otherwise default
+                if flow_codec and '/' in flow_codec:
+                    return flow_codec
+                return "video/mp2t"  # Conservative default per TAMS examples
+        except Exception as e:
+            logger.warning(f"Failed to derive content-type from flow: {e}")
+            return "video/mp2t"  # Safe fallback
+    
     async def create_flow_storage(self, flow_id: str, storage_request: FlowStoragePost) -> Optional[FlowStorage]:
         """Create storage allocation for a flow"""
         try:
             import uuid
             import json
+            
+            # Get Flow to derive content-type (TAMS 8.0 AppNote 0018 requirement)
+            from ..flows.service import FlowStorageService
+            flow_service = FlowStorageService(self.vast_db, self.s3_client)
+            flow = await flow_service.get_flow(flow_id)
+            if not flow:
+                raise HTTPException(status_code=404, detail=f"Flow {flow_id} not found")
+            
+            # Derive content-type from Flow per TAMS 8.0 spec
+            content_type = self._derive_content_type_from_flow(flow)
+            logger.debug(f"Derived content-type '{content_type}' from flow {flow_id} (format: {getattr(flow, 'format', None)}, codec: {getattr(flow, 'codec', None)})")
             
             # Get default storage backend
             storage_id = None
@@ -247,7 +377,7 @@ class SegmentStorageService:
                 storage_id = storage_request.storage_id
             else:
                 # Get default storage backend
-                from ...storagebackends.service import StorageBackendService
+                from ..storagebackends.service import StorageBackendService
                 backend_service = StorageBackendService(self.vast_db, self.s3_client)
                 backends = await backend_service.get_storage_backends()
                 default_backend = next((b for b in backends if b.default_storage), None)
@@ -284,32 +414,37 @@ class SegmentStorageService:
                 tams_path = self.settings.tams_storage_path.strip('/')
                 storage_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
                 
-                # Generate presigned URL for upload
+                # Generate presigned URL for upload with content-type (TAMS 8.0 requirement)
                 presigned_url = await self._generate_presigned_url(
                     key=storage_path,
                     operation="put_object",
-                    expiration=self.settings.s3_presigned_url_upload_timeout
+                    expiration=self.settings.s3_presigned_url_upload_timeout,
+                    content_type=content_type
                 )
                 
                 if not presigned_url:
                     raise HTTPException(status_code=500, detail=f"Failed to generate presigned URL for object {object_id}")
                 
-                # Create MediaObject with the hierarchical path
+                # Create MediaObject with content-type in put_url (TAMS 8.0 requirement)
+                # Use model_validate with alias key for proper serialization
+                put_url_data = {
+                    "url": presigned_url,
+                    "content-type": content_type,  # Required by TAMS 8.0 spec (using alias)
+                    "headers": {}
+                }
                 media_object = MediaObject(
                     object_id=object_id,
-                    put_url=HttpRequest(
-                        url=presigned_url,
-                        headers={}
-                    ),
+                    put_url=HttpRequest.model_validate(put_url_data),
                     metadata={"storage_path": storage_path}
                 )
                 
                 media_objects.append(media_object)
                 
-                # Create Object record in database with storage_id and storage_path in metadata
+                # Create Object record in database with storage_id, storage_path, and content_type in metadata
                 from ..objects.models import Object
                 object_metadata = {
-                    "storage_path": storage_path
+                    "storage_path": storage_path,
+                    "content_type": content_type  # Store for GET URL generation (TAMS 8.0)
                 }
                 if storage_id:
                     object_metadata["storage_id"] = storage_id
@@ -343,19 +478,29 @@ class SegmentStorageService:
             
             # Handle VAST query result format
             rows = []
-            if isinstance(result, dict) and 'data' in result:
-                data = result['data']
-                if isinstance(data, dict):
-                    rows = list(data.values()) if data else []
-                elif isinstance(data, list):
-                    rows = data
+            if isinstance(result, dict) and 'data' in result and isinstance(result['data'], dict):
+                # VAST tabular format: columns dict -> reconstruct first row
+                columns = result['data']
+                if not columns:
+                    return None
+                # Determine row count
+                try:
+                    row_count = len(next(iter(columns.values())))
+                except StopIteration:
+                    row_count = 0
+                if row_count == 0:
+                    return None
+                obj_data = {}
+                for col, values in columns.items():
+                    try:
+                        obj_data[col] = values[0] if isinstance(values, list) and values else values
+                    except Exception:
+                        obj_data[col] = None
+            elif isinstance(result, list) and result:
+                first = result[0]
+                obj_data = dict(first) if isinstance(first, dict) else first
             else:
-                rows = result if isinstance(result, list) else []
-            
-            if not rows or len(rows) == 0:
                 return None
-            
-            obj_data = dict(rows[0]) if hasattr(rows[0], '__iter__') and not isinstance(rows[0], str) else rows[0]
             
             # Parse metadata JSON string if present
             if 'metadata' in obj_data and isinstance(obj_data['metadata'], str):
@@ -388,16 +533,38 @@ class SegmentStorageService:
             logger.error("Failed to create object: %s", e)
             return False
     
-    async def _generate_presigned_url(self, key: str, operation: str, expiration: int = 3600, storage_backend: Optional[Dict[str, Any]] = None) -> Optional[str]:
-        """Generate presigned URL; prefer backend-specific endpoint/credentials if provided."""
+    async def _generate_presigned_url(self, key: str, operation: str, expiration: int = 3600, storage_backend: Optional[Dict[str, Any]] = None, content_type: Optional[str] = None) -> Optional[str]:
+        """Generate presigned URL; prefer backend-specific endpoint/credentials if provided.
+        
+        Args:
+            key: S3 object key
+            operation: S3 operation (get_object, put_object)
+            expiration: URL expiration in seconds
+            storage_backend: Optional backend-specific config
+            content_type: MIME type for PUT requests (TAMS 8.0 requirement - must match Flow)
+        """
         try:
-            if storage_backend and (storage_backend.get('endpoint_url') or storage_backend.get('access_key')):
+            import inspect
+            http_method = 'GET' if operation.lower() in ('get', 'get_object') else 'PUT'
+            # Use provided content_type or fallback (TAMS 8.0 requires content-type for PUT)
+            final_content_type = content_type or 'application/octet-stream'
+            
+            # Only use storage_backend if it has valid credentials (both access_key and secret_key)
+            access_key = storage_backend.get('access_key') if storage_backend else None
+            secret_key = storage_backend.get('secret_key') if storage_backend else None
+            has_valid_credentials = (
+                access_key and secret_key and 
+                isinstance(access_key, str) and isinstance(secret_key, str) and
+                access_key.strip() and secret_key.strip()
+            )
+            
+            if storage_backend and has_valid_credentials:
                 from vasts3 import S3Client, S3Config
                 cfg = S3Config(
                     endpoint_url=storage_backend.get('endpoint_url'),
                     bucket_name=self.settings.s3_bucket_name,
-                    access_key=storage_backend.get('access_key'),
-                    secret_key=storage_backend.get('secret_key'),
+                    access_key=access_key,
+                    secret_key=secret_key,
                     region=storage_backend.get('region') or self.settings.s3_region,
                     use_ssl=self.settings.s3_use_ssl,
                     chunk_size=self.settings.vaststore_s3_chunk_size,
@@ -405,12 +572,40 @@ class SegmentStorageService:
                     key_prefix=self.settings.s3_root_path.strip('/') if getattr(self.settings, 's3_root_path', None) else None,
                 )
                 tmp_client = S3Client(cfg)
-                return tmp_client.generate_presigned_url(key=key, operation=operation, expiration=expiration)
-            return self.s3_client.generate_presigned_url(
-                key=key,
-                operation=operation,
-                expiration=expiration
-            )
+                sig = inspect.signature(tmp_client.generate_presigned_url)
+                supported = set(sig.parameters.keys())
+                candidate_kwargs = {
+                    'key': key,
+                    'operation': operation,
+                    'expires_in': expiration,
+                    'expiration': expiration,
+                    'method': http_method,
+                    'http_method': http_method,
+                    'content_type': final_content_type if http_method == 'PUT' else None,
+                    'response_content_type': final_content_type if http_method == 'GET' else None,
+                    'response_content_disposition': f'attachment; filename="{key.split('/')[-1]}"',
+                }
+                # Remove None values
+                candidate_kwargs = {k: v for k, v in candidate_kwargs.items() if v is not None}
+                kwargs = {k: v for k, v in candidate_kwargs.items() if k in supported}
+                return tmp_client.generate_presigned_url(**kwargs)
+            sig = inspect.signature(self.s3_client.generate_presigned_url)
+            supported = set(sig.parameters.keys())
+            candidate_kwargs = {
+                'key': key,
+                'operation': operation,
+                'expires_in': expiration,
+                'expiration': expiration,
+                'method': http_method,
+                'http_method': http_method,
+                'content_type': final_content_type if http_method == 'PUT' else None,
+                'response_content_type': final_content_type if http_method == 'GET' else None,
+                'response_content_disposition': f'attachment; filename="{key.split('/')[-1]}"',
+            }
+            # Remove None values
+            candidate_kwargs = {k: v for k, v in candidate_kwargs.items() if v is not None}
+            kwargs = {k: v for k, v in candidate_kwargs.items() if k in supported}
+            return self.s3_client.generate_presigned_url(**kwargs)
         except Exception as e:
             logger.error("Failed to generate presigned URL: %s", e)
             return None
@@ -421,9 +616,10 @@ class SegmentStorageService:
             # Get the object to find its storage path and storage_id
             obj_dict = await self._get_object(object_id)
             
-            # Try to get storage path and storage_id from object metadata
+            # Try to get storage path, storage_id, and content_type from object metadata
             storage_path = None
             storage_id = None
+            content_type = None
             if obj_dict:
                 # Handle both Object model (with _internal_metadata) and raw dict
                 metadata = None
@@ -443,6 +639,7 @@ class SegmentStorageService:
                 if metadata and isinstance(metadata, dict):
                     storage_path = metadata.get('storage_path')
                     storage_id = metadata.get('storage_id')
+                    content_type = metadata.get('content_type')  # Retrieve stored content-type for GET URLs
                 
                 # If no storage path in metadata, reconstruct from created timestamp
                 if not storage_path:
@@ -489,7 +686,8 @@ class SegmentStorageService:
                 key=storage_path,
                 operation="get_object",
                 expiration=self.settings.s3_presigned_url_download_timeout if hasattr(self.settings, 's3_presigned_url_download_timeout') else 3600,
-                storage_backend=backend_info
+                storage_backend=backend_info,
+                content_type=content_type  # Use stored content-type for response-content-type header
             )
             
             if not get_url:
@@ -497,7 +695,7 @@ class SegmentStorageService:
             
             # If no storage_id from object metadata, try to get default storage backend
             if not storage_id:
-                from ...storagebackends.service import StorageBackendService
+                from ..storagebackends.service import StorageBackendService
                 backend_service = StorageBackendService(self.vast_db, self.s3_client)
                 backends = await backend_service.get_storage_backends()
                 default_backend = next((b for b in backends if b.default_storage), None)

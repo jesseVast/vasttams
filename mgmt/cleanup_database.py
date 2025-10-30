@@ -175,11 +175,34 @@ async def cleanup_database(dry_run=False):
                     logger.error(f"❌ Failed to delete table '{table_name}': {e}")
                     failed_tables.append(table_name)
             
-        # Verify deletion
+        # Verify deletion (fresh connection to avoid any caching)
         if not dry_run:
-            remaining_tables = vast_db.list_tables()
-            remaining_names = [t for t in remaining_tables] if remaining_tables else []
-            logger.info(f"Remaining tables after cleanup: {remaining_names}")
+            try:
+                # Close existing connection before verifying
+                try:
+                    vast_db.close()
+                except Exception:
+                    pass
+                verifier = VastDBManager(
+                    endpoints=[settings.vast_endpoint],
+                    access_key=settings.vast_access_key,
+                    secret_key=settings.vast_secret_key,
+                    bucket=settings.vast_bucket,
+                    schema=settings.vast_schema,
+                    enable_trino=settings.vaststore_enable_trino,
+                    trino_host=settings.trino_host,
+                    trino_port=settings.trino_port,
+                    trino_user=settings.trino_user,
+                    trino_catalog=settings.trino_catalog
+                )
+                remaining_tables = verifier.list_tables()
+                remaining_names = [t for t in remaining_tables] if remaining_tables else []
+                logger.info(f"Remaining tables after cleanup (verified): {remaining_names}")
+            finally:
+                try:
+                    verifier.close()
+                except Exception:
+                    pass
         else:
             remaining_names = []
             logger.info("🔍 [DRY RUN] No actual deletion performed")

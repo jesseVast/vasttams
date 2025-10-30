@@ -216,13 +216,39 @@ class EventManager:
     async def emit_segment_event(self, event_type: str, segment: Any, user_id: Optional[str] = None, flow_id: Optional[str] = None) -> None:
         """Emit a flow segment-related event"""
         try:
+            # Normalize flow_id and timerange to match event model expectations
+            normalized_flow_id: Optional[str] = None
+            if flow_id:
+                normalized_flow_id = str(flow_id)
+            elif hasattr(segment, 'flow_id') and getattr(segment, 'flow_id') is not None:
+                normalized_flow_id = str(getattr(segment, 'flow_id'))
+            
+            # Convert timerange model to dict payload if needed
+            timerange_payload: Optional[Dict[str, Any]] = None
+            seg_timerange = getattr(segment, 'timerange', None)
+            if seg_timerange is not None:
+                try:
+                    # Pydantic model with model_dump
+                    if hasattr(seg_timerange, 'model_dump'):
+                        timerange_payload = seg_timerange.model_dump()
+                    # Has 'value' attribute
+                    elif hasattr(seg_timerange, 'value'):
+                        timerange_payload = {"value": getattr(seg_timerange, 'value')}
+                    # Already a dict-like
+                    elif isinstance(seg_timerange, dict):
+                        timerange_payload = seg_timerange
+                    else:
+                        timerange_payload = {"value": str(seg_timerange)}
+                except Exception:
+                    timerange_payload = None
+
             event_data = FlowSegmentEventData(
                 event_type=event_type,
                 entity_id=str(segment.object_id),
                 segment_id=str(segment.object_id),
-                flow_id=flow_id or str(segment.flow_id) if hasattr(segment, 'flow_id') else None,
+                flow_id=normalized_flow_id,
                 object_id=str(segment.object_id),
-                timerange=getattr(segment, 'timerange', None),
+                timerange=timerange_payload,
                 tags=getattr(segment, 'tags', {}).root if hasattr(segment, 'tags') and segment.tags else None,
                 user_id=user_id
             )

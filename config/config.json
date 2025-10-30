@@ -1,77 +1,103 @@
 {
-  "api_title": "TAMS API",
-  "api_version": "8.0",
-  "api_description": "Time-addressable Media Store API",
+  "api": {
+    "title": "TAMS API",
+    "version": "8.0",
+    "description": "Time-addressable Media Store API"
+  },
   
-  "host": "0.0.0.0",
-  "port": 8000,
-  "debug": false,
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "debug": false
+  },
   
-  "vast_endpoint": "http://main.selab-var204.selab.vastdata.com",
-  "vast_access_key": "SRSPW0DQT9T70Y787U68",
-  "vast_secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
-  "vast_bucket": "jthaloor-db",
-  "vast_schema": "tams8-dev",
+  "database": {
+    "vast": {
+      "endpoint": "http://main.selab-var204.selab.vastdata.com",
+      "access_key": "SRSPW0DQT9T70Y787U68",
+      "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
+      "bucket": "jthaloor-db",
+      "schema": "tams8-dev"
+    },
+    "trino": {
+      "host": "docker1",
+      "port": 8080,
+      "user": "admin",
+      "catalog": "vast",
+      "enabled": true
+    },
+    "enable_table_projections": true
+  },
   
-  "trino_host": "docker1",
-  "trino_port": 8080,
-  "trino_user": "admin",
-  "trino_catalog": "vast",
+  "storage_backends": [
+    {
+      "id": "default",
+      "label": "default-s3-storage",
+      "store_type": "http_object_store",
+      "provider": "vast",
+      "store_product": "vast-s3",
+      "region": "us-east-1",
+      "availability_zone": null,
+      "endpoint_url": "http://main.selab-var204.selab.vastdata.com",
+      "access_key": "SRSPW0DQT9T70Y787U68",
+      "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
+      "bucket_name": "jthaloor-s3",
+      "root_path": "/tams8-dev",
+      "use_ssl": false,
+      "chunk_size": 8388608,
+      "max_concurrent_parts": 10,
+      "default_storage": true
+    }
+  ],
   
-  "vaststore_enable_trino": true,
-  "vaststore_s3_chunk_size": 8388608,
-  "vaststore_s3_max_concurrent_parts": 10,
+  "storage": {
+    "default_backend_id": "default",
+    "tams_storage_path": "tams",
+    "tams_root": "/tams",
+    "presigned_url": {
+      "upload_timeout": 3600,
+      "download_timeout": 3600
+    },
+    "get_urls_max_count": 5,
+    "flow_storage_default_limit": 10,
+    "segment_storage_default_limit": 10,
+    "async_deletion_threshold": 1000
+  },
   
-  "log_level": "INFO",
-  "log_format": "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
+  },
   
-  "s3_endpoint_url": "http://main.selab-var204.selab.vastdata.com",
-  "s3_access_key_id": "SRSPW0DQT9T70Y787U68",
-  "s3_secret_access_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
-  "s3_bucket_name": "jthaloor-s3",
-  "s3_root_path": "/tams8-dev",
-  "s3_use_ssl": false,
-  "s3_region": "us-east-1",
+  "tams_compliance": {
+    "enabled": true,
+    "validation_level": "strict",
+    "uuid_validation": true,
+    "timestamp_validation": true,
+    "content_format_validation": true,
+    "mime_type_validation": true,
+    "error_reporting": true,
+    "audit_logging": true,
+    "cache_enabled": true,
+    "cache_ttl": 300
+  },
   
-  "s3_presigned_url_upload_timeout": 3600,
-  "s3_presigned_url_download_timeout": 3600,
+  "telemetry": {
+    "enabled": true,
+    "metrics_enabled": true,
+    "tracing_enabled": true,
+    "jaeger_endpoint": "localhost:14268",
+    "otlp_endpoint": "http://localhost:4318/v1/traces"
+  },
   
-  "default_storage_backend_id": "default",
-  "tams_storage_path": "tams",
-  "s3_tams_root": "/tams",
-  "get_urls_max_count": 5,
+  "authentication": {
+    "secret_key": "your-secret-key-here-change-in-production",
+    "algorithm": "HS256",
+    "access_token_expire_minutes": 30
+  },
   
-  "flow_storage_default_limit": 10,
-  "segment_storage_default_limit": 10,
-  "async_deletion_threshold": 1000,
-  
-  "enable_table_projections": true,
-  
-  "tams_compliance_mode": true,
-  "tams_validation_level": "strict",
-  "enable_uuid_validation": true,
-  "enable_timestamp_validation": true,
-  "enable_content_format_validation": true,
-  "enable_mime_type_validation": true,
-  "tams_error_reporting": true,
-  "tams_audit_logging": true,
-  "tams_cache_enabled": true,
-  "tams_cache_ttl": 300,
-  
-  "jaeger_endpoint": "localhost:14268",
-  "otlp_endpoint": "http://localhost:4318/v1/traces",
-  "telemetry_enabled": true,
-  "metrics_enabled": true,
-  "tracing_enabled": true,
-  
-  "secret_key": "your-secret-key-here-change-in-production",
-  "algorithm": "HS256",
-  "access_token_expire_minutes": 30,
-  
-  "storage_type": "http_object_store",
-  "storage_base_url": "https://storage.example.com",
-  
-  "webhook_timeout": 30,
-  "webhook_retry_attempts": 3
+  "webhooks": {
+    "timeout": 30,
+    "retry_attempts": 3
+  }
 }
-

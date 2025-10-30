@@ -131,11 +131,7 @@ class TestSegmentCRUD:
         
         # Request storage for the flow
         storage_request = {
-            "duration": {
-                "numerator": 4,
-                "denominator": 1
-            },
-            "object_ids": []
+            "limit": 1
         }
         
         response = requests.post(
@@ -145,7 +141,18 @@ class TestSegmentCRUD:
         
         if response.status_code in [200, 201]:
             storage = response.json()
-            assert "urls" in storage or "storage_id" in storage
+            assert "media_objects" in storage or "urls" in storage or "storage_id" in storage
+            
+            # If media_objects is present, verify content-type per TAMS 8.0
+            if "media_objects" in storage and len(storage["media_objects"]) > 0:
+                media_obj = storage["media_objects"][0]
+                if "put_url" in media_obj and isinstance(media_obj["put_url"], dict):
+                    put_url = media_obj["put_url"]
+                    if "content-type" in put_url:
+                        content_type = put_url["content-type"]
+                        assert isinstance(content_type, str)
+                        assert "/" in content_type
+                        logger.info(f"✅ Storage allocation includes content-type: {content_type}")
     
     def test_get_segment_details(self, api_available, test_flow_and_source):
         """Test getting detailed segment information per TAMS 8.0 spec"""
@@ -167,6 +174,59 @@ class TestSegmentCRUD:
                 # Segments should have timerange per spec
                 if "timerange" in segment:
                     assert isinstance(segment["timerange"], dict)
+    
+    def test_content_type_derived_from_flow_format(self, api_available):
+        """Test that content-type is correctly derived from Flow format/codec per TAMS 8.0"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        import uuid
+        
+        # Test video flow -> video/mp2t
+        source_id = str(uuid.uuid4())
+        video_flow_id = str(uuid.uuid4())
+        
+        try:
+            # Create source
+            source_data = {"id": source_id, "format": "urn:x-nmos:format:video"}
+            requests.post(f"{BASE_URL}/sources", json=source_data)
+            
+            # Create video flow
+            video_flow_data = {
+                "id": video_flow_id,
+                "source_id": source_id,
+                "format": "urn:x-nmos:format:video",
+                "codec": "video/h264",
+                "essence_parameters": {
+                    "frame_width": 1920,
+                    "frame_height": 1080,
+                    "frame_rate": {"numerator": 25, "denominator": 1}
+                }
+            }
+            response = requests.post(f"{BASE_URL}/flows", json=video_flow_data)
+            assert response.status_code == 201
+            
+            # Request storage allocation
+            storage_response = requests.post(
+                f"{BASE_URL}/flows/{video_flow_id}/storage",
+                json={"limit": 1}
+            )
+            
+            if storage_response.status_code in [200, 201]:
+                storage = storage_response.json()
+                if "media_objects" in storage and len(storage["media_objects"]) > 0:
+                    put_url = storage["media_objects"][0].get("put_url", {})
+                    if "content-type" in put_url:
+                        content_type = put_url["content-type"]
+                        # Video flows should default to video/mp2t
+                        assert content_type == "video/mp2t", \
+                            f"Expected video/mp2t for video flow, got {content_type}"
+                        logger.info(f"✅ Video flow correctly derives content-type: {content_type}")
+            
+        finally:
+            # Cleanup
+            requests.delete(f"{BASE_URL}/flows/{video_flow_id}")
+            requests.delete(f"{BASE_URL}/sources/{source_id}")
 
 
 @pytest.mark.usefixtures("api_available")

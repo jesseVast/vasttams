@@ -1,37 +1,32 @@
 {
   "sources": [
-    "cf95cde6-8a8d-44db-814a-740f517a253e",
-    "ee37c3f1-6d9c-462f-bf69-2cbe25a580fc"
+    "ac138fc4-e18e-407f-8896-34df8e26d7a5",
+    "5ae17fee-5b6a-4ec8-ae9c-2defcd970a03"
   ],
   "flows": [
     {
-      "id": "b6aa602b-14b1-4e79-a762-220046772755",
+      "id": "c0989969-c8a6-4060-b8be-5ca01b79ce4e",
       "label": "Primary Video Flow"
     },
     {
-      "id": "a8287c40-a11f-4bfb-ad0e-bc58d74a68df",
+      "id": "e58ee67e-afd9-4612-aa37-356cf6b15130",
       "label": "Secondary Video Flow (shares segments)"
     },
     {
-      "id": "cadba4c4-aae1-4c21-9b44-cdd5b48ea1aa",
+      "id": "cf4b6be3-9706-47ad-8fd7-d51fab54afe3",
       "label": "Audio Flow"
     },
     {
-      "id": "1c75bf21-2004-439a-b36a-842705431fe0",
+      "id": "2d97f039-5524-40a4-bb37-79d54792608c",
       "label": "Shared Video Flow (shares segments)"
     }
   ],
   "objects": [
-    "570183ba-4162-462d-8aa0-b2e1ca137b0a",
-    "40dcefd4-7cd6-4a69-a633-4ef83ac0caca",
-    "b077f5e4-0532-410d-b87e-dcda9374b6e9",
-    "5c263496-796c-49ac-b028-8a6c3f718c42",
-    "9f2f8e12-0517-48f0-9b92-b593d2676baa",
-    "bf912497-19de-4361-b44c-5cb159e4e5ec",
-    "88402e80-9d89-4c24-90f7-261dda3d2c30",
-    "04397b49-cde2-455a-b989-ae96018ee8d8",
-    "16c814f9-8a39-40fd-adf5-730316e60dbf",
-    "5c14d599-35ae-4295-8566-2e636e17af61"
+    "bb354ced-022f-4f72-99fa-5cc8dfdc5d39",
+    "9b313faa-eafb-4aa4-923a-d7c24e5134fb",
+    "e911b767-4891-45c2-a183-d24019ee81e8",
+    "ae40978b-5c99-45f4-9158-4f355cd4503a",
+    "acd9fcad-b3c8-4666-adb9-62de536cd9bd"
   ],
-  "segments_count": 13
+  "segments_count": 7
 }

@@ -133,33 +133,62 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.warning(f"Could not initialize default users: {e}")
             
-            # Initialize default storage backend if none exists and S3 config present
+            # Initialize storage backends from config if none exist
             try:
                 from .storagebackends.service import StorageBackendService
                 settings = get_settings()
                 backend_service = StorageBackendService(vast_db, get_s3_client())
                 existing = await backend_service.get_storage_backends()
-                if not existing and settings.s3_endpoint_url and settings.s3_bucket_name:
-                    from .storagebackends.models import StorageBackendPost
-                    logger.info("No storage backends found. Creating default from S3 config...")
-                    backend_post = StorageBackendPost(
-                        label="default-s3",
-                        store_type="http_object_store",
-                        provider=getattr(settings, 's3_provider', 'minio'),
-                        store_product=getattr(settings, 's3_store_product', 'minio'),
-                        region=settings.s3_region,
-                        availability_zone=None,
-                        endpoint_url=settings.s3_endpoint_url,
-                        access_key=settings.s3_access_key_id,
-                        secret_key=settings.s3_secret_access_key,
-                        default_storage=True
-                    )
-                    await backend_service.create_storage_backend(backend_post)
-                    logger.info("✅ Default storage backend created")
+                
+                if not existing:
+                    # Check if storage_backends are defined in config
+                    storage_backends_config = getattr(settings, 'storage_backends_config', None)
+                    
+                    if storage_backends_config:
+                        # Initialize all backends from config
+                        from .storagebackends.models import StorageBackendPost
+                        logger.info(f"Initializing {len(storage_backends_config)} storage backend(s) from config...")
+                        for backend_config in storage_backends_config:
+                            # Extract required fields
+                            backend_post = StorageBackendPost(
+                                label=backend_config.get('label', 'unnamed-backend'),
+                                store_type=backend_config.get('store_type', 'http_object_store'),
+                                provider=backend_config.get('provider', 'minio'),
+                                store_product=backend_config.get('store_product', 'minio'),
+                                region=backend_config.get('region'),
+                                availability_zone=backend_config.get('availability_zone'),
+                                endpoint_url=backend_config.get('endpoint_url'),
+                                access_key=backend_config.get('access_key'),
+                                secret_key=backend_config.get('secret_key'),
+                                default_storage=backend_config.get('default_storage', False)
+                            )
+                            created = await backend_service.create_storage_backend(backend_post)
+                            logger.info(f"✅ Created storage backend: {created.id} ({created.label})")
+                        logger.info("✅ All storage backends initialized from config")
+                    elif settings.s3_endpoint_url and settings.s3_bucket_name:
+                        # Fallback to legacy S3 config
+                        from .storagebackends.models import StorageBackendPost
+                        logger.info("No storage backends found. Creating default from S3 config...")
+                        backend_post = StorageBackendPost(
+                            label="default-s3",
+                            store_type="http_object_store",
+                            provider=getattr(settings, 's3_provider', 'minio'),
+                            store_product=getattr(settings, 's3_store_product', 'minio'),
+                            region=settings.s3_region,
+                            availability_zone=None,
+                            endpoint_url=settings.s3_endpoint_url,
+                            access_key=settings.s3_access_key_id,
+                            secret_key=settings.s3_secret_access_key,
+                            default_storage=True
+                        )
+                        await backend_service.create_storage_backend(backend_post)
+                        logger.info("✅ Default storage backend created from legacy S3 config")
+                    else:
+                        logger.info("No storage backends configured; skipping initialization")
                 else:
-                    logger.info("Storage backends present or S3 config missing; skipping default creation")
+                    logger.info("Storage backends already exist; skipping initialization")
             except Exception as e:
-                logger.warning(f"Could not initialize default storage backend: {e}")
+                logger.warning(f"Could not initialize storage backends: {e}")
         
         logger.info("TAMS API startup complete")
         yield

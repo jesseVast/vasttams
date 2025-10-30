@@ -13,7 +13,7 @@ import uuid
 
 from fastapi import HTTPException
 from .interfaces import StorageInterface
-from .timestamp_utils import get_tams_timestamp
+from .timestamp_utils import get_tams_timestamp, prepare_data_for_pyarrow
 # Import models from their resource modules
 from ...flows.models import Flow
 from ..filters import FlowFilters, FlowDetailFilters
@@ -219,18 +219,40 @@ class TAMSStorageService(StorageInterface):
         """Check if a flow is read-only"""
         return await self.flow_service.check_flow_read_only(flow_id)
     
-    async def generate_presigned_url(self, key: str, operation: str, expiration: int = 3600, storage_backend: Optional[Dict[str, Any]] = None) -> Optional[str]:
-        """Generate presigned URL for S3 operations, preferring provided storage backend credentials."""
+    async def generate_presigned_url(self, key: str, operation: str, expiration: int = 3600, storage_backend: Optional[Dict[str, Any]] = None, content_type: Optional[str] = None) -> Optional[str]:
+        """Generate presigned URL for S3 operations, preferring provided storage backend credentials.
+        
+        Args:
+            key: S3 object key
+            operation: S3 operation (get_object, put_object)
+            expiration: URL expiration in seconds
+            storage_backend: Optional backend-specific config
+            content_type: MIME type for PUT requests (TAMS 8.0 requirement)
+        """
         try:
-            if storage_backend and (storage_backend.get('endpoint_url') or storage_backend.get('access_key')):
+            import inspect
+            # Map operation to HTTP method commonly used by S3
+            http_method = 'GET' if operation.lower() in ('get', 'get_object') else 'PUT'
+            # Use provided content_type or fallback (TAMS 8.0 requires content-type for PUT)
+            final_content_type = content_type or 'application/octet-stream'
+            
+            # Check if storage_backend has valid credentials or should fallback to settings
+            backend_access_key = storage_backend.get('access_key') if storage_backend else None
+            backend_secret_key = storage_backend.get('secret_key') if storage_backend else None
+            # Use backend credentials if they exist and are non-empty, otherwise use settings
+            final_access_key = (backend_access_key if backend_access_key and backend_access_key.strip() else None) or self.settings.s3_access_key_id
+            final_secret_key = (backend_secret_key if backend_secret_key and backend_secret_key.strip() else None) or self.settings.s3_secret_access_key
+            
+            # Only use backend-specific client if backend has endpoint_url or valid credentials
+            if storage_backend and (storage_backend.get('endpoint_url') or (final_access_key and final_secret_key and final_access_key.strip() and final_secret_key.strip())):
                 # Build a temporary S3 client using backend-specific config
                 from vasts3 import S3Client, S3Config
                 settings = self.settings
                 cfg = S3Config(
                     endpoint_url=storage_backend.get('endpoint_url') or settings.s3_endpoint_url,
                     bucket_name=settings.s3_bucket_name,
-                    access_key=storage_backend.get('access_key') or settings.s3_access_key_id,
-                    secret_key=storage_backend.get('secret_key') or settings.s3_secret_access_key,
+                    access_key=final_access_key,
+                    secret_key=final_secret_key,
                     region=storage_backend.get('region') or settings.s3_region,
                     use_ssl=settings.s3_use_ssl,
                     chunk_size=settings.vaststore_s3_chunk_size,
@@ -238,13 +260,42 @@ class TAMSStorageService(StorageInterface):
                     key_prefix=getattr(settings, 's3_root_path', None).strip('/') if getattr(settings, 's3_root_path', None) else None,
                 )
                 tmp_client = S3Client(cfg)
-                return tmp_client.generate_presigned_url(key=key, operation=operation, expiration=expiration)
+                # Build kwargs compatible with the installed vasts3 version
+                sig = inspect.signature(tmp_client.generate_presigned_url)
+                supported = set(sig.parameters.keys())
+                candidate_kwargs = {
+                    'key': key,
+                    'operation': operation,
+                    'expires_in': expiration,
+                    'expiration': expiration,
+                    'method': http_method,
+                    'http_method': http_method,
+                    'content_type': final_content_type if http_method == 'PUT' else None,
+                    'response_content_type': final_content_type if http_method == 'GET' else None,
+                    'response_content_disposition': f'attachment; filename="{key.split('/')[-1]}"',
+                }
+                # Remove None values
+                candidate_kwargs = {k: v for k, v in candidate_kwargs.items() if v is not None}
+                kwargs = {k: v for k, v in candidate_kwargs.items() if k in supported}
+                return tmp_client.generate_presigned_url(**kwargs)
             # Fallback to default client
-            return self.s3_client.generate_presigned_url(
-                key=key,
-                operation=operation,
-                expiration=expiration
-            )
+            sig = inspect.signature(self.s3_client.generate_presigned_url)
+            supported = set(sig.parameters.keys())
+            candidate_kwargs = {
+                'key': key,
+                'operation': operation,
+                'expires_in': expiration,
+                'expiration': expiration,
+                'method': http_method,
+                'http_method': http_method,
+                'content_type': final_content_type if http_method == 'PUT' else None,
+                'response_content_type': final_content_type if http_method == 'GET' else None,
+                'response_content_disposition': f'attachment; filename="{key.split('/')[-1]}"',
+            }
+            # Remove None values
+            candidate_kwargs = {k: v for k, v in candidate_kwargs.items() if v is not None}
+            kwargs = {k: v for k, v in candidate_kwargs.items() if k in supported}
+            return self.s3_client.generate_presigned_url(**kwargs)
         except Exception as e:
             logger.error("Failed to generate presigned URL: %s", e)
             return None
@@ -472,6 +523,28 @@ class TAMSStorageService(StorageInterface):
             from ...service.storage_models import MediaObject, HttpRequest
             from ...common.storage.timestamp_utils import get_tams_timestamp
             import uuid
+            
+            # Get Flow to derive content-type (TAMS 8.0 AppNote 0018 requirement)
+            flow = await self.get_flow(flow_id)
+            if not flow:
+                raise HTTPException(status_code=404, detail=f"Flow {flow_id} not found")
+            
+            # Derive content-type from Flow per TAMS 8.0 spec
+            flow_format = getattr(flow, 'format', None)
+            flow_codec = getattr(flow, 'codec', None)
+            if flow_format == "urn:x-nmos:format:video":
+                content_type = "video/mp2t"
+            elif flow_format == "urn:x-nmos:format:audio":
+                content_type = "video/mp2t"
+            elif flow_format == "urn:x-nmos:format:image":
+                content_type = flow_codec if flow_codec and '/' in flow_codec else "image/jpeg"
+            elif flow_format == "urn:x-nmos:format:data":
+                content_type = "application/octet-stream"
+            else:
+                content_type = flow_codec if flow_codec and '/' in flow_codec else "video/mp2t"
+            
+            logger.debug(f"Derived content-type '{content_type}' from flow {flow_id}")
+            
             backend_info = None
             # If a storage_id was specified, fetch that backend to use its endpoint/credentials
             if getattr(storage_request, 'storage_id', None):
@@ -503,24 +576,28 @@ class TAMSStorageService(StorageInterface):
                 tams_path = self.settings.tams_storage_path.strip('/')
                 storage_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
                 
-                # Generate presigned URL for upload
+                # Generate presigned URL for upload with content-type (TAMS 8.0 requirement)
                 presigned_url = await self.generate_presigned_url(
                     key=storage_path,
                     operation="put_object",
                     expiration=self.settings.s3_presigned_url_upload_timeout,
-                    storage_backend=backend_info
+                    storage_backend=backend_info,
+                    content_type=content_type
                 )
                 
                 if not presigned_url:
                     raise HTTPException(status_code=500, detail=f"Failed to generate presigned URL for object {object_id}")
                 
-                # Create MediaObject with the presigned URL
+                # Create MediaObject with content-type in put_url (TAMS 8.0 requirement)
+                # Use model_validate with alias key for proper serialization
+                put_url_data = {
+                    "url": presigned_url,
+                    "content-type": content_type,  # Required by TAMS 8.0 spec (using alias)
+                    "headers": {}
+                }
                 media_object = MediaObject(
                     object_id=object_id,
-                    put_url=HttpRequest(
-                        url=presigned_url,
-                        headers={}
-                    ),
+                    put_url=HttpRequest.model_validate(put_url_data),
                     metadata={"storage_path": storage_path}
                 )
                 
@@ -528,7 +605,10 @@ class TAMSStorageService(StorageInterface):
 
                 # Persist object row so segments can reference and URLs can be generated dynamically
                 try:
-                    metadata = {"storage_path": storage_path}
+                    metadata = {
+                        "storage_path": storage_path,
+                        "content_type": content_type  # Store for GET URL generation
+                    }
                     if backend_info and backend_info.get('id'):
                         metadata["storage_id"] = backend_info['id']
                     # Build raw row dict (avoid Pydantic Object model to bypass timerange requirement)

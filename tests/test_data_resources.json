@@ -1,0 +1,32 @@
+{
+  "sources": [
+    "4999b4b1-38b6-413f-8cff-701760657080",
+    "14b4cbdd-ce3b-43b2-9cf4-7712ea474b24"
+  ],
+  "flows": [
+    {
+      "id": "4405f27f-7dbb-4398-8ee3-36375897a03a",
+      "label": "Primary Video Flow"
+    },
+    {
+      "id": "749840dc-27c8-4d43-a4c1-b09edc74f62e",
+      "label": "Secondary Video Flow (shares segments)"
+    },
+    {
+      "id": "4091cc90-49c4-45e4-aaa0-884d075f0281",
+      "label": "Audio Flow"
+    },
+    {
+      "id": "998c78ca-0f9d-429c-9313-58c58ba39e96",
+      "label": "Shared Video Flow (shares segments)"
+    }
+  ],
+  "objects": [
+    "f9022529-dfc1-4914-9e75-f58570dae1ac",
+    "f714738a-60ba-4d01-a5d4-e856aabf3fe2",
+    "7dcd655c-9e70-4909-9f00-384e9006f5a9",
+    "19c95346-35c1-4732-9fd7-147e5e55f7ed",
+    "c7f2eea4-e004-41fe-b387-8f58e64afd1b"
+  ],
+  "segments_count": 7
+}

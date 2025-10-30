@@ -108,12 +108,22 @@ def get_presigned_url(token, flow_id, label="test-object"):
     result = response.json()
     
     # Extract presigned URL from response
-    # Response format: {'pre': None, 'media_objects': [{'object_id': '...', 'put_url': {'url': '...'}}]}
+    # Response format: {'pre': None, 'media_objects': [{'object_id': '...', 'put_url': {'url': '...', 'content-type': '...'}}]}
     if "media_objects" in result and len(result["media_objects"]) > 0:
         media_obj = result["media_objects"][0]
         object_id = media_obj["object_id"]
-        presigned_url = media_obj["put_url"]["url"]
-        print(f"✅ Got presigned URL: {presigned_url[:50]}...")
+        put_url_obj = media_obj["put_url"]
+        presigned_url = put_url_obj["url"]
+        
+        # Verify content-type is present (TAMS 8.0 requirement)
+        if "content-type" in put_url_obj:
+            content_type = put_url_obj["content-type"]
+            print(f"✅ Got presigned URL with content-type: {content_type}")
+            print(f"✅ Presigned URL: {presigned_url[:50]}...")
+        else:
+            print(f"⚠️ Warning: put_url missing content-type (TAMS 8.0 requirement)")
+            print(f"✅ Got presigned URL: {presigned_url[:50]}...")
+        
         return presigned_url, object_id
     else:
         print(f"❌ No media_objects in response: {result}")

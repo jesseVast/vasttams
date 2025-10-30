@@ -14,10 +14,33 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    (config.headers as any).Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+// Logout and redirect on auth failures
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const path = window.location.pathname;
+    const isAuthRoute = path.toLowerCase().includes('/login');
+
+    // Treat 401/403 as invalid/expired token
+    if ((status === 401 || status === 403) && !isAuthRoute) {
+      try {
+        // Clear stored auth
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      } catch {}
+      // Redirect to login
+      window.location.replace('/login');
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export const authService = {
   login: async (username: string, password: string): Promise<AuthResponse> => {
@@ -165,4 +188,6 @@ export const analyticsService = {
     return response.data || [];
   },
 };
+
+export default api;
 

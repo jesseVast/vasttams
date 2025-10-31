@@ -7,6 +7,11 @@ export interface User {
   updated_at?: string;
 }
 
+export interface CollectionItem {
+  id: string;
+  label?: string;
+}
+
 export interface Source {
   id: string;
   label?: string;
@@ -17,6 +22,23 @@ export interface Source {
   tags?: Record<string, any>;
   created?: string;
   updated?: string;
+  source_collection?: CollectionItem[];
+  collected_by?: string[];
+}
+
+export interface EssenceParameters {
+  frame_width?: number;
+  frame_height?: number;
+  frame_rate?: {
+    numerator?: number;
+    denominator?: number;
+    value?: string;
+  };
+  vfr?: boolean;
+  sample_rate?: number;
+  channels?: number;
+  bit_depth?: number;
+  [key: string]: any;
 }
 
 export interface Flow {
@@ -25,9 +47,24 @@ export interface Flow {
   description?: string;
   format: string;
   source_id: string;
+  codec?: string;
+  container?: string;
+  avg_bit_rate?: number;
+  max_bit_rate?: number;
+  segment_duration?: {
+    numerator?: number;
+    denominator?: number;
+    value?: string;
+  };
+  essence_parameters?: EssenceParameters;
+  generation?: number;
+  created_by?: string;
+  updated_by?: string;
   tags?: Record<string, any>;
   created?: string;
   updated?: string;
+  metadata_updated?: string;
+  segments_updated?: string;
 }
 
 export interface Segment {

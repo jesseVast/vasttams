@@ -35,8 +35,10 @@ class Object(BaseModel):
     @field_validator('referenced_by_flows')
     @classmethod
     def validate_referenced_by_flows(cls, v: List[str]) -> List[str]:
-        if not v:
-            raise ValueError('Referenced by flows cannot be empty')
+        # Note: TAMS spec allows empty list - object may not be referenced by any flows yet
+        # or all references may have been deleted
+        if v is None:
+            return []
         for flow_id in v:
             if not flow_id or not flow_id.strip():
                 raise ValueError('Flow ID cannot be empty')

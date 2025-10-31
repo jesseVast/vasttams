@@ -89,9 +89,7 @@ class AnalyticsService:
             sources_table = self.vast_db.get_qualified_table_name("sources")
             flows_table = self.vast_db.get_qualified_table_name("flows")
             segments_table = self.vast_db.get_qualified_table_name("segments")
-            # Objects don't exist as separate table - they're referenced by segments via object_id
-            # We need to count distinct object_id values from segments table
-            # Note: object size information might be stored in segments or needs to come from another source
+            objects_table = self.vast_db.get_qualified_table_name("objects")
             
             # Comprehensive overview query
             # Use subqueries to count each entity independently to avoid join issues
@@ -104,12 +102,12 @@ class AnalyticsService:
                     COALESCE((SELECT COUNT(DISTINCT id) FROM {sources_table}), 0) as total_sources,
                     COALESCE((SELECT COUNT(DISTINCT id) FROM {flows_table}), 0) as total_flows,
                     COALESCE((SELECT COUNT(*) FROM {segments_table}), 0) as total_segments,
-                    COALESCE((SELECT COUNT(DISTINCT object_id) FROM {segments_table} WHERE object_id IS NOT NULL), 0) as total_objects,
-                    0 as total_storage_bytes,
-                    0 as avg_size_bytes,
-                    0 as min_size_bytes,
-                    0 as max_size_bytes,
-                    COALESCE((SELECT COUNT(DISTINCT object_id) FROM {segments_table} WHERE object_id IS NOT NULL), 0) as object_count_with_size,
+                    COALESCE((SELECT COUNT(DISTINCT id) FROM {objects_table} WHERE id IS NOT NULL), 0) as total_objects,
+                    COALESCE((SELECT COALESCE(SUM(size), 0) FROM {objects_table} WHERE size IS NOT NULL), 0) as total_storage_bytes,
+                    COALESCE((SELECT COALESCE(AVG(size), 0) FROM {objects_table} WHERE size IS NOT NULL), 0) as avg_size_bytes,
+                    (SELECT MIN(size) FROM {objects_table} WHERE size IS NOT NULL) as min_size_bytes,
+                    (SELECT MAX(size) FROM {objects_table} WHERE size IS NOT NULL) as max_size_bytes,
+                    COALESCE((SELECT COUNT(*) FROM {objects_table} WHERE size IS NOT NULL), 0) as object_count_with_size,
                     COALESCE((SELECT COUNT(DISTINCT id) FROM {flows_table} WHERE format = 'urn:x-nmos:format:video'), 0) as video_flows,
                     COALESCE((SELECT COUNT(DISTINCT id) FROM {flows_table} WHERE format = 'urn:x-nmos:format:audio'), 0) as audio_flows,
                     COALESCE((SELECT COUNT(DISTINCT id) FROM {flows_table} WHERE format = 'urn:x-nmos:format:image'), 0) as image_flows,
@@ -121,8 +119,8 @@ class AnalyticsService:
                     (SELECT MAX(created) FROM {flows_table}) as latest_flow_created,
                     (SELECT MIN(created) FROM {segments_table}) as earliest_segment_created,
                     (SELECT MAX(created) FROM {segments_table}) as latest_segment_created,
-                    (SELECT MIN(created) FROM {segments_table} WHERE object_id IS NOT NULL) as earliest_object_created,
-                    (SELECT MAX(created) FROM {segments_table} WHERE object_id IS NOT NULL) as latest_object_created
+                    (SELECT MIN(created) FROM {objects_table} WHERE created IS NOT NULL) as earliest_object_created,
+                    (SELECT MAX(created) FROM {objects_table} WHERE created IS NOT NULL) as latest_object_created
             """
             
             result = self.vast_db.execute_sql(sql)
@@ -180,6 +178,7 @@ class AnalyticsService:
             min_size_bytes = int(min_size_val) if min_size_val is not None and min_size_val != 0 else None
             max_size_val = get_value('max_size_bytes')
             max_size_bytes = int(max_size_val) if max_size_val is not None and max_size_val != 0 else None
+            object_count_with_size = int(get_value('object_count_with_size', 0) or 0)
             
             # Calculate averages in Python to avoid CAST issues with Trino
             flows_per_source_avg = (float(total_flows) / total_sources) if total_sources > 0 else 0.0
@@ -201,7 +200,7 @@ class AnalyticsService:
                     average_size_bytes=round(avg_size_bytes, 2),
                     min_size_bytes=min_size_bytes,
                     max_size_bytes=max_size_bytes,
-                    object_count_with_size=int(get_value('object_count_with_size', 0) or 0),
+                    object_count_with_size=object_count_with_size,  # Use the updated count including S3 sizes
                 ),
                 formats=FormatBreakdown(
                     video_flows=int(get_value('video_flows', 0) or 0),

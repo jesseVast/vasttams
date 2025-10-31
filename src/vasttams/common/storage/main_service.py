@@ -272,7 +272,7 @@ class TAMSStorageService(StorageInterface):
                     'http_method': http_method,
                     'content_type': final_content_type if http_method == 'PUT' else None,
                     'response_content_type': final_content_type if http_method == 'GET' else None,
-                    'response_content_disposition': f'attachment; filename="{key.split('/')[-1]}"',
+                    'response_content_disposition': f'attachment; filename="{key.split("/")[-1]}"',
                 }
                 # Remove None values
                 candidate_kwargs = {k: v for k, v in candidate_kwargs.items() if v is not None}
@@ -612,10 +612,10 @@ class TAMSStorageService(StorageInterface):
                     if backend_info and backend_info.get('id'):
                         metadata["storage_id"] = backend_info['id']
                     # Build raw row dict (avoid Pydantic Object model to bypass timerange requirement)
+                    # Note: referenced_by_flows is computed dynamically from segments table, not stored
                     obj_row = {
                         "id": object_id,
-                        "referenced_by_flows": json.dumps([flow_id]),
-                        "first_referenced_by_flow": flow_id,
+                        "first_referenced_by_flow": None,  # Computed dynamically from segments when first segment is created
                         "timerange": None,
                         "size": None,
                         "metadata": json.dumps(metadata),

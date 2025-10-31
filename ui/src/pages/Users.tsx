@@ -1,16 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Container,
   Typography,
-  Table,
-  TableBody,
   TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Button,
-  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -23,17 +16,30 @@ import {
   CircularProgress,
   Box,
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
 import { User } from '../types';
 import { userService } from '../services/api';
+import DataTable, { Column, Order } from '../components/DataTable';
+
+type SortableField = 'username' | 'role' | 'created_at';
+
+const DEFAULT_USERS = ['admin', 'editor', 'viewer'];
 
 const Users: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newUser, setNewUser] = useState({ username: '', role: 'viewer' as const, password: '' });
+  const [editUser, setEditUser] = useState({ role: 'viewer' as const, password: '' });
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [orderBy, setOrderBy] = useState<SortableField>('username');
+  const [order, setOrder] = useState<Order>('asc');
 
   useEffect(() => {
     loadUsers();
@@ -77,9 +83,129 @@ const Users: React.FC = () => {
     }
   };
 
-  const getRoleColor = (role: string): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
-    return 'default';
+  const handleEdit = (user: User) => {
+    setEditingUser(user);
+    setEditUser({ role: user.role as any, password: '' });
+    setEditOpen(true);
   };
+
+  const handleUpdate = async () => {
+    if (!editingUser) return;
+
+    try {
+      setUpdating(true);
+      
+      // Update role if changed
+      if (editUser.role !== editingUser.role) {
+        await userService.updateRole(editingUser.username, editUser.role);
+      }
+      
+      // Update password if provided
+      if (editUser.password && editUser.password.trim() !== '') {
+        await userService.updatePassword(editingUser.username, editUser.password);
+      }
+      
+      setEditOpen(false);
+      setEditingUser(null);
+      setEditUser({ role: 'viewer', password: '' });
+      loadUsers();
+    } catch (error) {
+      console.error('Failed to update user:', error);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleSort = (property: string | keyof User) => {
+    const sortField = property as SortableField;
+    const isAsc = orderBy === sortField && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(sortField);
+  };
+
+  const sortedUsers = useMemo(() => {
+    return [...users].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (orderBy) {
+        case 'username':
+          aValue = a.username || '';
+          bValue = b.username || '';
+          break;
+        case 'role':
+          aValue = a.role || '';
+          bValue = b.role || '';
+          break;
+        case 'created_at':
+          aValue = a.created_at ? new Date(a.created_at).getTime() : 0;
+          bValue = b.created_at ? new Date(b.created_at).getTime() : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return order === 'asc' ? aValue - bValue : bValue - aValue;
+      } else {
+        const aStr = String(aValue);
+        const bStr = String(bValue);
+        return order === 'asc' 
+          ? aStr.localeCompare(bStr)
+          : bStr.localeCompare(aStr);
+      }
+    });
+  }, [users, orderBy, order]);
+
+  const paginatedUsers = useMemo(() => {
+    const start = page * rowsPerPage;
+    return sortedUsers.slice(start, start + rowsPerPage);
+  }, [sortedUsers, page, rowsPerPage]);
+
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const columns: Column<User>[] = [
+    { id: 'username', label: 'Username', sortable: true },
+    { id: 'role', label: 'Role', sortable: true },
+    { id: 'created_at', label: 'Created', sortable: true },
+    { id: 'actions', label: 'Actions', sortable: false },
+  ];
+
+  const renderRow = (user: User, index: number) => (
+    <>
+      <TableCell>{user.username}</TableCell>
+      <TableCell>{user.role}</TableCell>
+      <TableCell>{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</TableCell>
+      <TableCell>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            size="small"
+            color="primary"
+            startIcon={<EditIcon />}
+            onClick={() => handleEdit(user)}
+          >
+            Edit
+          </Button>
+          <Button
+            size="small"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={() => handleDelete(user.username)}
+            disabled={deleting === user.username || DEFAULT_USERS.includes(user.username)}
+          >
+            {deleting === user.username ? <CircularProgress size={16} /> : 'Delete'}
+          </Button>
+        </Box>
+      </TableCell>
+    </>
+  );
 
   return (
     <Container>
@@ -101,40 +227,20 @@ const Users: React.FC = () => {
           <Typography sx={{ ml: 2 }}>Loading users...</Typography>
         </Box>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Username</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.user_id}>
-                  <TableCell>{user.username}</TableCell>
-                  <TableCell>
-                    <Chip label={user.role} color={getRoleColor(user.role)} size="small" />
-                  </TableCell>
-                  <TableCell>{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</TableCell>
-                  <TableCell>
-                    <Button
-                      size="small"
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={() => handleDelete(user.username)}
-                      disabled={deleting === user.username}
-                    >
-                      {deleting === user.username ? <CircularProgress size={16} /> : 'Delete'}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DataTable
+          columns={columns}
+          data={paginatedUsers}
+          getRowId={(user) => user.user_id}
+          renderRow={renderRow}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          totalCount={users.length}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          orderBy={orderBy}
+          order={order}
+          onSort={handleSort}
+        />
       )}
 
       <Dialog open={open} onClose={() => setOpen(false)}>
@@ -180,6 +286,51 @@ const Users: React.FC = () => {
             sx={{ backgroundColor: '#616161', '&:hover': { backgroundColor: '#757575' } }}
           >
             {creating ? <CircularProgress size={20} /> : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)}>
+        <DialogTitle>Edit User: {editingUser?.username}</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Role</InputLabel>
+            <Select
+              value={editUser.role}
+              label="Role"
+              onChange={(e) => setEditUser({ ...editUser, role: e.target.value as any })}
+            >
+              <MenuItem value="viewer">Viewer</MenuItem>
+              <MenuItem value="editor">Editor</MenuItem>
+              <MenuItem value="admin">Admin</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField
+            margin="dense"
+            label="New Password (leave blank to keep current)"
+            type="password"
+            fullWidth
+            variant="standard"
+            value={editUser.password}
+            onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
+            helperText="Leave blank if you don't want to change the password"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setEditOpen(false);
+            setEditingUser(null);
+            setEditUser({ role: 'viewer', password: '' });
+          }}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleUpdate} 
+            variant="contained" 
+            disabled={updating}
+            sx={{ backgroundColor: '#616161', '&:hover': { backgroundColor: '#757575' } }}
+          >
+            {updating ? <CircularProgress size={20} /> : 'Update'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -10,31 +11,33 @@ import {
   DialogTitle,
   TextField,
   Typography,
-  Table,
-  TableBody,
   TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
   CircularProgress,
+  Link,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import InfoIcon from '@mui/icons-material/Info';
 import { Source } from '../types';
-import { sourceService } from '../services/api';
+import { sourceService, authService } from '../services/api';
+import DataTable, { Column } from '../components/DataTable';
+
+type SortableField = 'id' | 'label' | 'format' | 'created';
 
 const Sources: React.FC = () => {
+  const navigate = useNavigate();
+  const user = authService.getCurrentUser();
+  const isViewer = user?.role === 'viewer';
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [selectedSource, setSelectedSource] = useState<Source | null>(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [orderBy, setOrderBy] = useState<SortableField>('created');
+  const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const [formData, setFormData] = useState({
     label: '',
     description: '',
@@ -67,6 +70,9 @@ const Sources: React.FC = () => {
   };
 
   const handleCreate = async () => {
+    if (isViewer) {
+      return; // Prevent viewers from creating sources
+    }
     try {
       setCreating(true);
       const id = generateUUID();
@@ -90,20 +96,110 @@ const Sources: React.FC = () => {
     }
   };
 
+  const handleSort = (property: string | keyof Source) => {
+    const sortField = property as SortableField;
+    const isAsc = orderBy === sortField && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(sortField);
+  };
+
+  const sortedSources = useMemo(() => {
+    return [...sources].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (orderBy) {
+        case 'id':
+          aValue = a.id || '';
+          bValue = b.id || '';
+          break;
+        case 'label':
+          aValue = a.label || '';
+          bValue = b.label || '';
+          break;
+        case 'format':
+          aValue = a.format || '';
+          bValue = b.format || '';
+          break;
+        case 'created':
+          aValue = a.created ? new Date(a.created).getTime() : 0;
+          bValue = b.created ? new Date(b.created).getTime() : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return order === 'asc' ? aValue - bValue : bValue - aValue;
+      } else {
+        const aStr = String(aValue);
+        const bStr = String(bValue);
+        return order === 'asc' 
+          ? aStr.localeCompare(bStr)
+          : bStr.localeCompare(aStr);
+      }
+    });
+  }, [sources, orderBy, order]);
+
+  const paginatedSources = useMemo(() => {
+    const start = page * rowsPerPage;
+    return sortedSources.slice(start, start + rowsPerPage);
+  }, [sortedSources, page, rowsPerPage]);
+
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const columns: Column<Source>[] = [
+    { id: 'id', label: 'ID', sortable: true },
+    { id: 'label', label: 'Label', sortable: true },
+    { id: 'description', label: 'Description', sortable: false },
+    { id: 'format', label: 'Format', sortable: true },
+    { id: 'created', label: 'Created (Date/Time)', sortable: true },
+    { id: 'actions', label: 'Actions', sortable: false },
+  ];
+
+  const renderRow = (source: Source, index: number) => (
+    <>
+      <TableCell>{source.id}</TableCell>
+      <TableCell>{source.label || '-'}</TableCell>
+      <TableCell>{source.description || '-'}</TableCell>
+      <TableCell>{source.format}</TableCell>
+      <TableCell>{source.created ? new Date(source.created).toLocaleString() : '-'}</TableCell>
+      <TableCell>
+        <Link
+          component="button"
+          variant="body2"
+          onClick={() => navigate(`/flows?source_id=${source.id}`)}
+          sx={{ cursor: 'pointer' }}
+        >
+          View Flows
+        </Link>
+      </TableCell>
+    </>
+  );
+
   return (
     <Container>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4">
           Sources
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setOpen(true)}
-          sx={{ backgroundColor: '#616161', '&:hover': { backgroundColor: '#757575' } }}
-        >
-          Create Source
-        </Button>
+        {!isViewer && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setOpen(true)}
+            sx={{ backgroundColor: '#616161', '&:hover': { backgroundColor: '#757575' } }}
+          >
+            Create Source
+          </Button>
+        )}
       </Box>
 
       {loading ? (
@@ -112,46 +208,23 @@ const Sources: React.FC = () => {
           <Typography sx={{ ml: 2 }}>Loading sources...</Typography>
         </Box>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>Label</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell>Format</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sources.map((source) => (
-                <TableRow key={source.id}>
-                  <TableCell>{source.id}</TableCell>
-                  <TableCell>{source.label || '-'}</TableCell>
-                  <TableCell>{source.description || '-'}</TableCell>
-                  <TableCell>{source.format}</TableCell>
-                  <TableCell>{source.created ? new Date(source.created).toLocaleDateString() : '-'}</TableCell>
-                  <TableCell>
-                    <Button
-                      size="small"
-                      startIcon={<InfoIcon />}
-                      onClick={() => {
-                        setSelectedSource(source);
-                        setDetailsOpen(true);
-                      }}
-                    >
-                      Details
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DataTable
+          columns={columns}
+          data={paginatedSources}
+          getRowId={(source) => source.id}
+          renderRow={renderRow}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          totalCount={sources.length}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          orderBy={orderBy}
+          order={order}
+          onSort={handleSort}
+        />
       )}
 
-      <Dialog open={open} onClose={() => setOpen(false)}>
+      <Dialog open={open && !isViewer} onClose={() => setOpen(false)}>
         <DialogTitle>Create Source</DialogTitle>
         <DialogContent>
           <TextField
@@ -197,7 +270,7 @@ const Sources: React.FC = () => {
           <Button 
             onClick={handleCreate} 
             variant="contained" 
-            disabled={creating}
+            disabled={creating || isViewer}
             sx={{ backgroundColor: '#616161', '&:hover': { backgroundColor: '#757575' } }}
           >
             {creating ? <CircularProgress size={20} /> : 'Create'}
@@ -205,52 +278,6 @@ const Sources: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Source Details</DialogTitle>
-        <DialogContent>
-          {selectedSource && (
-            <Box sx={{ mt: 2 }}>
-              <Box sx={{ mb: 2 }}>
-                <DialogContentText><strong>ID:</strong> {selectedSource.id}</DialogContentText>
-              </Box>
-              <Box sx={{ mb: 2 }}>
-                <DialogContentText><strong>Label:</strong> {selectedSource.label || '-'}</DialogContentText>
-              </Box>
-              <Box sx={{ mb: 2 }}>
-                <DialogContentText><strong>Description:</strong> {selectedSource.description || '-'}</DialogContentText>
-              </Box>
-              <Box sx={{ mb: 2 }}>
-                <DialogContentText><strong>Format:</strong> {selectedSource.format}</DialogContentText>
-              </Box>
-              <Box sx={{ mb: 2 }}>
-                <DialogContentText><strong>Created By:</strong> {selectedSource.created_by || '-'}</DialogContentText>
-              </Box>
-              <Box sx={{ mb: 2 }}>
-                <DialogContentText><strong>Updated By:</strong> {selectedSource.updated_by || '-'}</DialogContentText>
-              </Box>
-              <Box sx={{ mb: 2 }}>
-                <DialogContentText><strong>Created:</strong> {selectedSource.created ? new Date(selectedSource.created).toLocaleString() : '-'}</DialogContentText>
-              </Box>
-              <Box sx={{ mb: 2 }}>
-                <DialogContentText><strong>Updated:</strong> {selectedSource.updated ? new Date(selectedSource.updated).toLocaleString() : '-'}</DialogContentText>
-              </Box>
-              {selectedSource.tags && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}><strong>Tags:</strong></Typography>
-                  <Paper sx={{ p: 2, maxHeight: 200, overflow: 'auto' }}>
-                    <pre style={{ margin: 0, fontSize: '0.875rem' }}>
-                      {JSON.stringify(selectedSource.tags, null, 2)}
-                    </pre>
-                  </Paper>
-                </Box>
-              )}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDetailsOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
     </Container>
   );
 };

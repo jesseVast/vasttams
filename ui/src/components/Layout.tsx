@@ -27,12 +27,12 @@ import { authService } from '../services/api';
 
 const drawerWidth = 240;
 
-const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-  { text: 'Users', icon: <PeopleIcon />, path: '/users' },
-  { text: 'Sources', icon: <FolderIcon />, path: '/sources' },
-  { text: 'Flows', icon: <TimelineIcon />, path: '/flows' },
-  { text: 'Segments', icon: <VideoLibraryIcon />, path: '/segments' },
+const allMenuItems = [
+  { text: 'Dashboard', icon: <DashboardIcon />, path: '/', adminOnly: false },
+  { text: 'Users', icon: <PeopleIcon />, path: '/users', adminOnly: true },
+  { text: 'Sources', icon: <FolderIcon />, path: '/sources', adminOnly: false },
+  { text: 'Flows', icon: <TimelineIcon />, path: '/flows', adminOnly: false },
+  { text: 'Segments', icon: <VideoLibraryIcon />, path: '/segments', adminOnly: false },
 ];
 
 const Layout: React.FC = () => {
@@ -41,6 +41,13 @@ const Layout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const user = authService.getCurrentUser();
+
+  // Filter menu items based on user role
+  const menuItems = React.useMemo(() => {
+    if (!user) return allMenuItems.filter(item => !item.adminOnly);
+    if (user.role === 'admin') return allMenuItems;
+    return allMenuItems.filter(item => !item.adminOnly);
+  }, [user]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -62,10 +69,22 @@ const Layout: React.FC = () => {
 
   const drawer = (
     <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div">
-          TAMS Admin
-        </Typography>
+      <Toolbar sx={{ backgroundColor: '#1a1a1a', minHeight: '80px !important' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', py: 1 }}>
+          <Box
+            component="img"
+            src="/vastlogo.png"
+            alt="VAST Logo"
+            sx={{
+              height: 40,
+              width: 'auto',
+              mb: 0.5,
+            }}
+          />
+          <Typography variant="h6" component="div" sx={{ fontSize: '0.875rem', fontWeight: 'bold', color: '#fff' }}>
+            TAMS
+          </Typography>
+        </Box>
       </Toolbar>
       <List>
         {menuItems.map((item) => (
@@ -106,17 +125,22 @@ const Layout: React.FC = () => {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            TAMS API Management
+            TAMS Console
           </Typography>
           {user && (
             <>
-              <IconButton
-                onClick={handleMenuOpen}
-                sx={{ ml: 2 }}
-                color="inherit"
-              >
-                <AccountCircleIcon />
-              </IconButton>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mr: 1 }}>
+                <IconButton
+                  onClick={handleMenuOpen}
+                  sx={{ ml: 2, p: 0.5 }}
+                  color="inherit"
+                >
+                  <AccountCircleIcon />
+                </IconButton>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem', mt: -0.5, ml: 2, color: 'inherit', textAlign: 'center', width: '100%' }}>
+                  {user.username}
+                </Typography>
+              </Box>
               <Menu
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}

@@ -9,11 +9,15 @@ from typing import List
 
 
 def get_objects_schema() -> pa.Schema:
-    """Get objects table schema - TAMS 8.0 with timerange support"""
+    """Get objects table schema - TAMS 8.0 with timerange support
+    
+    Note: referenced_by_flows is computed dynamically from segments table via JOINs,
+    so it's not stored in the database schema. It's required by TAMS spec in API responses
+    but computed on-the-fly for data consistency.
+    """
     return pa.schema([
         pa.field("id", pa.string(), nullable=True),  # VAST requires nullable strings
-        pa.field("referenced_by_flows", pa.string(), nullable=True),  # JSON array string
-        pa.field("first_referenced_by_flow", pa.string(), nullable=True),
+        pa.field("first_referenced_by_flow", pa.string(), nullable=True),  # Computed dynamically, kept for caching/performance
         pa.field("timerange", pa.string(), nullable=True),  # TAMS 8.0: Required timerange field
         pa.field("size", pa.int64(), nullable=True),
         pa.field("metadata", pa.string(), nullable=True),  # JSON metadata (storage_id, storage_path, etc.)

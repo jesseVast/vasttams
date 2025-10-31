@@ -256,49 +256,9 @@ class SegmentStorageService:
                     ref_row = prepare_data_for_pyarrow(ref_row)
                     self.vast_db.insert_record("flow_object_references", ref_row)
                 
-                # 2) Update objects.referenced_by_flows and first_referenced_by_flow if needed
-                obj_id = segment_data.get('object_id')
-                if obj_id:
-                    obj_result = self.vast_db.query("objects").select("referenced_by_flows", "first_referenced_by_flow").where(
-                        f"id = '{obj_id}'"
-                    ).execute()
-                    # Normalize result to dict of values
-                    ref_list: list = []
-                    first_ref = None
-                    if isinstance(obj_result, dict) and 'data' in obj_result and isinstance(obj_result['data'], dict) and obj_result['data']:
-                        data = obj_result['data']
-                        # Extract first row
-                        try:
-                            referenced_by_flows_col = data.get('referenced_by_flows', [])
-                            first_ref_col = data.get('first_referenced_by_flow', [])
-                            referenced_by_flows_raw = referenced_by_flows_col[0] if isinstance(referenced_by_flows_col, list) and referenced_by_flows_col else None
-                            first_ref = first_ref_col[0] if isinstance(first_ref_col, list) and first_ref_col else None
-                        except Exception:
-                            referenced_by_flows_raw = None
-                            first_ref = None
-                    else:
-                        referenced_by_flows_raw = None
-                        first_ref = None
-                    
-                    if isinstance(referenced_by_flows_raw, str) and referenced_by_flows_raw:
-                        try:
-                            ref_list = _json.loads(referenced_by_flows_raw)
-                        except Exception:
-                            ref_list = []
-                    elif isinstance(referenced_by_flows_raw, list):
-                        ref_list = referenced_by_flows_raw
-                    else:
-                        ref_list = []
-                    
-                    if flow_id not in ref_list:
-                        ref_list.append(flow_id)
-                        update_fields = {
-                            "referenced_by_flows": _json.dumps(ref_list)
-                        }
-                        if not first_ref:
-                            update_fields["first_referenced_by_flow"] = flow_id
-                        update_fields = prepare_data_for_pyarrow(update_fields)
-                        self.vast_db.query("objects").update(update_fields).where(f"id = '{obj_id}'").execute()
+                # Note: We no longer update objects.referenced_by_flows as JSON
+                # It's computed dynamically from segments/flow_object_references tables using JOINs
+                # This is cleaner, avoids JSON parsing complexity, and uses normalized relational data
             except Exception as rel_err:
                 logger.warning("Failed to update flow-object references for flow %s, object %s: %s", flow_id, segment_data.get('object_id'), rel_err)
             return True

@@ -103,8 +103,15 @@ async def update_flow_by_id(
 ):
     """Update a flow"""
     try:
+        # Get username for metadata
+        username = user_session.username if user_session else "system"
+        
         # Ensure the flow_id in the path matches the id in the request body
         flow_data["id"] = flow_id
+        
+        # Set updated_by from authenticated user (don't overwrite created_by)
+        if "updated_by" not in flow_data or not flow_data.get("updated_by"):
+            flow_data["updated_by"] = username
         
         # Create Flow object from the data based on format
         format_type = flow_data.get("format")
@@ -199,6 +206,15 @@ async def create_new_flow(
 ):
     """Create a new flow"""
     try:
+        # Get username for metadata
+        username = user_session.username if user_session else "system"
+        
+        # Set created_by and updated_by from authenticated user
+        if not flow.created_by:
+            flow.created_by = username
+        if not flow.updated_by:
+            flow.updated_by = username
+        
         # Validate C2PA provenance if present in tags
         if flow.tags and flow.tags.root:
             tags_dict = flow.tags.root

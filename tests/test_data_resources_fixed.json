@@ -1,0 +1,29 @@
+{
+  "source": "57fb7bef-ba7e-4286-adf2-2b00c724c074",
+  "flows": [
+    {
+      "id": "fa6f610b-8de6-4a42-a7d5-d739e8adf46f",
+      "original_id": "142ea40c-0749-4d56-bcf8-83e7b8c084a2",
+      "segments_count": 7
+    },
+    {
+      "id": "91f1b7af-5983-4594-a12f-27e60cc26e96",
+      "original_id": "05bc6156-cd50-4ce0-85f3-ee951973ab3f",
+      "segments_count": 7
+    }
+  ],
+  "segments_count": 14,
+  "original_source": "36f995d7-5591-4891-9388-781775829f5c",
+  "original_flows": [
+    {
+      "id": "142ea40c-0749-4d56-bcf8-83e7b8c084a2",
+      "label": "Flow 1 (First Half)",
+      "video_count": 7
+    },
+    {
+      "id": "05bc6156-cd50-4ce0-85f3-ee951973ab3f",
+      "label": "Flow 2 (Second Half)",
+      "video_count": 7
+    }
+  ]
+}

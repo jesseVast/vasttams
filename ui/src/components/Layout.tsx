@@ -24,6 +24,7 @@ import TimelineIcon from '@mui/icons-material/Timeline';
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { authService } from '../services/api';
+import BackendStatus from './BackendStatus';
 
 const drawerWidth = 240;
 
@@ -127,6 +128,9 @@ const Layout: React.FC = () => {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             TAMS Console
           </Typography>
+          <Box sx={{ mr: 2 }}>
+            <BackendStatus size="small" />
+          </Box>
           {user && (
             <>
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mr: 1 }}>

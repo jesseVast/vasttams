@@ -78,6 +78,7 @@ class FlowAnalytics(BaseModel):
     source_id: Optional[str] = Field(None, description="Source ID")
     format: str = Field(..., description="Flow format")
     segment_count: int = Field(0, description="Number of segments in this flow")
+    total_duration_seconds: Optional[float] = Field(None, description="Total duration of flow in seconds calculated from segments")
     total_size_bytes: int = Field(0, description="Total storage size for this flow in bytes")
     created: Optional[datetime] = Field(None, description="Flow creation time")
 

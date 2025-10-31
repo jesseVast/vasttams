@@ -2,48 +2,31 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
-  Button,
   Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  TextField,
   Typography,
   TableCell,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   CircularProgress,
   Link,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import { Source } from '../types';
-import { sourceService, authService } from '../services/api';
+import { sourceService, analyticsService } from '../services/api';
 import DataTable, { Column } from '../components/DataTable';
+import DetailModal from '../components/DetailModal';
 
-type SortableField = 'id' | 'label' | 'format' | 'created';
+type SortableField = 'label' | 'format' | 'created';
 
 const Sources: React.FC = () => {
   const navigate = useNavigate();
-  const user = authService.getCurrentUser();
-  const isViewer = user?.role === 'viewer';
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [open, setOpen] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<SortableField>('created');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
-  const [formData, setFormData] = useState({
-    label: '',
-    description: '',
-    format: 'urn:x-nmos:format:video',
-    created_by: '',
-  });
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<Source | null>(null);
+  const [flowCounts, setFlowCounts] = useState<Record<string, number>>({});
+  const [segmentCounts, setSegmentCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     loadSources();
@@ -52,47 +35,41 @@ const Sources: React.FC = () => {
   const loadSources = async () => {
     try {
       setLoading(true);
-      const data = await sourceService.list();
-      setSources(data);
+      // Load sources and analytics in parallel
+      const [sourcesData, analyticsData] = await Promise.all([
+        sourceService.list(),
+        analyticsService.getSourceAnalytics()
+      ]);
+      
+      setSources(sourcesData);
+      
+      // Extract flow counts and segment counts from analytics
+      const flowCountsMap: Record<string, number> = {};
+      const segmentCountsMap: Record<string, number> = {};
+      
+      analyticsData.forEach((analytics) => {
+        if (analytics.source_id) {
+          flowCountsMap[analytics.source_id] = analytics.flow_count !== undefined ? analytics.flow_count : 0;
+          segmentCountsMap[analytics.source_id] = analytics.segment_count !== undefined ? analytics.segment_count : 0;
+        }
+      });
+      
+      // Ensure all sources have entries (even if 0)
+      sourcesData.forEach((source) => {
+        if (!flowCountsMap.hasOwnProperty(source.id)) {
+          flowCountsMap[source.id] = 0;
+        }
+        if (!segmentCountsMap.hasOwnProperty(source.id)) {
+          segmentCountsMap[source.id] = 0;
+        }
+      });
+      
+      setFlowCounts(flowCountsMap);
+      setSegmentCounts(segmentCountsMap);
     } catch (error) {
       console.error('Failed to load sources:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const generateUUID = () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : ((r & 0x3) | 0x8);
-      return v.toString(16);
-    });
-  };
-
-  const handleCreate = async () => {
-    if (isViewer) {
-      return; // Prevent viewers from creating sources
-    }
-    try {
-      setCreating(true);
-      const id = generateUUID();
-      const now = new Date().toISOString();
-      const sourceData = {
-        id,
-        ...formData,
-        created: now,
-        updated: now,
-        created_by: formData.created_by || 'admin',
-        updated_by: formData.created_by || 'admin',
-      };
-      await sourceService.create(sourceData);
-      setOpen(false);
-      setFormData({ label: '', description: '', format: 'urn:x-nmos:format:video', created_by: '' });
-      loadSources();
-    } catch (error) {
-      console.error('Failed to create source:', error);
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -109,10 +86,6 @@ const Sources: React.FC = () => {
       let bValue: any;
 
       switch (orderBy) {
-        case 'id':
-          aValue = a.id || '';
-          bValue = b.id || '';
-          break;
         case 'label':
           aValue = a.label || '';
           bValue = b.label || '';
@@ -156,33 +129,65 @@ const Sources: React.FC = () => {
   };
 
   const columns: Column<Source>[] = [
-    { id: 'id', label: 'ID', sortable: true },
+    { id: 'detail', label: 'Detail', sortable: false },
     { id: 'label', label: 'Label', sortable: true },
     { id: 'description', label: 'Description', sortable: false },
     { id: 'format', label: 'Format', sortable: true },
+    { id: 'flows', label: 'Flows', sortable: false, align: 'right' },
+    { id: 'segments', label: 'Segments', sortable: false, align: 'right' },
     { id: 'created', label: 'Created (Date/Time)', sortable: true },
     { id: 'actions', label: 'Actions', sortable: false },
   ];
 
-  const renderRow = (source: Source, index: number) => (
-    <>
-      <TableCell>{source.id}</TableCell>
-      <TableCell>{source.label || '-'}</TableCell>
-      <TableCell>{source.description || '-'}</TableCell>
-      <TableCell>{source.format}</TableCell>
-      <TableCell>{source.created ? new Date(source.created).toLocaleString() : '-'}</TableCell>
-      <TableCell>
-        <Link
-          component="button"
-          variant="body2"
-          onClick={() => navigate(`/flows?source_id=${source.id}`)}
-          sx={{ cursor: 'pointer' }}
-        >
-          View Flows
-        </Link>
-      </TableCell>
-    </>
-  );
+  const handleOpenDetail = (source: Source) => {
+    setSelectedSource(source);
+    setDetailModalOpen(true);
+  };
+
+  const renderRow = (source: Source, index: number) => {
+    // Get flow count and segment count from analytics
+    const flowCount = flowCounts[source.id] !== undefined 
+      ? flowCounts[source.id] 
+      : loading ? '...' : '-';
+    const segmentCount = segmentCounts[source.id] !== undefined 
+      ? segmentCounts[source.id] 
+      : loading ? '...' : '-';
+    
+    return (
+      <>
+        <TableCell>
+          <Link
+            component="button"
+            variant="body2"
+            onClick={() => handleOpenDetail(source)}
+            sx={{ cursor: 'pointer' }}
+          >
+            Detail
+          </Link>
+        </TableCell>
+        <TableCell>{source.label || '-'}</TableCell>
+        <TableCell>{source.description || '-'}</TableCell>
+        <TableCell>{source.format}</TableCell>
+        <TableCell align="right">
+          {typeof flowCount === 'number' ? flowCount.toLocaleString() : flowCount}
+        </TableCell>
+        <TableCell align="right">
+          {typeof segmentCount === 'number' ? segmentCount.toLocaleString() : segmentCount}
+        </TableCell>
+        <TableCell>{source.created ? new Date(source.created).toLocaleString() : '-'}</TableCell>
+        <TableCell>
+          <Link
+            component="button"
+            variant="body2"
+            onClick={() => navigate(`/flows?source_id=${source.id}`)}
+            sx={{ cursor: 'pointer' }}
+          >
+            View Flows
+          </Link>
+        </TableCell>
+      </>
+    );
+  };
 
   return (
     <Container>
@@ -190,16 +195,6 @@ const Sources: React.FC = () => {
         <Typography variant="h4">
           Sources
         </Typography>
-        {!isViewer && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setOpen(true)}
-            sx={{ backgroundColor: '#616161', '&:hover': { backgroundColor: '#757575' } }}
-          >
-            Create Source
-          </Button>
-        )}
       </Box>
 
       {loading ? (
@@ -224,60 +219,12 @@ const Sources: React.FC = () => {
         />
       )}
 
-      <Dialog open={open && !isViewer} onClose={() => setOpen(false)}>
-        <DialogTitle>Create Source</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Label"
-            fullWidth
-            variant="standard"
-            value={formData.label}
-            onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Description"
-            fullWidth
-            variant="standard"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          />
-          <FormControl fullWidth variant="standard" margin="dense">
-            <InputLabel>Format</InputLabel>
-            <Select
-              value={formData.format}
-              onChange={(e) => setFormData({ ...formData, format: e.target.value })}
-            >
-              <MenuItem value="urn:x-nmos:format:video">Video</MenuItem>
-              <MenuItem value="urn:x-nmos:format:audio">Audio</MenuItem>
-              <MenuItem value="urn:x-nmos:format:data">Data</MenuItem>
-              <MenuItem value="urn:x-nmos:format:multi">Multi</MenuItem>
-            </Select>
-          </FormControl>
-          <TextField
-            margin="dense"
-            label="Created By"
-            fullWidth
-            variant="standard"
-            value={formData.created_by}
-            onChange={(e) => setFormData({ ...formData, created_by: e.target.value })}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleCreate} 
-            variant="contained" 
-            disabled={creating || isViewer}
-            sx={{ backgroundColor: '#616161', '&:hover': { backgroundColor: '#757575' } }}
-          >
-            {creating ? <CircularProgress size={20} /> : 'Create'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
+      <DetailModal
+        open={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        data={selectedSource}
+        title="Source Details"
+      />
     </Container>
   );
 };

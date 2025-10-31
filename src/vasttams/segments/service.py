@@ -36,12 +36,6 @@ class SegmentStorageService:
             # Query segments using vaststore
             query = self.vast_db.query("segments").select("*").where(f"flow_id = '{flow_id}'")
             
-            if timerange:
-                # Add timerange filtering if provided
-                # Note: timerange filtering is complex and would need proper parsing
-                # For now, we'll skip timerange filtering to avoid schema issues
-                logger.warning("Timerange filtering not yet implemented for segments")
-            
             result = query.execute()
             
             # Convert to FlowSegment objects
@@ -160,7 +154,33 @@ class SegmentStorageService:
                                     segment_data[field] = parsed
                             except (json.JSONDecodeError, TypeError):
                                 pass
-                    segments.append(FlowSegment(**segment_data))
+                        segments.append(FlowSegment(**segment_data))
+            
+            # Filter by timerange if provided
+            if timerange:
+                try:
+                    from ..core.timerange_utils import parse_tams_timerange
+                    query_start, query_end = parse_tams_timerange(timerange)
+                    
+                    # Only filter if we got valid start and end times (not infinity)
+                    if query_start is not None and query_end is not None and query_end != float('inf'):
+                        filtered_segments = []
+                        for segment in segments:
+                            # Parse segment timerange
+                            if segment.timerange and segment.timerange.value:
+                                seg_start, seg_end = parse_tams_timerange(segment.timerange.value)
+                                
+                                # Check if segment overlaps with query timerange
+                                # Overlap: segment_start < query_end AND segment_end > query_start
+                                if seg_start is not None and seg_end is not None:
+                                    if seg_start < query_end and seg_end > query_start:
+                                        filtered_segments.append(segment)
+                            
+                        segments = filtered_segments
+                        logger.debug(f"Filtered {len(segments)} segments matching timerange {timerange} (query: {query_start}s to {query_end}s)")
+                except Exception as e:
+                    logger.warning(f"Failed to filter segments by timerange {timerange}: {e}")
+                    # Continue with unfiltered segments if parsing fails
             
             # Populate get_urls if missing (per TAMS spec - service should auto-populate controlled URLs)
             for segment in segments:

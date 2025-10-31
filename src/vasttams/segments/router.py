@@ -5,7 +5,7 @@ This is a minimal working segments router that uses the new storage service arch
 It provides basic endpoint structure that can be expanded later.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks
 from typing import List, Optional
 from pydantic import ValidationError
 from .models import FlowSegment
@@ -13,15 +13,127 @@ from ..service.storage_models import FlowStorage, FlowStoragePost
 from ..common.storage import get_storage_service
 from ..common.storage.interfaces import StorageInterface
 from ..events import EventManager
-from ..core.dependencies import get_vast_db
+from ..core.dependencies import get_vast_db, get_s3_client
 from ..core.utils import log_pydantic_validation_error, safe_model_parse
 from ..auth.rbac import require_admin, require_editor, require_viewer
 from ..auth.middleware import UserSession
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/flows", tags=["segments"])
+
+
+async def update_object_size_from_s3(object_id: str):
+    """Background task to update object size from S3 after segment creation
+    
+    This function checks the database directly for size and storage_path to avoid
+    race conditions with get_object() fallback updates. It only queries S3 if
+    the size is still NULL/0 in the database.
+    """
+    try:
+        import json
+        from ..core.dependencies import get_vast_db, get_s3_client
+        
+        vast_db = get_vast_db()
+        objects_table = vast_db.get_qualified_table_name("objects")
+        
+        # First, check if size is already set (avoid race condition and unnecessary S3 queries)
+        check_sql = f"""
+            SELECT size, metadata 
+            FROM {objects_table} 
+            WHERE id = '{object_id}'
+        """
+        check_result = vast_db.execute_sql(check_sql)
+        
+        # Parse result to check current size
+        size = None
+        metadata_str = None
+        
+        if isinstance(check_result, dict) and 'data' in check_result:
+            data = check_result['data']
+            if isinstance(data, dict):
+                # Columnar format
+                size_col = data.get('size', [])
+                metadata_col = data.get('metadata', [])
+                if size_col and len(size_col) > 0:
+                    size = size_col[0]
+                if metadata_col and len(metadata_col) > 0:
+                    metadata_str = metadata_col[0]
+            elif isinstance(data, list) and len(data) > 0:
+                # Row-oriented format
+                row = data[0]
+                if isinstance(row, dict):
+                    size = row.get('size')
+                    metadata_str = row.get('metadata')
+        elif isinstance(check_result, list) and len(check_result) > 0:
+            row = check_result[0]
+            if isinstance(row, dict):
+                size = row.get('size')
+                metadata_str = row.get('metadata')
+        
+        # If size is already set, skip S3 query (avoid race condition)
+        if size is not None and size > 0:
+            return
+        
+        # If no metadata, can't get storage_path
+        if not metadata_str:
+            logger.debug("Object %s has no metadata, skipping size update", object_id)
+            return
+        
+        # Parse metadata to get storage_path
+        try:
+            if isinstance(metadata_str, str):
+                metadata = json.loads(metadata_str)
+            else:
+                metadata = metadata_str
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.debug("Object %s has invalid metadata format: %s", object_id, e)
+            return
+        
+        storage_path = metadata.get('storage_path')
+        if not storage_path:
+            logger.debug("Object %s has no storage_path in metadata, skipping size update", object_id)
+            return
+        
+        # Get S3 client (vasts3)
+        s3_client = get_s3_client()
+        if not s3_client:
+            logger.debug("S3 client not available for object %s", object_id)
+            return
+        # Get object metadata using vasts3
+        try:
+            s3_metadata = s3_client.get_object_metadata(key=storage_path)
+            if not s3_metadata:
+                logger.debug("Object %s not found in S3 at path: %s", object_id, storage_path)
+                return
+            
+            # vasts3 returns 'content_length' (lowercase, underscore), not 'ContentLength'
+            s3_size = 0
+            if isinstance(s3_metadata, dict):
+                s3_size = s3_metadata.get('content_length') or s3_metadata.get('ContentLength', 0) or 0
+            elif hasattr(s3_metadata, 'content_length'):
+                s3_size = s3_metadata.content_length
+            elif hasattr(s3_metadata, 'ContentLength'):
+                s3_size = s3_metadata.ContentLength
+            
+            if s3_size > 0:
+                # Double-check size is still NULL/0 before updating (handle race condition)
+                # Use atomic UPDATE with WHERE clause to ensure idempotency
+                update_sql = f"""
+                    UPDATE {objects_table} 
+                    SET size = {s3_size} 
+                    WHERE id = '{object_id}' AND (size IS NULL OR size = 0)
+                """
+                vast_db.execute_sql(update_sql)
+                logger.info("Updated size for object %s: %d bytes", object_id, s3_size)
+        except Exception as s3_err:
+            logger.warning("Failed to get metadata from S3 for object %s: %s", object_id, s3_err)
+            
+    except Exception as e:
+        # Log but don't fail - this is a background task
+        logger.warning("Failed to update object size from S3 for object %s: %s", object_id, e)
 
 # HEAD endpoint
 @router.head("/{flow_id}/segments")
@@ -147,10 +259,15 @@ async def list_flow_segments(
 async def create_new_flow_segment(
     flow_id: str,
     segment: FlowSegment = Body(...),
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_editor),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Create a new flow segment"""
     try:
+        # Get username for logging (segments don't have created_by/updated_by in TAMS spec)
+        username = user_session.username if user_session else "system"
+        logger.info("User %s creating segment for flow %s", username, flow_id)
         # Validate segment data
         if not segment.object_id:
             raise HTTPException(status_code=400, detail="object_id is required")
@@ -169,6 +286,10 @@ async def create_new_flow_segment(
             await event_manager.emit_segment_event('flow-segments/created', segment, flow_id=flow_id)
         except Exception as e:
             logger.warning("Failed to emit segment created event: %s", e)
+        
+        # Update object size from S3 in background (non-blocking)
+        if segment.object_id:
+            background_tasks.add_task(update_object_size_from_s3, segment.object_id)
         
         return segment
         

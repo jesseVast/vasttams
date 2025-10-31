@@ -89,6 +89,10 @@ export const userService = {
   updateRole: async (username: string, role: string): Promise<void> => {
     await api.put(`/users/${username}/role`, { role });
   },
+
+  updatePassword: async (username: string, password: string): Promise<void> => {
+    await api.put(`/users/${username}/password`, { password });
+  },
 };
 
 export const sourceService = {

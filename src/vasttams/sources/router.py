@@ -84,8 +84,14 @@ async def create_new_source(
 ):
     """Create a new source"""
     try:
-        # Get username for logging
+        # Get username for logging and metadata
         username = user_session.username if user_session else "system"
+        
+        # Set created_by and updated_by from authenticated user
+        if not source.created_by:
+            source.created_by = username
+        if not source.updated_by:
+            source.updated_by = username
         
         # Log successful validation with user context
         logger.info("User %s creating source with ID: %s, format: %s", username, source.id, source.format)
@@ -382,11 +388,15 @@ async def update_source_description(
 ):
     """Update source description"""
     try:
+        # Get username for metadata
+        username = user_session.username if user_session else "system"
+        
         source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
         source.description = description
+        source.updated_by = username
         success = await storage.update_source(source_id, source)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update source description")
@@ -417,7 +427,11 @@ async def delete_source_description(
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
+        # Get username for metadata
+        username = user_session.username if user_session else "system"
+        
         source.description = None
+        source.updated_by = username
         
         # Save the updated source
         success = await storage.update_source(source_id, source)
@@ -469,11 +483,15 @@ async def update_source_label(
 ):
     """Update source label"""
     try:
+        # Get username for metadata
+        username = user_session.username if user_session else "system"
+        
         source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
         source.label = label
+        source.updated_by = username
         success = await storage.update_source(source_id, source)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update source label")

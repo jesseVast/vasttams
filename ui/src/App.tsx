@@ -32,6 +32,21 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   return user ? <>{children}</> : <Navigate to="/login" />;
 };
 
+interface AdminRouteProps {
+  children: React.ReactNode;
+}
+
+const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
+  const user = authService.getCurrentUser();
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+  if (user.role !== 'admin') {
+    return <Navigate to="/" />;
+  }
+  return <>{children}</>;
+};
+
 const App: React.FC = () => {
   return (
     <ThemeProvider theme={theme}>
@@ -51,9 +66,9 @@ const App: React.FC = () => {
             <Route
               path="users"
               element={
-                <PrivateRoute>
+                <AdminRoute>
                   <Users />
-                </PrivateRoute>
+                </AdminRoute>
               }
             />
             <Route

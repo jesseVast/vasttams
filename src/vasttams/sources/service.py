@@ -203,6 +203,7 @@ class SourceStorageService:
                 tags_data = source.tags
             
             # Only update mutable fields, exclude read-only fields and tags
+            # Keep updated_by if provided, but don't overwrite created_by
             source_data = source.model_dump(exclude={'id', 'created', 'created_by', 'source_collection', 'collected_by', 'tags'})
             
             # Convert timestamp fields to SQL format using centralized function

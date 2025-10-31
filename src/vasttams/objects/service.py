@@ -32,21 +32,138 @@ class ObjectStorageService:
         try:
             result = self.vast_db.query("objects").select("*").where(f"id = '{object_id}'").execute()
             
-            # Handle VAST query result format
-            rows = []
+            # Handle VAST query result format (columnar or row-oriented)
+            object_data = None
             if isinstance(result, dict) and 'data' in result:
                 data = result['data']
-                if isinstance(data, dict):
-                    rows = list(data.values()) if data else []
-                elif isinstance(data, list):
-                    rows = data
-            else:
-                rows = result if isinstance(result, list) else []
+                if isinstance(data, dict) and data:
+                    # Columnar format - convert to row dictionary
+                    # Get first row (index 0) since we're querying by ID
+                    num_rows = len(next(iter(data.values())))
+                    if num_rows == 0:
+                        return None
+                    
+                    object_data = {}
+                    for column, values in data.items():
+                        if column != '$row_id':  # Skip internal row IDs
+                            value = values[0] if len(values) > 0 else None
+                            object_data[column] = value
+                elif isinstance(data, list) and len(data) > 0:
+                    # Row-oriented format
+                    first_row = data[0]
+                    if isinstance(first_row, dict):
+                        object_data = first_row
+                    else:
+                        logger.warning("Unexpected row format in objects query result")
+                        return None
+            elif isinstance(result, list) and len(result) > 0:
+                # Direct list result
+                first_row = result[0]
+                if isinstance(first_row, dict):
+                    object_data = first_row
+                else:
+                    logger.warning("Unexpected row format in objects query result")
+                    return None
             
-            if not rows or len(rows) == 0:
+            if not object_data:
                 return None
             
-            object_data = dict(rows[0]) if hasattr(rows[0], '__iter__') and not isinstance(rows[0], str) else rows[0]
+            # Remove referenced_by_flows from object_data if present (no longer stored in schema, computed dynamically)
+            if 'referenced_by_flows' in object_data:
+                del object_data['referenced_by_flows']
+            
+            # Compute referenced_by_flows dynamically from segments/flow_object_references (normalized table)
+            # Instead of storing as JSON, we compute it using a JOIN - cleaner and more maintainable
+            try:
+                segments_table = self.vast_db.get_qualified_table_name("segments")
+                # Query distinct flow_ids that reference this object via segments
+                ref_query = f"""
+                    SELECT DISTINCT flow_id 
+                    FROM {segments_table} 
+                    WHERE object_id = '{object_id}' AND flow_id IS NOT NULL
+                """
+                ref_result = self.vast_db.execute_sql(ref_query)
+                referenced_flows = []
+                
+                if isinstance(ref_result, dict) and 'data' in ref_result:
+                    data = ref_result['data']
+                    if isinstance(data, dict):
+                        # Columnar format
+                        flow_id_col = data.get('flow_id', [])
+                        if isinstance(flow_id_col, list):
+                            referenced_flows = [str(fid) for fid in flow_id_col if fid]
+                    elif isinstance(data, list):
+                        # Row-oriented format
+                        for row in data:
+                            if isinstance(row, dict) and row.get('flow_id'):
+                                referenced_flows.append(str(row['flow_id']))
+                            elif isinstance(row, (list, tuple)) and len(row) > 0:
+                                referenced_flows.append(str(row[0]))
+                
+                # Also check flow_object_references table as fallback
+                if not referenced_flows:
+                    ref_table = self.vast_db.get_qualified_table_name("flow_object_references")
+                    ref_query2 = f"""
+                        SELECT DISTINCT flow_id 
+                        FROM {ref_table} 
+                        WHERE object_id = '{object_id}' AND flow_id IS NOT NULL
+                    """
+                    ref_result2 = self.vast_db.execute_sql(ref_query2)
+                    if isinstance(ref_result2, dict) and 'data' in ref_result2:
+                        data = ref_result2['data']
+                        if isinstance(data, dict):
+                            flow_id_col = data.get('flow_id', [])
+                            if isinstance(flow_id_col, list):
+                                referenced_flows = [str(fid) for fid in flow_id_col if fid]
+                
+                # Set referenced_by_flows (TAMS spec requirement)
+                object_data['referenced_by_flows'] = referenced_flows if referenced_flows else []
+                
+                # Compute first_referenced_by_flow as the flow with earliest segment creation
+                if referenced_flows:
+                    first_ref_query = f"""
+                        SELECT flow_id, MIN(created) as first_created
+                        FROM {segments_table}
+                        WHERE object_id = '{object_id}' AND flow_id IS NOT NULL
+                        GROUP BY flow_id
+                        ORDER BY first_created ASC
+                        LIMIT 1
+                    """
+                    first_ref_result = self.vast_db.execute_sql(first_ref_query)
+                    if isinstance(first_ref_result, dict) and 'data' in first_ref_result:
+                        data = first_ref_result['data']
+                        if isinstance(data, dict):
+                            flow_id_col = data.get('flow_id', [])
+                            if isinstance(flow_id_col, list) and len(flow_id_col) > 0:
+                                object_data['first_referenced_by_flow'] = str(flow_id_col[0])
+            except Exception as e:
+                logger.error("Failed to compute referenced_by_flows for object %s: %s", object_id, e)
+                # Set empty list on error - object will be returned but with no references
+                object_data['referenced_by_flows'] = []
+            
+            # Parse timerange
+            import json
+            from ..common.models import TimeRange
+            
+            # Handle timerange - can be None or a string in database, but model requires TimeRange (TAMS spec requirement)
+            if 'timerange' in object_data:
+                timerange_value = object_data.get('timerange')
+                if timerange_value is None or timerange_value == '':
+                    # Provide a default timerange if missing (required by model)
+                    object_data['timerange'] = TimeRange(value="0:0")
+                elif isinstance(timerange_value, str):
+                    # Convert string to TimeRange object
+                    object_data['timerange'] = TimeRange(value=timerange_value)
+                elif not isinstance(timerange_value, TimeRange):
+                    # If it's already a dict or other format, try to convert
+                    if isinstance(timerange_value, dict):
+                        object_data['timerange'] = TimeRange(**timerange_value)
+                    else:
+                        # Fallback to default
+                        object_data['timerange'] = TimeRange(value="0:0")
+            else:
+                # No timerange field - provide default
+                object_data['timerange'] = TimeRange(value="0:0")
             
             # Remove metadata from object_data before creating Object model
             # (metadata is internal-only, not part of TAMS API contract)
@@ -54,13 +171,47 @@ class ObjectStorageService:
             if 'metadata' in object_data:
                 if isinstance(object_data['metadata'], str):
                     try:
-                        import json
                         internal_metadata = json.loads(object_data['metadata'])
                     except (json.JSONDecodeError, TypeError):
                         internal_metadata = None
                 else:
                     internal_metadata = object_data['metadata']
                 del object_data['metadata']
+            
+            # Check if size is missing and update from S3 if needed (fallback)
+            # Note: The WHERE clause (size IS NULL OR size = 0) ensures atomicity and prevents
+            # race conditions with background task updates. If both paths try to update simultaneously,
+            # only one will succeed, which is safe and idempotent.
+            if object_data.get('size') is None and internal_metadata and self.s3_client:
+                storage_path = internal_metadata.get('storage_path')
+                if storage_path:
+                    try:
+                        # Get object metadata from S3
+                        s3_metadata = self.s3_client.get_object_metadata(key=storage_path)
+                        if s3_metadata:
+                            # vasts3 returns 'content_length' (lowercase, underscore), not 'ContentLength'
+                            size = 0
+                            if isinstance(s3_metadata, dict):
+                                size = s3_metadata.get('content_length') or s3_metadata.get('ContentLength', 0) or 0
+                            elif hasattr(s3_metadata, 'content_length'):
+                                size = s3_metadata.content_length
+                            elif hasattr(s3_metadata, 'ContentLength'):
+                                size = s3_metadata.ContentLength
+                            if size > 0:
+                                # Update database with size (atomic with WHERE clause to handle race conditions)
+                                objects_table = self.vast_db.get_qualified_table_name("objects")
+                                update_sql = f"""
+                                    UPDATE {objects_table} 
+                                    SET size = {size} 
+                                    WHERE id = '{object_id}' AND (size IS NULL OR size = 0)
+                                """
+                                self.vast_db.execute_sql(update_sql)
+                                # Update object_data with the size we just retrieved
+                                object_data['size'] = size
+                                logger.debug("Updated missing size for object %s from S3: %d bytes", object_id, size)
+                    except Exception as e:
+                        # Log but don't fail - object will be returned with NULL size
+                        logger.debug("Failed to update size from S3 for object %s: %s", object_id, e)
             
             obj = Object(**object_data)
             

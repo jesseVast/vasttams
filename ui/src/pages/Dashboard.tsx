@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Typography, Paper, Box, CircularProgress } from '@mui/material';
+import { Container, Typography, Box, CircularProgress } from '@mui/material';
 import { authService, analyticsService } from '../services/api';
 import { AnalyticsSummary } from '../types';
+import StatCard from '../components/StatCard';
 
 const Dashboard: React.FC = () => {
   const user = authService.getCurrentUser();
@@ -37,12 +38,6 @@ const Dashboard: React.FC = () => {
       <Typography variant="h4" gutterBottom>
         Dashboard
       </Typography>
-      
-      <Box sx={{ mt: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Welcome, {user?.username} ({user?.role})
-        </Typography>
-      </Box>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
@@ -55,39 +50,23 @@ const Dashboard: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               Overview Statistics
             </Typography>
-            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mt: 2 }}>
-              <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 200px', minWidth: '180px' }}>
-                <Typography variant="h2" color="primary">
-                  {analytics.counts.total_sources}
-                </Typography>
-                <Typography variant="h6" color="text.secondary">
-                  Sources
-                </Typography>
-              </Paper>
-              <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 200px', minWidth: '180px' }}>
-                <Typography variant="h2" color="primary">
-                  {analytics.counts.total_flows}
-                </Typography>
-                <Typography variant="h6" color="text.secondary">
-                  Flows
-                </Typography>
-              </Paper>
-              <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 200px', minWidth: '180px' }}>
-                <Typography variant="h2" color="primary">
-                  {analytics.counts.total_segments}
-                </Typography>
-                <Typography variant="h6" color="text.secondary">
-                  Segments
-                </Typography>
-              </Paper>
-              <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 200px', minWidth: '180px' }}>
-                <Typography variant="h2" color="primary">
-                  {analytics.counts.total_objects}
-                </Typography>
-                <Typography variant="h6" color="text.secondary">
-                  Objects
-                </Typography>
-              </Paper>
+            <Box sx={{ display: 'flex', gap: 3, mt: 2 }}>
+              <StatCard
+                value={analytics.counts.total_sources}
+                label="Sources"
+              />
+              <StatCard
+                value={analytics.counts.total_flows}
+                label="Flows"
+              />
+              <StatCard
+                value={analytics.counts.total_segments}
+                label="Segments"
+              />
+              <StatCard
+                value={analytics.counts.total_objects}
+                label="Objects"
+              />
             </Box>
           </Box>
 
@@ -95,54 +74,15 @@ const Dashboard: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               Storage Statistics
             </Typography>
-            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mt: 2 }}>
-              <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 200px', minWidth: '180px' }}>
-                <Typography variant="h4" color="primary">
-                  {formatStorageSize(analytics.storage.total_size_bytes)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Total Storage
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                  ({analytics.storage.total_size_gb.toFixed(2)} GB)
-                </Typography>
-              </Paper>
-              <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 200px', minWidth: '180px' }}>
-                <Typography variant="h4" color="primary">
-                  {formatStorageSize(analytics.storage.average_size_bytes)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Avg Object Size
-                </Typography>
-              </Paper>
-              <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 200px', minWidth: '180px' }}>
-                <Typography variant="h4" color="primary">
-                  {analytics.storage.object_count_with_size}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Objects with Size
-                </Typography>
-              </Paper>
-              {analytics.storage.min_size_bytes !== null && (
-                <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 200px', minWidth: '180px' }}>
-                  <Typography variant="h4" color="primary">
-                    {formatStorageSize(analytics.storage.min_size_bytes)}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Min Object Size
-                  </Typography>
-                </Paper>
-              )}
-              {analytics.storage.max_size_bytes !== null && (
-                <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 200px', minWidth: '180px' }}>
-                  <Typography variant="h4" color="primary">
-                    {formatStorageSize(analytics.storage.max_size_bytes)}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Max Object Size
-                  </Typography>
-                </Paper>
-              )}
+            <Box sx={{ display: 'flex', gap: 3, mt: 2 }}>
+              <StatCard
+                value={formatStorageSize(analytics.storage.total_size_bytes)}
+                label="Total Storage"
+              />
+              <StatCard
+                value={formatStorageSize(analytics.storage.average_size_bytes)}
+                label="Average Size"
+              />
             </Box>
           </Box>
 
@@ -151,46 +91,26 @@ const Dashboard: React.FC = () => {
               Format Breakdown
             </Typography>
             <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mt: 2 }}>
-              <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 150px', minWidth: '150px' }}>
-                <Typography variant="h4" color="primary">
-                  {analytics.formats.video_flows}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Video Flows
-                </Typography>
-              </Paper>
-              <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 150px', minWidth: '150px' }}>
-                <Typography variant="h4" color="primary">
-                  {analytics.formats.audio_flows}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Audio Flows
-                </Typography>
-              </Paper>
-              <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 150px', minWidth: '150px' }}>
-                <Typography variant="h4" color="primary">
-                  {analytics.formats.image_flows}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Image Flows
-                </Typography>
-              </Paper>
-              <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 150px', minWidth: '150px' }}>
-                <Typography variant="h4" color="primary">
-                  {analytics.formats.data_flows}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Data Flows
-                </Typography>
-              </Paper>
-              <Paper sx={{ p: 3, textAlign: 'center', flex: '1 1 150px', minWidth: '150px' }}>
-                <Typography variant="h4" color="primary">
-                  {analytics.formats.multi_flows}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Multi Flows
-                </Typography>
-              </Paper>
+              <StatCard
+                value={analytics.formats.video_flows}
+                label="Video Flows"
+              />
+              <StatCard
+                value={analytics.formats.audio_flows}
+                label="Audio Flows"
+              />
+              <StatCard
+                value={analytics.formats.image_flows}
+                label="Image Flows"
+              />
+              <StatCard
+                value={analytics.formats.data_flows}
+                label="Data Flows"
+              />
+              <StatCard
+                value={analytics.formats.multi_flows}
+                label="Multi Flows"
+              />
             </Box>
           </Box>
 

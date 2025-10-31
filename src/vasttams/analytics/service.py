@@ -245,7 +245,7 @@ class AnalyticsService:
                     s.id,
                     s.label,
                     COUNT(DISTINCT f.id) as flow_count,
-                    COUNT(DISTINCT seg.id) as segment_count,
+                    COUNT(CASE WHEN seg.flow_id IS NOT NULL THEN 1 END) as segment_count,
                     0 as total_size_bytes,
                     MIN(s.created) as created
                 FROM {sources_table} s
@@ -282,20 +282,73 @@ class AnalyticsService:
             logger.error("Error getting source analytics: %s", e, exc_info=True)
             return []
     
+    def _calculate_duration_from_timeranges(self, timerange_starts: List[str], timerange_ends: List[str]) -> Optional[float]:
+        """Calculate total duration from segment timeranges"""
+        import re
+        times: List[float] = []
+        
+        for start_str, end_str in zip(timerange_starts or [], timerange_ends or []):
+            if not start_str or not end_str:
+                continue
+                
+            try:
+                # Parse TAMS timestamp format: seconds:nanoseconds
+                # Try to parse start and end
+                start_match = re.match(r'(\d+):(\d+)', start_str)
+                end_match = re.match(r'(\d+):(\d+)', end_str)
+                
+                if start_match and end_match:
+                    start_sec = int(start_match.group(1))
+                    start_nano = int(start_match.group(2)) if start_match.group(2) else 0
+                    end_sec = int(end_match.group(1))
+                    end_nano = int(end_match.group(2)) if end_match.group(2) else 0
+                    
+                    start_total = start_sec + (start_nano / 1e9)
+                    end_total = end_sec + (end_nano / 1e9)
+                    
+                    times.append(start_total)
+                    times.append(end_total)
+            except Exception as e:
+                logger.debug(f"Failed to parse timerange {start_str}_{end_str}: {e}")
+                continue
+        
+        if times:
+            min_time = min(times)
+            max_time = max(times)
+            return max(0, max_time - min_time)
+        
+        return None
+
     async def get_flow_analytics(self) -> List[FlowAnalytics]:
         """Get analytics per flow"""
         try:
             flows_table = self.vast_db.get_qualified_table_name("flows")
             segments_table = self.vast_db.get_qualified_table_name("segments")
-            # Objects are referenced via object_id in segments, not a separate table
             
+            # Get flow data with segment counts and duration calculated in SQL
+            # Parse timerange_start and timerange_end (format: "seconds:nanoseconds" or "[seconds:nanoseconds" or "seconds:nanoseconds)")
+            # Timerange values may include brackets/parentheses from the TAMS format, so strip them before parsing
+            # Calculate duration as: MAX(end_timestamp) - MIN(start_timestamp)
+            # where timestamp = seconds + nanoseconds/1e9
             sql = f"""
                 SELECT 
                     f.id,
                     f.label,
                     f.source_id,
                     f.format,
-                    COUNT(DISTINCT seg.id) as segment_count,
+                    COUNT(CASE WHEN seg.flow_id IS NOT NULL THEN 1 END) as segment_count,
+                    CASE 
+                        WHEN COUNT(CASE WHEN seg.timerange_start IS NOT NULL AND seg.timerange_end IS NOT NULL AND seg.timerange_start != '' AND seg.timerange_end != '' THEN 1 END) > 0 THEN
+                            MAX(
+                                CAST(SPLIT_PART(REPLACE(REPLACE(seg.timerange_end, ')', ''), ']', ''), ':', 1) AS DOUBLE) + 
+                                COALESCE(CAST(NULLIF(TRIM(BOTH FROM SPLIT_PART(REPLACE(REPLACE(seg.timerange_end, ')', ''), ']', ''), ':', 2)), '') AS DOUBLE), 0.0) / 1000000000.0
+                            ) - 
+                            MIN(
+                                CAST(SPLIT_PART(REPLACE(REPLACE(seg.timerange_start, '[', ''), '(', ''), ':', 1) AS DOUBLE) + 
+                                COALESCE(CAST(NULLIF(TRIM(BOTH FROM SPLIT_PART(REPLACE(REPLACE(seg.timerange_start, '[', ''), '(', ''), ':', 2)), '') AS DOUBLE), 0.0) / 1000000000.0
+                            )
+                        ELSE NULL
+                    END as total_duration_seconds,
                     0 as total_size_bytes,
                     MIN(f.created) as created
                 FROM {flows_table} f
@@ -305,23 +358,33 @@ class AnalyticsService:
             """
             
             result = self.vast_db.execute_sql(sql)
+            logger.debug("Flow analytics SQL result: %s", result)
             rows = self._parse_sql_result(result)
             
             if not rows:
+                logger.warning("No rows returned from flow analytics query")
                 return []
             
             # Handle both single row and multiple rows
             if isinstance(rows, dict):
                 rows = [rows]
             
+            logger.debug("Parsed %d flow analytics rows", len(rows))
+            
             analytics_list = []
             for row in rows:
+                flow_id = str(row.get('id', ''))
+                segment_count = int(row.get('segment_count', 0) or 0)
+                duration_raw = row.get('total_duration_seconds')
+                duration = float(duration_raw) if duration_raw is not None else None
+                
                 analytics_list.append(FlowAnalytics(
-                    flow_id=str(row.get('id', '')),
+                    flow_id=flow_id,
                     flow_label=row.get('label'),
                     source_id=str(row.get('source_id', '')) if row.get('source_id') else None,
                     format=str(row.get('format', '')),
-                    segment_count=int(row.get('segment_count', 0) or 0),
+                    segment_count=segment_count,
+                    total_duration_seconds=duration,
                     total_size_bytes=int(row.get('total_size_bytes', 0) or 0),
                     created=self._parse_datetime(row.get('created')),
                 ))

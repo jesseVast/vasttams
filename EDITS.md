@@ -30,6 +30,64 @@ notes/
 
 ## 📝 **RECENT EDITS**
 
+## Edit #46: Test Authentication, Content-Type Fixes, and Dynamic Video Discovery (October 31, 2025)
+
+### Summary
+Updated test infrastructure to use authentication, fixed content-type serialization in storage responses, improved S3 upload handling, and made video ingestion script fully dynamic. Also fixed presigned URL credential validation to prevent InvalidAccessKeyId errors.
+
+### Files Modified
+- **tests/conftest.py**: Added `auth_headers` and `auth_token` fixtures for test authentication
+- **tests/sources/test_endpoint.py**: Updated all 5 test methods to use `auth_headers`
+- **tests/sources/test_database.py**: Updated all 7 test methods to use `auth_headers`
+- **tests/flows/test_endpoint.py**: Updated all 4 test methods and `test_source_id` fixture
+- **tests/segments/test_endpoint.py**: Updated all 5 test methods and `test_flow_and_source` fixture
+- **src/vasttams/segments/service.py**: Fixed content-type serialization using `model_validate()`, added credential validation
+- **src/vasttams/common/storage/main_service.py**: Fixed content-type serialization, improved credential validation with fallback
+- **tests/ingest_test_data.py**: Added `discover_video_files()` function, removed hardcoded video names, improved segment creation
+
+### Key Changes
+1. **Test Authentication**: Added session-scoped `auth_headers` fixture that logs in as admin
+   - Pattern: Add `auth_headers` parameter to test methods
+   - Use `headers=auth_headers` in all requests
+   - 103 tests now passing with authentication
+
+2. **Content-Type Serialization**: Fixed Pydantic alias handling
+   - Use `HttpRequest.model_validate({"content-type": value})` instead of `HttpRequest(content_type=value)`
+   - Applied to both storage allocation paths
+
+3. **S3 Upload Fix**: Added Content-Type header to uploads
+   - Extract `content-type` from `put_url` response
+   - Pass to `upload_to_s3()` and set as header
+   - Matches presigned URL signature
+
+4. **Presigned URL Credentials**: Validate credentials before use
+   - Check `access_key` and `secret_key` are non-empty strings
+   - Fall back to default client if invalid
+   - Prevents `InvalidAccessKeyId` errors
+
+5. **Dynamic Video Discovery**: Automatic video file discovery
+   - Scans `test_videos/` directory for supported formats
+   - Extracts metadata using `ffprobe` for each video
+   - No hardcoded file names or limits
+   - Uses actual frame rate from metadata for segments
+
+### Test Results
+- ✅ 103 tests passing with authentication
+- ✅ Content-type fix verified
+- ✅ S3 uploads working
+- ✅ Presigned URLs include valid credentials
+- ✅ Video discovery working dynamically
+
+### Technical Details
+- **Pydantic Aliases**: Must use `model_validate()` with dict when field has alias
+- **Credential Validation**: Check non-empty strings before using storage backend
+- **Content-Type Header**: Must match presigned URL signature for S3 uploads
+- **Video Discovery**: Use `ffprobe` to extract metadata dynamically
+
+### Test Videos Created
+- `test_4k_5sec_hls.ts` - 4K HLS-compatible video (3840x2160, 25fps)
+- `test_480p_5sec.mp4` - 480p HTML5-compatible video (854x480, 30fps)
+
 ## Edit #45: S3 Presigned URL Generation & Double Slash Fix (October 28, 2025)
 
 ### Summary

@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Typography, Box, CircularProgress } from '@mui/material';
+import FolderIcon from '@mui/icons-material/Folder';
+import TimelineIcon from '@mui/icons-material/Timeline';
+import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
+import StorageIcon from '@mui/icons-material/Storage';
+import MovieIcon from '@mui/icons-material/Movie';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import ImageIcon from '@mui/icons-material/Image';
+import DataObjectIcon from '@mui/icons-material/DataObject';
+import AppsIcon from '@mui/icons-material/Apps';
 import { authService, analyticsService } from '../services/api';
 import { AnalyticsSummary } from '../types';
-import StatCard from '../components/StatCard';
+import MetricCard from '../components/MetricCard';
+import MetricCardGrid from '../components/MetricCardGrid';
 
 const Dashboard: React.FC = () => {
   const user = authService.getCurrentUser();
@@ -50,68 +60,101 @@ const Dashboard: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               Overview Statistics
             </Typography>
-            <Box sx={{ display: 'flex', gap: 3, mt: 2 }}>
-              <StatCard
+            <MetricCardGrid columns={4} spacing={2} sx={{ mt: 2 }}>
+              <MetricCard
+                title="Sources"
                 value={analytics.counts.total_sources}
-                label="Sources"
+                icon={<FolderIcon />}
+                color="primary"
+                size="medium"
               />
-              <StatCard
+              <MetricCard
+                title="Flows"
                 value={analytics.counts.total_flows}
-                label="Flows"
+                icon={<TimelineIcon />}
+                color="secondary"
+                size="medium"
               />
-              <StatCard
+              <MetricCard
+                title="Segments"
                 value={analytics.counts.total_segments}
-                label="Segments"
+                icon={<VideoLibraryIcon />}
+                color="success"
+                size="medium"
               />
-              <StatCard
+              <MetricCard
+                title="Objects"
                 value={analytics.counts.total_objects}
-                label="Objects"
+                icon={<StorageIcon />}
+                color="info"
+                size="medium"
               />
-            </Box>
+            </MetricCardGrid>
           </Box>
 
           <Box sx={{ mt: 4 }}>
             <Typography variant="h6" gutterBottom>
               Storage Statistics
             </Typography>
-            <Box sx={{ display: 'flex', gap: 3, mt: 2 }}>
-              <StatCard
+            <MetricCardGrid columns={2} spacing={2} sx={{ mt: 2 }}>
+              <MetricCard
+                title="Total Storage"
                 value={formatStorageSize(analytics.storage.total_size_bytes)}
-                label="Total Storage"
+                icon={<StorageIcon />}
+                color="primary"
+                size="medium"
               />
-              <StatCard
+              <MetricCard
+                title="Average Size"
                 value={formatStorageSize(analytics.storage.average_size_bytes)}
-                label="Average Size"
+                icon={<StorageIcon />}
+                color="secondary"
+                size="medium"
               />
-            </Box>
+            </MetricCardGrid>
           </Box>
 
           <Box sx={{ mt: 4 }}>
             <Typography variant="h6" gutterBottom>
               Format Breakdown
             </Typography>
-            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mt: 2 }}>
-              <StatCard
+            <MetricCardGrid columns={5} spacing={2} sx={{ mt: 2 }}>
+              <MetricCard
+                title="Video Flows"
                 value={analytics.formats.video_flows}
-                label="Video Flows"
+                icon={<MovieIcon />}
+                color="error"
+                size="small"
               />
-              <StatCard
+              <MetricCard
+                title="Audio Flows"
                 value={analytics.formats.audio_flows}
-                label="Audio Flows"
+                icon={<MusicNoteIcon />}
+                color="warning"
+                size="small"
               />
-              <StatCard
+              <MetricCard
+                title="Image Flows"
                 value={analytics.formats.image_flows}
-                label="Image Flows"
+                icon={<ImageIcon />}
+                color="info"
+                size="small"
               />
-              <StatCard
+              <MetricCard
+                title="Data Flows"
                 value={analytics.formats.data_flows}
-                label="Data Flows"
+                icon={<DataObjectIcon />}
+                color="success"
+                size="small"
               />
-              <StatCard
+              <MetricCard
+                title="Multi Flows"
                 value={analytics.formats.multi_flows}
-                label="Multi Flows"
+                icon={<AppsIcon />}
+                color="secondary"
+                size="small"
               />
-            </Box>
+            </MetricCardGrid>
           </Box>
 
         </>

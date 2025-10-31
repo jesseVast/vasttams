@@ -23,10 +23,11 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import { Flow, Source } from '../types';
-import { flowService, sourceService } from '../services/api';
+import { flowService, sourceService, analyticsService } from '../services/api';
 import DataTable, { Column } from '../components/DataTable';
+import DetailModal from '../components/DetailModal';
 
-type SortableField = 'id' | 'label' | 'format' | 'source_id' | 'created';
+type SortableField = 'label' | 'format' | 'source_id' | 'created';
 
 const Flows: React.FC = () => {
   const navigate = useNavigate();
@@ -45,6 +46,10 @@ const Flows: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<SortableField>('created');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
+  const [segmentCounts, setSegmentCounts] = useState<Record<string, number>>({});
+  const [flowDurations, setFlowDurations] = useState<Record<string, number>>({});
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
 
   useEffect(() => {
     loadSources();
@@ -73,11 +78,49 @@ const Flows: React.FC = () => {
     }
   };
 
+  // Format duration in human-readable format
+  const formatDuration = (seconds: number | null): string => {
+    if (seconds === null || seconds === 0) return '-';
+    
+    if (seconds < 60) {
+      return `${seconds.toFixed(1)}s`;
+    } else if (seconds < 3600) {
+      const mins = Math.floor(seconds / 60);
+      const secs = (seconds % 60).toFixed(0);
+      return `${mins}m ${secs}s`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      return `${hours}h ${mins}m`;
+    }
+  };
+
   const loadFlows = async () => {
     try {
       setLoading(true);
-      const data = await flowService.list();
-      setFlows(data);
+      // Load flows list and analytics in parallel
+      const [flowsData, analyticsData] = await Promise.all([
+        flowService.list(),
+        analyticsService.getFlowAnalytics()
+      ]);
+      
+      setFlows(flowsData);
+      
+      // Extract segment counts and durations from analytics
+      const counts: Record<string, number> = {};
+      const durations: Record<string, number> = {};
+      
+      analyticsData.forEach((analytics) => {
+        if (analytics.flow_id) {
+          counts[analytics.flow_id] = analytics.segment_count || 0;
+          if (analytics.total_duration_seconds !== null && analytics.total_duration_seconds !== undefined) {
+            durations[analytics.flow_id] = analytics.total_duration_seconds;
+          }
+        }
+      });
+      
+      setSegmentCounts(counts);
+      setFlowDurations(durations);
     } catch (error) {
       console.error('Failed to load flows:', error);
     } finally {
@@ -208,10 +251,6 @@ const Flows: React.FC = () => {
       let bValue: any;
 
       switch (orderBy) {
-        case 'id':
-          aValue = a.id || '';
-          bValue = b.id || '';
-          break;
         case 'label':
           aValue = a.label || '';
           bValue = b.label || '';
@@ -260,35 +299,68 @@ const Flows: React.FC = () => {
   };
 
   const columns: Column<Flow>[] = [
-    { id: 'id', label: 'ID', sortable: true },
+    { id: 'detail', label: 'Detail', sortable: false },
     { id: 'label', label: 'Label', sortable: true },
     { id: 'description', label: 'Description', sortable: false },
     { id: 'format', label: 'Format', sortable: true },
     { id: 'source_id', label: 'Source ID', sortable: true },
+    { id: 'segments', label: 'Segments', sortable: false, align: 'right' },
+    { id: 'duration', label: 'Total Time', sortable: false },
     { id: 'created', label: 'Created (Date/Time)', sortable: true },
     { id: 'actions', label: 'Actions', sortable: false },
   ];
 
-  const renderRow = (flow: Flow, index: number) => (
-    <>
-      <TableCell>{flow.id}</TableCell>
-      <TableCell>{flow.label || '-'}</TableCell>
-      <TableCell>{flow.description || '-'}</TableCell>
-      <TableCell>{flow.format}</TableCell>
-      <TableCell>{flow.source_id}</TableCell>
-      <TableCell>{flow.created ? new Date(flow.created).toLocaleString() : '-'}</TableCell>
-      <TableCell>
-        <Link
-          component="button"
-          variant="body2"
-          onClick={() => navigate(`/segments?flow_id=${flow.id}`)}
-          sx={{ cursor: 'pointer' }}
-        >
-          View Segments
-        </Link>
-      </TableCell>
-    </>
-  );
+  const handleOpenDetail = (flow: Flow) => {
+    setSelectedFlow(flow);
+    setDetailModalOpen(true);
+  };
+
+  const renderRow = (flow: Flow, index: number) => {
+    // Get segment count - show "Loading..." if still loading
+    const segmentCount = segmentCounts[flow.id] !== undefined 
+      ? segmentCounts[flow.id] 
+      : loading ? '...' : '-';
+    
+    // Get duration calculated from segments
+    const duration = flowDurations[flow.id] !== undefined 
+      ? flowDurations[flow.id] 
+      : null;
+    const formattedDuration = formatDuration(duration);
+    
+    return (
+      <>
+        <TableCell>
+          <Link
+            component="button"
+            variant="body2"
+            onClick={() => handleOpenDetail(flow)}
+            sx={{ cursor: 'pointer' }}
+          >
+            Detail
+          </Link>
+        </TableCell>
+        <TableCell>{flow.label || '-'}</TableCell>
+        <TableCell>{flow.description || '-'}</TableCell>
+        <TableCell>{flow.format}</TableCell>
+        <TableCell>{flow.source_id}</TableCell>
+        <TableCell align="right">
+          {typeof segmentCount === 'number' ? segmentCount.toLocaleString() : segmentCount}
+        </TableCell>
+        <TableCell>{formattedDuration}</TableCell>
+        <TableCell>{flow.created ? new Date(flow.created).toLocaleString() : '-'}</TableCell>
+        <TableCell>
+          <Link
+            component="button"
+            variant="body2"
+            onClick={() => navigate(`/segments?flow_id=${flow.id}`)}
+            sx={{ cursor: 'pointer' }}
+          >
+            View Segments
+          </Link>
+        </TableCell>
+      </>
+    );
+  };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -571,6 +643,13 @@ const Flows: React.FC = () => {
           onSort={handleSort}
         />
       )}
+      
+      <DetailModal
+        open={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        data={selectedFlow}
+        title="Flow Details"
+      />
     </Container>
     </LocalizationProvider>
   );

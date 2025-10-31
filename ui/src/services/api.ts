@@ -117,13 +117,26 @@ export const sourceService = {
 };
 
 export const flowService = {
-  list: async (): Promise<Flow[]> => {
-    const response = await api.get('/flows');
+  list: async (includeStatistics?: boolean): Promise<Flow[]> => {
+    const params: any = {};
+    if (includeStatistics) {
+      params.include_statistics = true;
+    }
+    const response = await api.get('/flows', { params });
     return response.data?.data || response.data || [];
   },
+  
+  getStatistics: async (): Promise<any[]> => {
+    const response = await api.get('/analytics/flows');
+    return response.data || [];
+  },
 
-  get: async (id: string): Promise<Flow> => {
-    const response = await api.get(`/flows/${id}`);
+  get: async (id: string, includeTimerange: boolean = false): Promise<Flow> => {
+    const params: any = {};
+    if (includeTimerange) {
+      params.include_timerange = true;
+    }
+    const response = await api.get(`/flows/${id}`, { params });
     return response.data;
   },
 
@@ -138,8 +151,12 @@ export const flowService = {
 };
 
 export const segmentService = {
-  listByFlow: async (flowId: string): Promise<Segment[]> => {
-    const response = await api.get(`/flows/${flowId}/segments`);
+  listByFlow: async (flowId: string, timerange?: string): Promise<Segment[]> => {
+    const params: any = {};
+    if (timerange) {
+      params.timerange = timerange;
+    }
+    const response = await api.get(`/flows/${flowId}/segments`, { params });
     return response.data?.data || response.data || [];
   },
 };

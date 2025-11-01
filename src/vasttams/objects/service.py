@@ -6,7 +6,9 @@ CRUD operations and object management.
 """
 
 import logging
-from typing import Optional, List
+import json
+import urllib.parse
+from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
@@ -251,9 +253,119 @@ class ObjectStorageService:
             logger.error("Failed to create object: %s", e)
             raise HTTPException(status_code=500, detail="Internal server error")
     
-    async def delete_object(self, object_id: str) -> bool:
-        """Delete an object"""
+    async def get_unreferenced_objects(self, exclude_object_ids: Optional[List[str]] = None) -> List[str]:
+        """Get list of object IDs that are no longer referenced by any segments
+        
+        Per TAMS 8.0 spec: Objects that are no longer referenced by any Segments should be deleted.
+        """
         try:
+            segments_table = self.vast_db.get_qualified_table_name("segments")
+            
+            # Find all objects that have no segments referencing them
+            # Get all object IDs from segments
+            referenced_query = f"""
+                SELECT DISTINCT object_id 
+                FROM {segments_table} 
+                WHERE object_id IS NOT NULL
+            """
+            ref_result = self.vast_db.execute_sql(referenced_query)
+            
+            referenced_object_ids = set()
+            if isinstance(ref_result, dict) and 'data' in ref_result:
+                data = ref_result['data']
+                if isinstance(data, dict):
+                    object_id_col = data.get('object_id', [])
+                    if isinstance(object_id_col, list):
+                        referenced_object_ids = {str(oid) for oid in object_id_col if oid}
+                elif isinstance(data, list):
+                    for row in data:
+                        if isinstance(row, dict) and row.get('object_id'):
+                            referenced_object_ids.add(str(row['object_id']))
+                        elif isinstance(row, (list, tuple)) and len(row) > 0:
+                            referenced_object_ids.add(str(row[0]))
+            
+            # Get all objects and filter out referenced ones
+            all_objects_result = self.vast_db.query("objects").select("id").execute()
+            all_object_ids = set()
+            
+            if isinstance(all_objects_result, dict) and 'data' in all_objects_result:
+                data = all_objects_result['data']
+                if isinstance(data, dict):
+                    id_col = data.get('id', [])
+                    if isinstance(id_col, list):
+                        all_object_ids = {str(oid) for oid in id_col if oid}
+                elif isinstance(data, list):
+                    for row in data:
+                        if isinstance(row, dict) and row.get('id'):
+                            all_object_ids.add(str(row['id']))
+                        elif isinstance(row, (list, tuple)) and len(row) > 0:
+                            all_object_ids.add(str(row[0]))
+            
+            # Find unreferenced objects
+            unreferenced = all_object_ids - referenced_object_ids
+            
+            # Exclude specified object IDs if provided
+            if exclude_object_ids:
+                unreferenced = unreferenced - set(exclude_object_ids)
+            
+            return list(unreferenced)
+        except Exception as e:
+            logger.error("Failed to get unreferenced objects: %s", e)
+            return []
+    
+    async def delete_unreferenced_objects(self, object_ids: List[str]) -> int:
+        """Delete objects and their S3 files if they are no longer referenced
+        
+        Returns number of objects deleted.
+        Note: Uses delete_object which handles S3 deletion, so we don't need to manually delete instances here.
+        """
+        deleted_count = 0
+        for object_id in object_ids:
+            try:
+                # Delete object (will handle instances and S3 deletion)
+                await self.delete_object(object_id)
+                deleted_count += 1
+                logger.info("Deleted unreferenced object %s and S3 files", object_id)
+            except Exception as e:
+                logger.error("Failed to delete unreferenced object %s: %s", object_id, e)
+                # Continue with other objects
+        
+        return deleted_count
+    
+    async def _delete_object_instances_s3(self, object_id: str) -> None:
+        """Delete all instances and their S3 files for an object (helper for delete_object)"""
+        instances = await self.list_object_instances(object_id)
+        for instance in instances:
+            if instance.controlled:
+                storage_path = None
+                # Try to get from instance metadata
+                if instance.metadata and isinstance(instance.metadata, dict):
+                    storage_path = instance.metadata.get('storage_path')
+                
+                # Fallback to URL parsing
+                if not storage_path and instance.url:
+                    storage_path = self._extract_storage_path_from_url(instance.url)
+                
+                if storage_path:
+                    await self._delete_s3_object(storage_path)
+        
+        # Delete instances from database
+        self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}'").execute()
+    
+    async def delete_object(self, object_id: str) -> bool:
+        """Delete an object and all its instances and S3 files"""
+        try:
+            # Delete all instances and S3 files first
+            await self._delete_object_instances_s3(object_id)
+            
+            # Get object metadata to try to delete main storage path
+            obj = await self.get_object(object_id)
+            if obj and hasattr(obj, '_internal_metadata') and obj._internal_metadata:
+                storage_path = obj._internal_metadata.get('storage_path')
+                if storage_path:
+                    await self._delete_s3_object(storage_path)
+            
+            # Delete object from database
             self.vast_db.query("objects").delete().where(f"id = '{object_id}'").execute()
             return True
         except Exception as e:
@@ -357,25 +469,162 @@ class ObjectStorageService:
             logger.error("Failed to list object instances for %s: %s", object_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
     
+    def _extract_storage_path_from_url(self, url: str) -> Optional[str]:
+        """Extract storage path from S3 URL"""
+        try:
+            # Parse URL to extract key/path
+            parsed = urllib.parse.urlparse(url)
+            path = parsed.path
+            
+            # Remove leading slash
+            if path.startswith('/'):
+                path = path[1:]
+            
+            # Remove query parameters and fragment
+            return path if path else None
+        except Exception as e:
+            logger.debug("Failed to extract storage path from URL %s: %s", url, e)
+            return None
+    
+    def _get_storage_path_from_instance(self, instance_data: Dict[str, Any]) -> Optional[str]:
+        """Get storage path from object instance metadata or URL"""
+        # First try metadata
+        if instance_data.get('metadata'):
+            metadata = instance_data['metadata']
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except (json.JSONDecodeError, TypeError):
+                    metadata = None
+            
+            if isinstance(metadata, dict):
+                storage_path = metadata.get('storage_path')
+                if storage_path:
+                    return storage_path
+        
+        # Fallback to extracting from URL
+        url = instance_data.get('url')
+        if url:
+            return self._extract_storage_path_from_url(url)
+        
+        return None
+    
+    async def _delete_s3_object(self, storage_path: str) -> bool:
+        """Delete an object from S3 storage"""
+        try:
+            if not self.s3_client:
+                logger.warning("S3 client not available, cannot delete object from S3")
+                return False
+            
+            # Use S3Client delete method if available
+            # Check if s3_client has delete_object method
+            if hasattr(self.s3_client, 'delete_object'):
+                self.s3_client.delete_object(key=storage_path)
+                logger.info("Deleted S3 object: %s", storage_path)
+                return True
+            elif hasattr(self.s3_client, 'delete'):
+                self.s3_client.delete(key=storage_path)
+                logger.info("Deleted S3 object: %s", storage_path)
+                return True
+            else:
+                # Fallback: try using boto3 directly if available
+                try:
+                    import boto3
+                    from ..core.config import get_settings
+                    settings = get_settings()
+                    
+                    s3_resource = boto3.resource(
+                        's3',
+                        endpoint_url=settings.s3_endpoint_url,
+                        aws_access_key_id=settings.s3_access_key_id,
+                        aws_secret_access_key=settings.s3_secret_access_key,
+                        region_name=settings.s3_region,
+                        use_ssl=settings.s3_use_ssl
+                    )
+                    
+                    bucket = s3_resource.Bucket(settings.s3_bucket_name)
+                    # Handle key_prefix if configured
+                    key = storage_path
+                    if hasattr(settings, 's3_root_path') and settings.s3_root_path:
+                        root_path = settings.s3_root_path.strip('/')
+                        if not key.startswith(root_path):
+                            key = f"{root_path}/{storage_path}"
+                    
+                    bucket.Object(key).delete()
+                    logger.info("Deleted S3 object via boto3: %s", key)
+                    return True
+                except ImportError:
+                    logger.error("boto3 not available, cannot delete S3 object")
+                    return False
+                except Exception as e:
+                    logger.error("Failed to delete S3 object %s via boto3: %s", storage_path, e)
+                    return False
+        except Exception as e:
+            logger.error("Failed to delete S3 object %s: %s", storage_path, e)
+            return False
+    
     async def delete_object_instance(self, object_id: str, label: Optional[str] = None, storage_id: Optional[str] = None) -> bool:
-        """Delete an object instance by label or storage_id (TAMS 8.0)"""
+        """Delete an object instance by label or storage_id (TAMS 8.0)
+        
+        Per TAMS 8.0 spec: If instance is controlled, delete from storage before removing from database.
+        """
         try:
             # Verify object exists
             obj = await self.get_object(object_id)
             if not obj:
                 return False
             
-            # Build where clause
+            # Get instance data before deletion to check if controlled and get storage path
+            instance_result = None
             if label:
-                query = self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}' AND label = '{label}'")
+                instance_result = self.vast_db.query("object_instances").select("*").where(
+                    f"object_id = '{object_id}' AND label = '{label}'"
+                ).execute()
             elif storage_id:
-                query = self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}' AND storage_id = '{storage_id}'")
+                instance_result = self.vast_db.query("object_instances").select("*").where(
+                    f"object_id = '{object_id}' AND storage_id = '{storage_id}'"
+                ).execute()
             else:
                 return False
             
+            # Extract instance data
+            instance_data = None
+            if isinstance(instance_result, dict) and 'data' in instance_result:
+                data = instance_result['data']
+                if isinstance(data, dict) and data:
+                    # Columnar format
+                    num_rows = len(next(iter(data.values())))
+                    if num_rows == 0:
+                        return False
+                    instance_data = {col: values[0] for col, values in data.items() if col != '$row_id'}
+                elif isinstance(data, list) and len(data) > 0:
+                    instance_data = dict(data[0]) if isinstance(data[0], dict) else None
+            elif isinstance(instance_result, list) and len(instance_result) > 0:
+                instance_data = dict(instance_result[0]) if isinstance(instance_result[0], dict) else None
+            
+            if not instance_data:
+                return False
+            
+            # Check if controlled and delete from S3 if needed (TAMS 8.0 spec)
+            controlled = instance_data.get('controlled', False)
+            if controlled:
+                storage_path = self._get_storage_path_from_instance(instance_data)
+                if storage_path:
+                    await self._delete_s3_object(storage_path)
+                else:
+                    logger.warning("Could not determine storage path for controlled instance %s (object_id=%s, label=%s, storage_id=%s)", 
+                                 instance_data.get('label', 'unknown'), object_id, label, storage_id)
+            
+            # Delete from database
+            if label:
+                query = self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}' AND label = '{label}'")
+            else:
+                query = self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}' AND storage_id = '{storage_id}'")
+            
             query.execute()
             
-            logger.info("Deleted object instance for object %s (label=%s, storage_id=%s)", object_id, label, storage_id)
+            logger.info("Deleted object instance for object %s (label=%s, storage_id=%s, controlled=%s)", 
+                       object_id, label, storage_id, controlled)
             return True
         except Exception as e:
             logger.error("Failed to delete object instance for %s: %s", object_id, e)

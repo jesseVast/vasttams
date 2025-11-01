@@ -508,12 +508,29 @@ class FlowStorageService:
             logger.error("Failed to update flow read_only %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
     
-    async def delete_flow(self, flow_id: str, cascade: bool = True) -> bool:
-        """Delete a flow"""
+    async def delete_flow(self, flow_id: str, cascade: bool = True, object_service=None) -> bool:
+        """Delete a flow
+        
+        Args:
+            flow_id: Flow ID to delete
+            cascade: If True, delete segments first
+            object_service: Optional ObjectStorageService for cleanup of unreferenced objects
+        """
         try:
             # Delete flow segments first if cascade is True
             if cascade:
                 await self._delete_flow_segments(flow_id)
+                
+                # After deleting segments, cleanup unreferenced objects (TAMS 8.0 spec requirement)
+                if object_service:
+                    try:
+                        unreferenced = await object_service.get_unreferenced_objects()
+                        if unreferenced:
+                            deleted_count = await object_service.delete_unreferenced_objects(unreferenced)
+                            logger.info("Cleaned up %d unreferenced objects after flow deletion", deleted_count)
+                    except Exception as e:
+                        logger.warning("Failed to cleanup unreferenced objects after flow deletion: %s", e)
+                        # Don't fail the deletion if cleanup fails
             
             # Delete flow
             self.vast_db.query("flows").delete().where(f"id = '{flow_id}'").execute()

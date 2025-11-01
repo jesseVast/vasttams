@@ -100,7 +100,8 @@ class TAMSStorageService(StorageInterface):
         return await self.flow_service.update_flow_read_only(flow_id, read_only)
     
     async def delete_flow(self, flow_id: str, cascade: bool = True) -> bool:
-        return await self.flow_service.delete_flow(flow_id, cascade)
+        """Delete a flow and cleanup unreferenced objects per TAMS 8.0 spec"""
+        return await self.flow_service.delete_flow(flow_id, cascade, self.object_service)
     
     # Flow segment operations - delegate to segment service
     async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
@@ -110,7 +111,21 @@ class TAMSStorageService(StorageInterface):
         return await self.segment_service.create_flow_segment(flow_id, segment)
     
     async def delete_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> bool:
-        return await self.segment_service.delete_flow_segments(flow_id, timerange)
+        """Delete flow segments and cleanup unreferenced objects per TAMS 8.0 spec"""
+        result = await self.segment_service.delete_flow_segments(flow_id, timerange)
+        
+        # After deleting segments, cleanup unreferenced objects (TAMS 8.0 spec requirement)
+        if result:
+            try:
+                unreferenced = await self.object_service.get_unreferenced_objects()
+                if unreferenced:
+                    deleted_count = await self.object_service.delete_unreferenced_objects(unreferenced)
+                    logger.info("Cleaned up %d unreferenced objects after segment deletion", deleted_count)
+            except Exception as e:
+                logger.warning("Failed to cleanup unreferenced objects after segment deletion: %s", e)
+                # Don't fail the deletion if cleanup fails
+        
+        return result
     
     # Object operations - delegate to object service
     async def get_objects(self) -> List[Object]:

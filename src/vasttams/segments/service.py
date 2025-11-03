@@ -392,13 +392,40 @@ class SegmentStorageService:
                 # Use TAMS path format: {tams_storage_path}/{year}/{month}/{date}/{object_id}
                 # Normalize paths to avoid double slashes
                 tams_path = self.settings.tams_storage_path.strip('/')
-                storage_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
+                relative_storage_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
+                
+                # Look up backend if storage_id is provided
+                backend_info = None
+                if storage_id:
+                    try:
+                        from ..storagebackends.service import StorageBackendService
+                        backend_service = StorageBackendService(self.vast_db, self.s3_client)
+                        backend = await backend_service.get_storage_backend(storage_id)
+                        if backend:
+                            backend_info = backend.model_dump()
+                            # Include root_path in storage_path if backend has one
+                            backend_root_path = backend.root_path
+                            if backend_root_path:
+                                backend_root_path = backend_root_path.strip('/')
+                                storage_path = f"{backend_root_path}/{relative_storage_path}"
+                            else:
+                                storage_path = relative_storage_path
+                        else:
+                            storage_path = relative_storage_path
+                    except Exception as e:
+                        logger.warning(f"Failed to load storage backend {storage_id} for root_path: {e}")
+                        storage_path = relative_storage_path
+                else:
+                    storage_path = relative_storage_path
                 
                 # Generate presigned URL for upload with content-type (TAMS 8.0 requirement)
+                # Pass relative_storage_path (without root_path) since _generate_presigned_url
+                # will use key_prefix from storage_backend if provided
                 presigned_url = await self._generate_presigned_url(
-                    key=storage_path,
+                    key=relative_storage_path,
                     operation="put_object",
                     expiration=self.settings.s3_presigned_url_upload_timeout,
+                    storage_backend=backend_info,
                     content_type=content_type
                 )
                 
@@ -415,7 +442,7 @@ class SegmentStorageService:
                 media_object = MediaObject(
                     object_id=object_id,
                     put_url=HttpRequest.model_validate(put_url_data),
-                    metadata={"storage_path": storage_path}
+                    metadata={"storage_path": storage_path}  # Full path including root_path
                 )
                 
                 media_objects.append(media_object)
@@ -423,7 +450,7 @@ class SegmentStorageService:
                 # Create Object record in database with storage_id, storage_path, and content_type in metadata
                 from ..objects.models import Object
                 object_metadata = {
-                    "storage_path": storage_path,
+                    "storage_path": storage_path,  # Full path including root_path
                     "content_type": content_type  # Store for GET URL generation (TAMS 8.0)
                 }
                 if storage_id:
@@ -644,7 +671,24 @@ class SegmentStorageService:
                         month = f"{dt.month:02d}"
                         date = f"{dt.day:02d}"
                         tams_path = self.settings.tams_storage_path.strip('/')
-                        storage_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
+                        relative_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
+                        
+                        # Include root_path if storage_id is available
+                        if storage_id:
+                            try:
+                                from ..storagebackends.service import StorageBackendService
+                                backend_service = StorageBackendService(self.vast_db, self.s3_client)
+                                backend = await backend_service.get_storage_backend(storage_id)
+                                if backend and backend.root_path:
+                                    root_path = backend.root_path.strip('/')
+                                    storage_path = f"{root_path}/{relative_path}"
+                                else:
+                                    storage_path = relative_path
+                            except Exception as e:
+                                logger.warning(f"Failed to load backend {storage_id} for path reconstruction: {e}")
+                                storage_path = relative_path
+                        else:
+                            storage_path = relative_path
             
             # Fallback: if object doesn't exist or path can't be determined, use current date
             if not storage_path:
@@ -654,10 +698,28 @@ class SegmentStorageService:
                 month = f"{now.month:02d}"
                 date = f"{now.day:02d}"
                 tams_path = self.settings.tams_storage_path.strip('/')
-                storage_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
+                relative_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
+                
+                # Include root_path if storage_id is available
+                if storage_id:
+                    try:
+                        from ..storagebackends.service import StorageBackendService
+                        backend_service = StorageBackendService(self.vast_db, self.s3_client)
+                        backend = await backend_service.get_storage_backend(storage_id)
+                        if backend and backend.root_path:
+                            root_path = backend.root_path.strip('/')
+                            storage_path = f"{root_path}/{relative_path}"
+                        else:
+                            storage_path = relative_path
+                    except Exception as e:
+                        logger.warning(f"Failed to load backend {storage_id} for fallback path: {e}")
+                        storage_path = relative_path
+                else:
+                    storage_path = relative_path
             
             # Generate presigned GET URL
             backend_info = None
+            relative_storage_path = storage_path
             if storage_id:
                 try:
                     from ..storagebackends.service import StorageBackendService
@@ -665,10 +727,19 @@ class SegmentStorageService:
                     backend = await backend_service.get_storage_backend(storage_id)
                     if backend:
                         backend_info = backend.model_dump()
+                        # If storage_path includes root_path, strip it for use with key_prefix
+                        backend_root_path = backend.root_path
+                        if backend_root_path:
+                            backend_root_path = backend_root_path.strip('/')
+                            if storage_path.startswith(backend_root_path + '/'):
+                                relative_storage_path = storage_path[len(backend_root_path) + 1:]
+                            elif storage_path == backend_root_path:
+                                relative_storage_path = ""
                 except Exception as e:
                     logger.warning(f"Failed to load storage backend {storage_id}: {e}")
+            
             get_url = await self._generate_presigned_url(
-                key=storage_path,
+                key=relative_storage_path,
                 operation="get_object",
                 expiration=self.settings.s3_presigned_url_download_timeout if hasattr(self.settings, 's3_presigned_url_download_timeout') else 3600,
                 storage_backend=backend_info,

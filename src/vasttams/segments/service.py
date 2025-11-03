@@ -302,10 +302,20 @@ class SegmentStorageService:
     
     def _derive_content_type_from_flow(self, flow: Any) -> str:
         """
-        Derive content-type (container MIME type) from Flow format/codec per TAMS 8.0 spec.
+        Derive content-type (container MIME type) from Flow per TAMS 8.0 spec.
         AppNote 0018 requires content-type inheritance from Flow when storage is allocated.
+        
+        Priority:
+        1. flow.container (authoritative source per TAMS spec)
+        2. Heuristics based on format/codec
         """
         try:
+            # First check flow.container (authoritative source per TAMS spec)
+            flow_container = getattr(flow, 'container', None)
+            if flow_container and isinstance(flow_container, str) and '/' in flow_container:
+                return flow_container
+            
+            # Fallback to heuristics based on format/codec
             flow_format = getattr(flow, 'format', None)
             flow_codec = getattr(flow, 'codec', None)
             
@@ -594,8 +604,8 @@ class SegmentStorageService:
                     'method': http_method,
                     'http_method': http_method,
                     'content_type': final_content_type if http_method == 'PUT' else None,
-                    'response_content_type': final_content_type if http_method == 'GET' else None,
-                    'response_content_disposition': f'attachment; filename="{key.split('/')[-1]}"',
+                    # Note: response_content_type and response_content_disposition are not included
+                    # because VAST S3 backend does not support these parameters in presigned URLs
                 }
                 # Remove None values
                 candidate_kwargs = {k: v for k, v in candidate_kwargs.items() if v is not None}
@@ -611,8 +621,8 @@ class SegmentStorageService:
                 'method': http_method,
                 'http_method': http_method,
                 'content_type': final_content_type if http_method == 'PUT' else None,
-                'response_content_type': final_content_type if http_method == 'GET' else None,
-                'response_content_disposition': f'attachment; filename="{key.split('/')[-1]}"',
+                # Note: response_content_type and response_content_disposition are not included
+                # because VAST S3 backend does not support these parameters in presigned URLs
             }
             # Remove None values
             candidate_kwargs = {k: v for k, v in candidate_kwargs.items() if v is not None}

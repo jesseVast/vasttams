@@ -30,14 +30,15 @@ async def options_objects():
 # GET endpoint - List all objects
 @router.get("", response_model=List[Object])
 async def list_objects(
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_viewer)
 ):
     """List all objects"""
     try:
         objects = await storage.get_objects()
         return objects
     except Exception as e:
-        logger.error("Failed to list objects: %s", e)
+        logger.error("Failed to list objects: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # GET endpoint - Get specific object by ID

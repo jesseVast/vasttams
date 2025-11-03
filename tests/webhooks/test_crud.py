@@ -44,7 +44,7 @@ class TestWebhookCRUD:
         data = response.json()
         assert isinstance(data, list)
     
-    def test_create_and_get_webhook(self, api_available):
+    def test_create_and_get_webhook(self, api_available, auth_headers):
         """Test creating and retrieving a webhook"""
         if not api_available:
             pytest.skip("API not available")
@@ -58,7 +58,7 @@ class TestWebhookCRUD:
         }
         
         # Create webhook
-        response = requests.post(f"{BASE_URL}/service/webhooks", json=webhook_data)
+        response = requests.post(f"{BASE_URL}/service/webhooks", json=webhook_data, headers=auth_headers)
         assert response.status_code in [200, 201]
         
         created_webhook = response.json()
@@ -70,7 +70,7 @@ class TestWebhookCRUD:
         webhook_id = created_webhook["id"]
         
         # Get webhook by ID
-        response = requests.get(f"{BASE_URL}/service/webhooks/{webhook_id}")
+        response = requests.get(f"{BASE_URL}/service/webhooks/{webhook_id}", headers=auth_headers)
         assert response.status_code == 200
         
         retrieved_webhook = response.json()
@@ -78,9 +78,9 @@ class TestWebhookCRUD:
         assert retrieved_webhook["url"] == webhook_data["url"]
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/service/webhooks/{webhook_id}")
+        requests.delete(f"{BASE_URL}/service/webhooks/{webhook_id}", headers=auth_headers)
     
-    def test_update_webhook(self, api_available):
+    def test_update_webhook(self, api_available, auth_headers):
         """Test updating a webhook"""
         if not api_available:
             pytest.skip("API not available")
@@ -94,7 +94,7 @@ class TestWebhookCRUD:
             "enabled": True
         }
         
-        response = requests.post(f"{BASE_URL}/service/webhooks", json=webhook_data)
+        response = requests.post(f"{BASE_URL}/service/webhooks", json=webhook_data, headers=auth_headers)
         assert response.status_code in [200, 201]
         created_webhook = response.json()
         webhook_id = created_webhook["id"]
@@ -105,7 +105,7 @@ class TestWebhookCRUD:
             "enabled": False
         }
         
-        response = requests.put(f"{BASE_URL}/service/webhooks/{webhook_id}", json=update_data)
+        response = requests.put(f"{BASE_URL}/service/webhooks/{webhook_id}", json=update_data, headers=auth_headers)
         assert response.status_code in [200, 201]
         
         updated_webhook = response.json()
@@ -119,9 +119,9 @@ class TestWebhookCRUD:
         assert "sources.updated" in events
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/service/webhooks/{webhook_id}")
+        requests.delete(f"{BASE_URL}/service/webhooks/{webhook_id}", headers=auth_headers)
     
-    def test_delete_webhook(self, api_available):
+    def test_delete_webhook(self, api_available, auth_headers):
         """Test deleting a webhook"""
         if not api_available:
             pytest.skip("API not available")
@@ -135,20 +135,20 @@ class TestWebhookCRUD:
             "enabled": True
         }
         
-        response = requests.post(f"{BASE_URL}/service/webhooks", json=webhook_data)
+        response = requests.post(f"{BASE_URL}/service/webhooks", json=webhook_data, headers=auth_headers)
         assert response.status_code in [200, 201]
         created_webhook = response.json()
         webhook_id = created_webhook["id"]
         
         # Delete webhook
-        response = requests.delete(f"{BASE_URL}/service/webhooks/{webhook_id}")
+        response = requests.delete(f"{BASE_URL}/service/webhooks/{webhook_id}", headers=auth_headers)
         assert response.status_code == 204
         
         # Verify deletion
-        response = requests.get(f"{BASE_URL}/service/webhooks/{webhook_id}")
+        response = requests.get(f"{BASE_URL}/service/webhooks/{webhook_id}", headers=auth_headers)
         assert response.status_code == 404
     
-    def test_create_webhook_with_all_fields(self, api_available):
+    def test_create_webhook_with_all_fields(self, api_available, auth_headers):
         """Test creating a webhook with all TAMS 8.0 fields"""
         if not api_available:
             pytest.skip("API not available")
@@ -169,14 +169,14 @@ class TestWebhookCRUD:
             "enabled": True
         }
         
-        response = requests.post(f"{BASE_URL}/service/webhooks", json=webhook_data)
+        response = requests.post(f"{BASE_URL}/service/webhooks", json=webhook_data, headers=auth_headers)
         assert response.status_code in [200, 201]
         
         created_webhook = response.json()
         webhook_id = created_webhook["id"]
         
         # Verify all fields are stored
-        response = requests.get(f"{BASE_URL}/service/webhooks/{webhook_id}")
+        response = requests.get(f"{BASE_URL}/service/webhooks/{webhook_id}", headers=auth_headers)
         assert response.status_code == 200
         
         retrieved = response.json()
@@ -196,5 +196,5 @@ class TestWebhookCRUD:
         assert flow_uuid in flow_ids
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/service/webhooks/{webhook_id}")
+        requests.delete(f"{BASE_URL}/service/webhooks/{webhook_id}", headers=auth_headers)
 

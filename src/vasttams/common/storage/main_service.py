@@ -291,8 +291,8 @@ class TAMSStorageService(StorageInterface):
                     'method': http_method,
                     'http_method': http_method,
                     'content_type': final_content_type if http_method == 'PUT' else None,
-                    'response_content_type': final_content_type if http_method == 'GET' else None,
-                    'response_content_disposition': f'attachment; filename="{key.split("/")[-1]}"',
+                    # Note: response_content_type and response_content_disposition are not included
+                    # because VAST S3 backend does not support these parameters in presigned URLs
                 }
                 # Remove None values
                 candidate_kwargs = {k: v for k, v in candidate_kwargs.items() if v is not None}
@@ -309,8 +309,8 @@ class TAMSStorageService(StorageInterface):
                 'method': http_method,
                 'http_method': http_method,
                 'content_type': final_content_type if http_method == 'PUT' else None,
-                'response_content_type': final_content_type if http_method == 'GET' else None,
-                'response_content_disposition': f'attachment; filename="{key.split('/')[-1]}"',
+                # Note: response_content_type and response_content_disposition are not included
+                # because VAST S3 backend does not support these parameters in presigned URLs
             }
             # Remove None values
             candidate_kwargs = {k: v for k, v in candidate_kwargs.items() if v is not None}
@@ -550,18 +550,24 @@ class TAMSStorageService(StorageInterface):
                 raise HTTPException(status_code=404, detail=f"Flow {flow_id} not found")
             
             # Derive content-type from Flow per TAMS 8.0 spec
-            flow_format = getattr(flow, 'format', None)
-            flow_codec = getattr(flow, 'codec', None)
-            if flow_format == "urn:x-nmos:format:video":
-                content_type = "video/mp2t"
-            elif flow_format == "urn:x-nmos:format:audio":
-                content_type = "video/mp2t"
-            elif flow_format == "urn:x-nmos:format:image":
-                content_type = flow_codec if flow_codec and '/' in flow_codec else "image/jpeg"
-            elif flow_format == "urn:x-nmos:format:data":
-                content_type = "application/octet-stream"
+            # First check flow.container (authoritative source per TAMS spec)
+            flow_container = getattr(flow, 'container', None)
+            if flow_container and isinstance(flow_container, str) and '/' in flow_container:
+                content_type = flow_container
             else:
-                content_type = flow_codec if flow_codec and '/' in flow_codec else "video/mp2t"
+                # Fallback to heuristics based on format/codec
+                flow_format = getattr(flow, 'format', None)
+                flow_codec = getattr(flow, 'codec', None)
+                if flow_format == "urn:x-nmos:format:video":
+                    content_type = "video/mp2t"
+                elif flow_format == "urn:x-nmos:format:audio":
+                    content_type = "video/mp2t"
+                elif flow_format == "urn:x-nmos:format:image":
+                    content_type = flow_codec if flow_codec and '/' in flow_codec else "image/jpeg"
+                elif flow_format == "urn:x-nmos:format:data":
+                    content_type = "application/octet-stream"
+                else:
+                    content_type = flow_codec if flow_codec and '/' in flow_codec else "video/mp2t"
             
             logger.debug(f"Derived content-type '{content_type}' from flow {flow_id}")
             

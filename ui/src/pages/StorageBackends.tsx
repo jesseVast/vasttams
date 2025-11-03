@@ -112,8 +112,10 @@ const StorageBackends: React.FC = () => {
       setDeleting(id);
       await storageBackendService.delete(id);
       loadBackends();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete storage backend:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to delete storage backend';
+      alert(errorMessage);
     } finally {
       setDeleting(null);
     }
@@ -122,16 +124,12 @@ const StorageBackends: React.FC = () => {
   const handleEdit = (backend: StorageBackend) => {
     setEditingBackend(backend);
     setEditBackend({
-      label: backend.label || '',
-      store_type: backend.store_type,
-      provider: backend.provider,
-      store_product: backend.store_product,
-      region: backend.region || 'us-east-1',
       endpoint_url: backend.endpoint_url || '',
       bucket_name: backend.bucket_name || '',
       root_path: backend.root_path || '',
       use_ssl: backend.use_ssl || false,
-      default_storage: backend.default_storage || false,
+      access_key: '', // Don't pre-fill for security
+      secret_key: '', // Don't pre-fill for security
     });
     setEditOpen(true);
   };
@@ -141,24 +139,32 @@ const StorageBackends: React.FC = () => {
 
     try {
       setUpdating(true);
-      await storageBackendService.update(editingBackend.id, editBackend);
+      // Only send fields that are set (exclude empty strings for keys)
+      const updateData: any = {
+        endpoint_url: editBackend.endpoint_url,
+        bucket_name: editBackend.bucket_name,
+        root_path: editBackend.root_path,
+        use_ssl: editBackend.use_ssl,
+      };
+      if (editBackend.access_key) {
+        updateData.access_key = editBackend.access_key;
+      }
+      if (editBackend.secret_key) {
+        updateData.secret_key = editBackend.secret_key;
+      }
+      await storageBackendService.update(editingBackend.id, updateData);
       setEditOpen(false);
       setEditingBackend(null);
       setEditBackend({
-        label: '',
-        store_type: 'http_object_store',
-        provider: '',
-        store_product: '',
-        region: 'us-east-1',
         endpoint_url: '',
-        bucket_name: '',
-        root_path: '',
         use_ssl: false,
-        default_storage: false,
+        access_key: '',
+        secret_key: '',
       });
       loadBackends();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update storage backend:', error);
+      alert(error.response?.data?.detail || error.message || 'Failed to update storage backend');
     } finally {
       setUpdating(false);
     }
@@ -436,132 +442,115 @@ const StorageBackends: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Edit Storage Backend: {editingBackend?.label || editingBackend?.id}</DialogTitle>
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h6" component="div">
+            Edit Storage Backend
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {editingBackend?.label || editingBackend?.id}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            Connection and storage settings can be modified. Other fields are immutable to preserve object accessibility.
+          </Typography>
+        </DialogTitle>
         <DialogContent>
-          <TextField
-            margin="dense"
-            label="Label"
-            fullWidth
-            variant="standard"
-            value={editBackend.label}
-            onChange={(e) => setEditBackend({ ...editBackend, label: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Store Type"
-            fullWidth
-            variant="standard"
-            value={editBackend.store_type}
-            onChange={(e) => setEditBackend({ ...editBackend, store_type: e.target.value })}
-            required
-          />
-          <TextField
-            margin="dense"
-            label="Provider"
-            fullWidth
-            variant="standard"
-            value={editBackend.provider}
-            onChange={(e) => setEditBackend({ ...editBackend, provider: e.target.value })}
-            required
-          />
-          <TextField
-            margin="dense"
-            label="Store Product"
-            fullWidth
-            variant="standard"
-            value={editBackend.store_product}
-            onChange={(e) => setEditBackend({ ...editBackend, store_product: e.target.value })}
-            required
-          />
-          <TextField
-            margin="dense"
-            label="Region"
-            fullWidth
-            variant="standard"
-            value={editBackend.region}
-            onChange={(e) => setEditBackend({ ...editBackend, region: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Endpoint URL"
-            fullWidth
-            variant="standard"
-            value={editBackend.endpoint_url}
-            onChange={(e) => setEditBackend({ ...editBackend, endpoint_url: e.target.value })}
-            placeholder="http://localhost:9000"
-          />
-          <TextField
-            margin="dense"
-            label="Bucket Name"
-            fullWidth
-            variant="standard"
-            value={editBackend.bucket_name}
-            onChange={(e) => setEditBackend({ ...editBackend, bucket_name: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Root Path"
-            fullWidth
-            variant="standard"
-            value={editBackend.root_path}
-            onChange={(e) => setEditBackend({ ...editBackend, root_path: e.target.value })}
-            placeholder="/tams8-dev"
-          />
-          <TextField
-            margin="dense"
-            label="Access Key (leave blank to keep current)"
-            fullWidth
-            variant="standard"
-            type="password"
-            value={editBackend.access_key || ''}
-            onChange={(e) => setEditBackend({ ...editBackend, access_key: e.target.value })}
-            helperText="Leave blank if you don't want to change the access key"
-          />
-          <TextField
-            margin="dense"
-            label="Secret Key (leave blank to keep current)"
-            fullWidth
-            variant="standard"
-            type="password"
-            value={editBackend.secret_key || ''}
-            onChange={(e) => setEditBackend({ ...editBackend, secret_key: e.target.value })}
-            helperText="Leave blank if you don't want to change the secret key"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={editBackend.use_ssl || false}
-                onChange={(e) => setEditBackend({ ...editBackend, use_ssl: e.target.checked })}
-              />
-            }
-            label="Use SSL"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={editBackend.default_storage || false}
-                onChange={(e) => setEditBackend({ ...editBackend, default_storage: e.target.checked })}
-              />
-            }
-            label="Default Storage"
-          />
+          <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Read-only info section */}
+            <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1, border: '1px solid', borderColor: 'grey.200' }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Immutable Fields
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mt: 1 }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Label</Typography>
+                  <Typography variant="body2">{editingBackend?.label || '-'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Provider</Typography>
+                  <Typography variant="body2">{editingBackend?.provider || '-'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Store Type</Typography>
+                  <Typography variant="body2">{editingBackend?.store_type || '-'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Default Storage</Typography>
+                  <Typography variant="body2">{editingBackend?.default_storage ? 'Yes' : 'No'}</Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* Editable fields */}
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
+              Connection & Storage Settings
+            </Typography>
+            <TextField
+              label="Endpoint URL"
+              fullWidth
+              size="small"
+              value={editBackend.endpoint_url || ''}
+              onChange={(e) => setEditBackend({ ...editBackend, endpoint_url: e.target.value })}
+              placeholder="http://localhost:9000"
+            />
+            <TextField
+              label="Bucket Name"
+              fullWidth
+              size="small"
+              value={editBackend.bucket_name || ''}
+              onChange={(e) => setEditBackend({ ...editBackend, bucket_name: e.target.value })}
+              placeholder="my-bucket"
+            />
+            <TextField
+              label="Root Path"
+              fullWidth
+              size="small"
+              value={editBackend.root_path || ''}
+              onChange={(e) => setEditBackend({ ...editBackend, root_path: e.target.value })}
+              placeholder="/tams8-dev"
+              helperText="Path prefix for all objects in this backend"
+            />
+            <TextField
+              label="Access Key"
+              fullWidth
+              size="small"
+              type="password"
+              value={editBackend.access_key || ''}
+              onChange={(e) => setEditBackend({ ...editBackend, access_key: e.target.value })}
+              helperText="Leave blank to keep current value"
+            />
+            <TextField
+              label="Secret Key"
+              fullWidth
+              size="small"
+              type="password"
+              value={editBackend.secret_key || ''}
+              onChange={(e) => setEditBackend({ ...editBackend, secret_key: e.target.value })}
+              helperText="Leave blank to keep current value"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={editBackend.use_ssl || false}
+                  onChange={(e) => setEditBackend({ ...editBackend, use_ssl: e.target.checked })}
+                  size="small"
+                />
+              }
+              label="Use SSL/TLS"
+            />
+          </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => {
             setEditOpen(false);
             setEditingBackend(null);
             setEditBackend({
-              label: '',
-              store_type: 'http_object_store',
-              provider: '',
-              store_product: '',
-              region: 'us-east-1',
               endpoint_url: '',
               bucket_name: '',
               root_path: '',
               use_ssl: false,
-              default_storage: false,
+              access_key: '',
+              secret_key: '',
             });
           }}>
             Cancel
@@ -569,10 +558,10 @@ const StorageBackends: React.FC = () => {
           <Button 
             onClick={handleUpdate} 
             variant="contained" 
-            disabled={updating || !editBackend.provider || !editBackend.store_product || !editBackend.store_type}
+            disabled={updating}
             sx={{ backgroundColor: '#616161', '&:hover': { backgroundColor: '#757575' } }}
           >
-            {updating ? <CircularProgress size={20} /> : 'Update'}
+            {updating ? <CircularProgress size={20} /> : 'Save Changes'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -381,7 +381,7 @@ class ObjectStorageService:
             result = self.vast_db.query("objects").select("*").execute()
             
             # Handle VAST query result format (same as get_object)
-            objects = []
+            objects_data = []
             if isinstance(result, dict) and 'data' in result:
                 data = result['data']
                 if isinstance(data, dict) and data:
@@ -394,29 +394,135 @@ class ObjectStorageService:
                                 value = values[i] if i < len(values) else None
                                 object_data[column] = value
                         if object_data:
-                            # Strip metadata before creating Object (internal-only)
+                            # Strip metadata before processing (internal-only)
                             if 'metadata' in object_data:
                                 del object_data['metadata']
-                            objects.append(Object(**object_data))
+                            objects_data.append(object_data)
                 elif isinstance(data, list):
                     # If data is a list, iterate directly
                     for row in data:
                         object_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
                         if object_data:
-                            # Strip metadata before creating Object (internal-only)
+                            # Strip metadata before processing (internal-only)
                             if 'metadata' in object_data:
                                 del object_data['metadata']
-                            objects.append(Object(**object_data))
+                            objects_data.append(object_data)
             else:
                 # Fallback for direct list results
                 for row in result if isinstance(result, list) else []:
                     object_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
                     if object_data:
-                        objects.append(Object(**object_data))
+                        objects_data.append(object_data)
+            
+            # Process each object: compute referenced_by_flows and handle timerange
+            objects = []
+            import json
+            from ..common.models import TimeRange
+            
+            for object_data in objects_data:
+                object_id = object_data.get('id')
+                if not object_id:
+                    continue
+                
+                try:
+                    # Remove referenced_by_flows from object_data if present (no longer stored in schema, computed dynamically)
+                    if 'referenced_by_flows' in object_data:
+                        del object_data['referenced_by_flows']
+                    
+                    # Compute referenced_by_flows dynamically from segments/flow_object_references (normalized table)
+                    try:
+                        segments_table = self.vast_db.get_qualified_table_name("segments")
+                        referenced_flows_query = f"""
+                            SELECT DISTINCT flow_id
+                            FROM {segments_table}
+                            WHERE object_id = '{object_id}' AND flow_id IS NOT NULL
+                        """
+                        referenced_result = self.vast_db.execute_sql(referenced_flows_query)
+                        referenced_flows = []
+                        if isinstance(referenced_result, dict) and 'data' in referenced_result:
+                            data = referenced_result['data']
+                            if isinstance(data, dict):
+                                flow_id_col = data.get('flow_id', [])
+                                if isinstance(flow_id_col, list):
+                                    referenced_flows = [str(flow_id) for flow_id in flow_id_col if flow_id]
+                        
+                        # Set referenced_by_flows (TAMS spec requirement) - always set, even if empty
+                        object_data['referenced_by_flows'] = referenced_flows if referenced_flows else []
+                        
+                        # Compute first_referenced_by_flow as the flow with earliest segment creation
+                        if referenced_flows:
+                            first_ref_query = f"""
+                                SELECT flow_id, MIN(created) as first_created
+                                FROM {segments_table}
+                                WHERE object_id = '{object_id}' AND flow_id IS NOT NULL
+                                GROUP BY flow_id
+                                ORDER BY first_created ASC
+                                LIMIT 1
+                            """
+                            first_ref_result = self.vast_db.execute_sql(first_ref_query)
+                            if isinstance(first_ref_result, dict) and 'data' in first_ref_result:
+                                first_data = first_ref_result['data']
+                                if isinstance(first_data, dict):
+                                    flow_id_col = first_data.get('flow_id', [])
+                                    if isinstance(flow_id_col, list) and len(flow_id_col) > 0:
+                                        object_data['first_referenced_by_flow'] = str(flow_id_col[0])
+                    except Exception as e:
+                        logger.error("Failed to compute referenced_by_flows for object %s: %s", object_id, e)
+                        # Set empty list on error - object will be returned but with no references
+                        object_data['referenced_by_flows'] = []
+                    
+                    # Ensure referenced_by_flows is always set
+                    if 'referenced_by_flows' not in object_data:
+                        object_data['referenced_by_flows'] = []
+                    
+                    # Handle timerange - can be None or a string in database, but model requires TimeRange (TAMS spec requirement)
+                    if 'timerange' in object_data:
+                        timerange_value = object_data.get('timerange')
+                        if timerange_value is None or timerange_value == '':
+                            # Provide a default timerange if missing (required by model)
+                            object_data['timerange'] = TimeRange(value="0:0")
+                        elif isinstance(timerange_value, str):
+                            # Parse string timerange
+                            object_data['timerange'] = TimeRange(value=timerange_value)
+                        elif not isinstance(timerange_value, TimeRange):
+                            # Try to convert dict to TimeRange
+                            if isinstance(timerange_value, dict):
+                                object_data['timerange'] = TimeRange(**timerange_value)
+                            else:
+                                # Fallback to default
+                                object_data['timerange'] = TimeRange(value="0:0")
+                    else:
+                        # No timerange field - provide default
+                        object_data['timerange'] = TimeRange(value="0:0")
+                    
+                    # Ensure timerange is always set - double check it's a TimeRange instance
+                    timerange_val = object_data.get('timerange')
+                    if timerange_val is None or not isinstance(timerange_val, TimeRange):
+                        object_data['timerange'] = TimeRange(value="0:0")
+                    
+                    # Ensure referenced_by_flows is always a list
+                    if 'referenced_by_flows' not in object_data or not isinstance(object_data.get('referenced_by_flows'), list):
+                        object_data['referenced_by_flows'] = []
+                    
+                    # Debug: log object_data before creation to catch any issues
+                    logger.debug("Creating Object with data: id=%s, referenced_by_flows=%s, timerange=%s", 
+                                object_id, type(object_data.get('referenced_by_flows')), type(object_data.get('timerange')))
+                    
+                    # Create Object instance
+                    obj = Object(**object_data)
+                    objects.append(obj)
+                except Exception as e:
+                    logger.error("Failed to process object %s: %s", object_id, e, exc_info=True)
+                    # Skip invalid objects rather than failing entire request
+                    continue
             
             return objects
         except Exception as e:
-            logger.error("Failed to get objects: %s", e)
+            logger.error("Failed to get objects: %s", e, exc_info=True)
+            # If we have partial results, return them instead of failing completely
+            if 'objects' in locals() and len(objects) > 0:
+                logger.warning("Returning partial object list due to error: %s", e)
+                return objects
             raise HTTPException(status_code=500, detail="Internal server error")
     
     # Object Instance Management (TAMS 8.0)

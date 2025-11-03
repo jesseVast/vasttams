@@ -127,17 +127,22 @@ class WebhookHandler(BaseHTTPRequestHandler):
             else:
                 print(f"  {name}: {value}")
         
-        print(f"\n📦 Payload:")
-        print(json.dumps(payload, indent=2))
+        print(f"\n📦 Full Payload:")
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
         
         # Extract event type and details
         event_type = payload.get('event_type') or payload.get('event') or payload.get('type') or "unknown"
         event_timestamp = payload.get('event_timestamp') or payload.get('timestamp') or "unknown"
         event_data = payload.get('event') or payload.get('data') or payload
         
-        print(f"\n🎯 Event Info:")
+        print(f"\n🎯 Event Summary:")
         print(f"   Type: {event_type}")
         print(f"   Timestamp: {event_timestamp}")
+        
+        # Show event data prominently
+        if isinstance(event_data, dict) and event_data:
+            print(f"\n📊 Event Data:")
+            print(json.dumps(event_data, indent=2, ensure_ascii=False))
         
         # Extract resource info from event_data
         if isinstance(event_data, dict):

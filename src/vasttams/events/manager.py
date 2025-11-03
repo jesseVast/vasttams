@@ -109,6 +109,79 @@ class EventManager:
         
         return True
     
+    def _format_event_for_spec(self, event_type: str, event_data: EventData) -> Dict[str, Any]:
+        """
+        Format event data according to TAMS 8.0 webhook spec.
+        
+        The spec requires:
+        - flows/created, flows/updated: event.flow (full Flow object)
+        - flows/deleted: event.flow_id
+        - flows/segments_added: event.flow_id, event.segments (array)
+        - flows/segments_deleted: event.flow_id, event.timerange
+        - sources/created, sources/updated: event.source (full Source object)
+        - sources/deleted: event.source_id
+        """
+        # Convert EventData to dict first
+        event_data_dict = event_data.model_dump() if hasattr(event_data, 'model_dump') else event_data.dict()
+        
+        if event_type in ['flows/created', 'flows/updated']:
+            # For created/updated, use full Flow object if available
+            flow_obj = getattr(event_data, '_flow_object', None)
+            if flow_obj:
+                # Convert Flow object to dict
+                if hasattr(flow_obj, 'model_dump'):
+                    flow_dict = flow_obj.model_dump()
+                elif hasattr(flow_obj, 'dict'):
+                    flow_dict = flow_obj.dict()
+                elif isinstance(flow_obj, dict):
+                    flow_dict = flow_obj
+                else:
+                    # Fallback: try to convert to dict
+                    flow_dict = dict(flow_obj) if hasattr(flow_obj, '__dict__') else event_data_dict
+                return {"flow": flow_dict}
+            else:
+                # Fallback to event_data if flow object not available
+                return {"flow": event_data_dict}
+        elif event_type == 'flows/deleted':
+            return {
+                "flow_id": event_data_dict.get('flow_id') or event_data_dict.get('entity_id')
+            }
+        elif event_type == 'flows/segments_added':
+            return {
+                "flow_id": event_data_dict.get('flow_id'),
+                "segments": event_data_dict.get('segments', [])  # Should be array of flow-segment objects
+            }
+        elif event_type == 'flows/segments_deleted':
+            return {
+                "flow_id": event_data_dict.get('flow_id'),
+                "timerange": event_data_dict.get('timerange')
+            }
+        elif event_type in ['sources/created', 'sources/updated']:
+            # For created/updated, use full Source object if available
+            source_obj = getattr(event_data, '_source_object', None)
+            if source_obj:
+                # Convert Source object to dict
+                if hasattr(source_obj, 'model_dump'):
+                    source_dict = source_obj.model_dump()
+                elif hasattr(source_obj, 'dict'):
+                    source_dict = source_obj.dict()
+                elif isinstance(source_obj, dict):
+                    source_dict = source_obj
+                else:
+                    # Fallback: try to convert to dict
+                    source_dict = dict(source_obj) if hasattr(source_obj, '__dict__') else event_data_dict
+                return {"source": source_dict}
+            else:
+                # Fallback to event_data if source object not available
+                return {"source": event_data_dict}
+        elif event_type == 'sources/deleted':
+            return {
+                "source_id": event_data_dict.get('source_id') or event_data_dict.get('entity_id')
+            }
+        else:
+            # Fallback to original structure for unknown event types
+            return event_data_dict
+    
     async def emit_event(self, event: Event) -> None:
         """
         Emit an event to all configured delivery mechanisms
@@ -139,9 +212,10 @@ class EventManager:
             webhooks = await self._get_webhooks()
             
             if not webhooks:
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("No webhooks registered for event %s", event_type)
+                logger.info("No webhooks registered for event %s", event_type)
                 return
+            
+            logger.info("Found %d webhook(s) for event %s", len(webhooks), event_type)
             
             # Filter webhooks based on event type and filtering rules
             relevant_webhooks = [
@@ -150,9 +224,10 @@ class EventManager:
             ]
             
             if not relevant_webhooks:
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("No relevant webhooks for event %s", event_type)
+                logger.info("No relevant webhooks for event %s (checked %d webhooks)", event_type, len(webhooks))
                 return
+            
+            logger.info("Delivering event %s to %d webhook(s)", event_type, len(relevant_webhooks))
             
             # Send to webhooks using WebhookDelivery
             for webhook_dict in relevant_webhooks:
@@ -160,9 +235,12 @@ class EventManager:
                     from ..webhooks.models import Webhook
                     webhook = Webhook(**webhook_dict)
                     delivery = WebhookDelivery(webhook)
-                    event_data_dict = event_data.model_dump() if hasattr(event_data, 'model_dump') else event_data.dict()
                     
-                    success = await delivery.deliver(event_type, event_data_dict)
+                    # Convert event data to spec-compliant format
+                    # TAMS spec requires: event.flow, event.source, etc.
+                    spec_compliant_event = self._format_event_for_spec(event_type, event_data)
+                    
+                    success = await delivery.deliver(event_type, spec_compliant_event)
                     if success:
                         logger.info("Event %s sent to webhook %s", event_type, webhook.url)
                     else:
@@ -176,6 +254,7 @@ class EventManager:
     async def emit_source_event(self, event_type: str, source: Any, user_id: Optional[str] = None) -> None:
         """Emit a source-related event"""
         try:
+            # Store the full source object for spec-compliant webhook payload
             event_data = SourceEventData(
                 event_type=event_type,
                 entity_id=str(source.id),
@@ -185,6 +264,8 @@ class EventManager:
                 format=getattr(source, 'format', None),
                 tags=getattr(source, 'tags', {}).root if hasattr(source, 'tags') and source.tags else None,
             )
+            # Store full source object for webhook delivery
+            event_data._source_object = source
             
             event = Event(event_type=event_type, data=event_data)
             await self.emit_event(event)
@@ -206,6 +287,8 @@ class EventManager:
                 codec=getattr(flow, 'codec', None),
                 tags=getattr(flow, 'tags', {}).root if hasattr(flow, 'tags') and flow.tags else None,
             )
+            # Store full flow object for webhook delivery
+            event_data._flow_object = flow
             
             event = Event(event_type=event_type, data=event_data)
             await self.emit_event(event)

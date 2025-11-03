@@ -15,6 +15,18 @@ from ..webhooks.models import Webhook
 logger = logging.getLogger(__name__)
 
 
+def _serialize_datetime(obj: Any) -> Any:
+    """Recursively convert datetime objects to ISO format strings"""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {k: _serialize_datetime(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_serialize_datetime(item) for item in obj]
+    else:
+        return obj
+
+
 class EventDeliveryInterface(ABC):
     """Abstract interface for event delivery mechanisms"""
     
@@ -42,10 +54,13 @@ class WebhookDelivery(EventDeliveryInterface):
     async def deliver(self, event_type: str, event_data: Dict[str, Any]) -> bool:
         """Deliver event via HTTP POST to webhook URL"""
         try:
+            # Serialize datetime objects to ISO format strings
+            serialized_event_data = _serialize_datetime(event_data)
+            
             payload = {
                 "event_timestamp": datetime.now(timezone.utc).isoformat(),
                 "event_type": event_type,
-                "event": event_data
+                "event": serialized_event_data
             }
             
             headers = {

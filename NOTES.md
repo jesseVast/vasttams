@@ -33,6 +33,49 @@ notes/
 
 ## 🎯 **CURRENT STATUS**
 
+### **📋 STORAGE BACKEND MANAGEMENT UI & ROOT_PATH FIXES** (November 3, 2025)
+**Date**: November 3, 2025  
+**Task**: Add Storage Backends management UI, fix root_path storage in schema, fix presigned URL root_path usage, fix logging configuration  
+**Status**: ✅ **COMPLETED**
+
+#### **🎨 Storage Backends Management UI**
+- **New Page**: Added `StorageBackends.tsx` page with table layout matching Users page
+- **Features**: View, create, edit, delete storage backends with full CRUD operations
+- **Admin Section**: Moved Users and Storage Backends to admin section below segments in navigation
+- **API Integration**: Added `get` and `update` methods to `storageBackendService`
+- **UI Components**: Uses same DataTable component as Users page for consistency
+
+#### **🗄️ Storage Backend Schema Updates**
+- **Added Fields**: `bucket_name`, `root_path`, and `use_ssl` to storage_backends schema
+- **Database Storage**: These fields now properly stored in database and available in models
+- **Initialization**: Updated storage backend initialization from config.json to include new fields
+
+#### **🔧 Presigned URL Root Path Fix**
+- **Problem**: Presigned URLs using settings.s3_root_path instead of storage backend's root_path
+- **Solution**: Updated `generate_presigned_url` to use `storage_backend.get('root_path')` when available
+- **Impact**: Presigned URLs now correctly use backend-specific root_path from database
+- **Files Updated**: `main_service.py` and `segments/service.py` both updated
+
+#### **📝 Logging Configuration Fix**
+- **Problem**: Log level from config.json not propagating to all submodules
+- **Root Cause**: `simple_logging.py` using hardcoded levels instead of `settings.log_level`
+- **Solution**: Updated to use `settings.log_level` and explicitly set levels for all existing loggers
+- **Result**: All `vasttams.*` submodules now respect configured log level
+
+#### **📊 Files Updated**
+- `src/vasttams/storagebackends/schemas.py` - Added bucket_name, root_path, use_ssl fields
+- `src/vasttams/storagebackends/models.py` - Added fields to StorageBackend, StorageBackendPost, StorageBackendPatch
+- `src/vasttams/storagebackends/service.py` - Updated create method to include new fields
+- `src/vasttams/main.py` - Updated initialization to include new fields from config
+- `src/vasttams/common/storage/main_service.py` - Use backend root_path/bucket_name/use_ssl in presigned URLs
+- `src/vasttams/segments/service.py` - Use backend root_path/bucket_name/use_ssl in presigned URLs
+- `src/vasttams/core/simple_logging.py` - Use settings.log_level and set for all loggers
+- `ui/src/pages/StorageBackends.tsx` - New page for storage backend management
+- `ui/src/App.tsx` - Added route for storage-backends
+- `ui/src/components/Layout.tsx` - Reorganized navigation with admin section
+- `ui/src/services/api.ts` - Added get and update methods for storage backends
+- `ui/src/types.ts` - Extended StorageBackend interface with new fields
+
 ### **📋 NEW: TEST INFRASTRUCTURE & S3 UPLOAD FIXES** (October 31, 2025)
 **Date**: October 31, 2025  
 **Task**: Update test authentication infrastructure, fix content-type handling, improve S3 uploads, and make video ingestion dynamic  

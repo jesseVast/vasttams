@@ -68,6 +68,9 @@ def setup_logging():
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
     
+    # Get log level from settings, with fallback
+    log_level = settings.log_level.upper() if hasattr(settings, 'log_level') and settings.log_level else "INFO"
+    
     # Simple, unified logging configuration
     config = {
         "version": 1,
@@ -87,7 +90,7 @@ def setup_logging():
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
-                "level": "DEBUG" if settings.debug else "INFO",
+                "level": log_level,
                 "formatter": "simple",
                 "stream": sys.stdout
             },
@@ -110,16 +113,16 @@ def setup_logging():
         },
         "loggers": {
             "": {  # Root logger
-                "level": "DEBUG" if settings.debug else "INFO",
+                "level": log_level,
                 "handlers": ["console", "file", "error_file"]
             },
             "app.vaststore": {  # VAST store logger
-                "level": "DEBUG",
+                "level": log_level,
                 "handlers": ["console", "file", "error_file"],
                 "propagate": False
             },
             "vastdb": {  # VAST database logger
-                "level": "DEBUG",
+                "level": log_level,
                 "handlers": ["console", "file", "error_file"],
                 "propagate": False
             }
@@ -129,9 +132,25 @@ def setup_logging():
     # Apply configuration
     logging.config.dictConfig(config)
     
+    # Explicitly set level for root logger to ensure it's applied
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+    
+    # Set level for all existing loggers (submodules)
+    # This ensures that loggers created before setup_logging() also get the correct level
+    for logger_name in list(logging.Logger.manager.loggerDict.keys()):
+        try:
+            logger_obj = logging.getLogger(logger_name)
+            # Set level for vasttams submodules and loggers without explicit handlers
+            if logger_name.startswith('vasttams.') or (isinstance(logger_obj, logging.Logger) and not logger_obj.handlers):
+                logger_obj.setLevel(log_level)
+        except Exception:
+            # Skip any problematic loggers
+            pass
+    
     # Log configuration setup
     logger = logging.getLogger("app.core.logging")
-    logger.info(f"Unified logging initialized - Debug: {settings.debug}, Level: {settings.log_level}")
+    logger.info(f"Unified logging initialized - Debug: {settings.debug}, Level: {log_level}")
 
 
 # Initialize logging when module is imported

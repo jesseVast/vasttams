@@ -111,14 +111,22 @@ export interface Webhook {
 }
 
 export interface StorageBackend {
-  id?: string;
-  label: string;
+  id: string;
+  label?: string;
   store_type: string;
   provider: string;
-  store_product?: string;
+  store_product: string;
   region?: string;
   availability_zone?: string;
+  endpoint_url?: string;
+  access_key?: string;
+  secret_key?: string;
+  bucket_name?: string;
+  root_path?: string;
+  use_ssl?: boolean;
   default_storage?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CountStatistics {

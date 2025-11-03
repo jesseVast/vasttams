@@ -23,17 +23,23 @@ import FolderIcon from '@mui/icons-material/Folder';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import StorageIcon from '@mui/icons-material/Storage';
+import Divider from '@mui/material/Divider';
 import { authService } from '../services/api';
 import BackendStatus from './BackendStatus';
 
 const drawerWidth = 240;
 
-const allMenuItems = [
+const mainMenuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/', adminOnly: false },
-  { text: 'Users', icon: <PeopleIcon />, path: '/users', adminOnly: true },
   { text: 'Sources', icon: <FolderIcon />, path: '/sources', adminOnly: false },
   { text: 'Flows', icon: <TimelineIcon />, path: '/flows', adminOnly: false },
   { text: 'Segments', icon: <VideoLibraryIcon />, path: '/segments', adminOnly: false },
+];
+
+const adminMenuItems = [
+  { text: 'Users', icon: <PeopleIcon />, path: '/users', adminOnly: true },
+  { text: 'Storage Backends', icon: <StorageIcon />, path: '/storage-backends', adminOnly: true },
 ];
 
 const Layout: React.FC = () => {
@@ -44,10 +50,13 @@ const Layout: React.FC = () => {
   const user = authService.getCurrentUser();
 
   // Filter menu items based on user role
-  const menuItems = React.useMemo(() => {
-    if (!user) return allMenuItems.filter(item => !item.adminOnly);
-    if (user.role === 'admin') return allMenuItems;
-    return allMenuItems.filter(item => !item.adminOnly);
+  const filteredMainItems = React.useMemo(() => {
+    return mainMenuItems.filter(item => !item.adminOnly || (user && user.role === 'admin'));
+  }, [user]);
+
+  const filteredAdminItems = React.useMemo(() => {
+    if (!user || user.role !== 'admin') return [];
+    return adminMenuItems;
   }, [user]);
 
   const handleDrawerToggle = () => {
@@ -88,7 +97,7 @@ const Layout: React.FC = () => {
         </Box>
       </Toolbar>
       <List>
-        {menuItems.map((item) => (
+        {filteredMainItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton
               selected={location.pathname === item.path}
@@ -100,6 +109,27 @@ const Layout: React.FC = () => {
           </ListItem>
         ))}
       </List>
+      {filteredAdminItems.length > 0 && (
+        <>
+          <Divider sx={{ my: 1 }} />
+          <Typography variant="caption" sx={{ px: 2, py: 1, color: 'text.secondary', fontSize: '0.75rem', fontWeight: 600 }}>
+            ADMIN
+          </Typography>
+          <List>
+            {filteredAdminItems.map((item) => (
+              <ListItem key={item.text} disablePadding>
+                <ListItemButton
+                  selected={location.pathname === item.path}
+                  onClick={() => navigate(item.path)}
+                >
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.text} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </>
+      )}
     </div>
   );
 

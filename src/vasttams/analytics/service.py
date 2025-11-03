@@ -318,7 +318,7 @@ class AnalyticsService:
             return max(0, max_time - min_time)
         
         return None
-
+    
     async def get_flow_analytics(self) -> List[FlowAnalytics]:
         """Get analytics per flow"""
         try:

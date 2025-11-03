@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User, Source, Flow, Segment, AuthResponse, AnalyticsSummary } from '../types';
+import { User, Source, Flow, Segment, AuthResponse, AnalyticsSummary, StorageBackend } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -125,7 +125,7 @@ export const flowService = {
     const response = await api.get('/flows', { params });
     return response.data?.data || response.data || [];
   },
-  
+
   getStatistics: async (): Promise<any[]> => {
     const response = await api.get('/analytics/flows');
     return response.data || [];
@@ -183,8 +183,18 @@ export const storageBackendService = {
     return response.data?.data || response.data || [];
   },
 
+  get: async (id: string): Promise<any> => {
+    const response = await api.get(`/service/storage-backends/${id}`);
+    return response.data;
+  },
+
   create: async (backend: any): Promise<any> => {
     const response = await api.post('/service/storage-backends', backend);
+    return response.data;
+  },
+
+  update: async (id: string, backend: any): Promise<any> => {
+    const response = await api.put(`/service/storage-backends/${id}`, backend);
     return response.data;
   },
 

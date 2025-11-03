@@ -166,6 +166,9 @@ class StorageBackendService:
                 endpoint_url=backend.endpoint_url,
                 access_key=backend.access_key,
                 secret_key=backend.secret_key,
+                bucket_name=backend.bucket_name,
+                root_path=backend.root_path,
+                use_ssl=backend.use_ssl,
                 default_storage=backend.default_storage,
                 created_at=now,
                 updated_at=now

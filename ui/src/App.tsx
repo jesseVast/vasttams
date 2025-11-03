@@ -9,6 +9,7 @@ import Users from './pages/Users';
 import Sources from './pages/Sources';
 import Flows from './pages/Flows';
 import Segments from './pages/Segments';
+import StorageBackends from './pages/StorageBackends';
 import { authService } from './services/api';
 
 const theme = createTheme({
@@ -64,14 +65,6 @@ const App: React.FC = () => {
               }
             />
             <Route
-              path="users"
-              element={
-                <AdminRoute>
-                  <Users />
-                </AdminRoute>
-              }
-            />
-            <Route
               path="sources"
               element={
                 <PrivateRoute>
@@ -93,6 +86,22 @@ const App: React.FC = () => {
                 <PrivateRoute>
                   <Segments />
                 </PrivateRoute>
+              }
+            />
+            <Route
+              path="users"
+              element={
+                <AdminRoute>
+                  <Users />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="storage-backends"
+              element={
+                <AdminRoute>
+                  <StorageBackends />
+                </AdminRoute>
               }
             />
           </Route>

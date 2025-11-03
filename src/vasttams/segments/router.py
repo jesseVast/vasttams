@@ -97,14 +97,62 @@ async def update_object_size_from_s3(object_id: str):
             logger.debug("Object %s has no storage_path in metadata, skipping size update", object_id)
             return
         
-        # Get S3 client (vasts3)
-        s3_client = get_s3_client()
+        # Get storage_id if available to use backend-specific client
+        storage_id = metadata.get('storage_id')
+        relative_storage_path = storage_path
+        s3_client = None
+        
+        # If storage_id is available, create backend-specific client
+        if storage_id:
+            try:
+                from ..storagebackends.service import StorageBackendService
+                from ..core.dependencies import get_vast_db
+                from vasts3 import S3Client, S3Config
+                from ..core.config import get_settings
+                
+                vast_db = get_vast_db()
+                backend_service = StorageBackendService(vast_db, None)
+                backend = await backend_service.get_storage_backend(storage_id)
+                
+                if backend:
+                    settings = get_settings()
+                    backend_root_path = backend.root_path
+                    
+                    # If storage_path includes root_path, strip it for use with key_prefix
+                    if backend_root_path:
+                        backend_root_path = backend_root_path.strip('/')
+                        if storage_path.startswith(backend_root_path + '/'):
+                            relative_storage_path = storage_path[len(backend_root_path) + 1:]
+                        elif storage_path == backend_root_path:
+                            relative_storage_path = ""
+                    
+                    # Create backend-specific S3Client
+                    key_prefix = backend_root_path.strip('/') if backend_root_path else None
+                    cfg = S3Config(
+                        endpoint_url=backend.endpoint_url or settings.s3_endpoint_url,
+                        bucket_name=backend.bucket_name or settings.s3_bucket_name,
+                        access_key=backend.access_key or settings.s3_access_key_id,
+                        secret_key=backend.secret_key or settings.s3_secret_access_key,
+                        region=backend.region or settings.s3_region,
+                        use_ssl=backend.use_ssl if backend.use_ssl is not None else settings.s3_use_ssl,
+                        chunk_size=settings.vaststore_s3_chunk_size,
+                        max_concurrent_parts=settings.vaststore_s3_max_concurrent_parts,
+                        key_prefix=key_prefix,
+                    )
+                    s3_client = S3Client(cfg)
+            except Exception as e:
+                logger.warning("Failed to create backend-specific client for object %s: %s, falling back to default", object_id, e)
+        
+        # Fallback to default client if backend-specific client wasn't created
         if not s3_client:
-            logger.debug("S3 client not available for object %s", object_id)
-            return
+            s3_client = get_s3_client()
+            if not s3_client:
+                logger.debug("S3 client not available for object %s", object_id)
+                return
+        
         # Get object metadata using vasts3
         try:
-            s3_metadata = s3_client.get_object_metadata(key=storage_path)
+            s3_metadata = s3_client.get_object_metadata(key=relative_storage_path)
             if not s3_metadata:
                 logger.debug("Object %s not found in S3 at path: %s", object_id, storage_path)
                 return

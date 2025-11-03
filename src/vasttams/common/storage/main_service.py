@@ -594,11 +594,27 @@ class TAMSStorageService(StorageInterface):
                 # Normalize paths to avoid double slashes
                 # Remove leading/trailing slashes from tams_storage_path
                 tams_path = self.settings.tams_storage_path.strip('/')
-                storage_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
+                relative_storage_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
+                
+                # Include root_path in storage_path if backend has one
+                # This ensures storage_path in metadata matches the actual S3 key
+                backend_root_path = None
+                if backend_info:
+                    backend_root_path = backend_info.get('root_path')
+                    if backend_root_path:
+                        backend_root_path = backend_root_path.strip('/')
+                
+                # If backend has root_path, include it in storage_path for metadata
+                if backend_root_path:
+                    storage_path = f"{backend_root_path}/{relative_storage_path}"
+                else:
+                    storage_path = relative_storage_path
                 
                 # Generate presigned URL for upload with content-type (TAMS 8.0 requirement)
+                # Pass relative_storage_path (without root_path) since generate_presigned_url
+                # will use key_prefix from storage_backend
                 presigned_url = await self.generate_presigned_url(
-                    key=storage_path,
+                    key=relative_storage_path,
                     operation="put_object",
                     expiration=self.settings.s3_presigned_url_upload_timeout,
                     storage_backend=backend_info,
@@ -626,7 +642,7 @@ class TAMSStorageService(StorageInterface):
                 # Persist object row so segments can reference and URLs can be generated dynamically
                 try:
                     metadata = {
-                        "storage_path": storage_path,
+                        "storage_path": storage_path,  # Full path including root_path
                         "content_type": content_type  # Store for GET URL generation
                     }
                     if backend_info and backend_info.get('id'):

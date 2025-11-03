@@ -338,16 +338,18 @@ class ObjectStorageService:
         for instance in instances:
             if instance.controlled:
                 storage_path = None
+                storage_id = None
                 # Try to get from instance metadata
                 if instance.metadata and isinstance(instance.metadata, dict):
                     storage_path = instance.metadata.get('storage_path')
+                    storage_id = instance.metadata.get('storage_id')
                 
                 # Fallback to URL parsing
                 if not storage_path and instance.url:
                     storage_path = self._extract_storage_path_from_url(instance.url)
                 
                 if storage_path:
-                    await self._delete_s3_object(storage_path)
+                    await self._delete_s3_object(storage_path, storage_id=storage_id)
         
         # Delete instances from database
         self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}'").execute()
@@ -362,8 +364,9 @@ class ObjectStorageService:
             obj = await self.get_object(object_id)
             if obj and hasattr(obj, '_internal_metadata') and obj._internal_metadata:
                 storage_path = obj._internal_metadata.get('storage_path')
+                storage_id = obj._internal_metadata.get('storage_id')
                 if storage_path:
-                    await self._delete_s3_object(storage_path)
+                    await self._delete_s3_object(storage_path, storage_id=storage_id)
             
             # Delete object from database
             self.vast_db.query("objects").delete().where(f"id = '{object_id}'").execute()
@@ -509,21 +512,81 @@ class ObjectStorageService:
         
         return None
     
-    async def _delete_s3_object(self, storage_path: str) -> bool:
-        """Delete an object from S3 storage"""
+    async def _delete_s3_object(self, storage_path: str, storage_id: Optional[str] = None) -> bool:
+        """Delete an object from S3 storage
+        
+        Args:
+            storage_path: Full storage path (may include root_path)
+            storage_id: Optional storage backend ID to use backend-specific client
+        """
         try:
-            if not self.s3_client:
-                logger.warning("S3 client not available, cannot delete object from S3")
-                return False
+            s3_client = None
+            relative_storage_path = storage_path
+            
+            # If storage_id is provided, create backend-specific client
+            if storage_id:
+                try:
+                    from ..storagebackends.service import StorageBackendService
+                    from vasts3 import S3Client, S3Config
+                    from ..core.config import get_settings
+                    
+                    backend_service = StorageBackendService(self.vast_db, None)
+                    backend = await backend_service.get_storage_backend(storage_id)
+                    
+                    if backend:
+                        settings = get_settings()
+                        backend_root_path = backend.root_path
+                        
+                        # If storage_path includes root_path, strip it for use with key_prefix
+                        if backend_root_path:
+                            backend_root_path = backend_root_path.strip('/')
+                            if storage_path.startswith(backend_root_path + '/'):
+                                relative_storage_path = storage_path[len(backend_root_path) + 1:]
+                            elif storage_path == backend_root_path:
+                                relative_storage_path = ""
+                        
+                        # Create backend-specific S3Client
+                        key_prefix = backend_root_path.strip('/') if backend_root_path else None
+                        cfg = S3Config(
+                            endpoint_url=backend.endpoint_url or settings.s3_endpoint_url,
+                            bucket_name=backend.bucket_name or settings.s3_bucket_name,
+                            access_key=backend.access_key or settings.s3_access_key_id,
+                            secret_key=backend.secret_key or settings.s3_secret_access_key,
+                            region=backend.region or settings.s3_region,
+                            use_ssl=backend.use_ssl if backend.use_ssl is not None else settings.s3_use_ssl,
+                            chunk_size=settings.vaststore_s3_chunk_size,
+                            max_concurrent_parts=settings.vaststore_s3_max_concurrent_parts,
+                            key_prefix=key_prefix,
+                        )
+                        s3_client = S3Client(cfg)
+                except Exception as e:
+                    logger.warning("Failed to create backend-specific client for S3 deletion: %s, falling back to default", e)
+            
+            # Fallback to default client if backend-specific client wasn't created
+            if not s3_client:
+                if not self.s3_client:
+                    logger.warning("S3 client not available, cannot delete object from S3")
+                    return False
+                s3_client = self.s3_client
+                # For default client, if storage_path includes a root_path that matches settings, strip it
+                # Otherwise use as-is
+                from ..core.config import get_settings
+                settings = get_settings()
+                if hasattr(settings, 's3_root_path') and settings.s3_root_path:
+                    root_path = settings.s3_root_path.strip('/')
+                    if storage_path.startswith(root_path + '/'):
+                        relative_storage_path = storage_path[len(root_path) + 1:]
+                    elif storage_path == root_path:
+                        relative_storage_path = ""
             
             # Use S3Client delete method if available
             # Check if s3_client has delete_object method
-            if hasattr(self.s3_client, 'delete_object'):
-                self.s3_client.delete_object(key=storage_path)
+            if hasattr(s3_client, 'delete_object'):
+                s3_client.delete_object(key=relative_storage_path)
                 logger.info("Deleted S3 object: %s", storage_path)
                 return True
-            elif hasattr(self.s3_client, 'delete'):
-                self.s3_client.delete(key=storage_path)
+            elif hasattr(s3_client, 'delete'):
+                s3_client.delete(key=relative_storage_path)
                 logger.info("Deleted S3 object: %s", storage_path)
                 return True
             else:
@@ -533,25 +596,38 @@ class ObjectStorageService:
                     from ..core.config import get_settings
                     settings = get_settings()
                     
+                    # Determine endpoint and credentials
+                    endpoint_url = settings.s3_endpoint_url
+                    bucket_name = settings.s3_bucket_name
+                    access_key = settings.s3_access_key_id
+                    secret_key = settings.s3_secret_access_key
+                    
+                    if storage_id:
+                        try:
+                            from ..storagebackends.service import StorageBackendService
+                            backend_service = StorageBackendService(self.vast_db, None)
+                            backend = await backend_service.get_storage_backend(storage_id)
+                            if backend:
+                                endpoint_url = backend.endpoint_url or endpoint_url
+                                bucket_name = backend.bucket_name or bucket_name
+                                access_key = backend.access_key or access_key
+                                secret_key = backend.secret_key or secret_key
+                        except Exception as e:
+                            logger.warning("Failed to get backend config for boto3 fallback: %s", e)
+                    
                     s3_resource = boto3.resource(
                         's3',
-                        endpoint_url=settings.s3_endpoint_url,
-                        aws_access_key_id=settings.s3_access_key_id,
-                        aws_secret_access_key=settings.s3_secret_access_key,
+                        endpoint_url=endpoint_url,
+                        aws_access_key_id=access_key,
+                        aws_secret_access_key=secret_key,
                         region_name=settings.s3_region,
                         use_ssl=settings.s3_use_ssl
                     )
                     
-                    bucket = s3_resource.Bucket(settings.s3_bucket_name)
-                    # Handle key_prefix if configured
-                    key = storage_path
-                    if hasattr(settings, 's3_root_path') and settings.s3_root_path:
-                        root_path = settings.s3_root_path.strip('/')
-                        if not key.startswith(root_path):
-                            key = f"{root_path}/{storage_path}"
-                    
-                    bucket.Object(key).delete()
-                    logger.info("Deleted S3 object via boto3: %s", key)
+                    bucket = s3_resource.Bucket(bucket_name)
+                    # Use relative_storage_path (root_path already stripped if needed)
+                    bucket.Object(relative_storage_path).delete()
+                    logger.info("Deleted S3 object via boto3: %s", relative_storage_path)
                     return True
                 except ImportError:
                     logger.error("boto3 not available, cannot delete S3 object")
@@ -610,7 +686,18 @@ class ObjectStorageService:
             if controlled:
                 storage_path = self._get_storage_path_from_instance(instance_data)
                 if storage_path:
-                    await self._delete_s3_object(storage_path)
+                    # Use storage_id from parameter, or try to get from instance_data
+                    instance_storage_id = storage_id
+                    if not instance_storage_id and instance_data.get('metadata'):
+                        metadata = instance_data.get('metadata')
+                        if isinstance(metadata, str):
+                            try:
+                                metadata = json.loads(metadata)
+                            except (json.JSONDecodeError, TypeError):
+                                metadata = None
+                        if isinstance(metadata, dict):
+                            instance_storage_id = metadata.get('storage_id')
+                    await self._delete_s3_object(storage_path, storage_id=instance_storage_id)
                 else:
                     logger.warning("Could not determine storage path for controlled instance %s (object_id=%s, label=%s, storage_id=%s)", 
                                  instance_data.get('label', 'unknown'), object_id, label, storage_id)

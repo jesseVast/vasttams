@@ -160,6 +160,9 @@ async def lifespan(app: FastAPI):
                                 endpoint_url=backend_config.get('endpoint_url'),
                                 access_key=backend_config.get('access_key'),
                                 secret_key=backend_config.get('secret_key'),
+                                bucket_name=backend_config.get('bucket_name'),
+                                root_path=backend_config.get('root_path'),
+                                use_ssl=backend_config.get('use_ssl', False),
                                 default_storage=backend_config.get('default_storage', False)
                             )
                             created = await backend_service.create_storage_backend(backend_post)
@@ -179,6 +182,9 @@ async def lifespan(app: FastAPI):
                             endpoint_url=settings.s3_endpoint_url,
                             access_key=settings.s3_access_key_id,
                             secret_key=settings.s3_secret_access_key,
+                            bucket_name=getattr(settings, 's3_bucket_name', None),
+                            root_path=getattr(settings, 's3_root_path', None),
+                            use_ssl=getattr(settings, 's3_use_ssl', False),
                             default_storage=True
                         )
                         await backend_service.create_storage_backend(backend_post)

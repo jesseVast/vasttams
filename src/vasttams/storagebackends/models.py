@@ -26,6 +26,9 @@ class StorageBackend(BaseModel):
     endpoint_url: Optional[str] = Field(None, description="S3-compatible endpoint URL for this backend")
     access_key: Optional[str] = Field(None, description="Access key for this backend (write-only)")
     secret_key: Optional[str] = Field(None, description="Secret key for this backend (write-only)")
+    bucket_name: Optional[str] = Field(None, description="S3 bucket name for this backend")
+    root_path: Optional[str] = Field(None, description="Root path prefix for all objects in this backend")
+    use_ssl: Optional[bool] = Field(False, description="Whether to use SSL/TLS for connections")
     default_storage: Optional[bool] = Field(False, description="If true, this is the default storage backend")
     created_at: Optional[datetime] = Field(None, description="Date-time the storage backend was created")
     updated_at: Optional[datetime] = Field(None, description="Date-time the storage backend was last updated")
@@ -87,6 +90,9 @@ class StorageBackendPost(BaseModel):
     endpoint_url: Optional[str] = Field(None, description="S3-compatible endpoint URL for this backend")
     access_key: Optional[str] = Field(None, description="Access key for this backend (write-only)")
     secret_key: Optional[str] = Field(None, description="Secret key for this backend (write-only)")
+    bucket_name: Optional[str] = Field(None, description="S3 bucket name for this backend")
+    root_path: Optional[str] = Field(None, description="Root path prefix for all objects in this backend")
+    use_ssl: Optional[bool] = Field(False, description="Whether to use SSL/TLS for connections")
     default_storage: Optional[bool] = Field(False, description="If true, this is the default storage backend")
 
 
@@ -103,6 +109,9 @@ class StorageBackendPatch(BaseModel):
     endpoint_url: Optional[str] = Field(None, description="S3-compatible endpoint URL for this backend")
     access_key: Optional[str] = Field(None, description="Access key for this backend (write-only)")
     secret_key: Optional[str] = Field(None, description="Secret key for this backend (write-only)")
+    bucket_name: Optional[str] = Field(None, description="S3 bucket name for this backend")
+    root_path: Optional[str] = Field(None, description="Root path prefix for all objects in this backend")
+    use_ssl: Optional[bool] = Field(None, description="Whether to use SSL/TLS for connections")
     default_storage: Optional[bool] = Field(None, description="If true, this is the default storage backend")
 
 

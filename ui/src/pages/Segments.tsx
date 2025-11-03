@@ -193,49 +193,49 @@ const Segments: React.FC = () => {
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
             <Typography variant="caption" sx={{ fontWeight: 'bold', minWidth: 60 }}>
               Flow:
-            </Typography>
+              </Typography>
             <Chip label={filteredFlow.id} size="small" variant="outlined" />
-            {filteredFlow.label && (
+                  {filteredFlow.label && (
               <Chip label={filteredFlow.label} size="small" variant="outlined" />
-            )}
+                  )}
             <Chip label={filteredFlow.format} size="small" variant="outlined" color="primary" />
-            {filteredFlow.codec && (
+                    {filteredFlow.codec && (
               <Chip label={filteredFlow.codec} size="small" variant="outlined" color="secondary" />
-            )}
-            {filteredFlow.container && (
+                    )}
+                    {filteredFlow.container && (
               <Chip label={filteredFlow.container} size="small" variant="outlined" />
-            )}
+                    )}
             {filteredFlow.essence_parameters?.frame_width && filteredFlow.essence_parameters?.frame_height && (
-              <Chip 
+                      <Chip 
                 label={`${filteredFlow.essence_parameters.frame_width}x${filteredFlow.essence_parameters.frame_height}`} 
-                size="small" 
-                variant="outlined"
-              />
-            )}
+                        size="small" 
+                        variant="outlined"
+                      />
+                    )}
             {filteredFlow.essence_parameters?.frame_rate && (
-              <Chip 
+                      <Chip 
                 label={`${filteredFlow.essence_parameters.frame_rate.value || 
-                  (filteredFlow.essence_parameters.frame_rate.numerator && filteredFlow.essence_parameters.frame_rate.denominator
-                    ? `${filteredFlow.essence_parameters.frame_rate.numerator}/${filteredFlow.essence_parameters.frame_rate.denominator}`
+                          (filteredFlow.essence_parameters.frame_rate.numerator && filteredFlow.essence_parameters.frame_rate.denominator
+                            ? `${filteredFlow.essence_parameters.frame_rate.numerator}/${filteredFlow.essence_parameters.frame_rate.denominator}`
                     : 'N/A')} fps`} 
-                size="small" 
-                variant="outlined"
-              />
-            )}
+                        size="small" 
+                        variant="outlined"
+                      />
+                    )}
             {filteredFlow.avg_bit_rate && (
-              <Chip 
+                      <Chip 
                 label={`${(filteredFlow.avg_bit_rate / 1000).toFixed(1)} Mbps`} 
-                size="small" 
-                variant="outlined" 
+                        size="small" 
+                        variant="outlined"
                 color="info"
-              />
-            )}
+                      />
+                    )}
             {filteredFlow.generation && (
               <Chip label={`Gen ${filteredFlow.generation}`} size="small" variant="outlined" />
-            )}
-          </Box>
+                    )}
+                  </Box>
         </Paper>
-      )}
+              )}
 
       {/* Time Interval Search */}
       {filterFlowId && (
@@ -243,7 +243,7 @@ const Segments: React.FC = () => {
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
             <Typography variant="caption" sx={{ fontWeight: 'bold', minWidth: 80 }}>
               Time Range:
-            </Typography>
+                  </Typography>
             <TextField
               label="Start"
               placeholder="0:0"
@@ -293,21 +293,21 @@ const Segments: React.FC = () => {
               variant="contained"
               startIcon={<SearchIcon />}
               onClick={handleSearch}
-              size="small"
+                        size="small" 
             >
               Search
             </Button>
             {(startTime || endTime) && (
               <Button
-                variant="outlined"
+                        variant="outlined"
                 startIcon={<ClearIcon />}
                 onClick={handleClearSearch}
                 size="small"
               >
                 Clear
               </Button>
-            )}
-          </Box>
+              )}
+            </Box>
         </Paper>
       )}
 

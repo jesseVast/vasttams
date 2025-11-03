@@ -154,7 +154,7 @@ const Sources: React.FC = () => {
       : loading ? '...' : '-';
     
     return (
-      <>
+    <>
         <TableCell>
           <Link
             component="button"
@@ -165,28 +165,28 @@ const Sources: React.FC = () => {
             Detail
           </Link>
         </TableCell>
-        <TableCell>{source.label || '-'}</TableCell>
-        <TableCell>{source.description || '-'}</TableCell>
-        <TableCell>{source.format}</TableCell>
+      <TableCell>{source.label || '-'}</TableCell>
+      <TableCell>{source.description || '-'}</TableCell>
+      <TableCell>{source.format}</TableCell>
         <TableCell align="right">
           {typeof flowCount === 'number' ? flowCount.toLocaleString() : flowCount}
         </TableCell>
         <TableCell align="right">
           {typeof segmentCount === 'number' ? segmentCount.toLocaleString() : segmentCount}
         </TableCell>
-        <TableCell>{source.created ? new Date(source.created).toLocaleString() : '-'}</TableCell>
-        <TableCell>
-          <Link
-            component="button"
-            variant="body2"
-            onClick={() => navigate(`/flows?source_id=${source.id}`)}
-            sx={{ cursor: 'pointer' }}
-          >
-            View Flows
-          </Link>
-        </TableCell>
-      </>
-    );
+      <TableCell>{source.created ? new Date(source.created).toLocaleString() : '-'}</TableCell>
+      <TableCell>
+        <Link
+          component="button"
+          variant="body2"
+          onClick={() => navigate(`/flows?source_id=${source.id}`)}
+          sx={{ cursor: 'pointer' }}
+        >
+          View Flows
+        </Link>
+      </TableCell>
+    </>
+  );
   };
 
   return (

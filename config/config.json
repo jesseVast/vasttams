@@ -13,7 +13,7 @@
   
   "database": {
     "vast": {
-      "endpoint": "http://main.selab-var204.selab.vastdata.com",
+      "endpoint": "http://docker1:4001",
       "access_key": "SRSPW0DQT9T70Y787U68",
       "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
       "bucket": "jthaloor-db",
@@ -38,7 +38,7 @@
       "store_product": "vast-s3",
       "region": "us-east-1",
       "availability_zone": null,
-      "endpoint_url": "http://main.selab-var204.selab.vastdata.com",
+      "endpoint_url": "http://docker1:4001",
       "access_key": "SRSPW0DQT9T70Y787U68",
       "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
       "bucket_name": "jthaloor-s3",
@@ -65,7 +65,7 @@
   },
   
   "logging": {
-    "level": "INFO",
+    "level": "DEBUG",
     "format": "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
   },
   

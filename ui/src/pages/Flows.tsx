@@ -328,7 +328,7 @@ const Flows: React.FC = () => {
     const formattedDuration = formatDuration(duration);
     
     return (
-      <>
+    <>
         <TableCell>
           <Link
             component="button"
@@ -339,27 +339,27 @@ const Flows: React.FC = () => {
             Detail
           </Link>
         </TableCell>
-        <TableCell>{flow.label || '-'}</TableCell>
-        <TableCell>{flow.description || '-'}</TableCell>
-        <TableCell>{flow.format}</TableCell>
-        <TableCell>{flow.source_id}</TableCell>
+      <TableCell>{flow.label || '-'}</TableCell>
+      <TableCell>{flow.description || '-'}</TableCell>
+      <TableCell>{flow.format}</TableCell>
+      <TableCell>{flow.source_id}</TableCell>
         <TableCell align="right">
           {typeof segmentCount === 'number' ? segmentCount.toLocaleString() : segmentCount}
         </TableCell>
         <TableCell>{formattedDuration}</TableCell>
-        <TableCell>{flow.created ? new Date(flow.created).toLocaleString() : '-'}</TableCell>
-        <TableCell>
-          <Link
-            component="button"
-            variant="body2"
-            onClick={() => navigate(`/segments?flow_id=${flow.id}`)}
-            sx={{ cursor: 'pointer' }}
-          >
-            View Segments
-          </Link>
-        </TableCell>
-      </>
-    );
+      <TableCell>{flow.created ? new Date(flow.created).toLocaleString() : '-'}</TableCell>
+      <TableCell>
+        <Link
+          component="button"
+          variant="body2"
+          onClick={() => navigate(`/segments?flow_id=${flow.id}`)}
+          sx={{ cursor: 'pointer' }}
+        >
+          View Segments
+        </Link>
+      </TableCell>
+    </>
+  );
   };
 
   return (

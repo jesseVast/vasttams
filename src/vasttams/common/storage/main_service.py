@@ -263,16 +263,21 @@ class TAMSStorageService(StorageInterface):
                 # Build a temporary S3 client using backend-specific config
                 from vasts3 import S3Client, S3Config
                 settings = self.settings
+                
+                # Use backend-specific values when available, fallback to settings
+                backend_root_path = storage_backend.get('root_path') or getattr(settings, 's3_root_path', None)
+                key_prefix = backend_root_path.strip('/') if backend_root_path else None
+                
                 cfg = S3Config(
                     endpoint_url=storage_backend.get('endpoint_url') or settings.s3_endpoint_url,
-                    bucket_name=settings.s3_bucket_name,
+                    bucket_name=storage_backend.get('bucket_name') or settings.s3_bucket_name,
                     access_key=final_access_key,
                     secret_key=final_secret_key,
                     region=storage_backend.get('region') or settings.s3_region,
-                    use_ssl=settings.s3_use_ssl,
+                    use_ssl=storage_backend.get('use_ssl') if storage_backend.get('use_ssl') is not None else settings.s3_use_ssl,
                     chunk_size=settings.vaststore_s3_chunk_size,
                     max_concurrent_parts=settings.vaststore_s3_max_concurrent_parts,
-                    key_prefix=getattr(settings, 's3_root_path', None).strip('/') if getattr(settings, 's3_root_path', None) else None,
+                    key_prefix=key_prefix,
                 )
                 tmp_client = S3Client(cfg)
                 # Build kwargs compatible with the installed vasts3 version

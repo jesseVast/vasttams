@@ -154,7 +154,7 @@ class SegmentStorageService:
                                     segment_data[field] = parsed
                             except (json.JSONDecodeError, TypeError):
                                 pass
-                        segments.append(FlowSegment(**segment_data))
+                    segments.append(FlowSegment(**segment_data))
             
             # Filter by timerange if provided
             if timerange:
@@ -540,16 +540,21 @@ class SegmentStorageService:
             
             if storage_backend and has_valid_credentials:
                 from vasts3 import S3Client, S3Config
+                
+                # Use backend-specific values when available, fallback to settings
+                backend_root_path = storage_backend.get('root_path') or getattr(self.settings, 's3_root_path', None)
+                key_prefix = backend_root_path.strip('/') if backend_root_path else None
+                
                 cfg = S3Config(
                     endpoint_url=storage_backend.get('endpoint_url'),
-                    bucket_name=self.settings.s3_bucket_name,
+                    bucket_name=storage_backend.get('bucket_name') or self.settings.s3_bucket_name,
                     access_key=access_key,
                     secret_key=secret_key,
                     region=storage_backend.get('region') or self.settings.s3_region,
-                    use_ssl=self.settings.s3_use_ssl,
+                    use_ssl=storage_backend.get('use_ssl') if storage_backend.get('use_ssl') is not None else self.settings.s3_use_ssl,
                     chunk_size=self.settings.vaststore_s3_chunk_size,
                     max_concurrent_parts=self.settings.vaststore_s3_max_concurrent_parts,
-                    key_prefix=self.settings.s3_root_path.strip('/') if getattr(self.settings, 's3_root_path', None) else None,
+                    key_prefix=key_prefix,
                 )
                 tmp_client = S3Client(cfg)
                 sig = inspect.signature(tmp_client.generate_presigned_url)

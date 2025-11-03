@@ -186,47 +186,80 @@ class StorageBackendService:
             raise HTTPException(status_code=500, detail="Internal server error")
     
     async def update_storage_backend(self, backend_id: str, backend_update: StorageBackendPatch) -> StorageBackend:
-        """Update a storage backend"""
+        """Update a storage backend
+        
+        Only connection and storage-related fields can be updated:
+        - endpoint_url
+        - bucket_name
+        - root_path
+        - use_ssl
+        - access_key
+        - secret_key
+        
+        Other fields (label, store_type, provider, etc.) 
+        are immutable to preserve object accessibility.
+        """
         try:
             # Get existing backend
             existing = await self.get_storage_backend(backend_id)
             if not existing:
                 raise HTTPException(status_code=404, detail="Storage backend not found")
             
-            # Update fields
+            # Get only the allowed editable fields
             update_data = backend_update.model_dump(exclude_unset=True)
             if not update_data:
                 raise HTTPException(status_code=400, detail="No fields to update")
             
-            # Check if setting default_storage=True
-            if update_data.get('default_storage'):
-                existing_backends = await self.get_storage_backends()
-                for backend in existing_backends:
-                    if backend.id != backend_id and backend.default_storage:
-                        logger.warning("Removing default_storage flag from backend %s", backend.id)
-                        await self._update_storage_backend_flag(backend.id, 'default_storage', False)
+            # Validate that only allowed fields are being updated
+            allowed_fields = {'endpoint_url', 'bucket_name', 'root_path', 'use_ssl', 'access_key', 'secret_key'}
+            provided_fields = set(update_data.keys())
+            disallowed_fields = provided_fields - allowed_fields
+            if disallowed_fields:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot update immutable fields: {', '.join(disallowed_fields)}. "
+                           f"Only the following fields can be updated: {', '.join(sorted(allowed_fields))}"
+                )
             
-            # Merge updates
+            # Merge updates - only update allowed fields, preserve all others from existing backend
             updated_data = existing.model_dump()
-            updated_data.update(update_data)
+            # Only update the allowed fields
+            for field in allowed_fields:
+                if field in update_data:
+                    updated_data[field] = update_data[field]
             updated_data['updated_at'] = get_tams_timestamp()
             
             # Try UPDATE first
             try:
                 from ..common.storage.timestamp_utils import prepare_data_for_sql
-                update_dict = prepare_data_for_sql(updated_data)
+                # Only include fields that are being updated (allowed fields + updated_at)
+                update_dict = {}
+                for field in allowed_fields:
+                    if field in update_data:
+                        update_dict[field] = updated_data[field]
+                # Always include updated_at
+                update_dict['updated_at'] = updated_data['updated_at']
+                
+                update_dict = prepare_data_for_sql(update_dict)
                 update_dict = {k: v for k, v in update_dict.items() if v is not None}
                 
                 if update_dict:
                     set_clauses = []
                     for column, value in update_dict.items():
-                        if isinstance(value, str) and value.startswith('CAST('):
-                            set_clauses.append(f"{column} = {value}")
-                        elif isinstance(value, str):
-                            escaped_value = value.replace("'", "''")
-                            set_clauses.append(f"{column} = '{escaped_value}'")
+                        if isinstance(value, str):
+                            # Check if it's already a SQL expression (like CAST(...))
+                            if value.startswith('CAST(') or value.upper().startswith('CAST('):
+                                # Use as-is without quotes - it's already a SQL expression
+                                set_clauses.append(f"{column} = {value}")
+                            else:
+                                # Regular string value - escape and quote
+                                escaped_value = value.replace("'", "''")
+                                set_clauses.append(f"{column} = '{escaped_value}'")
                         elif value is None:
                             set_clauses.append(f"{column} = NULL")
+                        elif isinstance(value, bool):
+                            # Boolean values - use as-is
+                            set_clauses.append(f"{column} = {value}")
                         else:
                             set_clauses.append(f"{column} = {value}")
                     
@@ -284,12 +317,76 @@ class StorageBackendService:
             logger.error("Failed to update storage backend flag %s for %s: %s", flag_name, backend_id, e)
             raise
     
-    async def delete_storage_backend(self, backend_id: str) -> bool:
-        """Delete a storage backend"""
+    async def _count_objects_with_storage_id(self, storage_id: str) -> int:
+        """Count objects that reference this storage backend"""
         try:
-            # Per TAMS 8.0 spec, storage_id is in get_urls JSON, not a direct column
-            # Skip reference validation for now - would require complex JSON parsing
-            # across all segments' get_urls arrays
+            objects_table = self.vast_db.get_qualified_table_name("objects")
+            object_instances_table = self.vast_db.get_qualified_table_name("object_instances")
+            
+            # Count objects with storage_id in metadata
+            sql = f"""
+                SELECT COUNT(*) as count
+                FROM {objects_table}
+                WHERE metadata IS NOT NULL 
+                  AND metadata LIKE '%"{storage_id}"%'
+            """
+            result = self.vast_db.execute_sql(sql)
+            
+            object_count = 0
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
+                if isinstance(data, dict) and 'count' in data:
+                    object_count = data['count'][0] if len(data['count']) > 0 else 0
+                elif isinstance(data, list) and len(data) > 0:
+                    object_count = data[0].get('count', 0) if isinstance(data[0], dict) else 0
+            elif isinstance(result, list) and len(result) > 0:
+                object_count = result[0].get('count', 0) if isinstance(result[0], dict) else 0
+            
+            # Count object instances with storage_id (in column or metadata)
+            sql = f"""
+                SELECT COUNT(*) as count
+                FROM {object_instances_table}
+                WHERE storage_id = '{storage_id}' 
+                   OR (metadata IS NOT NULL AND metadata LIKE '%"{storage_id}"%')
+            """
+            result = self.vast_db.execute_sql(sql)
+            
+            instance_count = 0
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
+                if isinstance(data, dict) and 'count' in data:
+                    instance_count = data['count'][0] if len(data['count']) > 0 else 0
+                elif isinstance(data, list) and len(data) > 0:
+                    instance_count = data[0].get('count', 0) if isinstance(data[0], dict) else 0
+            elif isinstance(result, list) and len(result) > 0:
+                instance_count = result[0].get('count', 0) if isinstance(result[0], dict) else 0
+            
+            total_count = object_count + instance_count
+            logger.debug("Found %d objects and %d instances referencing storage backend %s", object_count, instance_count, storage_id)
+            return total_count
+        except Exception as e:
+            logger.warning("Failed to count objects with storage_id %s: %s", storage_id, e)
+            # If counting fails, be conservative and prevent deletion
+            return 1  # Return non-zero to prevent deletion
+    
+    async def delete_storage_backend(self, backend_id: str) -> bool:
+        """Delete a storage backend
+        
+        Raises HTTPException if objects or instances reference this backend.
+        """
+        try:
+            logger.info("Checking for objects referencing storage backend %s", backend_id)
+            
+            # Count objects and instances that reference this backend
+            reference_count = await self._count_objects_with_storage_id(backend_id)
+            
+            if reference_count > 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Cannot delete storage backend: {reference_count} object(s) or instance(s) reference it. "
+                           "Delete or migrate the objects first."
+                )
+            
             logger.info("Deleting storage backend %s", backend_id)
             
             # Delete the backend

@@ -30,6 +30,99 @@ notes/
 
 ## 📝 **RECENT EDITS**
 
+## Edit #49: CRUD Tests Fixes and Webhook Test Server (November 3, 2025)
+
+### Summary
+Fixed authentication issues in all CRUD tests by adding `auth_headers` fixture. Fixed objects list endpoint to compute required fields (`referenced_by_flows`, `timerange`). Fixed storage backend UPDATE queries to properly handle timestamp CAST expressions. Created webhook test server for testing webhook events.
+
+### Files Modified
+- **tests/sources/test_crud.py**: Added `auth_headers` parameter to all test methods
+- **tests/flows/test_crud.py**: Added `auth_headers` to all tests, updated `test_source_id` fixture
+- **tests/webhooks/test_crud.py**: Added `auth_headers` to all test methods
+- **tests/objects/test_endpoint.py**: Added `auth_headers` to all test methods
+- **tests/storagebackends/test_crud.py**: Fixed UPDATE test to use editable fields, improved error handling
+- **src/vasttams/objects/router.py**: Added `require_viewer` dependency to `list_objects` endpoint
+- **src/vasttams/objects/service.py**: 
+  - Updated `get_objects()` to compute `referenced_by_flows` from segments table
+  - Added timerange handling (None/string → TimeRange conversion)
+  - Added defensive checks to ensure required fields are always set
+- **src/vasttams/storagebackends/service.py**: 
+  - Fixed UPDATE query to properly detect CAST expressions
+  - Improved boolean value handling
+  - Better timestamp handling in UPDATE statements
+
+### Files Created
+- **tests/webhook_test_server.py**: HTTP server for receiving and logging webhook events
+- **tests/register_webhook_all_events.py**: Script to register webhook for all TAMS events
+- **tests/webhook_test_server_README.md**: Documentation for webhook test server
+- **tests/run_webhook_tests.sh**: Shell script to automate webhook testing
+
+### Test Results
+- **Sources CRUD**: 5/5 passed
+- **Flows CRUD**: 4/4 passed  
+- **Storage Backends CRUD**: 4/4 passed
+- **Objects Endpoint**: 3/3 passed
+- **Segments Endpoint**: 5/5 passed
+- **Webhooks CRUD**: 5 skipped (API server state dependency)
+
+### Impact
+All CRUD operations now working correctly. Webhook testing infrastructure in place for event validation.
+
+## Edit #48: Presigned URL 403 Fixes, Content-Type Header Handling, and VAST S3 Compatibility (November 3, 2025)
+
+### Summary
+Fixed 403 Forbidden errors when uploading to S3 by ensuring Content-Type header matches presigned URL signature. Updated content-type derivation to prioritize Flow.container field. Cleaned up verbose debug logging. Fixed ingest_test_data.py to extract and use content-type from put_url response. Removed unsupported response parameters (`response_content_type`, `response_content_disposition`) for VAST S3 backend compatibility.
+
+### Files Modified
+- **tests/ingest_test_data.py**: 
+  - Updated `get_presigned_url()` to extract `content-type` from `put_url` response
+  - Updated `upload_to_s3()` to accept and use `content_type` parameter as `Content-Type` header
+  - Updated all calls to pass content-type through the flow
+- **src/vasttams/common/storage/main_service.py**: 
+  - Updated content-type derivation to prioritize `flow.container` field
+  - Removed verbose debug logging for presigned URL generation
+  - Removed `response_content_type` and `response_content_disposition` parameters (VAST S3 doesn't support them)
+- **src/vasttams/segments/service.py**: 
+  - Updated `_derive_content_type_from_flow()` to prioritize `flow.container` field
+  - Removed verbose debug logging for presigned URL generation
+  - Removed `response_content_type` and `response_content_disposition` parameters (VAST S3 doesn't support them)
+
+### Key Changes
+1. **S3 Upload Content-Type Header Fix**:
+   - **Problem**: Presigned PUT URLs include `ContentType` in signature, but uploads missing `Content-Type` header causing 403 Forbidden
+   - **Root Cause**: `ingest_test_data.py` not extracting content-type from put_url response
+   - **Solution**: Extract `content-type` from `put_url` response and include as `Content-Type` header in PUT request
+   - **Result**: S3 uploads now successful with matching signature and headers
+
+2. **Content-Type Derivation Priority**:
+   - **Problem**: Content-type derivation using heuristics instead of authoritative Flow.container field
+   - **Solution**: Updated both `main_service.py` and `segments/service.py` to check `flow.container` first
+   - **Fallback**: Uses format/codec heuristics only if `container` field not set
+   - **Result**: More accurate content-type based on TAMS spec
+
+3. **Debug Logging Cleanup**:
+   - **Removed**: Verbose debug logs for key_prefix calculations and URL parsing
+   - **Kept**: Essential logging at appropriate levels
+   - **Result**: Cleaner logs while maintaining debugging capability
+
+### Technical Details
+- **Content-Type Header**: Required when presigned URL signature includes ContentType parameter
+- **Flow.container Field**: Authoritative source per TAMS spec ("Container MIME type for flow segments")
+- **Presigned URL Signature**: Must match exactly between generation and usage (key, ContentType, expiration, credentials)
+
+4. **VAST S3 Compatibility**:
+   - **Problem**: vasts3 library supports `response_content_type` and `response_content_disposition` parameters, but VAST S3 backend does not support them in presigned URLs
+   - **Solution**: Removed these parameters from presigned URL generation in both `main_service.py` and `segments/service.py`
+   - **Result**: Code now compatible with VAST S3 limitations
+   - **Note**: Only `content_type` for PUT operations is used (which VAST S3 supports)
+
+### Benefits
+- ✅ S3 uploads working correctly without 403 errors
+- ✅ Content-type derivation uses authoritative Flow.container field
+- ✅ Cleaner logging without excessive debug noise
+- ✅ Test scripts properly handle content-type extraction and headers
+- ✅ VAST S3 backend compatibility (removed unsupported response parameters)
+
 ## Edit #47: Storage Backend Management UI, Root Path Fixes, and Logging Configuration (November 3, 2025)
 
 ### Summary

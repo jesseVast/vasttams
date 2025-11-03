@@ -125,10 +125,16 @@ class TestStorageBackendCRUD:
         backend_id = created["id"]
         
         try:
-            # Update the backend
+            # Get initial state
+            get_response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
+            assert get_response.status_code == 200
+            initial = get_response.json()
+            
+            # Update the backend - only editable fields are: endpoint_url, use_ssl, access_key, secret_key, bucket_name, root_path
+            # Note: label is NOT editable per StorageBackendPatch model
             update_data = {
-                "label": "updated-test-backend",
-                "region": "us-west-2"
+                "endpoint_url": "https://updated.example.com" if initial.get("endpoint_url") != "https://updated.example.com" else "https://updated2.example.com",
+                "use_ssl": not initial.get("use_ssl", False)
             }
             
             update_response = requests.put(
@@ -144,8 +150,8 @@ class TestStorageBackendCRUD:
             assert get_response.status_code == 200
             
             updated = get_response.json()
-            assert updated["label"] == "updated-test-backend"
-            assert updated["region"] == "us-west-2"
+            assert updated["endpoint_url"] == update_data["endpoint_url"]
+            assert updated["use_ssl"] == update_data["use_ssl"]
             
         finally:
             # Cleanup

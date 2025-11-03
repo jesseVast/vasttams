@@ -42,7 +42,7 @@ def clean_flow_id():
 
 
 @pytest.fixture
-def test_source_id():
+def test_source_id(auth_headers):
     """Create a test source for flow testing"""
     source_id = str(uuid.uuid4())
     source_data = {
@@ -52,21 +52,21 @@ def test_source_id():
     }
     
     try:
-        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         if response.status_code == 201:
             yield source_id
         else:
             pytest.skip(f"Failed to create test source: {response.text}")
     finally:
         # Cleanup
-        requests.delete(f"{BASE_URL}/sources/{source_id}")
+        requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
 
 
 @pytest.mark.usefixtures("api_available")
 class TestFlowCRUD:
     """Complete CRUD tests for Flows endpoint per TAMS 8.0 spec"""
     
-    def test_create_flow(self, clean_flow_id, api_available, test_source_id):
+    def test_create_flow(self, clean_flow_id, api_available, test_source_id, auth_headers):
         """Test CREATE operation - POST /flows per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
@@ -89,7 +89,7 @@ class TestFlowCRUD:
             }
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         assert response.status_code == 201, f"Failed to create flow: {response.text}"
         
         created = response.json()
@@ -97,9 +97,9 @@ class TestFlowCRUD:
         assert created["source_id"] == test_source_id
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{clean_flow_id}")
+        requests.delete(f"{BASE_URL}/flows/{clean_flow_id}", headers=auth_headers)
     
-    def test_read_flow(self, clean_flow_id, api_available, test_source_id):
+    def test_read_flow(self, clean_flow_id, api_available, test_source_id, auth_headers):
         """Test READ operation - GET /flows/{id} per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
@@ -117,10 +117,10 @@ class TestFlowCRUD:
                 "frame_rate": {"numerator": 25, "denominator": 1}
             }
         }
-        requests.post(f"{BASE_URL}/flows", json=flow_data)
+        requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         
         # Read it back
-        response = requests.get(f"{BASE_URL}/flows/{clean_flow_id}")
+        response = requests.get(f"{BASE_URL}/flows/{clean_flow_id}", headers=auth_headers)
         assert response.status_code == 200
         
         retrieved = response.json()
@@ -128,14 +128,14 @@ class TestFlowCRUD:
         assert retrieved["source_id"] == test_source_id
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{clean_flow_id}")
+        requests.delete(f"{BASE_URL}/flows/{clean_flow_id}", headers=auth_headers)
     
-    def test_list_flows(self, api_available):
+    def test_list_flows(self, api_available, auth_headers):
         """Test READ operation - GET /flows (list) per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/flows")
+        response = requests.get(f"{BASE_URL}/flows", headers=auth_headers)
         assert response.status_code == 200
         
         data = response.json()
@@ -148,7 +148,7 @@ class TestFlowCRUD:
             assert "source_id" in flow
             assert "format" in flow
     
-    def test_delete_flow(self, clean_flow_id, api_available, test_source_id):
+    def test_delete_flow(self, clean_flow_id, api_available, test_source_id, auth_headers):
         """Test DELETE operation - DELETE /flows/{id} per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
@@ -166,13 +166,13 @@ class TestFlowCRUD:
                 "frame_rate": {"numerator": 25, "denominator": 1}
             }
         }
-        requests.post(f"{BASE_URL}/flows", json=flow_data)
+        requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         
         # Delete it
-        response = requests.delete(f"{BASE_URL}/flows/{clean_flow_id}")
+        response = requests.delete(f"{BASE_URL}/flows/{clean_flow_id}", headers=auth_headers)
         assert response.status_code in [200, 204], f"Failed to delete flow: {response.text}"
         
         # Verify deletion
-        response = requests.get(f"{BASE_URL}/flows/{clean_flow_id}")
+        response = requests.get(f"{BASE_URL}/flows/{clean_flow_id}", headers=auth_headers)
         assert response.status_code == 404
 

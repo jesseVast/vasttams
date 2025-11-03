@@ -97,22 +97,27 @@ class StorageBackendPost(BaseModel):
 
 
 class StorageBackendPatch(BaseModel):
-    """Storage backend update request"""
+    """Storage backend update request
+    
+    Only connection and storage-related fields can be updated after creation:
+    - endpoint_url: S3 endpoint URL
+    - bucket_name: S3 bucket name
+    - root_path: Root path prefix for objects
+    - use_ssl: SSL/TLS setting
+    - access_key: Access key for authentication
+    - secret_key: Secret key for authentication
+    
+    Other fields (label, store_type, provider, etc.) 
+    cannot be changed to preserve object accessibility and data integrity.
+    """
     model_config = ConfigDict(str_strip_whitespace=True)
     
-    label: Optional[str] = Field(None, description="Freeform string label for a storage backend")
-    store_type: Optional[str] = Field(None, description="The generic store type")
-    provider: Optional[str] = Field(None, description="The cloud provider of the storage")
-    store_product: Optional[str] = Field(None, description="The storage product name")
-    region: Optional[str] = Field(None, description="The region in the cloud this storage backend resides")
-    availability_zone: Optional[str] = Field(None, description="The availability zone in the cloud region")
     endpoint_url: Optional[str] = Field(None, description="S3-compatible endpoint URL for this backend")
-    access_key: Optional[str] = Field(None, description="Access key for this backend (write-only)")
-    secret_key: Optional[str] = Field(None, description="Secret key for this backend (write-only)")
     bucket_name: Optional[str] = Field(None, description="S3 bucket name for this backend")
     root_path: Optional[str] = Field(None, description="Root path prefix for all objects in this backend")
+    access_key: Optional[str] = Field(None, description="Access key for this backend (write-only)")
+    secret_key: Optional[str] = Field(None, description="Secret key for this backend (write-only)")
     use_ssl: Optional[bool] = Field(None, description="Whether to use SSL/TLS for connections")
-    default_storage: Optional[bool] = Field(None, description="If true, this is the default storage backend")
 
 
 class StorageBackendsList(BaseModel):

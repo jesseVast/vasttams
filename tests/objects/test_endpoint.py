@@ -40,7 +40,7 @@ def api_available():
 class TestObjectEndpointCRUD:
     """CRUD tests for objects endpoint using TAMS 8.0 example data"""
     
-    def test_list_objects_endpoint(self, api_available):
+    def test_list_objects_endpoint(self, api_available, auth_headers):
         """Test GET /objects endpoint per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
@@ -49,8 +49,10 @@ class TestObjectEndpointCRUD:
         example_object = get_objects_example()
         
         # Call the API
-        response = requests.get(f"{BASE_URL}/objects")
-        assert response.status_code == 200
+        response = requests.get(f"{BASE_URL}/objects", headers=auth_headers)
+        if response.status_code != 200:
+            print(f"Error response: {response.text}")
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         
         objects = response.json()
         assert isinstance(objects, list)
@@ -70,7 +72,7 @@ class TestObjectEndpointCRUD:
                 # Timerange should be a dict with start/end or a string
                 assert isinstance(timerange, (dict, str))
     
-    def test_get_object_endpoint(self, api_available):
+    def test_get_object_endpoint(self, api_available, auth_headers):
         """Test GET /objects/{id} endpoint per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
@@ -79,7 +81,7 @@ class TestObjectEndpointCRUD:
         example_object = get_objects_example()
         
         # Call the API to get objects
-        response = requests.get(f"{BASE_URL}/objects")
+        response = requests.get(f"{BASE_URL}/objects", headers=auth_headers)
         if response.status_code == 200:
             objects = response.json()
             
@@ -87,7 +89,7 @@ class TestObjectEndpointCRUD:
                 object_id = objects[0]["id"]
                 
                 # Get the specific object
-                response = requests.get(f"{BASE_URL}/objects/{object_id}")
+                response = requests.get(f"{BASE_URL}/objects/{object_id}", headers=auth_headers)
                 assert response.status_code == 200
                 
                 obj = response.json()
@@ -102,13 +104,13 @@ class TestObjectEndpointCRUD:
 class TestObjectInstancesEndpoint:
     """Test object instances endpoints per ADR-0042"""
     
-    def test_list_object_instances_endpoint(self, api_available):
+    def test_list_object_instances_endpoint(self, api_available, auth_headers):
         """Test GET /objects/{id}/instances endpoint"""
         if not api_available:
             pytest.skip("API not available")
         
         # Get an object first
-        response = requests.get(f"{BASE_URL}/objects")
+        response = requests.get(f"{BASE_URL}/objects", headers=auth_headers)
         if response.status_code == 200:
             objects = response.json()
             
@@ -116,7 +118,7 @@ class TestObjectInstancesEndpoint:
                 object_id = objects[0]["id"]
                 
                 # List instances for this object
-                response = requests.get(f"{BASE_URL}/objects/{object_id}/instances")
+                response = requests.get(f"{BASE_URL}/objects/{object_id}/instances", headers=auth_headers)
                 assert response.status_code == 200
                 
                 instances = response.json()

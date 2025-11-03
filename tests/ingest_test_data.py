@@ -153,8 +153,12 @@ def create_audio_flow(token: str, source_id: str, flow_num: int) -> Dict:
     return result
 
 
-def get_presigned_url(token: str, flow_id: str, label: str = None) -> Tuple[str, str]:
-    """Get presigned URL for S3 upload"""
+def get_presigned_url(token: str, flow_id: str, label: str = None) -> Tuple[str, str, str]:
+    """Get presigned URL for S3 upload
+    
+    Returns:
+        Tuple of (presigned_url, object_id, content_type)
+    """
     if label is None:
         label = f"object-{str(uuid.uuid4())[:8]}"
     
@@ -175,20 +179,33 @@ def get_presigned_url(token: str, flow_id: str, label: str = None) -> Tuple[str,
     result = response.json()
     
     # Extract presigned URL from response
+    # Note: put_url now includes "content-type" per TAMS 8.0 AppNote 0018
     if "media_objects" in result and len(result["media_objects"]) > 0:
         media_obj = result["media_objects"][0]
         object_id = media_obj["object_id"]
-        presigned_url = media_obj["put_url"]["url"]
-        return presigned_url, object_id
+        put_url_obj = media_obj["put_url"]
+        presigned_url = put_url_obj["url"]
+        # Extract content-type from put_url (required for S3 upload header)
+        content_type = put_url_obj.get("content-type", "application/octet-stream")
+        return presigned_url, object_id, content_type
     else:
         raise ValueError(f"No media_objects in response: {result}")
 
 
-def upload_to_s3(presigned_url: str, test_data: bytes) -> bool:
-    """Upload data to S3 using presigned URL"""
+def upload_to_s3(presigned_url: str, test_data: bytes, content_type: str = "application/octet-stream") -> bool:
+    """Upload data to S3 using presigned URL
+    
+    Args:
+        presigned_url: The presigned S3 URL
+        test_data: Data to upload
+        content_type: Content-Type header value (must match what was used to sign the URL)
+    """
+    # Set Content-Type header - required when presigned URL includes content-type in signature
+    headers = {"Content-Type": content_type}
     response = requests.put(
         presigned_url,
-        data=test_data
+        data=test_data,
+        headers=headers
     )
     response.raise_for_status()
     return True
@@ -271,9 +288,9 @@ def main():
         
         # Flow 1: 3 objects (segments 0-2)
         for i in range(3):
-            presigned_url, object_id = get_presigned_url(token, flow1_id, f"flow1-obj-{i}")
+            presigned_url, object_id, content_type = get_presigned_url(token, flow1_id, f"flow1-obj-{i}")
             test_data = f"Test content for object {i} in flow 1".encode()
-            upload_to_s3(presigned_url, test_data)
+            upload_to_s3(presigned_url, test_data, content_type)
             objects_data.append((flow1_id, object_id, i))
             created_resources["objects"].append(object_id)
             print(f"✅ Created and uploaded object {i+1}/10: {object_id[:8]}...")
@@ -281,9 +298,9 @@ def main():
         # Flow 2: 3 objects (segments 0-2) - these will be shared with flow4
         shared_objects = []
         for i in range(3):
-            presigned_url, object_id = get_presigned_url(token, flow2_id, f"flow2-obj-{i}")
+            presigned_url, object_id, content_type = get_presigned_url(token, flow2_id, f"flow2-obj-{i}")
             test_data = f"Test content for shared object {i}".encode()
-            upload_to_s3(presigned_url, test_data)
+            upload_to_s3(presigned_url, test_data, content_type)
             objects_data.append((flow2_id, object_id, i))
             shared_objects.append((flow2_id, object_id, i))  # Track for sharing
             created_resources["objects"].append(object_id)
@@ -291,18 +308,18 @@ def main():
         
         # Flow 3 (Audio): 2 objects (segments 0-1)
         for i in range(2):
-            presigned_url, object_id = get_presigned_url(token, flow3_id, f"flow3-audio-obj-{i}")
+            presigned_url, object_id, content_type = get_presigned_url(token, flow3_id, f"flow3-audio-obj-{i}")
             test_data = f"Audio test content for object {i}".encode()
-            upload_to_s3(presigned_url, test_data)
+            upload_to_s3(presigned_url, test_data, content_type)
             objects_data.append((flow3_id, object_id, i))
             created_resources["objects"].append(object_id)
             print(f"✅ Created and uploaded object {i+7}/10: {object_id[:8]}...")
         
         # Flow 4: 2 new objects (segments 3-4) + will share 3 from flow2
         for i in range(2):
-            presigned_url, object_id = get_presigned_url(token, flow4_id, f"flow4-obj-{i+3}")
+            presigned_url, object_id, content_type = get_presigned_url(token, flow4_id, f"flow4-obj-{i+3}")
             test_data = f"Test content for object {i+3} in flow 4".encode()
-            upload_to_s3(presigned_url, test_data)
+            upload_to_s3(presigned_url, test_data, content_type)
             objects_data.append((flow4_id, object_id, i+3))
             created_resources["objects"].append(object_id)
             print(f"✅ Created and uploaded object {i+9}/10: {object_id[:8]}...")

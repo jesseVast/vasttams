@@ -65,7 +65,7 @@
   },
   
   "logging": {
-    "level": "DEBUG",
+    "level": "INFO",
     "format": "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
   },
   

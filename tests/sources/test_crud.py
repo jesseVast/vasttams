@@ -45,7 +45,7 @@ def clean_source_id():
 class TestSourceCRUD:
     """Complete CRUD tests for Sources endpoint per TAMS 8.0 spec"""
     
-    def test_create_source(self, clean_source_id, api_available):
+    def test_create_source(self, clean_source_id, api_available, auth_headers):
         """Test CREATE operation - POST /sources per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
@@ -57,7 +57,7 @@ class TestSourceCRUD:
             "description": "Test source for CRUD operations"
         }
         
-        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         assert response.status_code == 201, f"Failed to create source: {response.text}"
         
         created = response.json()
@@ -66,9 +66,9 @@ class TestSourceCRUD:
         assert created["label"] == source_data["label"]
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/sources/{clean_source_id}")
+        requests.delete(f"{BASE_URL}/sources/{clean_source_id}", headers=auth_headers)
     
-    def test_read_source(self, clean_source_id, api_available):
+    def test_read_source(self, clean_source_id, api_available, auth_headers):
         """Test READ operation - GET /sources/{id} per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
@@ -79,10 +79,10 @@ class TestSourceCRUD:
             "format": "urn:x-nmos:format:video",
             "label": f"Read Source {clean_source_id[:8]}"
         }
-        requests.post(f"{BASE_URL}/sources", json=source_data)
+        requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         
         # Read it back
-        response = requests.get(f"{BASE_URL}/sources/{clean_source_id}")
+        response = requests.get(f"{BASE_URL}/sources/{clean_source_id}", headers=auth_headers)
         assert response.status_code == 200
         
         retrieved = response.json()
@@ -91,14 +91,14 @@ class TestSourceCRUD:
         assert "label" in retrieved
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/sources/{clean_source_id}")
+        requests.delete(f"{BASE_URL}/sources/{clean_source_id}", headers=auth_headers)
     
-    def test_list_sources(self, api_available):
+    def test_list_sources(self, api_available, auth_headers):
         """Test READ operation - GET /sources (list) per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/sources")
+        response = requests.get(f"{BASE_URL}/sources", headers=auth_headers)
         assert response.status_code == 200
         
         data = response.json()
@@ -110,7 +110,7 @@ class TestSourceCRUD:
             assert "id" in source
             assert "format" in source
     
-    def test_update_source(self, clean_source_id, api_available):
+    def test_update_source(self, clean_source_id, api_available, auth_headers):
         """
         Test UPDATE operation - No PUT /sources/{id} endpoint per TAMS 8.0 spec
         Note: TAMS 8.0 uses partial updates (PUT /sources/{id}/label, /description)
@@ -124,23 +124,23 @@ class TestSourceCRUD:
             "format": "urn:x-nmos:format:video",
             "label": f"Original Label {clean_source_id[:8]}"
         }
-        requests.post(f"{BASE_URL}/sources", json=source_data)
+        requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         
         # TAMS 8.0 uses PUT /sources/{id}/label with query parameter
         updated_label = f"Updated Label {clean_source_id[:8]}"
-        response = requests.put(f"{BASE_URL}/sources/{clean_source_id}/label?label={updated_label}")
+        response = requests.put(f"{BASE_URL}/sources/{clean_source_id}/label?label={updated_label}", headers=auth_headers)
         assert response.status_code in [200, 204], f"Failed to update source label: {response.text}"
         
         # Verify update
-        response = requests.get(f"{BASE_URL}/sources/{clean_source_id}")
+        response = requests.get(f"{BASE_URL}/sources/{clean_source_id}", headers=auth_headers)
         assert response.status_code == 200
         retrieved = response.json()
         assert retrieved["label"] == updated_label
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/sources/{clean_source_id}")
+        requests.delete(f"{BASE_URL}/sources/{clean_source_id}", headers=auth_headers)
     
-    def test_delete_source(self, clean_source_id, api_available):
+    def test_delete_source(self, clean_source_id, api_available, auth_headers):
         """Test DELETE operation - DELETE /sources/{id} per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
@@ -151,13 +151,13 @@ class TestSourceCRUD:
             "format": "urn:x-nmos:format:video",
             "label": f"Delete Source {clean_source_id[:8]}"
         }
-        requests.post(f"{BASE_URL}/sources", json=source_data)
+        requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         
         # Delete it
-        response = requests.delete(f"{BASE_URL}/sources/{clean_source_id}")
+        response = requests.delete(f"{BASE_URL}/sources/{clean_source_id}", headers=auth_headers)
         assert response.status_code in [200, 204], f"Failed to delete source: {response.text}"
         
         # Verify deletion
-        response = requests.get(f"{BASE_URL}/sources/{clean_source_id}")
+        response = requests.get(f"{BASE_URL}/sources/{clean_source_id}", headers=auth_headers)
         assert response.status_code == 404
 

@@ -30,6 +30,67 @@ notes/
 
 ## 📝 **RECENT EDITS**
 
+## Edit #47: Storage Backend Management UI, Root Path Fixes, and Logging Configuration (November 3, 2025)
+
+### Summary
+Added comprehensive Storage Backends management UI, fixed storage backend schema to include root_path/bucket_name/use_ssl, fixed presigned URL generation to use storage backend's root_path instead of settings, and fixed logging configuration to properly propagate log levels to all submodules.
+
+### Files Modified
+- **src/vasttams/storagebackends/schemas.py**: Added `bucket_name`, `root_path`, `use_ssl` fields to PyArrow schema
+- **src/vasttams/storagebackends/models.py**: Added fields to StorageBackend, StorageBackendPost, StorageBackendPatch models
+- **src/vasttams/storagebackends/service.py**: Updated `create_storage_backend` to include new fields
+- **src/vasttams/main.py**: Updated storage backend initialization from config.json to include new fields
+- **src/vasttams/common/storage/main_service.py**: Use `storage_backend.get('root_path')`, `bucket_name`, `use_ssl` in presigned URL generation
+- **src/vasttams/segments/service.py**: Use `storage_backend.get('root_path')`, `bucket_name`, `use_ssl` in presigned URL generation
+- **src/vasttams/core/simple_logging.py**: Use `settings.log_level` instead of hardcoded values, set levels for all existing loggers
+- **ui/src/pages/StorageBackends.tsx**: New page with full CRUD operations for storage backends
+- **ui/src/App.tsx**: Added `/storage-backends` route with AdminRoute protection
+- **ui/src/components/Layout.tsx**: Reorganized navigation with admin section below segments
+- **ui/src/services/api.ts**: Added `get` and `update` methods to storageBackendService
+- **ui/src/types.ts**: Extended StorageBackend interface with endpoint_url, bucket_name, root_path, use_ssl, and timestamps
+
+### Key Changes
+1. **Storage Backend Management UI**:
+   - New page with table layout matching Users page
+   - Full CRUD operations (create, read, update, delete)
+   - Fields: label, store_type, provider, store_product, region, endpoint_url, bucket_name, root_path, access_key, secret_key, use_ssl, default_storage
+   - Admin-only access
+   - Moved to admin section in navigation
+
+2. **Storage Backend Schema Enhancement**:
+   - Added `bucket_name`, `root_path`, `use_ssl` to database schema
+   - These fields now persist in database
+   - Available in all storage backend models (Base, Post, Patch)
+
+3. **Presigned URL Root Path Fix**:
+   - Changed from `settings.s3_root_path` to `storage_backend.get('root_path')` when backend available
+   - Also uses backend's `bucket_name` and `use_ssl` instead of settings
+   - Ensures presigned URLs use correct storage backend configuration from database
+
+4. **Logging Configuration Fix**:
+   - Changed from hardcoded `"DEBUG" if settings.debug else "INFO"` to `settings.log_level.upper()`
+   - Explicitly sets root logger level after dictConfig
+   - Iterates through existing loggers to set level for `vasttams.*` submodules
+   - All submodules now respect configured log level from config.json
+
+5. **Navigation Reorganization**:
+   - Main items: Dashboard, Sources, Flows, Segments
+   - Admin section (with divider): Users, Storage Backends
+   - Admin section only visible to admin users
+
+### Technical Details
+- **Storage Backend Schema**: root_path, bucket_name, use_ssl now stored in database
+- **Presigned URLs**: Use storage backend's configuration when available, fallback to settings
+- **Logging**: Uses `settings.log_level` and applies to all existing loggers
+- **UI Layout**: Admin section below main navigation items with visual separator
+
+### Benefits
+- ✅ Storage backends can be managed through UI
+- ✅ Multiple storage backends supported with different root paths
+- ✅ Presigned URLs use correct backend configuration
+- ✅ Log levels properly configured across all modules
+- ✅ Better organization of admin functions in UI
+
 ## Edit #46: Test Authentication, Content-Type Fixes, and Dynamic Video Discovery (October 31, 2025)
 
 ### Summary

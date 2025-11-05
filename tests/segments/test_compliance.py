@@ -36,7 +36,7 @@ def api_available():
 
 
 @pytest.fixture
-def test_flow_and_source(api_available):
+def test_flow_and_source(api_available, auth_headers):
     """Create a test flow and source for segment testing"""
     if not api_available:
         pytest.skip("API not available")
@@ -54,7 +54,7 @@ def test_flow_and_source(api_available):
     }
     
     try:
-        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         if response.status_code != 201:
             pytest.skip(f"Failed to create test source: {response.text}")
         
@@ -72,15 +72,15 @@ def test_flow_and_source(api_available):
             }
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         if response.status_code != 201:
             pytest.skip(f"Failed to create test flow: {response.text}")
         
         yield {"flow_id": flow_id, "source_id": source_id}
         
     finally:
-        requests.delete(f"{BASE_URL}/flows/{flow_id}")
-        requests.delete(f"{BASE_URL}/sources/{source_id}")
+        requests.delete(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
+        requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
 
 
 @pytest.mark.usefixtures("api_available")

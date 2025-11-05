@@ -39,7 +39,7 @@ def api_available():
 class TestC2PAInSourceCreation:
     """Test C2PA validation during source creation"""
     
-    def test_create_source_with_valid_c2pa_tags(self, api_available):
+    def test_create_source_with_valid_c2pa_tags(self, api_available, auth_headers):
         """Test creating a source with valid C2PA tags"""
         if not api_available:
             pytest.skip("API not available")
@@ -69,20 +69,20 @@ class TestC2PAInSourceCreation:
             }
         }
         
-        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         # Should succeed (C2PA validation logs warning but doesn't reject)
         assert response.status_code == 201, f"Failed to create source with C2PA: {response.text}"
         
         # Verify source was created
-        response = requests.get(f"{BASE_URL}/sources/{source_id}")
+        response = requests.get(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
         assert response.status_code == 200
         source = response.json()
         assert source["id"] == source_id
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/sources/{source_id}")
+        requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
     
-    def test_create_source_with_invalid_c2pa_tags(self, api_available):
+    def test_create_source_with_invalid_c2pa_tags(self, api_available, auth_headers):
         """Test creating a source with invalid C2PA tags"""
         if not api_available:
             pytest.skip("API not available")
@@ -98,14 +98,14 @@ class TestC2PAInSourceCreation:
             }
         }
         
-        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         # Should still succeed (C2PA validation warns but doesn't reject)
         assert response.status_code == 201, f"Failed to create source with invalid C2PA: {response.text}"
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/sources/{source_id}")
+        requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
     
-    def test_create_source_without_c2pa(self, api_available):
+    def test_create_source_without_c2pa(self, api_available, auth_headers):
         """Test creating a source without C2PA data"""
         if not api_available:
             pytest.skip("API not available")
@@ -119,13 +119,13 @@ class TestC2PAInSourceCreation:
             # No tags
         }
         
-        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         assert response.status_code == 201, f"Failed to create source: {response.text}"
         
         # Verify source was created
-        response = requests.get(f"{BASE_URL}/sources/{source_id}")
+        response = requests.get(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
         assert response.status_code == 200
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/sources/{source_id}")
+        requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
 

@@ -36,7 +36,7 @@ def api_available():
 
 
 @pytest.fixture
-def test_flow_with_segments(api_available):
+def test_flow_with_segments(api_available, auth_headers):
     """Create a test flow with segments for HLS testing"""
     if not api_available:
         pytest.skip("API not available")
@@ -49,7 +49,7 @@ def test_flow_with_segments(api_available):
         "label": f"Test Source {source_id[:8]}"
     }
     
-    requests.post(f"{BASE_URL}/sources", json=source_data)
+    requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
     
     # Create flow
     flow_id = str(uuid.uuid4())
@@ -66,7 +66,7 @@ def test_flow_with_segments(api_available):
         }
     }
     
-    response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+    response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
     assert response.status_code == 201
     
     # Add segments
@@ -86,29 +86,29 @@ def test_flow_with_segments(api_available):
         }
         
         try:
-            requests.post(f"{BASE_URL}/flows/{flow_id}/segments", json=segment_data)
+            requests.post(f"{BASE_URL}/flows/{flow_id}/segments", json=segment_data, headers=auth_headers)
         except Exception as e:
             logger.debug(f"Could not add segment: {e}")
     
     yield flow_id
     
     # Cleanup
-    requests.delete(f"{BASE_URL}/flows/{flow_id}")
-    requests.delete(f"{BASE_URL}/sources/{source_id}")
+    requests.delete(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
+    requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
 
 
 @pytest.mark.usefixtures("api_available")
 class TestHLSRouter:
     """Test HLS API endpoints"""
     
-    def test_get_hls_playlist_nonexistent_flow(self):
+    def test_get_hls_playlist_nonexistent_flow(self, auth_headers):
         """Test HLS playlist for non-existent flow returns 404"""
         flow_id = str(uuid.uuid4())
         
-        response = requests.get(f"{BASE_URL}/hls/flows/{flow_id}/playlist.m3u8")
+        response = requests.get(f"{BASE_URL}/hls/flows/{flow_id}/playlist.m3u8", headers=auth_headers)
         assert response.status_code == 404
     
-    def test_get_hls_playlist_flow_without_segments(self, api_available, test_flow_with_segments):
+    def test_get_hls_playlist_flow_without_segments(self, api_available, test_flow_with_segments, auth_headers):
         """Test HLS playlist generation"""
         if not api_available:
             pytest.skip("API not available")
@@ -123,24 +123,24 @@ class TestHLSRouter:
             "id": source_id,
             "format": "urn:x-nmos:format:video",
             "label": "temp"
-        })
+        }, headers=auth_headers)
         
         flow_data = {
             "id": flow_id,
             "source_id": source_id,
             "format": "urn:x-nmos:format:video"
         }
-        post(f"{BASE_URL}/flows", json=flow_data)
+        post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         
         # Should return 404 for flow without segments
-        response = requests.get(f"{BASE_URL}/hls/flows/{flow_id}/playlist.m3u8")
+        response = requests.get(f"{BASE_URL}/hls/flows/{flow_id}/playlist.m3u8", headers=auth_headers)
         assert response.status_code == 404
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{flow_id}")
-        requests.delete(f"{BASE_URL}/sources/{source_id}")
+        requests.delete(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
+        requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
     
-    def test_get_hls_playlist_with_segments(self, api_available, test_flow_with_segments):
+    def test_get_hls_playlist_with_segments(self, api_available, test_flow_with_segments, auth_headers):
         """Test HLS playlist generation with segments"""
         if not api_available:
             pytest.skip("API not available")
@@ -149,7 +149,7 @@ class TestHLSRouter:
         
         # Note: This will return 404 if flow has no segments
         # In real test, we need to ensure segments are added
-        response = requests.get(f"{BASE_URL}/hls/flows/{flow_id}/playlist.m3u8")
+        response = requests.get(f"{BASE_URL}/hls/flows/{flow_id}/playlist.m3u8", headers=auth_headers)
         
         if response.status_code == 200:
             # Verify M3U8 format
@@ -160,24 +160,24 @@ class TestHLSRouter:
             # Acceptable if no segments
             pass
     
-    def test_get_hls_status_nonexistent_flow(self, api_available):
+    def test_get_hls_status_nonexistent_flow(self, api_available, auth_headers):
         """Test HLS status for non-existent flow"""
         if not api_available:
             pytest.skip("API not available")
         
         flow_id = str(uuid.uuid4())
         
-        response = requests.get(f"{BASE_URL}/hls/flows/{flow_id}/status")
+        response = requests.get(f"{BASE_URL}/hls/flows/{flow_id}/status", headers=auth_headers)
         assert response.status_code == 404
     
-    def test_get_hls_status_existing_flow(self, api_available, test_flow_with_segments):
+    def test_get_hls_status_existing_flow(self, api_available, test_flow_with_segments, auth_headers):
         """Test HLS status for existing flow"""
         if not api_available:
             pytest.skip("API not available")
         
         flow_id = test_flow_with_segments
         
-        response = requests.get(f"{BASE_URL}/hls/flows/{flow_id}/status")
+        response = requests.get(f"{BASE_URL}/hls/flows/{flow_id}/status", headers=auth_headers)
         
         if response.status_code == 200:
             data = response.json()

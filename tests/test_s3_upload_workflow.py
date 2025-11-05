@@ -84,9 +84,9 @@ def test_data_ingested(api_available):
 class TestS3UploadWorkflow:
     """Test complete S3 upload workflow with test data"""
     
-    def test_analytics_summary(self, test_data_ingested):
+    def test_analytics_summary(self, test_data_ingested, auth_headers):
         """Test analytics summary endpoint"""
-        response = requests.get(f"{BASE_URL}/analytics/summary")
+        response = requests.get(f"{BASE_URL}/analytics/summary", headers=auth_headers)
         assert response.status_code == 200, f"Failed to get analytics: {response.text}"
         
         data = response.json()
@@ -99,9 +99,9 @@ class TestS3UploadWorkflow:
         
         logger.info(f"✅ Analytics summary: {data['counts']}")
     
-    def test_sources_exist(self, test_data_ingested):
+    def test_sources_exist(self, test_data_ingested, auth_headers):
         """Verify sources were created"""
-        response = requests.get(f"{BASE_URL}/sources")
+        response = requests.get(f"{BASE_URL}/sources", headers=auth_headers)
         assert response.status_code == 200
         
         sources = response.json()
@@ -111,9 +111,9 @@ class TestS3UploadWorkflow:
         assert len(sources) >= 2, f"Expected at least 2 sources, got {len(sources)}"
         logger.info(f"✅ Found {len(sources)} sources")
     
-    def test_flows_exist(self, test_data_ingested):
+    def test_flows_exist(self, test_data_ingested, auth_headers):
         """Verify flows were created"""
-        response = requests.get(f"{BASE_URL}/flows")
+        response = requests.get(f"{BASE_URL}/flows", headers=auth_headers)
         assert response.status_code == 200
         
         flows = response.json()
@@ -128,9 +128,9 @@ class TestS3UploadWorkflow:
         
         logger.info(f"✅ Found {len(flows)} flows ({len(audio_flows)} audio)")
     
-    def test_objects_exist(self, test_data_ingested):
+    def test_objects_exist(self, test_data_ingested, auth_headers):
         """Verify objects were created via S3 uploads"""
-        response = requests.get(f"{BASE_URL}/objects")
+        response = requests.get(f"{BASE_URL}/objects", headers=auth_headers)
         assert response.status_code == 200
         
         objects = response.json()
@@ -141,9 +141,9 @@ class TestS3UploadWorkflow:
         # We can verify by checking segment object_ids
         logger.info(f"✅ Objects are referenced via segments")
     
-    def test_segments_exist(self, test_data_ingested):
+    def test_segments_exist(self, test_data_ingested, auth_headers):
         """Verify segments were created"""
-        response = requests.get(f"{BASE_URL}/flows")
+        response = requests.get(f"{BASE_URL}/flows", headers=auth_headers)
         assert response.status_code == 200
         
         flows = response.json()
@@ -153,7 +153,7 @@ class TestS3UploadWorkflow:
         total_segments = 0
         for flow in flows[:4]:  # Check first 4 flows
             flow_id = flow["id"]
-            segments_response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments")
+            segments_response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments", headers=auth_headers)
             if segments_response.status_code == 200:
                 segments = segments_response.json()
                 if isinstance(segments, dict) and "data" in segments:
@@ -163,9 +163,9 @@ class TestS3UploadWorkflow:
         assert total_segments >= 10, f"Expected at least 10 segments across flows, got {total_segments}"
         logger.info(f"✅ Found {total_segments} segments across flows")
     
-    def test_segment_sharing(self, test_data_ingested):
+    def test_segment_sharing(self, test_data_ingested, auth_headers):
         """Verify that segments are shared between flows (flow 2 and flow 4)"""
-        response = requests.get(f"{BASE_URL}/flows")
+        response = requests.get(f"{BASE_URL}/flows", headers=auth_headers)
         assert response.status_code == 200
         
         flows = response.json()
@@ -176,7 +176,7 @@ class TestS3UploadWorkflow:
         flow_segments = {}
         for flow in flows:
             flow_id = flow["id"]
-            segments_response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments")
+            segments_response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments", headers=auth_headers)
             if segments_response.status_code == 200:
                 segments = segments_response.json()
                 if isinstance(segments, dict) and "data" in segments:
@@ -197,9 +197,9 @@ class TestS3UploadWorkflow:
         
         assert shared_found, "Should have flows sharing segments"
     
-    def test_audio_flow_segments(self, test_data_ingested):
+    def test_audio_flow_segments(self, test_data_ingested, auth_headers):
         """Verify audio flow has segments"""
-        response = requests.get(f"{BASE_URL}/flows")
+        response = requests.get(f"{BASE_URL}/flows", headers=auth_headers)
         assert response.status_code == 200
         
         flows = response.json()
@@ -211,7 +211,7 @@ class TestS3UploadWorkflow:
         assert len(audio_flows) > 0, "Should have at least one audio flow"
         
         audio_flow_id = audio_flows[0]["id"]
-        segments_response = requests.get(f"{BASE_URL}/flows/{audio_flow_id}/segments")
+        segments_response = requests.get(f"{BASE_URL}/flows/{audio_flow_id}/segments", headers=auth_headers)
         assert segments_response.status_code == 200
         
         segments = segments_response.json()

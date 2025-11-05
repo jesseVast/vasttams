@@ -40,7 +40,7 @@ def api_available():
 class TestSourceSpecCompliance:
     """Test compliance with TAMS 8.0 source spec"""
     
-    def test_source_required_fields_per_spec(self, api_available):
+    def test_source_required_fields_per_spec(self, api_available, auth_headers):
         """
         Test that source has required fields per TAMS 8.0 spec.
         Spec: source.json requires 'id' and 'format'
@@ -57,7 +57,7 @@ class TestSourceSpecCompliance:
             "format": example_source["format"]
         }
         
-        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         assert response.status_code == 201
         
         created = response.json()
@@ -65,9 +65,9 @@ class TestSourceSpecCompliance:
         assert "format" in created
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/sources/{source_data['id']}")
+        requests.delete(f"{BASE_URL}/sources/{source_data['id']}", headers=auth_headers)
     
-    def test_source_format_validation(self, api_available):
+    def test_source_format_validation(self, api_available, auth_headers):
         """
         Test that source format follows TAMS 8.0 spec.
         Spec: format should be a valid content-format URN
@@ -89,11 +89,11 @@ class TestSourceSpecCompliance:
                 "format": fmt
             }
             
-            response = requests.post(f"{BASE_URL}/sources", json=source_data)
+            response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
             assert response.status_code == 201, f"Failed with format {fmt}"
             
             # Cleanup
-            requests.delete(f"{BASE_URL}/sources/{source_data['id']}")
+            requests.delete(f"{BASE_URL}/sources/{source_data['id']}", headers=auth_headers)
     
     def test_source_collection_structure(self, api_available):
         """
@@ -129,7 +129,7 @@ class TestSourceSpecCompliance:
 class TestSourceAppNoteCompliance:
     """Test compliance with TAMS 8.0 app notes for sources"""
     
-    def test_source_tags_per_appnote_0003(self, api_available):
+    def test_source_tags_per_appnote_0003(self, api_available, auth_headers):
         """
         Test source tags per App Note 0003 (Tag Names).
         Tags should support both string and array values.
@@ -148,18 +148,19 @@ class TestSourceAppNoteCompliance:
             "id": source_id,
             "format": example_source["format"]
         }
-        requests.post(f"{BASE_URL}/sources", json=source_data)
+        requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         
         # Add string tag (per spec: tags.json allows string values)
+        tag_headers = {**auth_headers, "Content-Type": "text/plain"}
         response = requests.put(
             f"{BASE_URL}/sources/{source_id}/tags/test_tag",
             data="string_value",
-            headers={"Content-Type": "text/plain"}
+            headers=tag_headers
         )
         assert response.status_code in [200, 201, 204]
         
         # Retrieve tag
-        response = requests.get(f"{BASE_URL}/sources/{source_id}/tags")
+        response = requests.get(f"{BASE_URL}/sources/{source_id}/tags", headers=auth_headers)
         assert response.status_code == 200
         
         tags = response.json()
@@ -167,9 +168,9 @@ class TestSourceAppNoteCompliance:
             assert tags["test_tag"] == "string_value"
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/sources/{source_id}")
+        requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
     
-    def test_source_metadata_per_appnote_0007(self, api_available):
+    def test_source_metadata_per_appnote_0007(self, api_available, auth_headers):
         """
         Test source metadata per App Note 0007 (Populating Source Metadata).
         created_by, updated_by, created, updated fields should work.
@@ -189,7 +190,7 @@ class TestSourceAppNoteCompliance:
             "updated_by": "test-user"
         }
         
-        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         assert response.status_code == 201
         
         created = response.json()
@@ -205,5 +206,5 @@ class TestSourceAppNoteCompliance:
             assert created.get("updated_by") == "test-user" or created.get("updated_by") is not None
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/sources/{source_data['id']}")
+        requests.delete(f"{BASE_URL}/sources/{source_data['id']}", headers=auth_headers)
 

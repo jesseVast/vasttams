@@ -46,12 +46,12 @@ def clean_object_id():
 class TestObjectDatabaseIntegration:
     """Integration tests for Objects against real database"""
     
-    def test_list_objects_from_database(self, api_available):
+    def test_list_objects_from_database(self, api_available, auth_headers):
         """Test listing objects from the database per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/objects")
+        response = requests.get(f"{BASE_URL}/objects", headers=auth_headers)
         assert response.status_code == 200
         
         # TAMS 8.0: objects endpoint returns a list, not wrapped in "data"
@@ -65,13 +65,13 @@ class TestObjectDatabaseIntegration:
             assert "referenced_by_flows" in obj
             assert "timerange" in obj  # TAMS 8.0 requirement
     
-    def test_get_object_details(self, api_available):
+    def test_get_object_details(self, api_available, auth_headers):
         """Test getting object details including timerange per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
         
         # First, list objects to get one to query
-        response = requests.get(f"{BASE_URL}/objects")
+        response = requests.get(f"{BASE_URL}/objects", headers=auth_headers)
         if response.status_code == 200:
             objects = response.json()
             assert isinstance(objects, list)
@@ -81,7 +81,7 @@ class TestObjectDatabaseIntegration:
                 object_id = objects[0]["id"]
                 
                 # Get details
-                response = requests.get(f"{BASE_URL}/objects/{object_id}")
+                response = requests.get(f"{BASE_URL}/objects/{object_id}", headers=auth_headers)
                 assert response.status_code == 200
                 
                 obj = response.json()
@@ -101,13 +101,13 @@ class TestObjectDatabaseIntegration:
 class TestObjectInstances:
     """Test object instances per ADR-0042"""
     
-    def test_list_object_instances(self, api_available):
+    def test_list_object_instances(self, api_available, auth_headers):
         """Test listing instances for an object"""
         if not api_available:
             pytest.skip("API not available")
         
         # First, get an object
-        response = requests.get(f"{BASE_URL}/objects")
+        response = requests.get(f"{BASE_URL}/objects", headers=auth_headers)
         if response.status_code == 200:
             data = response.json()
             # API returns a list directly, not a dict with "data" key
@@ -115,7 +115,7 @@ class TestObjectInstances:
                 object_id = data[0]["id"]
                 
                 # List instances
-                response = requests.get(f"{BASE_URL}/objects/{object_id}/instances")
+                response = requests.get(f"{BASE_URL}/objects/{object_id}/instances", headers=auth_headers)
                 assert response.status_code == 200
                 
                 instances = response.json()
@@ -126,12 +126,12 @@ class TestObjectInstances:
 class TestObjectTimerange:
     """Test object timerange support per TAMS 8.0"""
     
-    def test_object_timerange_structure(self, api_available):
+    def test_object_timerange_structure(self, api_available, auth_headers):
         """Test that objects include timerange per spec"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/objects")
+        response = requests.get(f"{BASE_URL}/objects", headers=auth_headers)
         if response.status_code == 200:
             data = response.json()
             # API returns a list directly, not a dict with "data" key

@@ -234,58 +234,85 @@ async def list_flow_segments(
         # Apply verbose_storage filtering if specified
         if not verbose_storage:
             # Remove verbose storage metadata from get_urls
+            from .models import GetUrl
             for segment in segments:
                 if hasattr(segment, 'get_urls') and segment.get_urls:
                     # Keep only url, presigned, and label fields
                     filtered_urls = []
                     for url_info in segment.get_urls:
-                        filtered_url = {
-                            'url': url_info.get('url') if isinstance(url_info, dict) else getattr(url_info, 'url', None),
-                            'presigned': url_info.get('presigned') if isinstance(url_info, dict) else getattr(url_info, 'presigned', None),
-                            'label': url_info.get('label') if isinstance(url_info, dict) else getattr(url_info, 'label', None)
-                        }
+                        # Extract fields from GetUrl object or dict
+                        url = url_info.url if hasattr(url_info, 'url') else url_info.get('url')
+                        presigned = url_info.presigned if hasattr(url_info, 'presigned') else url_info.get('presigned')
+                        label = url_info.label if hasattr(url_info, 'label') else url_info.get('label')
+                        
+                        # Create GetUrl object with minimal fields
+                        filtered_url = GetUrl(
+                            url=url or '',
+                            provider='',  # Required field, set empty
+                            store_product='',  # Required field, set empty
+                            presigned=presigned,
+                            label=label
+                        )
                         filtered_urls.append(filtered_url)
                     segment.get_urls = filtered_urls
         
         # Apply URL filtering if specified
+        from .models import GetUrl
         for segment in segments:
             if hasattr(segment, 'get_urls') and segment.get_urls:
                 filtered_urls = []
                 
                 for url_info in segment.get_urls:
-                    # Normalize url_info to dict
-                    if not isinstance(url_info, dict):
-                        url_info = {
-                            'url': getattr(url_info, 'url', None),
-                            'label': getattr(url_info, 'label', None),
-                            'storage_id': getattr(url_info, 'storage_id', None),
-                            'presigned': getattr(url_info, 'presigned', None)
-                        }
+                    # Normalize url_info - extract fields from GetUrl object or dict
+                    if isinstance(url_info, GetUrl):
+                        url = url_info.url
+                        label = url_info.label
+                        storage_id = url_info.storage_id
+                        url_presigned = url_info.presigned
+                        provider = url_info.provider
+                        store_product = url_info.store_product
+                        store_type = url_info.store_type
+                    else:
+                        # Handle dict or other types
+                        url = url_info.get('url') if isinstance(url_info, dict) else getattr(url_info, 'url', None)
+                        label = url_info.get('label') if isinstance(url_info, dict) else getattr(url_info, 'label', None)
+                        storage_id = url_info.get('storage_id') if isinstance(url_info, dict) else getattr(url_info, 'storage_id', None)
+                        url_presigned = url_info.get('presigned') if isinstance(url_info, dict) else getattr(url_info, 'presigned', None)
+                        provider = url_info.get('provider') if isinstance(url_info, dict) else getattr(url_info, 'provider', '')
+                        store_product = url_info.get('store_product') if isinstance(url_info, dict) else getattr(url_info, 'store_product', '')
+                        store_type = url_info.get('store_type') if isinstance(url_info, dict) else getattr(url_info, 'store_type', 'http_object_store')
                     
                     # Apply accept_get_urls filtering (by label)
                     if accept_get_urls:
                         url_labels = [label.strip() for label in accept_get_urls.split(',') if label.strip()]
                         if url_labels:  # Only filter if labels are specified
-                            url_label = url_info.get('label', '')
-                            if url_label not in url_labels:
+                            if label not in url_labels:
                                 continue  # Skip this URL
                     
                     # Apply accept_storage_ids filtering (by storage_id)
                     if accept_storage_ids:
                         storage_ids = [sid.strip() for sid in accept_storage_ids.split(',') if sid.strip()]
                         if storage_ids:  # Only filter if storage IDs are specified
-                            url_storage_id = url_info.get('storage_id', '')
-                            if url_storage_id not in storage_ids:
+                            if storage_id not in storage_ids:
                                 continue  # Skip this URL
                     
                     # Apply presigned filtering
                     if presigned is not None:
-                        url_presigned = url_info.get('presigned', False)
+                        # presigned is the query parameter (bool), compare with URL's presigned value
                         if url_presigned != presigned:
                             continue  # Skip this URL
                     
-                    # URL passed all filters
-                    filtered_urls.append(url_info)
+                    # URL passed all filters - create GetUrl object
+                    filtered_url = GetUrl(
+                        url=url or '',
+                        provider=provider or '',
+                        store_product=store_product or '',
+                        storage_id=storage_id or '',
+                        presigned=url_presigned,
+                        label=label,
+                        store_type=store_type
+                    )
+                    filtered_urls.append(filtered_url)
                 
                 # Update segment with filtered URLs
                 segment.get_urls = filtered_urls

@@ -37,8 +37,11 @@ def api_available():
 
 
 @pytest.fixture
-def test_flow_and_source():
+def test_flow_and_source(api_available, auth_headers):
     """Create a test flow and source for segment testing"""
+    if not api_available:
+        pytest.skip("API not available")
+    
     source_id = str(uuid.uuid4())
     flow_id = str(uuid.uuid4())
     
@@ -50,7 +53,7 @@ def test_flow_and_source():
     }
     
     try:
-        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         if response.status_code != 201:
             pytest.skip(f"Failed to create test source: {response.text}")
         
@@ -73,7 +76,7 @@ def test_flow_and_source():
             }
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         if response.status_code != 201:
             pytest.skip(f"Failed to create test flow: {response.text}")
         
@@ -81,29 +84,29 @@ def test_flow_and_source():
         
     finally:
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{flow_id}")
-        requests.delete(f"{BASE_URL}/sources/{source_id}")
+        requests.delete(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
+        requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
 
 
 @pytest.mark.usefixtures("api_available")
 class TestSegmentDatabaseIntegration:
     """Integration tests for Segments against real database"""
     
-    def test_list_segments_from_database(self, api_available, test_flow_and_source):
+    def test_list_segments_from_database(self, api_available, test_flow_and_source, auth_headers):
         """Test listing segments for a flow per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
         
         flow_id = test_flow_and_source["flow_id"]
         
-        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments")
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments", headers=auth_headers)
         assert response.status_code == 200
         
         # TAMS 8.0: segments endpoint returns a list
         segments = response.json()
         assert isinstance(segments, list)
     
-    def test_filter_segments_by_timerange(self, api_available, test_flow_and_source):
+    def test_filter_segments_by_timerange(self, api_available, test_flow_and_source, auth_headers):
         """Test filtering segments by timerange per TAMS 8.0"""
         if not api_available:
             pytest.skip("API not available")
@@ -111,7 +114,7 @@ class TestSegmentDatabaseIntegration:
         flow_id = test_flow_and_source["flow_id"]
         
         # Test with timerange filter
-        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments?timerange=2020-01-01T00:00:00Z,2020-01-01T00:01:00Z")
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments?timerange=2020-01-01T00:00:00Z,2020-01-01T00:01:00Z", headers=auth_headers)
         assert response.status_code == 200
         
         segments = response.json()
@@ -122,7 +125,7 @@ class TestSegmentDatabaseIntegration:
 class TestSegmentCRUD:
     """Test segment CRUD operations"""
     
-    def test_create_segment_with_storage(self, api_available, test_flow_and_source):
+    def test_create_segment_with_storage(self, api_available, test_flow_and_source, auth_headers):
         """Test creating a segment with storage allocation"""
         if not api_available:
             pytest.skip("API not available")
@@ -136,7 +139,8 @@ class TestSegmentCRUD:
         
         response = requests.post(
             f"{BASE_URL}/flows/{flow_id}/storage",
-            json=storage_request
+            json=storage_request,
+            headers=auth_headers
         )
         
         if response.status_code in [200, 201]:
@@ -154,7 +158,7 @@ class TestSegmentCRUD:
                         assert "/" in content_type
                         logger.info(f"✅ Storage allocation includes content-type: {content_type}")
     
-    def test_get_segment_details(self, api_available, test_flow_and_source):
+    def test_get_segment_details(self, api_available, test_flow_and_source, auth_headers):
         """Test getting detailed segment information per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
@@ -162,7 +166,7 @@ class TestSegmentCRUD:
         flow_id = test_flow_and_source["flow_id"]
         
         # First, list segments to get one to query
-        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments")
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments", headers=auth_headers)
         if response.status_code == 200:
             segments = response.json()
             assert isinstance(segments, list)
@@ -175,22 +179,22 @@ class TestSegmentCRUD:
                 if "timerange" in segment:
                     assert isinstance(segment["timerange"], dict)
     
-    def test_content_type_derived_from_flow_format(self, api_available):
-        """Test that content-type is correctly derived from Flow format/codec per TAMS 8.0"""
+    def test_content_type_derived_from_flow_format(self, api_available, auth_headers):
+        """Test that content-type is correctly derived from Flow format/codec per TAMS 8.0"""                                                   
         if not api_available:
             pytest.skip("API not available")
-        
+    
         import uuid
-        
+    
         # Test video flow -> video/mp2t
         source_id = str(uuid.uuid4())
         video_flow_id = str(uuid.uuid4())
-        
+    
         try:
             # Create source
-            source_data = {"id": source_id, "format": "urn:x-nmos:format:video"}
-            requests.post(f"{BASE_URL}/sources", json=source_data)
-            
+            source_data = {"id": source_id, "format": "urn:x-nmos:format:video"}                                                                
+            requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
+    
             # Create video flow
             video_flow_data = {
                 "id": video_flow_id,
@@ -203,13 +207,14 @@ class TestSegmentCRUD:
                     "frame_rate": {"numerator": 25, "denominator": 1}
                 }
             }
-            response = requests.post(f"{BASE_URL}/flows", json=video_flow_data)
+            response = requests.post(f"{BASE_URL}/flows", json=video_flow_data, headers=auth_headers)
             assert response.status_code == 201
             
             # Request storage allocation
             storage_response = requests.post(
                 f"{BASE_URL}/flows/{video_flow_id}/storage",
-                json={"limit": 1}
+                json={"limit": 1},
+                headers=auth_headers
             )
             
             if storage_response.status_code in [200, 201]:
@@ -225,15 +230,15 @@ class TestSegmentCRUD:
             
         finally:
             # Cleanup
-            requests.delete(f"{BASE_URL}/flows/{video_flow_id}")
-            requests.delete(f"{BASE_URL}/sources/{source_id}")
+            requests.delete(f"{BASE_URL}/flows/{video_flow_id}", headers=auth_headers)
+            requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
 
 
 @pytest.mark.usefixtures("api_available")
 class TestSegmentDeletion:
     """Test segment deletion per ADR-0004 (content deletion - rejected)"""
     
-    def test_segments_can_be_deleted(self, api_available, test_flow_and_source):
+    def test_segments_can_be_deleted(self, api_available, test_flow_and_source, auth_headers):
         """
         Test that segments can be deleted via DELETE /flows/{flow_id}/segments
         per TAMS 8.0 spec and ADR-0004 (deletion is allowed, no hard prevention)
@@ -249,7 +254,8 @@ class TestSegmentDeletion:
         # Try to delete segments with timerange filter
         response = requests.delete(
             f"{BASE_URL}/flows/{flow_id}/segments",
-            params={"timerange": "2020-01-01T00:00:00Z,2020-12-31T23:59:59Z"}
+            params={"timerange": "2020-01-01T00:00:00Z,2020-12-31T23:59:59Z"},
+            headers=auth_headers
         )
         
         # Per ADR-0004, deletions are allowed but may be mediated by other systems

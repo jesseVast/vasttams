@@ -38,12 +38,12 @@ def api_available():
 class TestServiceEndpoint:
     """Endpoint tests for Service API"""
     
-    def test_get_service_info(self, api_available):
+    def test_get_service_info(self, api_available, auth_headers):
         """Test GET /service endpoint"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/service")
+        response = requests.get(f"{BASE_URL}/service", headers=auth_headers)
         assert response.status_code == 200
         
         service_info = response.json()
@@ -51,31 +51,31 @@ class TestServiceEndpoint:
         assert "api_version" in service_info
         assert "type" in service_info
     
-    def test_head_service(self, api_available):
+    def test_head_service(self, api_available, auth_headers):
         """Test HEAD /service endpoint"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.head(f"{BASE_URL}/service")
+        response = requests.head(f"{BASE_URL}/service", headers=auth_headers)
         assert response.status_code in [200, 204]
     
-    def test_get_webhooks(self, api_available):
+    def test_get_webhooks(self, api_available, auth_headers):
         """Test GET /service/webhooks endpoint"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/service/webhooks")
+        response = requests.get(f"{BASE_URL}/service/webhooks", headers=auth_headers)
         assert response.status_code == 200
         
         webhooks = response.json()
         assert isinstance(webhooks, list)
     
-    def test_head_webhooks(self, api_available):
+    def test_head_webhooks(self, api_available, auth_headers):
         """Test HEAD /service/webhooks endpoint"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.head(f"{BASE_URL}/service/webhooks")
+        response = requests.head(f"{BASE_URL}/service/webhooks", headers=auth_headers)
         assert response.status_code in [200, 204]
 
 
@@ -83,7 +83,7 @@ class TestServiceEndpoint:
 class TestWebhookEndpoint:
     """Endpoint tests for Webhooks API"""
     
-    def test_create_webhook(self, api_available):
+    def test_create_webhook(self, api_available, auth_headers):
         """Test POST /service/webhooks endpoint"""
         if not api_available:
             pytest.skip("API not available")
@@ -97,7 +97,8 @@ class TestWebhookEndpoint:
         
         response = requests.post(
             f"{BASE_URL}/service/webhooks",
-            json=webhook_data
+            json=webhook_data,
+            headers=auth_headers
         )
         
         # Webhook creation may fail with validation, succeed, or return 500 (not implemented)
@@ -109,6 +110,6 @@ class TestWebhookEndpoint:
             webhook_id = webhook["id"]
             
             # Cleanup
-            requests.delete(f"{BASE_URL}/service/webhooks/{webhook_id}")
+            requests.delete(f"{BASE_URL}/service/webhooks/{webhook_id}", headers=auth_headers)
 
 

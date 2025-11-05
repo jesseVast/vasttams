@@ -43,7 +43,7 @@ def clean_flow_id():
 
 
 @pytest.fixture
-def test_source_id():
+def test_source_id(auth_headers):
     """Create a test source for flow creation"""
     source_id = str(uuid.uuid4())
     source_data = {
@@ -53,21 +53,21 @@ def test_source_id():
     }
     
     try:
-        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         if response.status_code == 201:
             yield source_id
         else:
             pytest.skip(f"Failed to create test source: {response.text}")
     finally:
         # Cleanup
-        requests.delete(f"{BASE_URL}/sources/{source_id}")
+        requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
 
 
 @pytest.mark.usefixtures("api_available")
 class TestFlowDatabaseIntegration:
     """Integration tests for Flows against real database"""
     
-    def test_create_flow_in_database(self, clean_flow_id, api_available, test_source_id):
+    def test_create_flow_in_database(self, clean_flow_id, api_available, test_source_id, auth_headers):
         """Test creating a flow in the database"""
         if not api_available:
             pytest.skip("API not available")
@@ -91,7 +91,7 @@ class TestFlowDatabaseIntegration:
             }
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         assert response.status_code == 201, f"Failed to create flow: {response.text}"
         created = response.json()
         
@@ -100,28 +100,28 @@ class TestFlowDatabaseIntegration:
         assert created["format"] == "urn:x-nmos:format:video"
         
         # Verify we can retrieve it
-        response = requests.get(f"{BASE_URL}/flows/{clean_flow_id}")
+        response = requests.get(f"{BASE_URL}/flows/{clean_flow_id}", headers=auth_headers)
         assert response.status_code == 200
         retrieved = response.json()
         assert retrieved["id"] == clean_flow_id
         
         # Cleanup - delete the flow
-        response = requests.delete(f"{BASE_URL}/flows/{clean_flow_id}")
+        response = requests.delete(f"{BASE_URL}/flows/{clean_flow_id}", headers=auth_headers)
         assert response.status_code in [200, 204], f"Failed to cleanup flow: {response.text}"
     
-    def test_list_flows_from_database(self, api_available):
+    def test_list_flows_from_database(self, api_available, auth_headers):
         """Test listing flows from the database"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/flows")
+        response = requests.get(f"{BASE_URL}/flows", headers=auth_headers)
         assert response.status_code == 200
         
         data = response.json()
         assert "data" in data
         assert isinstance(data["data"], list)
     
-    def test_create_and_get_flow_with_tags(self, clean_flow_id, api_available, test_source_id):
+    def test_create_and_get_flow_with_tags(self, clean_flow_id, api_available, test_source_id, auth_headers):
         """Test creating a flow with tags and retrieving them"""
         if not api_available:
             pytest.skip("API not available")
@@ -144,21 +144,22 @@ class TestFlowDatabaseIntegration:
                 "transfer_characteristic": "ITU-R BT.709"
             }
         }
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         assert response.status_code == 201
         
         # Add a tag
         tag_value = "test-environment"
+        tag_headers = {**auth_headers, "Content-Type": "text/plain"}
         response = requests.put(
             f"{BASE_URL}/flows/{clean_flow_id}/tags/environment",
             data=tag_value,
-            headers={"Content-Type": "text/plain"}
+            headers=tag_headers
         )
         # Accept 200, 201, or 204 for tag creation
         assert response.status_code in [200, 201, 204], f"Failed to add tag: {response.text}"
         
         # Retrieve tags
-        response = requests.get(f"{BASE_URL}/flows/{clean_flow_id}/tags")
+        response = requests.get(f"{BASE_URL}/flows/{clean_flow_id}/tags", headers=auth_headers)
         if response.status_code == 200:
             tags = response.json()
             # Tags may be empty dict if retrieval fails
@@ -169,15 +170,15 @@ class TestFlowDatabaseIntegration:
                 logger.warning(f"Tags returned empty for flow {clean_flow_id}, but tag creation succeeded")
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{clean_flow_id}")
+        requests.delete(f"{BASE_URL}/flows/{clean_flow_id}", headers=auth_headers)
     
-    def test_filter_flows_by_format(self, api_available):
+    def test_filter_flows_by_format(self, api_available, auth_headers):
         """Test filtering flows by format"""
         if not api_available:
             pytest.skip("API not available")
         
         # Test with format filter
-        response = requests.get(f"{BASE_URL}/flows?format=urn:x-nmos:format:video")
+        response = requests.get(f"{BASE_URL}/flows?format=urn:x-nmos:format:video", headers=auth_headers)
         assert response.status_code == 200
         
         data = response.json()

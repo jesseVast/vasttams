@@ -108,7 +108,7 @@ SECRET_KEY=your-secret-key-here
 #### **VAST Database Connection**
 ```bash
 # Test VAST connection
-python mgmt/test_diagnostics.py --check=db
+python -m vasttams.core.diagnostics --check=db
 
 # Create required tables (automatic on first run)
 python run.py
@@ -117,10 +117,10 @@ python run.py
 #### **S3 Storage Setup**
 ```bash
 # Test S3 connection
-python mgmt/test_diagnostics.py --check=s3
+python -m vasttams.core.diagnostics --check=s3
 
 # Verify bucket access
-python mgmt/check_s3_direct.py
+python -c "from vasttams.common.storage.main_service import TAMSStorageService; service = TAMSStorageService(); print(service.check_s3_connection())"
 ```
 
 ### **3. Application Startup**
@@ -131,13 +131,13 @@ python mgmt/check_s3_direct.py
 python run.py
 
 # Or use uvicorn directly
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn vasttams.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 #### **Development with Hot Reload**
 ```bash
 # Start with auto-reload for development
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --log-level debug
+uvicorn vasttams.main:app --reload --host 0.0.0.0 --port 8000 --log-level debug
 ```
 
 ### **4. Verification**
@@ -888,23 +888,22 @@ curl http://your-api:8000/metrics
 
 #### **Health Check Configuration**
 ```python
-# Custom health checks
-@router.get("/health")
-async def health_check(detailed: bool = False):
-    health_status = {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "version": "1.0.0"
-    }
-    
-    if detailed:
-        health_status["dependencies"] = {
-            "database": await check_database_health(),
-            "storage": await check_storage_health(),
-            "cache": await check_cache_health()
-        }
-    
-    return health_status
+# Health check endpoint is available at /health
+# The service automatically checks:
+# - VAST database connectivity
+# - S3 storage connectivity
+# - Application health status
+# 
+# Example response:
+# {
+#   "status": "healthy",
+#   "timestamp": "2025-01-27T10:00:00Z",
+#   "version": "8.0.0",
+#   "dependencies": {
+#     "vast_database": "healthy",
+#     "s3_storage": "healthy"
+#   }
+# }
 ```
 
 ## 🔒 **Security Configuration**
@@ -994,7 +993,7 @@ import uvicorn
 
 if __name__ == "__main__":
     uvicorn.run(
-        "app.main:app",
+        "vasttams.main:app",
         host="0.0.0.0",
         port=8000,
         ssl_keyfile="key.pem",
@@ -1084,10 +1083,10 @@ spec:
 #### **Connection Issues**
 ```bash
 # Test VAST connection
-python mgmt/test_diagnostics.py --check=db
+python -m vasttams.core.diagnostics --check=db
 
 # Test S3 connection
-python mgmt/test_diagnostics.py --check=s3
+python -m vasttams.core.diagnostics --check=s3
 
 # Check network connectivity
 telnet your-vast-server 9090

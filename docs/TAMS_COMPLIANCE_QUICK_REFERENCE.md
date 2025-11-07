@@ -46,16 +46,16 @@ class Object(BaseModel):
 ## 📁 **FILES ALREADY UPDATED**
 
 ### **✅ Priority 1 (CRITICAL) - COMPLETED:**
-1. `app/models/models.py` - ✅ Object model rewritten for TAMS compliance
-2. `app/storage/vast_store.py` - ✅ Database schema updated with new table structure
-3. `app/api/objects.py` - ✅ Object creation/retrieval logic updated
-4. `app/api/objects_router.py` - ✅ API responses now TAMS-compliant
+1. `src/vasttams/objects/models.py` - ✅ Object model rewritten for TAMS compliance
+2. `src/vasttams/common/storage/` - ✅ Database schema updated with new table structure
+3. `src/vasttams/objects/service.py` - ✅ Object creation/retrieval logic updated
+4. `src/vasttams/objects/router.py` - ✅ API responses now TAMS-compliant
 
 ### **✅ Priority 2 (HIGH) - COMPLETED:**
-1. `app/models/models.py` - ✅ FlowSegment model fixed (proper field names)
-2. `app/models/models.py` - ✅ Flow models fixed (all required fields added)
-3. `app/models/models.py` - ✅ GetUrl model rewritten for TAMS compliance
-4. `app/models/models.py` - ✅ Webhook models enhanced with TAMS filtering fields
+1. `src/vasttams/segments/models.py` - ✅ FlowSegment model fixed (proper field names)
+2. `src/vasttams/flows/models.py` - ✅ Flow models fixed (all required fields added)
+3. `src/vasttams/service/storage_models.py` - ✅ GetUrl model rewritten for TAMS compliance
+4. `src/vasttams/service/webhooks.py` - ✅ Webhook models enhanced with TAMS filtering fields
 
 ## 🔧 **IMPLEMENTATION COMPLETED**
 

@@ -46,7 +46,7 @@ class TAMSTableInitializer:
         Returns:
             Dict[str, bool]: Results of table creation for each table
         """
-        logger.info("Starting TAMS table initialization...")
+        logger.debug("Starting TAMS table initialization...")
         
         results = {}
         
@@ -72,7 +72,7 @@ class TAMSTableInitializer:
                         results[table_name] = success
                         
                         if success:
-                            logger.info(f"✅ Successfully initialized table: {table_name}")
+                            logger.debug("✅ Successfully initialized table: %s", table_name)
                         else:
                             logger.error(f"❌ Failed to initialize table: {table_name}")
                             
@@ -87,10 +87,10 @@ class TAMSTableInitializer:
             successful = sum(1 for success in results.values() if success)
             total = len(results)
             
-            logger.info(f"Table initialization complete: {successful}/{total} tables successful")
+            logger.debug("Table initialization complete: %d/%d tables successful", successful, total)
             
             if successful == total:
-                logger.info("🎉 All TAMS tables initialized successfully!")
+                logger.info("✅ All TAMS tables initialized successfully")
             else:
                 failed_tables = [name for name, success in results.items() if not success]
                 logger.warning(f"⚠️ Some tables failed to initialize: {failed_tables}")
@@ -131,14 +131,14 @@ class TAMSTableInitializer:
             
             if table_name in existing_tables:
                 if force_recreate:
-                    logger.info(f"Dropping existing table: {table_name}")
+                    logger.debug("Dropping existing table: %s", table_name)
                     await self._drop_table(table_name)
                 else:
-                    logger.info(f"Table {table_name} already exists, skipping creation")
+                    logger.debug("Table %s already exists, skipping creation", table_name)
                     return True
             
             # Create the table with projections
-            logger.info(f"Creating table: {table_name}")
+            logger.debug("Creating table: %s", table_name)
             
             # Only pass projections if enabled
             projections_to_use = projections if self.settings.enable_table_projections else {}
@@ -195,7 +195,7 @@ class TAMSTableInitializer:
             if not projections:
                 return True
             
-            logger.info(f"Adding projections to table: {table_name}")
+            logger.debug("Adding projections to table: %s", table_name)
             
             for i, projection_columns in enumerate(projections):
                 projection_name = f"{table_name}_{'_'.join(projection_columns)}_proj"
@@ -220,7 +220,7 @@ class TAMSTableInitializer:
         Returns:
             Dict[str, bool]: Status of each required table
         """
-        logger.info("Verifying TAMS tables exist...")
+        logger.debug("Verifying TAMS tables exist...")
         
         try:
             existing_tables = set(self.vast_db.list_tables())
@@ -240,7 +240,7 @@ class TAMSTableInitializer:
             if missing_tables:
                 logger.warning(f"Missing tables: {missing_tables}")
             else:
-                logger.info("✅ All required TAMS tables exist")
+                logger.debug("✅ All required TAMS tables exist")
             
             return results
             
@@ -255,7 +255,7 @@ class TAMSTableInitializer:
         Returns:
             Dict[str, Dict]: Information about each table
         """
-        logger.info("Getting TAMS table information...")
+        logger.debug("Getting TAMS table information...")
         
         try:
             table_info = {}

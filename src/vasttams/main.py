@@ -77,7 +77,7 @@ async def lifespan(app: FastAPI):
         
         # Initialize telemetry
         telemetry_manager.initialize()
-        logger.info("Telemetry initialized")
+        logger.debug("Telemetry initialized")
         
         # Initialize storage service and verify tables
         from .core.dependencies import get_vast_db
@@ -93,7 +93,7 @@ async def lifespan(app: FastAPI):
             
             if missing_tables:
                 logger.warning(f"Missing tables detected: {missing_tables}")
-                logger.info("Attempting to create missing tables...")
+                logger.debug("Attempting to create missing tables...")
                 
                 # Create only missing tables
                 results = await table_initializer.initialize_all_tables(force_recreate=False)
@@ -106,7 +106,7 @@ async def lifespan(app: FastAPI):
                     failed = [name for name, success in results.items() if not success]
                     logger.error(f"❌ Failed to create tables: {failed}")
             else:
-                logger.info("✅ All required tables exist")
+                logger.debug("✅ All required tables exist")
             
             # Initialize default users if they don't exist
             try:
@@ -120,16 +120,16 @@ async def lifespan(app: FastAPI):
                     ("viewer", UserRole.VIEWER)
                 ]
                 
-                logger.info("Checking for default users...")
+                logger.debug("Checking for default users...")
                 for username, role in default_users:
                     existing_user = await user_service.get_user_by_username(username)
                     if not existing_user:
-                        logger.info(f"Creating default user: {username} with role {role.value}")
+                        logger.debug(f"Creating default user: {username} with role {role.value}")
                         await user_service.create_user(username, "vastdata", role)
                     else:
                         logger.debug(f"Default user {username} already exists")
                 
-                logger.info("✅ Default users verified")
+                logger.debug("✅ Default users verified")
             except Exception as e:
                 logger.warning(f"Could not initialize default users: {e}")
             
@@ -147,7 +147,7 @@ async def lifespan(app: FastAPI):
                     if storage_backends_config:
                         # Initialize all backends from config
                         from .storagebackends.models import StorageBackendPost
-                        logger.info(f"Initializing {len(storage_backends_config)} storage backend(s) from config...")
+                        logger.debug(f"Initializing {len(storage_backends_config)} storage backend(s) from config...")
                         for backend_config in storage_backends_config:
                             # Extract required fields
                             backend_post = StorageBackendPost(
@@ -166,12 +166,12 @@ async def lifespan(app: FastAPI):
                                 default_storage=backend_config.get('default_storage', False)
                             )
                             created = await backend_service.create_storage_backend(backend_post)
-                            logger.info(f"✅ Created storage backend: {created.id} ({created.label})")
-                        logger.info("✅ All storage backends initialized from config")
+                            logger.debug(f"✅ Created storage backend: {created.id} ({created.label})")
+                        logger.debug("✅ All storage backends initialized from config")
                     elif settings.s3_endpoint_url and settings.s3_bucket_name:
                         # Fallback to legacy S3 config
                         from .storagebackends.models import StorageBackendPost
-                        logger.info("No storage backends found. Creating default from S3 config...")
+                        logger.debug("No storage backends found. Creating default from S3 config...")
                         backend_post = StorageBackendPost(
                             label="default-s3",
                             store_type="http_object_store",
@@ -188,11 +188,11 @@ async def lifespan(app: FastAPI):
                             default_storage=True
                         )
                         await backend_service.create_storage_backend(backend_post)
-                        logger.info("✅ Default storage backend created from legacy S3 config")
+                        logger.debug("✅ Default storage backend created from legacy S3 config")
                     else:
-                        logger.info("No storage backends configured; skipping initialization")
+                        logger.debug("No storage backends configured; skipping initialization")
                 else:
-                    logger.info("Storage backends already exist; skipping initialization")
+                    logger.debug("Storage backends already exist; skipping initialization")
             except Exception as e:
                 logger.warning(f"Could not initialize storage backends: {e}")
         
@@ -208,10 +208,10 @@ async def lifespan(app: FastAPI):
         
         if vast_store:
             await vast_store.close()
-            logger.info("VAST store closed")
+            logger.debug("VAST store closed")
         
         # Telemetry cleanup handled automatically
-        logger.info("Telemetry cleanup handled automatically")
+        logger.debug("Telemetry cleanup handled automatically")
         
         logger.info("TAMS API shutdown complete")
 

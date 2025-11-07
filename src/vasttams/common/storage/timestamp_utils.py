@@ -162,7 +162,7 @@ class TimelineSynchronizer:
             linear_clock_value: Reference linear clock value
         """
         self._reference_timeline = linear_clock_value
-        logger.info("Reference timeline set to: %d nanoseconds", linear_clock_value)
+        logger.debug("Reference timeline set to: %d nanoseconds", linear_clock_value)
     
     def register_flow_timeline(self, flow_id: str, linear_clock_value: int) -> int:
         """

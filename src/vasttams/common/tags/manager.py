@@ -348,7 +348,7 @@ class TAMSTagManager:
         )
         
         self.tag_proposals.append(proposal)
-        logger.info("Created tag proposal for '%s' by %s", name, proposed_by)
+        logger.debug("Created tag proposal for '%s' by %s", name, proposed_by)
         
         return proposal
     
@@ -378,7 +378,7 @@ class TAMSTagManager:
                 )
                 self.standardized_tags[proposal.name] = definition
                 
-                logger.info("Approved tag proposal for '%s' by %s", proposal_name, reviewed_by)
+                logger.debug("Approved tag proposal for '%s' by %s", proposal_name, reviewed_by)
                 return True
         
         return False

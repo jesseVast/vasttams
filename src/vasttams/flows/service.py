@@ -411,7 +411,7 @@ class FlowStorageService:
                     # Prepare and update
                     prepared_data = prepare_data_for_pyarrow(update_data)
                     self.vast_db.insert_record("flows", prepared_data)  # Will use UPSERT logic
-                    logger.info(f"Updated bit rates for flow {flow_id}: avg={avg_bit_rate}, max={max_bit_rate}")
+                    logger.debug("Updated bit rates for flow %s: avg=%s, max=%s", flow_id, avg_bit_rate, max_bit_rate)
         
         except Exception as e:
             logger.warning(f"Failed to calculate bit rates for flow {flow_id}: {e}")
@@ -541,7 +541,7 @@ class FlowStorageService:
                         sql = f"UPDATE {flows_table} SET {', '.join(set_clauses)} WHERE id = '{flow_id}'"
                         logger.debug("Updating flow %s with SQL: %s", flow_id, sql)
                         self.vast_db.execute_sql(sql)
-                        logger.info("Successfully updated flow %s", flow_id)
+                        logger.debug("Successfully updated flow %s", flow_id)
                 else:
                     logger.warning("No fields to update for flow %s", flow_id)
                 
@@ -560,7 +560,7 @@ class FlowStorageService:
                     flows_table = self.vast_db.get_qualified_table_name("flows")
                     delete_sql = f"DELETE FROM {flows_table} WHERE id = '{flow_id}'"
                     self.vast_db.execute_sql(delete_sql)
-                    logger.info("Deleted existing flow %s for upsert", flow_id)
+                    logger.debug("Deleted existing flow %s for upsert", flow_id)
                     
                     # Insert new flow data
                     flow_data['id'] = flow_id
@@ -571,7 +571,7 @@ class FlowStorageService:
                     
                     logger.debug("Inserting flow %s with data: %s", flow_id, flow_data)
                     self.vast_db.insert_record("flows", flow_data)
-                    logger.info("Successfully inserted flow %s via upsert", flow_id)
+                    logger.debug("Successfully inserted flow %s via upsert", flow_id)
                     
                     # Handle tags separately using tag service
                     if tags_data is not None:
@@ -666,7 +666,7 @@ class FlowStorageService:
                         unreferenced = await object_service.get_unreferenced_objects()
                         if unreferenced:
                             deleted_count = await object_service.delete_unreferenced_objects(unreferenced)
-                            logger.info("Cleaned up %d unreferenced objects after flow deletion", deleted_count)
+                            logger.debug("Cleaned up %d unreferenced objects after flow deletion", deleted_count)
                     except Exception as e:
                         logger.warning("Failed to cleanup unreferenced objects after flow deletion: %s", e)
                         # Don't fail the deletion if cleanup fails
@@ -826,7 +826,7 @@ class FlowStorageService:
             
             if not result or not result.get('data') or len(result['data']) == 0:
                 # Source doesn't exist, create it automatically
-                logger.info("Source %s doesn't exist, creating it automatically", flow.source_id)
+                logger.debug("Source %s doesn't exist, creating it automatically", flow.source_id)
                 
                 # Create source with metadata from flow
                 source = Source(
@@ -845,7 +845,7 @@ class FlowStorageService:
                 source_data['updated'] = get_tams_timestamp()
                 
                 self.vast_db.insert_record("sources", source_data)
-                logger.info("Successfully created source %s with metadata from flow", flow.source_id)
+                logger.debug("Successfully created source %s with metadata from flow", flow.source_id)
             else:
                 logger.debug("Source %s already exists", flow.source_id)
                 

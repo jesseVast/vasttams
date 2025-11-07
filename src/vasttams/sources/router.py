@@ -107,7 +107,7 @@ async def create_new_source(
             source.updated_by = username
         
         # Log successful validation with user context
-        logger.info("User %s creating source with ID: %s, format: %s", username, source.id, source.format)
+        logger.debug("User %s creating source with ID: %s, format: %s", username, source.id, source.format)
         
         # Validate C2PA provenance if present in tags
         if source.tags and source.tags.root:
@@ -129,7 +129,7 @@ async def create_new_source(
         except Exception as e:
             logger.warning("User %s: Failed to emit source created event: %s", username, e)
         
-        logger.info("User %s successfully created source: %s", username, source.id)
+        logger.debug("User %s successfully created source: %s", username, source.id)
         return source
     except ValidationError as e:
         # This shouldn't happen as FastAPI handles validation before the function,
@@ -166,7 +166,7 @@ async def create_sources_batch(
                 raise HTTPException(status_code=500, detail=f"Failed to create source {source.id}")
             created_sources.append(source)
         
-        logger.info("Successfully created %d sources", len(created_sources))
+        logger.debug("Successfully created %d sources", len(created_sources))
         
         # Emit source created events for batch creation
         try:
@@ -197,7 +197,7 @@ async def delete_source_by_id(
     """Delete a source (hard delete only - TAMS compliant)"""
     try:
         # Log the cascade parameter for debugging
-        logger.info("Deleting source %s with cascade=%s", source_id, cascade)
+        logger.debug("Deleting source %s with cascade=%s", source_id, cascade)
         
         # Get source before deletion for event emission
         source = await storage.get_source(source_id)
@@ -316,8 +316,8 @@ async def update_source_tag(
             raise HTTPException(status_code=404, detail="Source not found")
         
         # Update specific tag using storage service
-        logger.info("🔍 DEBUG: Source tag update - source_id: %s, name: %s, value: %s", source_id, name, value)
-        logger.info("🔍 DEBUG: Value type: %s", type(value))
+        logger.debug("Source tag update - source_id: %s, name: %s, value: %s", source_id, name, value)
+        logger.debug("Value type: %s", type(value))
         
         success = await storage.update_source_tag(source_id, name, value)
         if not success:

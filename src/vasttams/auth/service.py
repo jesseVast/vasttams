@@ -180,7 +180,7 @@ class AuthProviderService:
                     provider = URLTokenProvider(vast_store=self.vast_db)
                     self.auth_manager.add_provider(provider)
             
-            logger.info("Auth manager reloaded with %d providers", len(self.auth_manager.providers))
+            logger.debug("Auth manager reloaded with %d providers", len(self.auth_manager.providers))
             
         except Exception as e:
             logger.error("Failed to reload auth manager: %s", e)

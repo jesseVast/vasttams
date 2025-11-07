@@ -331,7 +331,7 @@ class ObjectStorageService:
                 # Delete object (will handle instances and S3 deletion)
                 await self.delete_object(object_id)
                 deleted_count += 1
-                logger.info("Deleted unreferenced object %s and S3 files", object_id)
+                logger.debug("Deleted unreferenced object %s and S3 files", object_id)
             except Exception as e:
                 logger.error("Failed to delete unreferenced object %s: %s", object_id, e)
                 # Continue with other objects
@@ -563,7 +563,7 @@ class ObjectStorageService:
             # Insert instance record
             self.vast_db.insert_record("object_instances", instance_data)
             
-            logger.info("Created object instance %s for object %s", instance.label, object_id)
+            logger.debug("Created object instance %s for object %s", instance.label, object_id)
             return True
         except Exception as e:
             logger.error("Failed to create object instance for %s: %s", object_id, e)
@@ -705,11 +705,11 @@ class ObjectStorageService:
             # Check if s3_client has delete_object method
             if hasattr(s3_client, 'delete_object'):
                 s3_client.delete_object(key=relative_storage_path)
-                logger.info("Deleted S3 object: %s", storage_path)
+                logger.debug("Deleted S3 object: %s", storage_path)
                 return True
             elif hasattr(s3_client, 'delete'):
                 s3_client.delete(key=relative_storage_path)
-                logger.info("Deleted S3 object: %s", storage_path)
+                logger.debug("Deleted S3 object: %s", storage_path)
                 return True
             else:
                 # Fallback: try using boto3 directly if available
@@ -749,7 +749,7 @@ class ObjectStorageService:
                     bucket = s3_resource.Bucket(bucket_name)
                     # Use relative_storage_path (root_path already stripped if needed)
                     bucket.Object(relative_storage_path).delete()
-                    logger.info("Deleted S3 object via boto3: %s", relative_storage_path)
+                    logger.debug("Deleted S3 object via boto3: %s", relative_storage_path)
                     return True
                 except ImportError:
                     logger.error("boto3 not available, cannot delete S3 object")
@@ -832,7 +832,7 @@ class ObjectStorageService:
             
             query.execute()
             
-            logger.info("Deleted object instance for object %s (label=%s, storage_id=%s, controlled=%s)", 
+            logger.debug("Deleted object instance for object %s (label=%s, storage_id=%s, controlled=%s)", 
                        object_id, label, storage_id, controlled)
             return True
         except Exception as e:

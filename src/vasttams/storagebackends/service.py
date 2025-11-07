@@ -208,7 +208,7 @@ class StorageBackendService:
             
             self.vast_db.insert_record("storage_backends", backend_data)
             
-            logger.info("Created storage backend %s with label %s", backend_id, label)
+            logger.debug("Created storage backend %s with label %s", backend_id, label)
             return storage_backend
         except Exception as e:
             logger.error("Failed to create storage backend: %s", e)
@@ -296,7 +296,7 @@ class StorageBackendService:
                     sql = f"UPDATE {table} SET {', '.join(set_clauses)} WHERE id = '{backend_id}'"
                     logger.debug("Updating storage backend %s with SQL: %s", backend_id, sql)
                     self.vast_db.execute_sql(sql)
-                    logger.info("Successfully updated storage backend %s", backend_id)
+                    logger.debug("Successfully updated storage backend %s", backend_id)
                 else:
                     logger.warning("No fields to update for storage backend %s", backend_id)
                 
@@ -310,7 +310,7 @@ class StorageBackendService:
                 try:
                     # Delete existing backend using query API (non-SQL)
                     self.vast_db.query("storage_backends").delete().where(f"id = '{backend_id}'").execute()
-                    logger.info("Deleted existing storage backend %s for upsert", backend_id)
+                    logger.debug("Deleted existing storage backend %s for upsert", backend_id)
                     
                     # Insert new backend data
                     # Use existing data for fields not being updated
@@ -322,7 +322,7 @@ class StorageBackendService:
                     from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
                     pyarrow_data = prepare_data_for_pyarrow(updated_data)
                     self.vast_db.insert_record("storage_backends", pyarrow_data)
-                    logger.info("Successfully upserted storage backend %s", backend_id)
+                    logger.debug("Successfully upserted storage backend %s", backend_id)
                     
                     # Return updated backend
                     return await self.get_storage_backend(backend_id)
@@ -404,7 +404,7 @@ class StorageBackendService:
         Raises HTTPException if objects or instances reference this backend.
         """
         try:
-            logger.info("Checking for objects referencing storage backend %s", backend_id)
+            logger.debug("Checking for objects referencing storage backend %s", backend_id)
             
             # Count objects and instances that reference this backend
             reference_count = await self._count_objects_with_storage_id(backend_id)
@@ -416,12 +416,12 @@ class StorageBackendService:
                            "Delete or migrate the objects first."
                 )
             
-            logger.info("Deleting storage backend %s", backend_id)
+            logger.debug("Deleting storage backend %s", backend_id)
             
             # Delete the backend
             self.vast_db.query("storage_backends").delete().where(f"id = '{backend_id}'").execute()
             
-            logger.info("Deleted storage backend %s", backend_id)
+            logger.debug("Deleted storage backend %s", backend_id)
             return True
         except HTTPException:
             raise

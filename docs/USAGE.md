@@ -1,7 +1,7 @@
-# TAMS API 7.0 - Usage Guide
+# TAMS API 8.0 - Usage Guide
 
 ## Overview
-This guide provides comprehensive examples and usage patterns for the TAMS (Time-addressable Media Store) API version 7.0. It covers creating, reading, updating, and deleting sources, flows, and flow-segments with practical examples and expected outputs.
+This guide provides comprehensive examples and usage patterns for the TAMS (Time-addressable Media Store) API version 8.0. It covers creating, reading, updating, and deleting sources, flows, segments, and objects with practical examples and expected outputs.
 
 ## Base URL
 ```
@@ -9,7 +9,7 @@ http://localhost:8000
 ```
 
 ## API Version
-- **Current Version**: 7.0
+- **Current Version**: 8.0.0
 - **Interactive Documentation**: `/docs` (Swagger UI)
 - **ReDoc Documentation**: `/redoc`
 - **OpenAPI Specification**: `/openapi.json`
@@ -196,7 +196,7 @@ DELETE /sources/{source_id}
 **Expected Response (204 No Content):**
 No response body
 
-**Note**: This endpoint performs hard delete as per TAMS 7.0 specification.
+**Note**: This endpoint performs hard delete as per TAMS 8.0 specification.
 
 ---
 
@@ -385,7 +385,7 @@ DELETE /flows/{flow_id}
 **Expected Response (204 No Content):**
 No response body
 
-**Note**: This endpoint performs hard delete as per TAMS 7.0 specification.
+**Note**: This endpoint performs hard delete as per TAMS 8.0 specification.
 
 ---
 
@@ -726,7 +726,7 @@ GET /service
 {
   "id": "tams-service",
   "name": "TAMS API Service",
-  "version": "7.0",
+  "version": "8.0.0",
   "description": "Time-addressable Media Store API",
   "capabilities": [
     "sources",
@@ -762,7 +762,7 @@ GET /health
 {
   "status": "healthy",
   "timestamp": "2024-12-20T10:00:00Z",
-  "version": "7.0",
+  "version": "8.0.0",
   "uptime_seconds": 3600,
   "dependencies": {
     "vast_database": "healthy",

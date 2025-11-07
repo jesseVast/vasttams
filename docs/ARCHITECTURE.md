@@ -46,7 +46,7 @@ TAMS is a high-performance, scalable media storage and management system built o
 
 ### **1. API Layer (FastAPI)**
 
-The TAMS API is built using FastAPI, a modern, fast web framework for building APIs with Python 3.12+ based on standard Python type hints.
+The TAMS API is built using FastAPI, a modern, fast web framework for building APIs with Python 3.12+ based on standard Python type hints. The application runs on Uvicorn with multiple worker processes for improved concurrency.
 
 **Key Features:**
 - **Automatic API Documentation**: OpenAPI/Swagger UI generation
@@ -57,17 +57,18 @@ The TAMS API is built using FastAPI, a modern, fast web framework for building A
 
 **Architecture:**
 ```
-app/
+src/vasttams/
 ├── main.py              # FastAPI application entry point
-├── api/                 # API route definitions
-│   ├── sources_router.py
-│   ├── flows_router.py
-│   ├── segments_router.py
-│   └── objects_router.py
+├── sources/             # Source resource (models, router, service)
+├── flows/               # Flow resource (models, router, service)
+├── segments/            # Segment resource (models, router, service)
+├── objects/             # Object resource (models, router, service)
+├── analytics/           # Analytics resource (models, router, service)
 ├── auth/                # Authentication and authorization
-├── core/                # Core application logic
-├── models/              # Data models and schemas
-└── storage/             # Enhanced storage layer architecture
+├── core/                # Core application logic and configuration
+├── common/              # Shared utilities and storage interfaces
+├── service/             # Service operations (webhooks, storage backends)
+└── storagebackends/     # Storage backend management
 ```
 
 ### **2. Authentication & Authorization**
@@ -105,115 +106,89 @@ The business logic layer handles all application-specific operations and busines
 
 The storage layer has been completely refactored to provide better separation of concerns, improved debugging capabilities, and enhanced performance.
 
-#### **4.1 Core Storage Modules**
+#### **4.1 Storage Service Architecture**
 
-**`s3_core.py`**: Pure S3 infrastructure code
-- Connection management and configuration
-- Bucket operations and lifecycle management
-- Error handling and retry logic
-- Performance optimization utilities
+The storage layer is organized as a unified service interface with resource-specific implementations:
 
-**`vast_core.py`**: Pure VAST database infrastructure code
-- Connection pooling and management
-- Query execution and optimization
-- Schema management and validation
-- Performance monitoring and metrics
+**`common/storage/main_service.py`**: Main TAMS storage service
+- Unified storage interface (`TAMSStorageService`)
+- Resource-specific storage operations
+- Connection management and health monitoring
+- Transaction coordination
 
-**`storage_factory.py`**: Storage backend factory
-- Dynamic storage backend selection
-- Configuration-based backend instantiation
-- Backend health monitoring and failover
+**`common/storage/interfaces.py`**: Storage interface definitions
+- Abstract base classes for storage operations
+- Interface contracts for all resources
+- Type definitions and protocols
 
-#### **4.2 TAMS-Specific Storage Modules**
+**`common/storage/schemas.py`**: Storage schemas
+- PyArrow schema definitions
+- Table initialization schemas
+- Data type mappings
 
-**`sources/`**: Source storage operations
-- Source CRUD operations
+**`common/storage/table_initializer.py`**: Table management
+- Automatic table creation
+- Schema validation and migration
+- Table projection management
+
+#### **4.2 Resource-Specific Storage**
+
+Storage operations are implemented within each resource module:
+
+**`sources/service.py`**: Source storage operations
+- Source CRUD operations via storage service
 - Source metadata management
 - Source relationship handling
 
-**`flows/`**: Flow storage operations
-- Flow CRUD operations
+**`flows/service.py`**: Flow storage operations
+- Flow CRUD operations via storage service
 - Flow metadata and attributes
 - Flow-source relationships
 
-**`segments/`**: Segment storage operations
-- Segment CRUD operations
+**`segments/service.py`**: Segment storage operations
+- Segment CRUD operations via storage service
 - Media data storage and retrieval
 - Time range optimization
 
-**`objects/`**: Object storage operations
-- Object CRUD operations
+**`objects/service.py`**: Object storage operations
+- Object CRUD operations via storage service
 - Object metadata management
 - Access tracking and analytics
 
-**`analytics/`**: Analytics storage operations
-- Analytics data storage
+**`analytics/service.py`**: Analytics storage operations
+- Analytics data storage via storage service
 - Query optimization for analytics
 - Performance metrics collection
 
-**`tags/`**: Tags storage operations
+**`common/tags/service.py`**: Tags storage operations
 - Tag CRUD operations
 - Tag relationship management
 - Tag-based querying
 
-#### **4.3 Diagnostics Module**
+#### **4.3 Core Infrastructure**
 
-**`connection_tester.py`**: Connection health testing
-- Network connectivity validation
-- Endpoint health checks
-- Performance benchmarking
+**`core/config.py`**: Configuration management
+- Settings and environment variable management
+- Storage backend configuration
+- Service configuration
 
-**`health_monitor.py`**: System health monitoring
-- Real-time health status
-- Performance metrics collection
-- Alert generation
+**`core/telemetry.py`**: Observability
+- OpenTelemetry integration
+- Metrics collection
+- Distributed tracing
 
-**`logger.py`**: Enhanced logging system
+**`core/tams_logging.py`**: Logging system
 - Structured logging with context
 - Performance logging
 - Error tracking and reporting
 
-**`model_validator.py`**: Data validation utilities
-- Schema validation
-- Data integrity checks
-- Error reporting and debugging
+#### **4.4 VAST Database Integration**
 
-**`performance_analyzer.py`**: Performance analysis
-- Query performance analysis
-- Bottleneck identification
-- Optimization recommendations
-
-**`troubleshooter.py`**: Automated troubleshooting
-- Common issue detection
-- Solution recommendations
-- Debug information collection
-
-#### **4.4 Enhanced VAST Database Manager**
-
-**`core.py`**: Main orchestrator
-- High-level operation coordination
-- Transaction management
-- Error handling and recovery
-
-**`cache/`**: Intelligent caching system
-- TTL-based cache management
-- Background cache updates
-- Memory-efficient storage
-
-**`queries/`**: Query processing & optimization
-- Query parsing and validation
-- Dynamic optimization strategies
-- Performance monitoring
-
-**`analytics/`**: Advanced analytics capabilities
-- Time-series analysis
-- Statistical aggregations
-- Performance monitoring
-
-**`endpoints/`**: Multi-endpoint management
-- Load balancing
-- Health monitoring
-- Failover handling
+The system uses VAST Database for metadata storage through the storage service:
+- High-performance columnar storage
+- Apache Arrow integration
+- Time-series optimized queries
+- Connection pooling and management
 
 ### **5. Data Models and Validation**
 
@@ -227,13 +202,14 @@ The system uses Pydantic v2 for comprehensive data validation and serialization.
 
 **Model Structure:**
 ```
-models/
-├── base.py              # Base model classes
-├── sources.py           # Source data models
-├── flows.py             # Flow data models
-├── segments.py          # Segment data models
-├── objects.py           # Object data models
-└── common.py            # Common data types
+src/vasttams/
+├── sources/models.py     # Source data models
+├── flows/models.py       # Flow data models
+├── segments/models.py    # Segment data models
+├── objects/models.py     # Object data models
+├── analytics/models.py   # Analytics data models
+├── service/models.py     # Service and webhook models
+└── common/models.py      # Common data types and shared models
 ```
 
 ## 🗄️ **Storage Architecture**
@@ -434,7 +410,7 @@ Client → API → Validation → Analytics Engine → VAST Store
 
 ### **3. Data Protection**
 
-- **TAMS 7.0 Compliance**: Full specification adherence
+- **TAMS 8.0 Compliance**: Full specification adherence (98% compliant)
 - **Access Logging**: Complete access history tracking
 - **Data Validation**: Comprehensive input validation
 - **Error Handling**: Secure error message generation

@@ -215,10 +215,10 @@ class EventManager:
             webhooks = await self._get_webhooks()
             
             if not webhooks:
-                logger.info("No webhooks registered for event %s", event_type)
+                logger.debug("No webhooks registered for event %s", event_type)
                 return
             
-            logger.info("Found %d webhook(s) for event %s", len(webhooks), event_type)
+            logger.debug("Found %d webhook(s) for event %s", len(webhooks), event_type)
             
             # Filter webhooks based on event type and filtering rules
             relevant_webhooks = [
@@ -227,10 +227,10 @@ class EventManager:
             ]
             
             if not relevant_webhooks:
-                logger.info("No relevant webhooks for event %s (checked %d webhooks)", event_type, len(webhooks))
+                logger.debug("No relevant webhooks for event %s (checked %d webhooks)", event_type, len(webhooks))
                 return
             
-            logger.info("Delivering event %s to %d webhook(s)", event_type, len(relevant_webhooks))
+            logger.debug("Delivering event %s to %d webhook(s)", event_type, len(relevant_webhooks))
             
             # Send to webhooks using WebhookDelivery
             for webhook_dict in relevant_webhooks:
@@ -245,7 +245,7 @@ class EventManager:
                     
                     success = await delivery.deliver(event_type, spec_compliant_event)
                     if success:
-                        logger.info("Event %s sent to webhook %s", event_type, webhook.url)
+                        logger.debug("Event %s sent to webhook %s", event_type, webhook.url)
                     else:
                         logger.warning("Failed to send event %s to webhook %s", event_type, webhook.url)
                 except Exception as e:

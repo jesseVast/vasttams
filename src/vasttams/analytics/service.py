@@ -170,7 +170,7 @@ class AnalyticsService:
             total_segments = int(get_value('total_segments', 0) or 0)
             total_objects = int(get_value('total_objects', 0) or 0)
             
-            logger.info("Extracted counts - sources: %d, flows: %d, segments: %d, objects: %d", 
+            logger.debug("Extracted counts - sources: %d, flows: %d, segments: %d, objects: %d", 
                        total_sources, total_flows, total_segments, total_objects)
             total_storage_bytes = int(get_value('total_storage_bytes', 0) or 0)
             avg_size_bytes = float(get_value('avg_size_bytes', 0) or 0)

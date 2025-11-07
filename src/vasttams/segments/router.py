@@ -175,7 +175,7 @@ async def update_object_size_from_s3(object_id: str):
                     WHERE id = '{object_id}' AND (size IS NULL OR size = 0)
                 """
                 vast_db.execute_sql(update_sql)
-                logger.info("Updated size for object %s: %d bytes", object_id, s3_size)
+                logger.debug("Updated size for object %s: %d bytes", object_id, s3_size)
         except Exception as s3_err:
             # Handle 404 errors gracefully - object may have been deleted or doesn't exist yet
             # This is expected in some scenarios (cleanup, test data, etc.)
@@ -360,7 +360,7 @@ async def create_new_flow_segment(
     try:
         # Get username for logging (segments don't have created_by/updated_by in TAMS spec)
         username = user_session.username if user_session else "system"
-        logger.info("User %s creating segment for flow %s", username, flow_id)
+        logger.debug("User %s creating segment for flow %s", username, flow_id)
         # Validate segment data
         if not segment.object_id:
             raise HTTPException(status_code=400, detail="object_id is required")

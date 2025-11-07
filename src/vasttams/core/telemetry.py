@@ -157,7 +157,7 @@ class TelemetryManager:
         LoggingInstrumentor().instrument()
         
         self.is_initialized = True
-        logger.info("Telemetry initialized successfully")
+        logger.debug("Telemetry initialized successfully")
     
     def _setup_opentelemetry(self, service_name: str, service_version: str):
         """Setup OpenTelemetry tracing"""

@@ -118,9 +118,9 @@ class LoopRecorderManager:
                 if success:
                     deleted_count += 1
             
-            logger.info(
-                f"Loop recorder: Deleted {deleted_count} segments from flow {flow_id} "
-                f"(current: {current_duration:.1f}s, limit: {duration_limit_sec}s)"
+            logger.debug(
+                "Loop recorder: Deleted %d segments from flow %s (current: %.1fs, limit: %.1fs)",
+                deleted_count, flow_id, current_duration, duration_limit_sec
             )
             
             return deleted_count > 0

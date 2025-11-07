@@ -305,7 +305,7 @@ class SourceStorageService:
                         sql = f"UPDATE {sources_table} SET {', '.join(set_clauses)} WHERE id = '{source_id}'"
                         logger.debug("Updating source %s with SQL: %s", source_id, sql)
                         self.vast_db.execute_sql(sql)
-                        logger.info("Successfully updated source %s", source_id)
+                        logger.debug("Successfully updated source %s", source_id)
                 else:
                     logger.warning("No fields to update for source %s", source_id)
                 
@@ -324,7 +324,7 @@ class SourceStorageService:
                     sources_table = self.vast_db.get_qualified_table_name("sources")
                     delete_sql = f"DELETE FROM {sources_table} WHERE id = '{source_id}'"
                     self.vast_db.execute_sql(delete_sql)
-                    logger.info("Deleted existing source %s for upsert", source_id)
+                    logger.debug("Deleted existing source %s for upsert", source_id)
                     
                     # Insert new source data
                     source_data['id'] = source_id
@@ -336,7 +336,7 @@ class SourceStorageService:
                     
                     logger.debug("Inserting source %s with data: %s", source_id, source_data)
                     self.vast_db.insert_record("sources", source_data)
-                    logger.info("Successfully inserted source %s via upsert", source_id)
+                    logger.debug("Successfully inserted source %s via upsert", source_id)
                     
                     # Handle tags separately using tag service
                     if tags_data is not None:
@@ -355,7 +355,7 @@ class SourceStorageService:
     async def delete_source(self, source_id: str, cascade: bool = True) -> bool:
         """Delete a source with optional cascade to dependent flows"""
         try:
-            logger.info("delete_source called with cascade=%s", cascade)
+            logger.debug("delete_source called with cascade=%s", cascade)
             
             # Check for dependencies if cascade is False
             if not cascade:
@@ -366,9 +366,9 @@ class SourceStorageService:
             
             # Cascade delete: Delete dependent flows first (and their segments)
             if cascade:
-                logger.info("Calling _cascade_delete_flows for source %s", source_id)
+                logger.debug("Calling _cascade_delete_flows for source %s", source_id)
                 await self._cascade_delete_flows(source_id)
-                logger.info("_cascade_delete_flows completed for source %s", source_id)
+                logger.debug("_cascade_delete_flows completed for source %s", source_id)
             
             # Delete source
             self.vast_db.query("sources").delete().where(f"id = '{source_id}'").execute()
@@ -423,7 +423,7 @@ class SourceStorageService:
             # Delete all flows for this source
             if flow_ids:
                 self.vast_db.query("flows").delete().where(f"source_id = '{source_id}'").execute()
-                logger.info("Deleted %d flows for source %s", len(flow_ids), source_id)
+                logger.debug("Deleted %d flows for source %s", len(flow_ids), source_id)
             
             return True
         except Exception as e:

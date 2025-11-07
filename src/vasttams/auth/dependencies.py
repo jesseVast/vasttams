@@ -33,7 +33,7 @@ def get_auth_manager(vast_store=Depends(get_vast_store)) -> AuthManager:
         _auth_manager.add_provider(BasicAuthProvider(vast_store=vast_store))
         _auth_manager.add_provider(URLTokenProvider(vast_store=vast_store))
         
-        logger.info("Auth manager initialized with %d providers", len(_auth_manager.providers))
+        logger.debug("Auth manager initialized with %d providers", len(_auth_manager.providers))
     else:
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug("Returning existing auth manager instance")

@@ -150,11 +150,11 @@ class TAMSTableInitializer:
                 return False
             
             if self.settings.enable_table_projections:
-                logger.info(f"Table {table_name} created with projections enabled")
+                logger.debug("Table %s created with projections enabled", table_name)
             else:
-                logger.info(f"Table {table_name} created without projections")
+                logger.debug("Table %s created without projections", table_name)
             
-            logger.info(f"Successfully created table: {table_name}")
+            logger.debug("Successfully created table: %s", table_name)
             return True
             
         except Exception as e:

@@ -177,7 +177,13 @@ async def update_object_size_from_s3(object_id: str):
                 vast_db.execute_sql(update_sql)
                 logger.info("Updated size for object %s: %d bytes", object_id, s3_size)
         except Exception as s3_err:
-            logger.warning("Failed to get metadata from S3 for object %s: %s", object_id, s3_err)
+            # Handle 404 errors gracefully - object may have been deleted or doesn't exist yet
+            # This is expected in some scenarios (cleanup, test data, etc.)
+            error_msg = str(s3_err).lower()
+            if '404' in error_msg or 'not found' in error_msg:
+                logger.debug("Object %s not found in S3 (expected in some scenarios): %s", object_id, relative_storage_path)
+            else:
+                logger.warning("Failed to get metadata from S3 for object %s: %s", object_id, s3_err)
             
     except Exception as e:
         # Log but don't fail - this is a background task
@@ -241,15 +247,27 @@ async def list_flow_segments(
                     filtered_urls = []
                     for url_info in segment.get_urls:
                         # Extract fields from GetUrl object or dict
-                        url = url_info.url if hasattr(url_info, 'url') else url_info.get('url')
-                        presigned = url_info.presigned if hasattr(url_info, 'presigned') else url_info.get('presigned')
-                        label = url_info.label if hasattr(url_info, 'label') else url_info.get('label')
+                        if isinstance(url_info, GetUrl):
+                            url = url_info.url
+                            presigned = url_info.presigned
+                            label = url_info.label
+                            storage_id = url_info.storage_id
+                            provider = url_info.provider
+                            store_product = url_info.store_product
+                        else:
+                            url = url_info.get('url') if isinstance(url_info, dict) else getattr(url_info, 'url', None)
+                            presigned = url_info.get('presigned') if isinstance(url_info, dict) else getattr(url_info, 'presigned', None)
+                            label = url_info.get('label') if isinstance(url_info, dict) else getattr(url_info, 'label', None)
+                            storage_id = url_info.get('storage_id') if isinstance(url_info, dict) else getattr(url_info, 'storage_id', '')
+                            provider = url_info.get('provider') if isinstance(url_info, dict) else getattr(url_info, 'provider', '')
+                            store_product = url_info.get('store_product') if isinstance(url_info, dict) else getattr(url_info, 'store_product', '')
                         
-                        # Create GetUrl object with minimal fields
+                        # Create GetUrl object with minimal fields (required fields must be present)
                         filtered_url = GetUrl(
                             url=url or '',
-                            provider='',  # Required field, set empty
-                            store_product='',  # Required field, set empty
+                            provider=provider or '',  # Required field
+                            store_product=store_product or '',  # Required field
+                            storage_id=storage_id or '',  # Required field
                             presigned=presigned,
                             label=label
                         )

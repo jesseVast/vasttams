@@ -56,7 +56,9 @@ class AuthManager:
                     result = await provider.authenticate(request)
                     if result.success:
                         result.auth_method = provider.get_method()
-                        logger.info("Authentication successful with provider: %s", provider.__class__.__name__)
+                        # Removed verbose INFO log - too many messages on every request
+                        if logger.isEnabledFor(logging.DEBUG):
+                            logger.debug("Authentication successful with provider: %s", provider.__class__.__name__)
                         return result
                     else:
                         if logger.isEnabledFor(logging.DEBUG):

@@ -205,14 +205,19 @@ class TAMSErrorHandler:
         if error.compliance_requirement:
             log_message += f" (Requirement: {error.compliance_requirement})"
         
+        # Only include error_details in extra if it has content
+        extra = {}
+        if error.details:
+            extra["error_details"] = error.details
+        
         if error.severity == TAMSErrorSeverity.CRITICAL:
-            self.logger.critical(log_message, extra={"error_details": error.details})
+            self.logger.critical(log_message, extra=extra if extra else None)
         elif error.severity == TAMSErrorSeverity.HIGH:
-            self.logger.error(log_message, extra={"error_details": error.details})
+            self.logger.error(log_message, extra=extra if extra else None)
         elif error.severity == TAMSErrorSeverity.MEDIUM:
-            self.logger.warning(log_message, extra={"error_details": error.details})
+            self.logger.warning(log_message, extra=extra if extra else None)
         else:
-            self.logger.info(log_message, extra={"error_details": error.details})
+            self.logger.info(log_message, extra=extra if extra else None)
     
     def _track_error(self, error: TAMSComplianceError):
         """Track error statistics"""

@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = Field(default=DEFAULT_PORT, description="Application port")
     debug: bool = Field(default=False, description="Enable debug mode (should be False in production)")
+    workers: int = Field(default=4, description="Number of uvicorn worker processes (default: 4, set to 1 for single process)")
     
     # VAST Database settings
     vast_endpoint: str = Field(default="http://localhost:9090",
@@ -236,6 +237,8 @@ class Settings(BaseSettings):
                         self.port = server['port']
                     if 'debug' in server:
                         self.debug = server['debug']
+                    if 'workers' in server:
+                        self.workers = server['workers']
                 
                 # Load database settings
                 if 'database' in config_data:

@@ -383,6 +383,8 @@ def monitor_operation(operation: str, entity_type: str, format_type: str = None)
 # Middleware for HTTP request telemetry
 async def telemetry_middleware(request: Request, call_next):
     """Middleware to add telemetry to HTTP requests"""
+    from fastapi.responses import JSONResponse
+    
     # Generate correlation ID
     correlation_id = str(uuid.uuid4())
     request.state.correlation_id = correlation_id
@@ -395,20 +397,46 @@ async def telemetry_middleware(request: Request, call_next):
     # Start timing
     start_time = time.time()
     
-    # Process request
-    response = await call_next(request)
+    # Set request timeout (30 seconds default)
+    REQUEST_TIMEOUT = 30.0
     
-    # Calculate duration
-    duration = time.time() - start_time
-    
-    # Record metrics
-    telemetry_manager.record_http_metrics(request, response, duration)
-    
-    # Add correlation ID to response headers
-    response.headers["x-correlation-id"] = correlation_id
-    response.headers["x-request-duration"] = str(duration)
-    
-    return response
+    try:
+        # Process request with timeout
+        response = await asyncio.wait_for(call_next(request), timeout=REQUEST_TIMEOUT)
+        
+        # Calculate duration
+        duration = time.time() - start_time
+        
+        # Record metrics
+        telemetry_manager.record_http_metrics(request, response, duration)
+        
+        # Add correlation ID to response headers
+        response.headers["x-correlation-id"] = correlation_id
+        response.headers["x-request-duration"] = str(duration)
+        
+        return response
+        
+    except asyncio.TimeoutError:
+        # Request took too long - server is overloaded
+        duration = time.time() - start_time
+        logger.warning(
+            "Request timeout after %.2fs for %s %s - server may be overloaded",
+            duration, request.method, request.url.path
+        )
+        
+        # Record timeout as error
+        telemetry_manager.record_error("timeout", request.url.path, f"Request timeout after {duration:.2f}s")
+        
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "Service temporarily unavailable - request timeout. Server may be overloaded. Please retry later.",
+                "status_code": 503,
+                "error_code": "SERVICE_UNAVAILABLE",
+                "timeout_seconds": REQUEST_TIMEOUT
+            },
+            headers={"x-correlation-id": correlation_id}
+        )
 
 # Prometheus metrics endpoint
 def metrics_endpoint():

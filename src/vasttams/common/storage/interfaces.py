@@ -56,8 +56,8 @@ class StorageInterface(ABC):
         pass
     
     @abstractmethod
-    async def get_flow(self, flow_id: str) -> Optional[Flow]:
-        """Get a specific flow by ID"""
+    async def get_flow(self, flow_id: str, filters: Optional[FlowDetailFilters] = None) -> Optional[Flow]:
+        """Get a specific flow by ID with optional filters for timerange handling"""
         pass
     
     @abstractmethod
@@ -233,4 +233,15 @@ class StorageInterface(ABC):
     @abstractmethod
     async def get_analytics(self, query_type: str, **kwargs) -> Dict[str, Any]:
         """Get analytics data for the specified query type"""
+        pass
+    
+    # Deletion request operations
+    @abstractmethod
+    async def get_deletion_requests(self) -> List[Dict[str, Any]]:
+        """Get all deletion requests"""
+        pass
+    
+    @abstractmethod
+    async def get_deletion_request(self, request_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific deletion request by ID"""
         pass

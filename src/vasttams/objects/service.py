@@ -212,8 +212,14 @@ class ObjectStorageService:
                                 object_data['size'] = size
                                 logger.debug("Updated missing size for object %s from S3: %d bytes", object_id, size)
                     except Exception as e:
-                        # Log but don't fail - object will be returned with NULL size
-                        logger.debug("Failed to update size from S3 for object %s: %s", object_id, e)
+                        # Handle 404 errors gracefully - object may have been deleted or doesn't exist yet
+                        # This is expected in some scenarios (cleanup, test data, etc.)
+                        error_msg = str(e).lower()
+                        if '404' in error_msg or 'not found' in error_msg:
+                            logger.debug("Object %s not found in S3 (expected in some scenarios): %s", object_id, storage_path)
+                        else:
+                            # Log other errors at debug level - object will be returned with NULL size
+                            logger.debug("Failed to update size from S3 for object %s: %s", object_id, e)
             
             obj = Object(**object_data)
             
@@ -376,45 +382,82 @@ class ObjectStorageService:
             raise HTTPException(status_code=500, detail="Internal server error")
     
     async def get_objects(self) -> List[Object]:
-        """Get all objects"""
+        """Get all objects with referenced flows computed via JOIN query"""
         try:
-            result = self.vast_db.query("objects").select("*").execute()
+            segments_table = self.vast_db.get_qualified_table_name("segments")
+            objects_table = self.vast_db.get_qualified_table_name("objects")
             
-            # Handle VAST query result format (same as get_object)
-            objects_data = []
-            if isinstance(result, dict) and 'data' in result:
-                data = result['data']
-                if isinstance(data, dict) and data:
-                    # Convert column arrays to row dictionaries
-                    num_rows = len(next(iter(data.values())))
-                    for i in range(num_rows):
-                        object_data = {}
-                        for column, values in data.items():
-                            if column != '$row_id':  # Skip internal row IDs
-                                value = values[i] if i < len(values) else None
-                                object_data[column] = value
-                        if object_data:
-                            # Strip metadata before processing (internal-only)
-                            if 'metadata' in object_data:
-                                del object_data['metadata']
-                            objects_data.append(object_data)
-                elif isinstance(data, list):
-                    # If data is a list, iterate directly
-                    for row in data:
-                        object_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
-                        if object_data:
-                            # Strip metadata before processing (internal-only)
-                            if 'metadata' in object_data:
-                                del object_data['metadata']
-                            objects_data.append(object_data)
-            else:
-                # Fallback for direct list results
-                for row in result if isinstance(result, list) else []:
-                    object_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
-                    if object_data:
-                        objects_data.append(object_data)
+            # Use JOIN query to get objects with their referenced flows in a single query
+            # This is much more efficient than N+1 queries or even batch queries
+            join_query = f"""
+                SELECT 
+                    o.id,
+                    o.size,
+                    o.timerange,
+                    o.created,
+                    s.flow_id,
+                    s.created as segment_created
+                FROM {objects_table} o
+                LEFT JOIN {segments_table} s ON o.id = s.object_id AND s.flow_id IS NOT NULL
+                ORDER BY o.id, s.created ASC
+                LIMIT 10000
+            """
             
-            # Process each object: compute referenced_by_flows and handle timerange
+            join_result = self.vast_db.execute_sql(join_query)
+            
+            # Process JOIN results: group by object_id and collect flow_ids
+            objects_map = {}  # object_id -> object_data dict
+            referenced_flows_map = {}  # object_id -> list of flow_ids
+            first_ref_map = {}  # object_id -> (flow_id, first_created)
+            
+            if isinstance(join_result, dict) and 'data' in join_result:
+                data = join_result['data']
+                if isinstance(data, dict):
+                    id_col = data.get('id', [])
+                    size_col = data.get('size', [])
+                    timerange_col = data.get('timerange', [])
+                    created_col = data.get('created', [])
+                    flow_id_col = data.get('flow_id', [])
+                    segment_created_col = data.get('segment_created', [])
+                    
+                    if isinstance(id_col, list):
+                        num_rows = len(id_col)
+                        for i in range(num_rows):
+                            object_id = id_col[i] if i < len(id_col) else None
+                            if not object_id:
+                                continue
+                            
+                            # Store object data (only once per object)
+                            if object_id not in objects_map:
+                                objects_map[object_id] = {
+                                    'id': object_id,
+                                    'size': size_col[i] if i < len(size_col) else None,
+                                    'timerange': timerange_col[i] if i < len(timerange_col) else None,
+                                    'created': created_col[i] if i < len(created_col) else None
+                                }
+                            
+                            # Collect referenced flows
+                            flow_id = flow_id_col[i] if i < len(flow_id_col) else None
+                            segment_created = segment_created_col[i] if i < len(segment_created_col) else None
+                            
+                            if flow_id:
+                                if object_id not in referenced_flows_map:
+                                    referenced_flows_map[object_id] = []
+                                if str(flow_id) not in referenced_flows_map[object_id]:
+                                    referenced_flows_map[object_id].append(str(flow_id))
+                                
+                                # Track first referenced flow (earliest segment_created)
+                                if object_id not in first_ref_map:
+                                    first_ref_map[object_id] = (str(flow_id), segment_created)
+                                else:
+                                    _, existing_created = first_ref_map[object_id]
+                                    if segment_created and (existing_created is None or segment_created < existing_created):
+                                        first_ref_map[object_id] = (str(flow_id), segment_created)
+            
+            # Convert objects_map to list and add referenced_by_flows
+            objects_data = list(objects_map.values())
+            
+            # Process each object: add referenced_by_flows and handle timerange
             objects = []
             import json
             from ..common.models import TimeRange
@@ -429,45 +472,18 @@ class ObjectStorageService:
                     if 'referenced_by_flows' in object_data:
                         del object_data['referenced_by_flows']
                     
-                    # Compute referenced_by_flows dynamically from segments/flow_object_references (normalized table)
+                    # Use pre-computed referenced_by_flows from JOIN query
                     try:
-                        segments_table = self.vast_db.get_qualified_table_name("segments")
-                        referenced_flows_query = f"""
-                            SELECT DISTINCT flow_id
-                            FROM {segments_table}
-                            WHERE object_id = '{object_id}' AND flow_id IS NOT NULL
-                        """
-                        referenced_result = self.vast_db.execute_sql(referenced_flows_query)
-                        referenced_flows = []
-                        if isinstance(referenced_result, dict) and 'data' in referenced_result:
-                            data = referenced_result['data']
-                            if isinstance(data, dict):
-                                flow_id_col = data.get('flow_id', [])
-                                if isinstance(flow_id_col, list):
-                                    referenced_flows = [str(flow_id) for flow_id in flow_id_col if flow_id]
-                        
+                        referenced_flows = referenced_flows_map.get(object_id, [])
                         # Set referenced_by_flows (TAMS spec requirement) - always set, even if empty
                         object_data['referenced_by_flows'] = referenced_flows if referenced_flows else []
                         
-                        # Compute first_referenced_by_flow as the flow with earliest segment creation
-                        if referenced_flows:
-                            first_ref_query = f"""
-                                SELECT flow_id, MIN(created) as first_created
-                                FROM {segments_table}
-                                WHERE object_id = '{object_id}' AND flow_id IS NOT NULL
-                                GROUP BY flow_id
-                                ORDER BY first_created ASC
-                                LIMIT 1
-                            """
-                            first_ref_result = self.vast_db.execute_sql(first_ref_query)
-                            if isinstance(first_ref_result, dict) and 'data' in first_ref_result:
-                                first_data = first_ref_result['data']
-                                if isinstance(first_data, dict):
-                                    flow_id_col = first_data.get('flow_id', [])
-                                    if isinstance(flow_id_col, list) and len(flow_id_col) > 0:
-                                        object_data['first_referenced_by_flow'] = str(flow_id_col[0])
+                        # Use pre-computed first_referenced_by_flow
+                        if object_id in first_ref_map:
+                            flow_id, _ = first_ref_map[object_id]
+                            object_data['first_referenced_by_flow'] = str(flow_id)
                     except Exception as e:
-                        logger.error("Failed to compute referenced_by_flows for object %s: %s", object_id, e)
+                        logger.error("Failed to set referenced_by_flows for object %s: %s", object_id, e)
                         # Set empty list on error - object will be returned but with no references
                         object_data['referenced_by_flows'] = []
                     

@@ -72,7 +72,7 @@ class SourceStorageService:
             result = query.execute()
             
             # Convert to Source objects
-            sources = []
+            sources_data = []
             # VAST returns a dict with 'data' field containing column arrays
             if isinstance(result, dict) and 'data' in result:
                 data = result['data']
@@ -95,23 +95,91 @@ class SourceStorageService:
                                 
                                 source_data[column] = value
                         
-                        # Compute source_collection from flow collections
-                        source_data['source_collection'] = await self._compute_source_collection(source_data.get('id'))
-                        sources.append(Source(**source_data))
+                        sources_data.append(source_data)
                 elif isinstance(data, list):
                     # If data is a list, iterate directly
                     for row in data:
                         source_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
-                        # Compute source_collection from flow collections
-                        source_data['source_collection'] = await self._compute_source_collection(source_data.get('id'))
-                        sources.append(Source(**source_data))
+                        sources_data.append(source_data)
             else:
                 # Fallback for direct list results
                 for row in result:
                     source_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
-                    # Compute source_collection from flow collections
-                    source_data['source_collection'] = await self._compute_source_collection(source_data.get('id'))
-                    sources.append(Source(**source_data))
+                    sources_data.append(source_data)
+            
+            # Optimize: Batch compute source_collection for all sources using JOIN query
+            if sources_data:
+                source_ids = [s.get('id') for s in sources_data if s.get('id')]
+                if source_ids:
+                    # Use JOIN query to get all flows with their collections for all sources at once
+                    sources_table = self.vast_db.get_qualified_table_name("sources")
+                    flows_table = self.vast_db.get_qualified_table_name("flows")
+                    
+                    # Escape source IDs for SQL
+                    escaped_source_ids = [sid.replace("'", "''") for sid in source_ids]
+                    source_ids_str = "', '".join(escaped_source_ids)
+                    
+                    join_query = f"""
+                        SELECT 
+                            s.id as source_id,
+                            f.id as flow_id,
+                            f.flow_collection
+                        FROM {sources_table} s
+                        LEFT JOIN {flows_table} f ON s.id = f.source_id
+                        WHERE s.id IN ('{source_ids_str}')
+                        ORDER BY s.id
+                    """
+                    
+                    join_result = self.vast_db.execute_sql(join_query)
+                    
+                    # Build source_collection map: source_id -> list of CollectionItems
+                    source_collection_map = {}
+                    if isinstance(join_result, dict) and 'data' in join_result:
+                        data = join_result['data']
+                        if isinstance(data, dict):
+                            source_id_col = data.get('source_id', [])
+                            flow_id_col = data.get('flow_id', [])
+                            flow_collection_col = data.get('flow_collection', [])
+                            
+                            if isinstance(source_id_col, list):
+                                for i in range(len(source_id_col)):
+                                    source_id = source_id_col[i] if i < len(source_id_col) else None
+                                    flow_id = flow_id_col[i] if i < len(flow_id_col) else None
+                                    flow_collection = flow_collection_col[i] if i < len(flow_collection_col) else None
+                                    
+                                    if source_id and flow_collection and isinstance(flow_collection, str):
+                                        try:
+                                            import json
+                                            collection_data = json.loads(flow_collection)
+                                            if isinstance(collection_data, list):
+                                                if source_id not in source_collection_map:
+                                                    source_collection_map[source_id] = []
+                                                processed_collections = {item.get('id') for item in source_collection_map[source_id]}
+                                                
+                                                for item in collection_data:
+                                                    if isinstance(item, dict) and 'id' in item and 'role' in item:
+                                                        item_id = item['id']
+                                                        if item_id not in processed_collections:
+                                                            from ..common.models import CollectionItem
+                                                            collection_item = CollectionItem(
+                                                                id=item['id'],
+                                                                role=item['role']
+                                                            )
+                                                            source_collection_map[source_id].append(collection_item)
+                                                            processed_collections.add(item_id)
+                                        except (json.JSONDecodeError, TypeError):
+                                            pass
+            
+            # Build final sources list with pre-computed source_collection
+            sources = []
+            for source_data in sources_data:
+                source_id = source_data.get('id')
+                if source_id:
+                    # Use pre-computed source_collection from JOIN query
+                    source_data['source_collection'] = source_collection_map.get(source_id, [])
+                else:
+                    source_data['source_collection'] = []
+                sources.append(Source(**source_data))
             
             return sources
         except Exception as e:

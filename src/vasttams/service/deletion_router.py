@@ -4,8 +4,8 @@ Deletion Requests API router for TAMS
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from ..models import DeletionRequest, DeletionRequestsList
-from ..storage import get_storage_service
-from ..storage.interfaces import StorageInterface
+from ..common.storage.dependencies import get_storage_service
+from ..common.storage.interfaces import StorageInterface
 import logging
 
 logger = logging.getLogger(__name__)

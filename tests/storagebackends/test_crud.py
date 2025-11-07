@@ -25,15 +25,7 @@ settings = get_settings()
 BASE_URL = f"http://{settings.host}:{settings.port}"
 
 
-def _login_admin_headers():
-    resp = requests.post(
-        f"{BASE_URL}/auth/login",
-        json={"username": "admin", "password": "vastdata"}
-    )
-    if resp.status_code != 200:
-        return {}
-    token = resp.json().get("access_token")
-    return {"Authorization": f"Bearer {token}"} if token else {}
+# Removed _login_admin_headers() - use auth_headers fixture instead
 
 
 @pytest.fixture(scope="module")
@@ -50,7 +42,7 @@ def api_available():
 class TestStorageBackendCRUD:
     """Complete CRUD tests for Storage Backends endpoint"""
     
-    def test_create_storage_backend(self, api_available):
+    def test_create_storage_backend(self, api_available, auth_headers):
         """Test CREATE operation - POST /service/storage-backends"""
         if not api_available:
             pytest.skip("API not available")
@@ -65,8 +57,7 @@ class TestStorageBackendCRUD:
             "default_storage": False
         }
         
-        headers = _login_admin_headers()
-        response = requests.post(f"{BASE_URL}/service/storage-backends", json=backend_data, headers=headers)
+        response = requests.post(f"{BASE_URL}/service/storage-backends", json=backend_data, headers=auth_headers)
         
         # Should succeed or return 422 if validation fails
         assert response.status_code in [201, 422], \
@@ -79,16 +70,15 @@ class TestStorageBackendCRUD:
             
             # Cleanup
             backend_id = created["id"]
-            delete_response = requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
+            delete_response = requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=auth_headers)
             assert delete_response.status_code in [204, 404]
     
-    def test_get_storage_backends(self, api_available):
+    def test_get_storage_backends(self, api_available, auth_headers):
         """Test READ operation - GET /service/storage-backends"""
         if not api_available:
             pytest.skip("API not available")
         
-        headers = _login_admin_headers()
-        response = requests.get(f"{BASE_URL}/service/storage-backends", headers=headers)
+        response = requests.get(f"{BASE_URL}/service/storage-backends", headers=auth_headers)
         assert response.status_code == 200
         
         backends = response.json()
@@ -97,7 +87,7 @@ class TestStorageBackendCRUD:
         # Should have at least one backend (default or created)
         assert len(backends) >= 1
     
-    def test_update_storage_backend(self, api_available):
+    def test_update_storage_backend(self, api_available, auth_headers):
         """Test UPDATE operation - PUT /service/storage-backends/{id}"""
         if not api_available:
             pytest.skip("API not available")
@@ -111,11 +101,10 @@ class TestStorageBackendCRUD:
             "region": "us-east-1"
         }
         
-        headers = _login_admin_headers()
         create_response = requests.post(
             f"{BASE_URL}/service/storage-backends",
             json=backend_data,
-            headers=headers
+            headers=auth_headers
         )
         
         if create_response.status_code != 201:
@@ -126,7 +115,7 @@ class TestStorageBackendCRUD:
         
         try:
             # Get initial state
-            get_response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
+            get_response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=auth_headers)
             assert get_response.status_code == 200
             initial = get_response.json()
             
@@ -140,13 +129,13 @@ class TestStorageBackendCRUD:
             update_response = requests.put(
                 f"{BASE_URL}/service/storage-backends/{backend_id}",
                 json=update_data,
-                headers=headers
+                headers=auth_headers
             )
             assert update_response.status_code == 200, \
                 f"Failed to update storage backend: {update_response.text}"
             
             # Verify update
-            get_response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
+            get_response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=auth_headers)
             assert get_response.status_code == 200
             
             updated = get_response.json()
@@ -155,9 +144,9 @@ class TestStorageBackendCRUD:
             
         finally:
             # Cleanup
-            requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
+            requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=auth_headers)
     
-    def test_delete_storage_backend(self, api_available):
+    def test_delete_storage_backend(self, api_available, auth_headers):
         """Test DELETE operation - DELETE /service/storage-backends/{id}"""
         if not api_available:
             pytest.skip("API not available")
@@ -172,11 +161,10 @@ class TestStorageBackendCRUD:
             "default_storage": False
         }
         
-        headers = _login_admin_headers()
         create_response = requests.post(
             f"{BASE_URL}/service/storage-backends",
             json=backend_data,
-            headers=headers
+            headers=auth_headers
         )
         
         if create_response.status_code != 201:
@@ -186,11 +174,11 @@ class TestStorageBackendCRUD:
         backend_id = created["id"]
         
         # Delete the backend
-        delete_response = requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
+        delete_response = requests.delete(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=auth_headers)
         assert delete_response.status_code == 204, \
             f"Failed to delete storage backend: {delete_response.text}"
         
         # Verify deletion
-        get_response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=headers)
+        get_response = requests.get(f"{BASE_URL}/service/storage-backends/{backend_id}", headers=auth_headers)
         assert get_response.status_code == 404
 

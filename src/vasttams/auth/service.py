@@ -115,13 +115,15 @@ class AuthProviderService:
                 
                 set_clauses = []
                 for column, value in update_data.items():
+                    # Quote column names to handle reserved keywords like 'order'
+                    quoted_column = f'"{column}"'
                     if isinstance(value, str):
                         escaped_value = value.replace("'", "''")
-                        set_clauses.append(f"{column} = '{escaped_value}'")
+                        set_clauses.append(f"{quoted_column} = '{escaped_value}'")
                     elif value is None:
-                        set_clauses.append(f"{column} = NULL")
+                        set_clauses.append(f"{quoted_column} = NULL")
                     else:
-                        set_clauses.append(f"{column} = {value}")
+                        set_clauses.append(f"{quoted_column} = {value}")
                 
                 if set_clauses:
                     table = self.vast_db.get_qualified_table_name("auth_provider_configs")

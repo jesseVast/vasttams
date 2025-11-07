@@ -193,7 +193,7 @@ class TestFlowDatabaseIntegration:
 class TestFlowVFRSupport:
     """Test Variable Frame Rate (VFR) support per ADR-0041"""
     
-    def test_create_fixed_frame_rate_flow(self, api_available, test_source_id):
+    def test_create_fixed_frame_rate_flow(self, api_available, test_source_id, auth_headers):
         """Test creating a flow with fixed frame rate (vfr=false, frame_rate set)"""
         if not api_available:
             pytest.skip("API not available")
@@ -220,20 +220,20 @@ class TestFlowVFRSupport:
             }
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         assert response.status_code == 201, f"Failed to create fixed FR flow: {response.text}"
         
         # Verify we can retrieve it
-        response = requests.get(f"{BASE_URL}/flows/{flow_id}")
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
         assert response.status_code == 200
         retrieved = response.json()
         assert retrieved["id"] == flow_id
         # Note: vfr field may not be present in GET response, check essence_parameters if available
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{flow_id}")
+        requests.delete(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
     
-    def test_create_variable_frame_rate_flow(self, api_available, test_source_id):
+    def test_create_variable_frame_rate_flow(self, api_available, test_source_id, auth_headers):
         """Test creating a flow with variable frame rate (vfr=true, frame_rate omitted)"""
         if not api_available:
             pytest.skip("API not available")
@@ -257,20 +257,20 @@ class TestFlowVFRSupport:
             }
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         assert response.status_code == 201, f"Failed to create VFR flow: {response.text}"
         
         # Verify we can retrieve it
-        response = requests.get(f"{BASE_URL}/flows/{flow_id}")
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
         assert response.status_code == 200
         retrieved = response.json()
         assert retrieved["id"] == flow_id
         # Note: vfr field may not be present in GET response, check essence_parameters if available
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{flow_id}")
+        requests.delete(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
     
-    def test_reject_vfr_with_frame_rate(self, api_available, test_source_id):
+    def test_reject_vfr_with_frame_rate(self, api_available, test_source_id, auth_headers):
         """Test that VFR=true with frame_rate set is rejected per ADR-0041"""
         if not api_available:
             pytest.skip("API not available")
@@ -297,11 +297,11 @@ class TestFlowVFRSupport:
             }
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         assert response.status_code == 400, "Should reject VFR=true with frame_rate set"
         assert "frame_rate MUST NOT be set" in response.text or "vfr=True, frame_rate" in response.text
     
-    def test_reject_no_vfr_without_frame_rate(self, api_available, test_source_id):
+    def test_reject_no_vfr_without_frame_rate(self, api_available, test_source_id, auth_headers):
         """Test that vfr=false without frame_rate is rejected per ADR-0041"""
         if not api_available:
             pytest.skip("API not available")
@@ -325,7 +325,7 @@ class TestFlowVFRSupport:
             }
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         assert response.status_code == 400, "Should reject vfr=false without frame_rate"
         assert "frame_rate MUST be set" in response.text or "frame_rate MUST" in response.text
 
@@ -334,7 +334,7 @@ class TestFlowVFRSupport:
 class TestFlowBatchOperations:
     """Test batch flow operations against database"""
     
-    def test_create_multiple_flows(self, api_available, test_source_id):
+    def test_create_multiple_flows(self, api_available, test_source_id, auth_headers):
         """Test creating multiple flows sequentially"""
         if not api_available:
             pytest.skip("API not available")
@@ -360,7 +360,7 @@ class TestFlowBatchOperations:
             }
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow1_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow1_data, headers=auth_headers)
         assert response.status_code == 201, f"Failed to create flow 1: {response.text}"
         
         # Create second flow (video)
@@ -382,17 +382,17 @@ class TestFlowBatchOperations:
             }
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow2_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow2_data, headers=auth_headers)
         assert response.status_code == 201, f"Failed to create flow 2: {response.text}"
         
         # Verify both flows exist
-        response = requests.get(f"{BASE_URL}/flows/{flow_ids[0]}")
+        response = requests.get(f"{BASE_URL}/flows/{flow_ids[0]}", headers=auth_headers)
         assert response.status_code == 200
         
-        response = requests.get(f"{BASE_URL}/flows/{flow_ids[1]}")
+        response = requests.get(f"{BASE_URL}/flows/{flow_ids[1]}", headers=auth_headers)
         assert response.status_code == 200
         
         # Cleanup
         for flow_id in flow_ids:
-            requests.delete(f"{BASE_URL}/flows/{flow_id}")
+            requests.delete(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
 

@@ -153,12 +153,13 @@ class FlowStorageService:
             logger.error("Failed to get flows: %s", e)
             raise HTTPException(status_code=500, detail="Internal server error")
     
-    async def get_flow(self, flow_id: str) -> Optional[Flow]:
-        """Get a specific flow by ID"""
+    async def get_flow(self, flow_id: str, filters: Optional[FlowDetailFilters] = None) -> Optional[Flow]:
+        """Get a specific flow by ID with optional timerange handling per TAMS 8.0 spec"""
         try:
             result = self.vast_db.query("flows").select("*").where(f"id = '{flow_id}'").execute()
             
             # Handle VAST query result format
+            flow_data = None
             if isinstance(result, dict) and 'data' in result:
                 data = result['data']
                 if isinstance(data, dict) and data:
@@ -181,9 +182,6 @@ class FlowStorageService:
                                     flow_data[column] = value
                             else:
                                 flow_data[column] = value
-                    # Get the appropriate flow class based on format
-                    flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
-                    return flow_class(**flow_data)
                 elif isinstance(data, list):
                     if not data:
                         return None
@@ -196,9 +194,6 @@ class FlowStorageService:
                                 flow_data[field] = json.loads(flow_data[field])
                             except (json.JSONDecodeError, TypeError):
                                 pass
-                    # Get the appropriate flow class based on format
-                    flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
-                    return flow_class(**flow_data)
             else:
                 if not result or len(result) == 0:
                     return None
@@ -210,12 +205,156 @@ class FlowStorageService:
                         flow_data['essence_parameters'] = json.loads(flow_data['essence_parameters'])
                     except (json.JSONDecodeError, TypeError):
                         pass
-                # Get the appropriate flow class based on format
-                flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
-                return flow_class(**flow_data)
+            
+            if not flow_data:
+                return None
+            
+            # Handle timerange calculation and filtering per TAMS 8.0 spec
+            if filters:
+                calculated_timerange = None
+                
+                # Calculate Flow timerange from segments if include_timerange=true OR timerange filter is provided
+                # Per TAMS 8.0 spec: timerange "limits the returned available Segment timerange"
+                # So we need to calculate it first if timerange filter is provided
+                if filters.include_timerange or filters.timerange:
+                    calculated_timerange = await self._calculate_flow_timerange_from_segments(flow_id)
+                    if calculated_timerange:
+                        from ..common.models import TimeRange
+                        flow_data['timerange'] = TimeRange(value=calculated_timerange)
+                
+                # Apply timerange limiting if timerange filter is provided
+                if filters.timerange:
+                    if calculated_timerange:
+                        # Limit the calculated timerange to the requested range
+                        limited_timerange = self._limit_timerange(calculated_timerange, filters.timerange)
+                        if limited_timerange:
+                            from ..common.models import TimeRange
+                            flow_data['timerange'] = TimeRange(value=limited_timerange)
+                        else:
+                            # No overlap - remove timerange (flow has no content in requested range)
+                            flow_data.pop('timerange', None)
+                    else:
+                        # No segments found - timerange should be None/absent
+                        flow_data.pop('timerange', None)
+                elif filters.include_timerange and not calculated_timerange:
+                    # include_timerange=true but no segments found - timerange should be None/absent
+                    flow_data.pop('timerange', None)
+            
+            # Get the appropriate flow class based on format
+            flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
+            return flow_class(**flow_data)
         except Exception as e:
             logger.error("Failed to get flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
+    
+    async def _calculate_flow_timerange_from_segments(self, flow_id: str) -> Optional[str]:
+        """
+        Calculate Flow timerange from its segments per TAMS 8.0 spec.
+        
+        The Flow timerange is the union of all segment timeranges:
+        - Start: earliest segment timerange start
+        - End: latest segment timerange end
+        
+        Args:
+            flow_id: Flow identifier
+            
+        Returns:
+            Timerange string in TAMS format, or None if no segments found
+        """
+        try:
+            from ..segments.service import SegmentStorageService
+            from ..core.config import get_settings
+            from ..core.timerange_utils import parse_tams_timerange
+            
+            segment_service = SegmentStorageService(self.vast_db, self.s3_client, get_settings())
+            segments = await segment_service.get_flow_segments(flow_id)
+            
+            if not segments:
+                logger.debug(f"No segments found for flow {flow_id}, cannot calculate timerange")
+                return None
+            
+            # Find earliest start and latest end from all segments
+            earliest_start = None
+            latest_end = None
+            
+            for segment in segments:
+                if segment.timerange and segment.timerange.value:
+                    try:
+                        seg_start, seg_end = parse_tams_timerange(segment.timerange.value)
+                        if seg_start is not None:
+                            if earliest_start is None or seg_start < earliest_start:
+                                earliest_start = seg_start
+                        if seg_end is not None and seg_end != float('inf'):
+                            if latest_end is None or seg_end > latest_end:
+                                latest_end = seg_end
+                    except Exception as e:
+                        logger.debug(f"Failed to parse segment timerange {segment.timerange.value}: {e}")
+                        continue
+            
+            if earliest_start is None or latest_end is None:
+                logger.debug(f"Could not determine timerange bounds for flow {flow_id}")
+                return None
+            
+            # Format as TAMS timerange: [start_end)
+            # Convert seconds to TAMS format (seconds:nanoseconds)
+            start_sec = int(earliest_start)
+            start_nano = int((earliest_start - start_sec) * 1e9)
+            end_sec = int(latest_end)
+            end_nano = int((latest_end - end_sec) * 1e9)
+            
+            timerange_str = f"[{start_sec}:{start_nano}_{end_sec}:{end_nano})"
+            logger.debug(f"Calculated timerange for flow {flow_id}: {timerange_str}")
+            return timerange_str
+            
+        except Exception as e:
+            logger.warning(f"Failed to calculate timerange for flow {flow_id}: {e}")
+            return None
+    
+    def _limit_timerange(self, flow_timerange: str, limit_timerange: str) -> Optional[str]:
+        """
+        Limit/constrain a Flow timerange to the specified timerange per TAMS 8.0 spec.
+        
+        Args:
+            flow_timerange: Current Flow timerange
+            limit_timerange: Timerange to limit to
+            
+        Returns:
+            Limited timerange string, or None if no overlap
+        """
+        try:
+            from ..core.timerange_utils import parse_tams_timerange, timeranges_overlap
+            
+            # Check if timeranges overlap
+            if not timeranges_overlap(flow_timerange, limit_timerange):
+                logger.debug(f"Flow timerange {flow_timerange} does not overlap with limit {limit_timerange}")
+                return None
+            
+            # Parse both timeranges
+            flow_start, flow_end = parse_tams_timerange(flow_timerange)
+            limit_start, limit_end = parse_tams_timerange(limit_timerange)
+            
+            # Calculate intersection
+            # Start is the maximum of the two starts
+            # End is the minimum of the two ends
+            limited_start = max(flow_start, limit_start) if limit_start is not None else flow_start
+            limited_end = min(flow_end, limit_end) if limit_end != float('inf') else flow_end
+            
+            if limited_start >= limited_end:
+                return None
+            
+            # Format as TAMS timerange
+            start_sec = int(limited_start)
+            start_nano = int((limited_start - start_sec) * 1e9)
+            end_sec = int(limited_end)
+            end_nano = int((limited_end - end_sec) * 1e9)
+            
+            limited_timerange_str = f"[{start_sec}:{start_nano}_{end_sec}:{end_nano})"
+            logger.debug(f"Limited timerange from {flow_timerange} to {limited_timerange_str}")
+            return limited_timerange_str
+            
+        except Exception as e:
+            logger.warning(f"Failed to limit timerange: {e}")
+            return None
     
     async def _calculate_and_update_bit_rates(self, flow_id: str) -> None:
         """
@@ -226,7 +365,7 @@ class FlowStorageService:
         """
         try:
             # Get flow to check if bit rates need calculation
-            flow = await self.get_flow(flow_id)
+            flow = await self.get_flow(flow_id, filters=None)
             if not flow:
                 return
             

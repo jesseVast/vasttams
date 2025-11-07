@@ -284,7 +284,15 @@ app.openapi = custom_openapi
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle HTTP exceptions with proper logging"""
-    logger.error("HTTP Exception: %s - %s", exc.status_code, exc.detail)
+    # 401 errors are expected for unauthenticated requests, log at DEBUG level
+    # 400-499 client errors are typically expected, log at WARNING level
+    # 500+ server errors are unexpected, log at ERROR level
+    if exc.status_code == 401:
+        logger.debug("HTTP Exception: %s - %s", exc.status_code, exc.detail)
+    elif 400 <= exc.status_code < 500:
+        logger.warning("HTTP Exception: %s - %s", exc.status_code, exc.detail)
+    else:
+        logger.error("HTTP Exception: %s - %s", exc.status_code, exc.detail)
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail, "status_code": exc.status_code}
@@ -305,6 +313,32 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={
             "detail": [{"msg": "Validation error", "type": "validation_error"}],
             "message": error_msg
+        }
+    )
+
+@app.exception_handler(asyncio.TimeoutError)
+async def timeout_exception_handler(request: Request, exc: asyncio.TimeoutError):
+    """Handle timeout errors - return 503 Service Unavailable when server is overloaded"""
+    logger.warning("Request timeout for %s %s - server may be overloaded", request.method, request.url.path)
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Service temporarily unavailable - server is overloaded. Please retry later.",
+            "status_code": 503,
+            "error_code": "SERVICE_UNAVAILABLE"
+        }
+    )
+
+@app.exception_handler(ConnectionError)
+async def connection_exception_handler(request: Request, exc: ConnectionError):
+    """Handle connection errors - return 503 Service Unavailable"""
+    logger.error("Connection error for %s %s: %s", request.method, request.url.path, exc)
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Service temporarily unavailable - connection error. Please retry later.",
+            "status_code": 503,
+            "error_code": "SERVICE_UNAVAILABLE"
         }
     )
 

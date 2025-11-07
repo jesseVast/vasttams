@@ -34,12 +34,12 @@ def api_available():
 class TestWebhookCRUD:
     """CRUD tests for webhooks"""
     
-    def test_list_webhooks_empty(self, api_available):
+    def test_list_webhooks_empty(self, api_available, auth_headers):
         """Test listing webhooks when empty"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/service/webhooks")
+        response = requests.get(f"{BASE_URL}/service/webhooks", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)

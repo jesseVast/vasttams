@@ -54,23 +54,52 @@ class StorageBackendService:
                             # Mask secrets in responses
                             backend_data['access_key'] = None
                             backend_data['secret_key'] = None
-                            backends.append(StorageBackend(**backend_data))
+                            # Provide defaults for required fields if missing
+                            if 'store_type' not in backend_data or not backend_data['store_type']:
+                                backend_data['store_type'] = 'http_object_store'
+                            if 'provider' not in backend_data or not backend_data['provider']:
+                                backend_data['provider'] = 'aws'
+                            if 'store_product' not in backend_data or not backend_data['store_product']:
+                                backend_data['store_product'] = 's3'
+                            try:
+                                backends.append(StorageBackend(**backend_data))
+                            except Exception as validation_error:
+                                logger.warning("Skipping invalid storage backend data: %s", validation_error)
+                                continue
                 elif isinstance(data, list):
                     for row in data:
                         backend_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
                         if backend_data:
-                            backends.append(StorageBackend(**backend_data))
+                            # Provide defaults for required fields if missing
+                            if 'store_type' not in backend_data or not backend_data['store_type']:
+                                backend_data['store_type'] = 'http_object_store'
+                            if 'provider' not in backend_data or not backend_data['provider']:
+                                backend_data['provider'] = 'aws'
+                            if 'store_product' not in backend_data or not backend_data['store_product']:
+                                backend_data['store_product'] = 's3'
+                            try:
+                                backends.append(StorageBackend(**backend_data))
+                            except Exception as validation_error:
+                                logger.warning("Skipping invalid storage backend data: %s", validation_error)
+                                continue
             else:
                 for row in result if isinstance(result, list) else []:
                     backend_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
                     if backend_data:
                         backend_data['access_key'] = None
                         backend_data['secret_key'] = None
-                        backends.append(StorageBackend(**backend_data))
-                    if backend_data:
-                        backend_data['access_key'] = None
-                        backend_data['secret_key'] = None
-                        backends.append(StorageBackend(**backend_data))
+                        # Provide defaults for required fields if missing
+                        if 'store_type' not in backend_data or not backend_data['store_type']:
+                            backend_data['store_type'] = 'http_object_store'
+                        if 'provider' not in backend_data or not backend_data['provider']:
+                            backend_data['provider'] = 'aws'
+                        if 'store_product' not in backend_data or not backend_data['store_product']:
+                            backend_data['store_product'] = 's3'
+                        try:
+                            backends.append(StorageBackend(**backend_data))
+                        except Exception as validation_error:
+                            logger.warning("Skipping invalid storage backend data: %s", validation_error)
+                            continue
             
             return backends
         except Exception as e:

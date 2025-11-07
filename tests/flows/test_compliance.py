@@ -36,7 +36,7 @@ def api_available():
 
 
 @pytest.fixture
-def test_source_id(api_available):
+def test_source_id(api_available, auth_headers):
     """Create a test source for flow testing"""
     if not api_available:
         pytest.skip("API not available")
@@ -50,20 +50,20 @@ def test_source_id(api_available):
     }
     
     try:
-        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         if response.status_code == 201:
             yield source_id
         else:
             pytest.skip(f"Failed to create test source: {response.text}")
     finally:
-        requests.delete(f"{BASE_URL}/sources/{source_id}")
+        requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
 
 
 @pytest.mark.usefixtures("api_available")
 class TestFlowSpecCompliance:
     """Test compliance with TAMS 8.0 flow spec"""
     
-    def test_vfr_compliance_per_adr_0041(self, api_available, test_source_id):
+    def test_vfr_compliance_per_adr_0041(self, api_available, test_source_id, auth_headers):
         """
         Test VFR compliance per ADR-0041 (Require Explicit Framerate).
         App Note: 0013-setting-flow-bit-rate-properties
@@ -82,7 +82,7 @@ class TestFlowSpecCompliance:
             "essence_parameters": example_vfr["essence_parameters"]
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         assert response.status_code == 201
         
         created = response.json()
@@ -92,9 +92,9 @@ class TestFlowSpecCompliance:
         assert flow_data["essence_parameters"]["vfr"] == True
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{flow_data['id']}")
+        requests.delete(f"{BASE_URL}/flows/{flow_data['id']}", headers=auth_headers)
     
-    def test_flow_essence_parameters_structure(self, api_available, test_source_id):
+    def test_flow_essence_parameters_structure(self, api_available, test_source_id, auth_headers):
         """
         Test flow essence_parameters structure per TAMS 8.0 spec.
         Spec: flow-video.json, flow-audio.json define essence_parameters
@@ -113,7 +113,7 @@ class TestFlowSpecCompliance:
             "essence_parameters": example_flow["essence_parameters"]
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         assert response.status_code == 201
         
         created = response.json()
@@ -125,9 +125,9 @@ class TestFlowSpecCompliance:
             assert "frame_height" in ep
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{flow_data['id']}")
+        requests.delete(f"{BASE_URL}/flows/{flow_data['id']}", headers=auth_headers)
     
-    def test_flow_tags_per_appnote_0003(self, api_available, test_source_id):
+    def test_flow_tags_per_appnote_0003(self, api_available, test_source_id, auth_headers):
         """
         Test flow tags per App Note 0003 (Tag Names).
         Tags should support both string and array values per TAMS 8.0.
@@ -146,18 +146,20 @@ class TestFlowSpecCompliance:
             "codec": example_flow["codec"],
             "essence_parameters": example_flow["essence_parameters"]
         }
-        requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         
         # Add tag (per spec: tags.json allows string values)
+        tag_headers = {"Content-Type": "text/plain"}
+        tag_headers.update(auth_headers)
         response = requests.put(
             f"{BASE_URL}/flows/{flow_id}/tags/input_quality",
             data="contribution",
-            headers={"Content-Type": "text/plain"}
+            headers=tag_headers
         )
         assert response.status_code in [200, 201, 204]
         
         # Retrieve tag
-        response = requests.get(f"{BASE_URL}/flows/{flow_id}/tags")
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}/tags", headers=auth_headers)
         assert response.status_code == 200
         
         tags = response.json()
@@ -165,14 +167,14 @@ class TestFlowSpecCompliance:
             assert tags["input_quality"] == "contribution"
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{flow_id}")
+        requests.delete(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
 
 
 @pytest.mark.usefixtures("api_available")
 class TestFlowAppNoteCompliance:
     """Test compliance with TAMS 8.0 app notes for flows"""
     
-    def test_flow_bit_rate_properties_per_appnote_0013(self, api_available, test_source_id):
+    def test_flow_bit_rate_properties_per_appnote_0013(self, api_available, test_source_id, auth_headers):
         """
         Test flow bit rate properties per App Note 0013.
         avg_bit_rate and max_bit_rate should be supported.
@@ -192,7 +194,7 @@ class TestFlowAppNoteCompliance:
             "essence_parameters": example_flow["essence_parameters"]
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         assert response.status_code == 201
         
         created = response.json()
@@ -203,5 +205,5 @@ class TestFlowAppNoteCompliance:
             assert "avg_bit_rate" in created or "avg_bit_rate" in flow_data
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{flow_data['id']}")
+        requests.delete(f"{BASE_URL}/flows/{flow_data['id']}", headers=auth_headers)
 

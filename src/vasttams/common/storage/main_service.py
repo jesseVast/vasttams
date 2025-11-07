@@ -75,8 +75,8 @@ class TAMSStorageService(StorageInterface):
     async def get_flows(self, filters: FlowFilters) -> List[Flow]:
         return await self.flow_service.get_flows(filters)
     
-    async def get_flow(self, flow_id: str) -> Optional[Flow]:
-        return await self.flow_service.get_flow(flow_id)
+    async def get_flow(self, flow_id: str, filters: Optional[FlowDetailFilters] = None) -> Optional[Flow]:
+        return await self.flow_service.get_flow(flow_id, filters)
     
     async def create_flow(self, flow: Flow) -> bool:
         return await self.flow_service.create_flow(flow)
@@ -534,6 +534,15 @@ class TAMSStorageService(StorageInterface):
             return []
         except Exception as e:
             logger.error("Failed to get deletion requests: %s", e)
+            raise HTTPException(status_code=500, detail="Internal server error")
+    
+    async def get_deletion_request(self, request_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific deletion request by ID"""
+        try:
+            # For now, return None as deletion requests are not fully implemented
+            return None
+        except Exception as e:
+            logger.error("Failed to get deletion request %s: %s", request_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
     
     # Flow storage operations

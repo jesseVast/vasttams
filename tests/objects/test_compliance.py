@@ -39,7 +39,7 @@ def api_available():
 class TestObjectSpecCompliance:
     """Test compliance with TAMS 8.0 object spec"""
     
-    def test_object_timerange_per_spec(self, api_available):
+    def test_object_timerange_per_spec(self, api_available, auth_headers):
         """
         Test object timerange per TAMS 8.0 spec.
         Spec: object.json requires timerange field
@@ -50,7 +50,7 @@ class TestObjectSpecCompliance:
         
         example_object = get_objects_example()
         
-        response = requests.get(f"{BASE_URL}/objects")
+        response = requests.get(f"{BASE_URL}/objects", headers=auth_headers)
         if response.status_code == 200:
             objects = response.json()
             
@@ -71,7 +71,7 @@ class TestObjectSpecCompliance:
                     # Should contain timestamps
                     assert "_" in timerange or timerange.startswith("[") or timerange.startswith("(")
     
-    def test_object_referenced_by_flows(self, api_available):
+    def test_object_referenced_by_flows(self, api_available, auth_headers):
         """
         Test object referenced_by_flows per TAMS 8.0 spec.
         Spec: object.json requires referenced_by_flows array
@@ -81,7 +81,7 @@ class TestObjectSpecCompliance:
         
         example_object = get_objects_example()
         
-        response = requests.get(f"{BASE_URL}/objects")
+        response = requests.get(f"{BASE_URL}/objects", headers=auth_headers)
         if response.status_code == 200:
             objects = response.json()
             
@@ -92,7 +92,7 @@ class TestObjectSpecCompliance:
                 assert "referenced_by_flows" in obj
                 assert isinstance(obj["referenced_by_flows"], list)
     
-    def test_object_instances_per_adr_0042(self, api_available):
+    def test_object_instances_per_adr_0042(self, api_available, auth_headers):
         """
         Test object instances per ADR-0042 (Uncontrolled Object Instance Labels).
         Objects can have multiple instances with labels.
@@ -101,7 +101,7 @@ class TestObjectSpecCompliance:
             pytest.skip("API not available")
         
         # Get object to test instances
-        response = requests.get(f"{BASE_URL}/objects")
+        response = requests.get(f"{BASE_URL}/objects", headers=auth_headers)
         if response.status_code == 200:
             objects = response.json()
             
@@ -109,7 +109,7 @@ class TestObjectSpecCompliance:
                 object_id = objects[0]["id"]
                 
                 # List instances for this object
-                response = requests.get(f"{BASE_URL}/objects/{object_id}/instances")
+                response = requests.get(f"{BASE_URL}/objects/{object_id}/instances", headers=auth_headers)
                 assert response.status_code == 200
                 
                 instances = response.json()
@@ -135,7 +135,7 @@ class TestObjectSpecCompliance:
 class TestObjectAppNoteCompliance:
     """Test compliance with TAMS 8.0 app notes for objects"""
     
-    def test_object_timerange_representation_per_appnote_0012(self, api_available):
+    def test_object_timerange_representation_per_appnote_0012(self, api_available, auth_headers):
         """
         Test object timerange representation per App Note 0012.
         Timerange should use string representation with start/end timestamps.
@@ -143,7 +143,7 @@ class TestObjectAppNoteCompliance:
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/objects")
+        response = requests.get(f"{BASE_URL}/objects", headers=auth_headers)
         if response.status_code == 200:
             objects = response.json()
             

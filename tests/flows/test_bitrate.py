@@ -45,7 +45,7 @@ def clean_flow_id():
 
 
 @pytest.fixture
-def test_source_id():
+def test_source_id(api_available, auth_headers):
     """Create a test source for flow testing"""
     source_id = str(uuid.uuid4())
     source_data = {
@@ -55,21 +55,21 @@ def test_source_id():
     }
     
     try:
-        response = requests.post(f"{BASE_URL}/sources", json=source_data)
+        response = requests.post(f"{BASE_URL}/sources", json=source_data, headers=auth_headers)
         if response.status_code == 201:
             yield source_id
         else:
             pytest.skip(f"Failed to create test source: {response.text}")
     finally:
         # Cleanup
-        requests.delete(f"{BASE_URL}/sources/{source_id}")
+        requests.delete(f"{BASE_URL}/sources/{source_id}", headers=auth_headers)
 
 
 @pytest.mark.usefixtures("api_available")
 class TestBitRateAutoCalculation:
     """Test automatic bit rate calculation on flow creation"""
     
-    def test_create_flow_without_bit_rates_triggers_auto_calc(self, api_available, test_source_id):
+    def test_create_flow_without_bit_rates_triggers_auto_calc(self, api_available, test_source_id, auth_headers):
         """Test that creating a flow without bit rates triggers auto-calculation"""
         if not api_available:
             pytest.skip("API not available")
@@ -96,11 +96,11 @@ class TestBitRateAutoCalculation:
             # avg_bit_rate and max_bit_rate omitted
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         assert response.status_code == 201, f"Failed to create flow: {response.text}"
         
         # Verify flow was created
-        response = requests.get(f"{BASE_URL}/flows/{flow_id}")
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
         assert response.status_code == 200
         flow = response.json()
         
@@ -110,9 +110,9 @@ class TestBitRateAutoCalculation:
         # bit rates are either calculated or None (if no segments)
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{flow_id}")
+        requests.delete(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
     
-    def test_manual_recalculate_bit_rates_endpoint(self, api_available, test_source_id):
+    def test_manual_recalculate_bit_rates_endpoint(self, api_available, test_source_id, auth_headers):
         """Test manual recalculate bit rates endpoint"""
         if not api_available:
             pytest.skip("API not available")
@@ -138,25 +138,25 @@ class TestBitRateAutoCalculation:
             }
         }
         
-        response = requests.post(f"{BASE_URL}/flows", json=flow_data)
+        response = requests.post(f"{BASE_URL}/flows", json=flow_data, headers=auth_headers)
         assert response.status_code == 201
         
         # Call recalculation endpoint
-        response = requests.post(f"{BASE_URL}/flows/{flow_id}/recalculate-bit-rates")
+        response = requests.post(f"{BASE_URL}/flows/{flow_id}/recalculate-bit-rates", headers=auth_headers)
         # Accept 200 (success) or 404 (flow not found) or 500 (no segments)
         assert response.status_code in [200, 404, 500], f"Unexpected status: {response.text}"
         
         # Cleanup
-        requests.delete(f"{BASE_URL}/flows/{flow_id}")
+        requests.delete(f"{BASE_URL}/flows/{flow_id}", headers=auth_headers)
     
-    def test_recalculate_bit_rates_on_non_existent_flow(self, api_available):
+    def test_recalculate_bit_rates_on_non_existent_flow(self, api_available, auth_headers):
         """Test that recalculating bit rates on non-existent flow returns 404"""
         if not api_available:
             pytest.skip("API not available")
         
         flow_id = str(uuid.uuid4())  # Non-existent flow
         
-        response = requests.post(f"{BASE_URL}/flows/{flow_id}/recalculate-bit-rates")
+        response = requests.post(f"{BASE_URL}/flows/{flow_id}/recalculate-bit-rates", headers=auth_headers)
         assert response.status_code == 404, "Should return 404 for non-existent flow"
 
 

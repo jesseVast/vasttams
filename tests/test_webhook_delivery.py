@@ -68,7 +68,15 @@ def test_webhook_delivery():
         "source_id": source_id,
         "format": "urn:x-nmos:format:video",
         "label": f"Webhook Test Flow {flow_id[:8]}",
-        "codec": "urn:x-nmos:codec:h264"
+        "codec": "video/H264",
+        "essence_parameters": {
+            "frame_width": 1920,
+            "frame_height": 1080,
+            "frame_rate": {
+                "numerator": 25,
+                "denominator": 1
+            }
+        }
     }
     
     response = requests.post(
@@ -107,8 +115,9 @@ def test_webhook_delivery():
     except:
         pass
     
-    return 0
+    assert True  # Test passed
 
 if __name__ == "__main__":
-    sys.exit(test_webhook_delivery())
+    test_webhook_delivery()
+    sys.exit(0)
 

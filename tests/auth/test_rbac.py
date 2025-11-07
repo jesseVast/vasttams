@@ -217,4 +217,121 @@ class TestCheckPermission:
         assert check_permission(user_session, "write", "source") is True
         assert check_permission(user_session, "write", "flow") is True
         assert check_permission(user_session, "delete", "source") is False
+    
+    def test_require_viewer_with_admin(self):
+        """Test require_viewer with admin user"""
+        user_session = UserSession(
+            user_id="admin1",
+            username="admin",
+            role=UserRole.ADMIN,
+            auth_method=AuthMethod.BEARER,
+            created_at=datetime.now(timezone.utc)
+        )
+        
+        result = require_viewer(user_session)
+        
+        assert result == user_session
+    
+    def test_require_viewer_with_editor(self):
+        """Test require_viewer with editor user"""
+        user_session = UserSession(
+            user_id="editor1",
+            username="editor",
+            role=UserRole.EDITOR,
+            auth_method=AuthMethod.BEARER,
+            created_at=datetime.now(timezone.utc)
+        )
+        
+        result = require_viewer(user_session)
+        
+        assert result == user_session
+    
+    @pytest.mark.asyncio
+    async def test_require_role_multiple_roles(self):
+        """Test require_role with multiple allowed roles"""
+        role_checker = require_role([UserRole.VIEWER, UserRole.EDITOR, UserRole.ADMIN])
+        
+        # Test with each role
+        for role in [UserRole.VIEWER, UserRole.EDITOR, UserRole.ADMIN]:
+            user_session = UserSession(
+                user_id="user1",
+                username="testuser",
+                role=role,
+                auth_method=AuthMethod.BEARER,
+                created_at=datetime.now(timezone.utc)
+            )
+            
+            result = await role_checker(user_session)
+            assert result == user_session
+    
+    @pytest.mark.asyncio
+    async def test_require_role_empty_list(self):
+        """Test require_role with empty allowed roles list"""
+        role_checker = require_role([])
+        
+        user_session = UserSession(
+            user_id="user1",
+            username="testuser",
+            role=UserRole.VIEWER,
+            auth_method=AuthMethod.BEARER,
+            created_at=datetime.now(timezone.utc)
+        )
+        
+        with pytest.raises(HTTPException) as exc_info:
+            await role_checker(user_session)
+        
+        assert exc_info.value.status_code == 403
+    
+    def test_check_permission_admin_all_operations(self):
+        """Test check_permission for admin with all operations"""
+        user_session = UserSession(
+            user_id="admin1",
+            username="admin",
+            role=UserRole.ADMIN,
+            auth_method=AuthMethod.BEARER,
+            created_at=datetime.now(timezone.utc)
+        )
+        
+        # Admin can do everything
+        assert check_permission(user_session, "read", "source") is True
+        assert check_permission(user_session, "write", "source") is True
+        assert check_permission(user_session, "delete", "source") is True
+        assert check_permission(user_session, "read", "flow") is True
+        assert check_permission(user_session, "write", "flow") is True
+        assert check_permission(user_session, "delete", "flow") is True
+    
+    def test_check_permission_editor_no_delete(self):
+        """Test check_permission for editor - no delete"""
+        user_session = UserSession(
+            user_id="editor1",
+            username="editor",
+            role=UserRole.EDITOR,
+            auth_method=AuthMethod.BEARER,
+            created_at=datetime.now(timezone.utc)
+        )
+        
+        # Editor can read and write but not delete
+        assert check_permission(user_session, "read", "source") is True
+        assert check_permission(user_session, "write", "source") is True
+        assert check_permission(user_session, "delete", "source") is False
+        assert check_permission(user_session, "delete", "flow") is False
+        assert check_permission(user_session, "delete", "segment") is False
+    
+    def test_check_permission_viewer_read_only(self):
+        """Test check_permission for viewer - read only"""
+        user_session = UserSession(
+            user_id="viewer1",
+            username="viewer",
+            role=UserRole.VIEWER,
+            auth_method=AuthMethod.BEARER,
+            created_at=datetime.now(timezone.utc)
+        )
+        
+        # Viewer can only read
+        assert check_permission(user_session, "read", "source") is True
+        assert check_permission(user_session, "read", "flow") is True
+        assert check_permission(user_session, "write", "source") is False
+        assert check_permission(user_session, "write", "flow") is False
+        assert check_permission(user_session, "delete", "source") is False
+        assert check_permission(user_session, "delete", "flow") is False
 

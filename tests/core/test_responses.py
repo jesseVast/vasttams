@@ -187,4 +187,77 @@ class TestDeletionRequestsResponse:
         deletion_requests = DeletionRequestsList(root=[])
         response = DeletionRequestsResponse(data=deletion_requests)
         assert response.data.root == []
+    
+    def test_paging_info_serialization(self):
+        """Test that PagingInfo can be serialized"""
+        paging = PagingInfo(limit=10, next_key="abc123")
+        # Should be able to convert to dict
+        paging_dict = paging.model_dump()
+        assert paging_dict["limit"] == 10
+        assert paging_dict["next_key"] == "abc123"
+    
+    def test_service_response_serialization(self):
+        """Test that ServiceResponse can be serialized"""
+        service = Service(name="Test Service", service_version="1.0.0")
+        response = ServiceResponse(data=service)
+        response_dict = response.model_dump()
+        assert "data" in response_dict
+        assert response_dict["data"]["name"] == "Test Service"
+    
+    def test_sources_response_serialization(self):
+        """Test that SourcesResponse can be serialized"""
+        sources = [
+            Source(id="550e8400-e29b-41d4-a716-446655440000", format="urn:x-nmos:format:video")
+        ]
+        paging = PagingInfo(limit=10)
+        response = SourcesResponse(data=sources, paging=paging)
+        response_dict = response.model_dump()
+        assert len(response_dict["data"]) == 1
+        assert response_dict["paging"]["limit"] == 10
+    
+    def test_flows_response_serialization(self):
+        """Test that FlowsResponse can be serialized"""
+        from vasttams.flows.models import VideoFlow
+        import uuid
+        flows = [
+            VideoFlow(
+                id="550e8400-e29b-41d4-a716-446655440000",
+                source_id=str(uuid.uuid4()),
+                format="urn:x-nmos:format:video",
+                codec="video/H264",
+                essence_parameters={
+                    "frame_width": 1920,
+                    "frame_height": 1080,
+                    "frame_rate": {"numerator": 25, "denominator": 1}
+                }
+            )
+        ]
+        response = FlowsResponse(data=flows)
+        response_dict = response.model_dump()
+        assert len(response_dict["data"]) == 1
+        assert response_dict["paging"] is None
+    
+    def test_webhooks_response_serialization(self):
+        """Test that WebhooksResponse can be serialized"""
+        webhooks = [
+            Webhook(
+                id="550e8400-e29b-41d4-a716-446655440000",
+                url="https://example.com/webhook",
+                api_key_name="X-API-Key",
+                events=["flows/created"]
+            )
+        ]
+        response = WebhooksResponse(data=webhooks)
+        response_dict = response.model_dump()
+        assert len(response_dict["data"]) == 1
+    
+    def test_deletion_requests_response_serialization(self):
+        """Test that DeletionRequestsResponse can be serialized"""
+        deletion_requests = DeletionRequestsList(root=[])
+        response = DeletionRequestsResponse(data=deletion_requests)
+        response_dict = response.model_dump()
+        assert "data" in response_dict
+        # DeletionRequestsList is a RootModel, so it serializes to a list
+        assert isinstance(response_dict["data"], list)
+        assert response_dict["data"] == []
 

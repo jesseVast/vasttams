@@ -1,75 +1,70 @@
 # TAMS Test Suite
 
-This directory contains the test suite for the TAMS API.
+This directory contains the comprehensive test suite for the TAMS API.
 
-## Directory Structure
+## Quick Start
 
-```
-tests/
-├── sources/          # Source module tests
-│   ├── test_models.py       # Unit tests for Source models
-│   └── test_database.py     # Integration tests against database
-├── flows/            # Flow module tests (TODO)
-├── objects/          # Object module tests (TODO)
-├── segments/         # Segment module tests (TODO)
-└── conftest.py       # Shared pytest configuration
-```
-
-## Running Tests
-
-### Run all tests
+### Run all tests (parallel execution enabled by default)
 ```bash
-python -m pytest tests/ -v
+pytest tests/
 ```
 
 ### Run specific module
 ```bash
-python -m pytest tests/sources/ -v
+pytest tests/sources/ -v
 ```
 
-### Run only unit tests
+### Run with coverage
 ```bash
-python -m pytest tests/sources/test_models.py -v
+pytest tests/ --cov=src/vasttams --cov-report=html
 ```
 
-### Run only integration tests
-```bash
-python -m pytest tests/sources/test_database.py -v
+## Test Structure
+
+```
+tests/
+├── auth/              # Authentication and authorization tests
+├── core/              # Core functionality tests (errors, logging, responses)
+├── common/            # Common utilities and schemas tests
+├── flows/             # Flow module tests
+├── objects/           # Object module tests
+├── segments/          # Segment module tests
+├── sources/           # Source module tests
+├── services/          # Service layer tests
+├── schemas/           # Schema validation tests
+├── main/              # Application setup tests
+└── looprecorder/      # Loop recorder tests
 ```
 
-## Test Categories
+## Test Coverage
 
-### Unit Tests (`test_models.py`)
-- Test Pydantic model validation
-- Test filter objects
-- No database connection required
-- Fast execution
+See `COVERAGE_TRACKING.md` for detailed coverage status and progress.
 
-### Integration Tests (`test_database.py`)
-- Test against running TAMS server
-- Requires API server to be running
-- Create and verify data in database
-- Automatically skip if server is not available
+**Current Status:**
+- ✅ All routers: 24.7%+ coverage (comprehensive tests added)
+- ✅ All services: 80%+ coverage (all services exceed target)
+- ✅ Auth module: 36.1%+ coverage (125+ tests)
+- ✅ Schemas: 97.6%+ coverage (82 tests)
+- ✅ Core/Common: 41.1%+ coverage
+- ✅ Entry points: 50%+ coverage
 
-## Running Integration Tests
+## Parallel Execution
 
-1. Start the TAMS server:
-```bash
-PYTHONPATH=src python run.py
-```
+Tests run in parallel by default using `pytest-xdist`. Configuration is in `pytest.ini`.
 
-2. In another terminal, run the tests:
-```bash
-PYTHONPATH=src python -m pytest tests/sources/test_database.py -v
-```
+## Test Tracker
 
-## Current Status
+The test tracker automatically skips tests that passed previously and whose code hasn't changed. See `README_TEST_TRACKER.md` for details.
 
-- ✅ Sources module: Unit tests + Database integration tests
-- ⏳ Flows module: Pending
-- ⏳ Objects module: Pending
-- ⏳ Segments module: Pending
+## Utility Scripts
 
-## Test Results
+- `ingest_test_data.py` - Script to create test data (sources, flows, objects, segments)
+- `webhook_test_server.py` - HTTP server for testing webhook events
+- `register_webhook_all_events.py` - Register webhook for all events
+- `run_webhook_tests.sh` - Convenience script to run webhook tests with server
 
-- Sources: 13/14 tests passing (1 tag test needs investigation)
+## Documentation
+
+- `COVERAGE_TRACKING.md` - Current test coverage status and tracking
+- `README_TEST_TRACKER.md` - Test tracker system documentation
+- `webhook_test_server_README.md` - Webhook test server documentation

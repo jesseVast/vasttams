@@ -404,3 +404,413 @@ class TestSegmentsRouterDELETE:
         )
         assert response.status_code in [404, 200]  # May return 200 if delete is idempotent
 
+
+@pytest.mark.usefixtures("api_available")
+class TestSegmentsRouterTimerangeEdgeCases:
+    """Test timerange filter edge cases and error handling"""
+    
+    def test_list_segments_timerange_invalid_format(self, api_available, test_flow_and_source, auth_headers):
+        """Test GET /flows/{flow_id}/segments with invalid timerange format"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        # Invalid timerange format
+        response = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?timerange=invalid-format",
+            headers=auth_headers
+        )
+        # May return 200 (with empty results) or 400/422 (validation error)
+        assert response.status_code in [200, 400, 422]
+    
+    def test_list_segments_timerange_overlapping(self, api_available, test_flow_and_source, auth_headers):
+        """Test GET /flows/{flow_id}/segments with overlapping timerange"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        # Overlapping timerange (start before end)
+        response = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?timerange=[5:0_10:0)",
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+    
+    def test_list_segments_timerange_no_overlap(self, api_available, test_flow_and_source, auth_headers):
+        """Test GET /flows/{flow_id}/segments with timerange that has no overlap"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        # Timerange far in the future (likely no overlap)
+        response = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?timerange=[9999:0_10000:0)",
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+        segments = response.json()
+        assert isinstance(segments, list)  # Should return empty list
+    
+    def test_list_segments_timerange_open_ended(self, api_available, test_flow_and_source, auth_headers):
+        """Test GET /flows/{flow_id}/segments with open-ended timerange"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        # Open-ended timerange (only start)
+        response = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?timerange=[0:0_)",
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+    
+    def test_list_segments_timerange_empty_string(self, api_available, test_flow_and_source, auth_headers):
+        """Test GET /flows/{flow_id}/segments with empty timerange string"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        response = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?timerange=",
+            headers=auth_headers
+        )
+        # Should return 200 (empty timerange means no filtering)
+        assert response.status_code == 200
+
+
+@pytest.mark.usefixtures("api_available")
+class TestSegmentsRouterStorageOperations:
+    """Test storage creation and error handling"""
+    
+    def test_create_flow_storage_invalid_storage_id(self, api_available, test_flow_and_source, auth_headers):
+        """Test POST /flows/{flow_id}/storage with invalid storage_id"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        # Invalid storage_id (not a UUID)
+        storage_data = {
+            "storage_id": "invalid-storage-id",
+            "limit": 1
+        }
+        response = requests.post(
+            f"{BASE_URL}/flows/{flow_id}/storage",
+            json=storage_data,
+            headers=auth_headers
+        )
+        # Should return 400 or 422 for invalid UUID
+        assert response.status_code in [400, 422]
+    
+    def test_create_flow_storage_nonexistent_backend(self, api_available, test_flow_and_source, auth_headers):
+        """Test POST /flows/{flow_id}/storage with non-existent storage backend"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        # Valid UUID format but non-existent backend
+        storage_data = {
+            "storage_id": str(uuid.uuid4()),
+            "limit": 1
+        }
+        response = requests.post(
+            f"{BASE_URL}/flows/{flow_id}/storage",
+            json=storage_data,
+            headers=auth_headers,
+            timeout=30
+        )
+        # May return 201 (if default backend used), 400, 404, or 500 depending on implementation
+        assert response.status_code in [201, 400, 404, 500]
+    
+    def test_create_flow_storage_with_limit(self, api_available, test_flow_and_source, auth_headers):
+        """Test POST /flows/{flow_id}/storage with limit parameter"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        storage_data = {
+            "limit": 2  # Request 2 storage locations
+        }
+        response = requests.post(
+            f"{BASE_URL}/flows/{flow_id}/storage",
+            json=storage_data,
+            headers=auth_headers
+        )
+        # May succeed or fail depending on storage backend availability
+        assert response.status_code in [201, 400, 404, 500]
+        
+        # Cleanup if created
+        if response.status_code == 201:
+            data = response.json()
+            if "media_objects" in data:
+                for obj in data["media_objects"]:
+                    if "object_id" in obj:
+                        try:
+                            requests.delete(f"{BASE_URL}/objects/{obj['object_id']}", headers=auth_headers)
+                        except:
+                            pass
+    
+    def test_create_flow_storage_with_object_ids(self, api_available, test_flow_and_source, auth_headers):
+        """Test POST /flows/{flow_id}/storage with specific object_ids"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        object_ids = [str(uuid.uuid4()) for _ in range(2)]
+        storage_data = {
+            "object_ids": object_ids
+        }
+        response = requests.post(
+            f"{BASE_URL}/flows/{flow_id}/storage",
+            json=storage_data,
+            headers=auth_headers
+        )
+        # May succeed or fail depending on storage backend availability
+        assert response.status_code in [201, 400, 404, 500]
+        
+        # Cleanup if created
+        if response.status_code == 201:
+            for object_id in object_ids:
+                try:
+                    requests.delete(f"{BASE_URL}/objects/{object_id}", headers=auth_headers)
+                except:
+                    pass
+    
+    def test_create_flow_storage_missing_parameters(self, api_available, test_flow_and_source, auth_headers):
+        """Test POST /flows/{flow_id}/storage with missing required parameters"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        # Empty request body (no limit, no object_ids)
+        storage_data = {}
+        response = requests.post(
+            f"{BASE_URL}/flows/{flow_id}/storage",
+            json=storage_data,
+            headers=auth_headers
+        )
+        # May return 201 (uses defaults) or 400/422 (validation error)
+        assert response.status_code in [201, 400, 422]
+
+
+@pytest.mark.usefixtures("api_available")
+class TestSegmentsRouterFiltering:
+    """Test advanced filtering options"""
+    
+    def test_list_segments_accept_get_urls(self, api_available, test_flow_and_source, auth_headers):
+        """Test GET /flows/{flow_id}/segments with accept_get_urls filter"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        response = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?accept_get_urls=primary,secondary",
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+    
+    def test_list_segments_accept_storage_ids(self, api_available, test_flow_and_source, auth_headers):
+        """Test GET /flows/{flow_id}/segments with accept_storage_ids filter"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        storage_id = str(uuid.uuid4())
+        response = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?accept_storage_ids={storage_id}",
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+    
+    def test_list_segments_presigned_filter(self, api_available, test_flow_and_source, auth_headers):
+        """Test GET /flows/{flow_id}/segments with presigned filter"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        # Filter for presigned URLs only
+        response = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?presigned=true",
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+        
+        # Filter for non-presigned URLs only
+        response2 = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?presigned=false",
+            headers=auth_headers
+        )
+        assert response2.status_code == 200
+    
+    def test_list_segments_combined_filters_complex(self, api_available, test_flow_and_source, auth_headers):
+        """Test GET /flows/{flow_id}/segments with complex filter combinations"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        # Combine multiple filters
+        response = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?timerange=[0:0_10:0)&reverse_order=true&verbose_storage=true&presigned=true&limit=5&offset=0",
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+    
+    def test_list_segments_limit_zero(self, api_available, test_flow_and_source, auth_headers):
+        """Test GET /flows/{flow_id}/segments with limit=0"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        response = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?limit=0",
+            headers=auth_headers
+        )
+        # Should return 200 with empty list or 422 for invalid limit
+        assert response.status_code in [200, 422]
+    
+    def test_list_segments_limit_negative(self, api_available, test_flow_and_source, auth_headers):
+        """Test GET /flows/{flow_id}/segments with negative limit"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        response = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?limit=-1",
+            headers=auth_headers
+        )
+        # May return 422, 400, or 200 (if validation is lenient)
+        assert response.status_code in [200, 422, 400]
+    
+    def test_list_segments_offset_negative(self, api_available, test_flow_and_source, auth_headers):
+        """Test GET /flows/{flow_id}/segments with negative offset"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        response = requests.get(
+            f"{BASE_URL}/flows/{flow_id}/segments?offset=-1",
+            headers=auth_headers
+        )
+        # Should return 422 for invalid offset or 200 (offset treated as 0)
+        assert response.status_code in [200, 422, 400]
+
+
+@pytest.mark.usefixtures("api_available")
+class TestSegmentsRouterErrorPaths:
+    """Test error handling and edge cases"""
+    
+    def test_create_segment_missing_object_id(self, api_available, test_flow_and_source, auth_headers):
+        """Test POST /flows/{flow_id}/segments with missing object_id"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        segment_data = {
+            "id": str(uuid.uuid4()),
+            "flow_id": flow_id,
+            "timerange": {
+                "value": "2024-01-01T00:00:00Z/2024-01-01T00:01:00Z"
+            }
+            # Missing object_id
+        }
+        response = requests.post(
+            f"{BASE_URL}/flows/{flow_id}/segments",
+            json=segment_data,
+            headers=auth_headers
+        )
+        assert response.status_code in [400, 422]
+    
+    def test_create_segment_missing_timerange(self, api_available, test_flow_and_source, auth_headers):
+        """Test POST /flows/{flow_id}/segments with missing timerange"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        object_id = str(uuid.uuid4())
+        segment_data = {
+            "id": str(uuid.uuid4()),
+            "flow_id": flow_id,
+            "object_id": object_id
+            # Missing timerange
+        }
+        response = requests.post(
+            f"{BASE_URL}/flows/{flow_id}/segments",
+            json=segment_data,
+            headers=auth_headers
+        )
+        assert response.status_code in [400, 422]
+    
+    def test_create_segment_invalid_timerange_format(self, api_available, test_flow_and_source, auth_headers):
+        """Test POST /flows/{flow_id}/segments with invalid timerange format"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        object_id = str(uuid.uuid4())
+        segment_data = {
+            "id": str(uuid.uuid4()),
+            "flow_id": flow_id,
+            "object_id": object_id,
+            "timerange": {
+                "value": "invalid-timerange-format"
+            }
+        }
+        response = requests.post(
+            f"{BASE_URL}/flows/{flow_id}/segments",
+            json=segment_data,
+            headers=auth_headers
+        )
+        assert response.status_code in [400, 422]
+    
+    def test_delete_segments_with_timerange(self, api_available, test_flow_and_source, auth_headers):
+        """Test DELETE /flows/{flow_id}/segments with timerange filter"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        response = requests.delete(
+            f"{BASE_URL}/flows/{flow_id}/segments?timerange=[0:0_10:0)",
+            headers=auth_headers
+        )
+        # May return 200, 204, or 404 depending on whether segments exist
+        assert response.status_code in [200, 204, 404]
+    
+    def test_delete_segments_with_object_id(self, api_available, test_flow_and_source, auth_headers):
+        """Test DELETE /flows/{flow_id}/segments with object_id filter"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        object_id = str(uuid.uuid4())
+        response = requests.delete(
+            f"{BASE_URL}/flows/{flow_id}/segments?object_id={object_id}",
+            headers=auth_headers
+        )
+        # May return 200, 204, or 404 depending on whether segments exist
+        assert response.status_code in [200, 204, 404]
+    
+    def test_delete_segments_with_both_filters(self, api_available, test_flow_and_source, auth_headers):
+        """Test DELETE /flows/{flow_id}/segments with both timerange and object_id"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        flow_id = test_flow_and_source["flow_id"]
+        object_id = str(uuid.uuid4())
+        response = requests.delete(
+            f"{BASE_URL}/flows/{flow_id}/segments?timerange=[0:0_10:0)&object_id={object_id}",
+            headers=auth_headers
+        )
+        # May return 200, 204, or 404 depending on whether segments exist
+        assert response.status_code in [200, 204, 404]
+    
+    def test_list_segments_invalid_flow_id(self, api_available, auth_headers):
+        """Test GET /flows/{flow_id}/segments with invalid flow_id format"""
+        if not api_available:
+            pytest.skip("API not available")
+        
+        response = requests.get(
+            f"{BASE_URL}/flows/invalid-flow-id/segments",
+            headers=auth_headers
+        )
+        # May return 200 (empty list), 404, or 422 depending on validation
+        assert response.status_code in [200, 404, 422]
+

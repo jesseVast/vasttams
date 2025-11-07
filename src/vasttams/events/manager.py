@@ -14,6 +14,11 @@ from .delivery import EventDeliveryInterface, WebhookDelivery, MultipleDelivery
 
 logger = logging.getLogger(__name__)
 
+# Global webhook cache shared across all EventManager instances
+_global_webhook_cache: Optional[List[Dict[str, Any]]] = None
+_global_cache_timestamp: Optional[datetime] = None
+_global_cache_ttl = 60  # Cache webhooks for 60 seconds
+
 
 class EventManager:
     """Manages event emission and delivery to multiple mechanisms"""
@@ -30,21 +35,18 @@ class EventManager:
         
         # Initialize delivery mechanisms
         self.delivery_mechanisms = delivery_mechanisms or []
-        
-        # Webhook cache
-        self._webhook_cache: Optional[List[Dict[str, Any]]] = None
-        self._cache_timestamp: Optional[datetime] = None
-        self._cache_ttl = 60  # Cache webhooks for 60 seconds
     
     async def _get_webhooks(self) -> List[Dict[str, Any]]:
-        """Get webhooks from database with caching"""
+        """Get webhooks from database with global caching (shared across all EventManager instances)"""
+        global _global_webhook_cache, _global_cache_timestamp, _global_cache_ttl
+        
         now = datetime.now(timezone.utc)
         
-        # Return cached webhooks if still valid
-        if (self._webhook_cache is not None and 
-            self._cache_timestamp and 
-            (now - self._cache_timestamp).total_seconds() < self._cache_ttl):
-            return self._webhook_cache
+        # Return cached webhooks if still valid (using global cache)
+        if (_global_webhook_cache is not None and 
+            _global_cache_timestamp and 
+            (now - _global_cache_timestamp).total_seconds() < _global_cache_ttl):
+            return _global_webhook_cache
         
         try:
             from ..webhooks.service import WebhookService
@@ -57,8 +59,9 @@ class EventManager:
                 webhook_dict = webhook.model_dump() if hasattr(webhook, 'model_dump') else webhook.dict()
                 webhook_dicts.append(webhook_dict)
             
-            self._webhook_cache = webhook_dicts
-            self._cache_timestamp = now
+            # Update global cache (shared across all instances)
+            _global_webhook_cache = webhook_dicts
+            _global_cache_timestamp = now
             return webhook_dicts
         except Exception as e:
             logger.error("Failed to fetch webhooks: %s", e)

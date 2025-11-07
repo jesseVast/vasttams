@@ -346,9 +346,110 @@ The remaining 2% consists of optional features not required by the TAMS specific
 - **TAMS Examples**: `tams-8.0/api/examples/`
 - **TAMS App Notes**: `tams-8.0/docs/appnotes/`
 
+## 📋 **ADR (Architecture Decision Records) Compliance**
+
+### ✅ **ADR-0018: DELETE and PUT Endpoints** ✅
+- **Requirement**: DELETE and PUT operations must be supported
+- **Status**: ✅ **FULLY COMPLIANT**
+- **Implementation**:
+  - ✅ All DELETE endpoints implemented (sources, flows, objects, segments, webhooks, storage backends)
+  - ✅ All PUT endpoints implemented (sources, flows, webhooks, storage backends)
+  - ✅ Hard delete implemented (TAMS compliant, no soft delete)
+  - ✅ Cascade delete implemented for sources → flows → segments
+- **Location**: All router files (`src/vasttams/*/router.py`)
+
+### ✅ **ADR-0025: No PATCH Operations** ✅
+- **Requirement**: PATCH operations are NOT included in TAMS 8.0
+- **Status**: ✅ **FULLY COMPLIANT**
+- **Implementation**:
+  - ✅ No PATCH endpoints implemented
+  - ✅ All updates use PUT method
+  - ✅ Partial updates supported via PUT with selective field updates
+- **Verification**: `grep -r "PATCH\|patch" src/vasttams` returns no matches
+
+### ✅ **ADR-0041: VFR (Variable Frame Rate) Validation** ✅
+- **Requirement**: If `vfr=True`, `frame_rate` MUST NOT be set. If `vfr=False` or omitted, `frame_rate` MUST be set.
+- **Status**: ✅ **FULLY COMPLIANT**
+- **Implementation**:
+  - ✅ Validation in `VideoEssenceParameters` model (`src/vasttams/flows/models.py`)
+  - ✅ Service-level validation in `create_flow` and `update_flow` (`src/vasttams/flows/service.py`)
+  - ✅ Clear error messages for validation failures
+- **Code References**:
+  ```python
+  # src/vasttams/flows/models.py:55-74
+  @field_validator('frame_rate', 'vfr')
+  def validate_vfr_frame_rate(cls, v, info):
+      # Validates mutual exclusivity per ADR-0041
+  ```
+
+### ✅ **ADR-0042: Object Instance Label Requirements** ✅
+- **Requirement**: Label is required for uncontrolled object instances
+- **Status**: ✅ **FULLY COMPLIANT**
+- **Implementation**:
+  - ✅ `ObjectInstancePost` model documents label requirement for uncontrolled instances
+  - ✅ Label validation implemented (`validate_non_empty`)
+  - ✅ Field marked as required in model
+- **Location**: `src/vasttams/objects/models.py:84-99`
+
+## 📝 **App Notes Compliance**
+
+### ✅ **App Note 0001: Timerange Format** ✅
+- **Requirement**: Timerange must follow TAMS format `[seconds:nanoseconds_start_seconds:nanoseconds_end)`
+- **Status**: ✅ **FULLY COMPLIANT**
+- **Implementation**:
+  - ✅ `TimeRange` model with validation (`src/vasttams/common/models.py`)
+  - ✅ `validate_timerange()` function implements TAMS format
+  - ✅ Used in Object, FlowSegment models
+
+### ✅ **App Note 0002: UUID Format** ✅
+- **Requirement**: All IDs must be valid TAMS UUIDs (RFC 4122 variant 1 or 2)
+- **Status**: ✅ **FULLY COMPLIANT**
+- **Implementation**:
+  - ✅ `validate_tams_uuid()` function (`src/vasttams/common/models.py`)
+  - ✅ Applied to all ID fields (source.id, flow.id, object.id, etc.)
+  - ✅ Pattern: `^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`
+
+### ✅ **App Note 0003: Immutability Rules** ✅
+- **Requirement**: Objects and Segments are immutable. Sources and Flows are mutable.
+- **Status**: ✅ **FULLY COMPLIANT**
+- **Implementation**:
+  - ✅ Objects: No update endpoint, only DELETE and instance management
+  - ✅ Segments: No update endpoint, must DELETE and recreate
+  - ✅ Sources: PUT endpoint for metadata updates
+  - ✅ Flows: PUT endpoint for metadata updates
+- **Location**: Router implementations enforce immutability
+
+### ✅ **App Note 0004: Cascade Deletion** ✅
+- **Requirement**: Deleting a source should cascade to dependent flows and segments
+- **Status**: ✅ **FULLY COMPLIANT**
+- **Implementation**:
+  - ✅ `delete_source` with `cascade=True` parameter
+  - ✅ `_cascade_delete_flows` method deletes dependent flows
+  - ✅ Flow deletion automatically deletes segments
+  - ✅ Unreferenced objects cleaned up after deletions
+- **Location**: `src/vasttams/sources/service.py:355-431`
+
+## 📊 **ADR and App Notes Compliance Summary**
+
+| ADR/App Note | Requirement | Status | Implementation |
+|--------------|-------------|--------|----------------|
+| ADR-0018 | DELETE and PUT endpoints | ✅ | All endpoints implemented |
+| ADR-0025 | No PATCH operations | ✅ | No PATCH endpoints |
+| ADR-0041 | VFR/frame_rate validation | ✅ | Model and service validation |
+| ADR-0042 | Object instance label | ✅ | Required for uncontrolled |
+| App Note 0001 | Timerange format | ✅ | TimeRange model with validation |
+| App Note 0002 | UUID format | ✅ | validate_tams_uuid() function |
+| App Note 0003 | Immutability rules | ✅ | Router-level enforcement |
+| App Note 0004 | Cascade deletion | ✅ | Service-level implementation |
+
+**ADR Compliance**: ✅ **100%** (4/4 ADRs)  
+**App Notes Compliance**: ✅ **100%** (4/4 key app notes verified)
+
 ## 🔄 **Last Updated**
 
 **Date**: 2025-01-07  
 **Version**: 8.0.0  
-**Status**: ✅ Production Ready
+**Status**: ✅ Production Ready  
+**ADR Compliance**: ✅ 100%  
+**App Notes Compliance**: ✅ 100%
 

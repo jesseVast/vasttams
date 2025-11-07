@@ -39,12 +39,12 @@ def api_available():
 class TestStorageBackendSpecCompliance:
     """Test storage backend compliance with TAMS 8.0 specification"""
     
-    def test_storage_backends_schema_compliance(self, api_available):
+    def test_storage_backends_schema_compliance(self, api_available, auth_headers):
         """Test that storage backends schema matches TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/service/storage-backends")
+        response = requests.get(f"{BASE_URL}/service/storage-backends", headers=auth_headers)
         assert response.status_code == 200
         
         backends = response.json()
@@ -61,12 +61,12 @@ class TestStorageBackendSpecCompliance:
             # Optional but important fields
             assert "default_storage" in backend or backend.get("default_storage") is not None
     
-    def test_storage_backend_store_type_compliance(self, api_available):
+    def test_storage_backend_store_type_compliance(self, api_available, auth_headers):
         """Test that store_type is valid per TAMS 8.0 spec"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/service/storage-backends")
+        response = requests.get(f"{BASE_URL}/service/storage-backends", headers=auth_headers)
         if response.status_code == 200:
             backends = response.json()
             
@@ -75,12 +75,12 @@ class TestStorageBackendSpecCompliance:
                 assert store_type in ["http_object_store"], \
                     f"Invalid store_type: {store_type}. Must be 'http_object_store'"
     
-    def test_storage_backend_id_format(self, api_available):
+    def test_storage_backend_id_format(self, api_available, auth_headers):
         """Test that storage backend IDs are valid UUIDs"""
         if not api_available:
             pytest.skip("API not available")
         
-        response = requests.get(f"{BASE_URL}/service/storage-backends")
+        response = requests.get(f"{BASE_URL}/service/storage-backends", headers=auth_headers)
         if response.status_code == 200:
             backends = response.json()
             
@@ -97,13 +97,13 @@ class TestStorageBackendSpecCompliance:
 class TestStorageBackendAppNoteCompliance:
     """Test compliance with TAMS appnotes related to storage backends"""
     
-    def test_storage_backend_advertising(self, api_available):
+    def test_storage_backend_advertising(self, api_available, auth_headers):
         """Test that storage backends are advertised per ADR0032"""
         if not api_available:
             pytest.skip("API not available")
         
         # Get storage backends
-        response = requests.get(f"{BASE_URL}/service/storage-backends")
+        response = requests.get(f"{BASE_URL}/service/storage-backends", headers=auth_headers)
         assert response.status_code == 200
         
         backends = response.json()

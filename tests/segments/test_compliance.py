@@ -87,7 +87,7 @@ def test_flow_and_source(api_available, auth_headers):
 class TestSegmentSpecCompliance:
     """Test compliance with TAMS 8.0 segment spec"""
     
-    def test_segment_timerange_per_appnote_0012(self, api_available, test_flow_and_source):
+    def test_segment_timerange_per_appnote_0012(self, api_available, test_flow_and_source, auth_headers):
         """
         Test segment timerange per App Note 0012 (Using Flow Segment Timestamps).
         Segments should have timerange with proper representation.
@@ -98,7 +98,7 @@ class TestSegmentSpecCompliance:
         flow_id = test_flow_and_source["flow_id"]
         example_segments = get_segments_example()
         
-        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments")
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments", headers=auth_headers)
         assert response.status_code == 200
         
         segments = response.json()
@@ -127,7 +127,7 @@ class TestSegmentSpecCompliance:
                     # End should have closing marker
                     assert end.endswith(")") or end.endswith("]")
     
-    def test_segment_object_id_per_spec(self, api_available, test_flow_and_source):
+    def test_segment_object_id_per_spec(self, api_available, test_flow_and_source, auth_headers):
         """
         Test segment object_id per TAMS 8.0 spec.
         Spec: flow-segment.json requires object_id
@@ -137,7 +137,7 @@ class TestSegmentSpecCompliance:
         
         flow_id = test_flow_and_source["flow_id"]
         
-        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments")
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments", headers=auth_headers)
         if response.status_code == 200:
             segments = response.json()
             
@@ -153,7 +153,7 @@ class TestSegmentSpecCompliance:
 class TestSegmentAppNoteCompliance:
     """Test compliance with TAMS 8.0 app notes for segments"""
     
-    def test_segment_get_urls_per_spec(self, api_available, test_flow_and_source):
+    def test_segment_get_urls_per_spec(self, api_available, test_flow_and_source, auth_headers):
         """
         Test segment get_urls per TAMS 8.0 spec.
         Segments should have get_urls array with url field.
@@ -164,7 +164,7 @@ class TestSegmentAppNoteCompliance:
         flow_id = test_flow_and_source["flow_id"]
         
         # Test with URLs parameter
-        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments?urls=true")
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments?urls=true", headers=auth_headers)
         assert response.status_code == 200
         
         segments = response.json()
@@ -183,7 +183,7 @@ class TestSegmentAppNoteCompliance:
                     assert "url" in url_obj
                     assert isinstance(url_obj["url"], str)
     
-    def test_segment_filtering_by_timerange_per_appnote_0012(self, api_available, test_flow_and_source):
+    def test_segment_filtering_by_timerange_per_appnote_0012(self, api_available, test_flow_and_source, auth_headers):
         """
         Test segment filtering by timerange per App Note 0012.
         Should support querying segments for specific timerange.
@@ -197,7 +197,7 @@ class TestSegmentAppNoteCompliance:
         # Format: [start_end) where start and end are timestamps
         timerange_query = "2020-01-01T00:00:00Z,2020-01-01T00:01:00Z"
         
-        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments?timerange={timerange_query}")
+        response = requests.get(f"{BASE_URL}/flows/{flow_id}/segments?timerange={timerange_query}", headers=auth_headers)
         assert response.status_code == 200
         
         segments = response.json()

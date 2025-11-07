@@ -24,17 +24,6 @@ settings = get_settings()
 BASE_URL = f"http://{settings.host}:{settings.port}"
 
 
-def _login_admin_headers():
-    resp = requests.post(
-        f"{BASE_URL}/auth/login",
-        json={"username": "admin", "password": "vastdata"}
-    )
-    if resp.status_code != 200:
-        return {}
-    token = resp.json().get("access_token")
-    return {"Authorization": f"Bearer {token}"} if token else {}
-
-
 @pytest.fixture(scope="module")
 def api_available():
     """Check if API server is running"""
@@ -49,25 +38,23 @@ def api_available():
 class TestAuthEndpoint:
     """Endpoint tests for Authentication Provider API"""
     
-    def test_list_auth_providers(self, api_available):
+    def test_list_auth_providers(self, api_available, auth_headers):
         """Test GET /auth/providers endpoint"""
         if not api_available:
             pytest.skip("API not available")
         
-        headers = _login_admin_headers()
-        response = requests.get(f"{BASE_URL}/auth/providers", headers=headers)
+        response = requests.get(f"{BASE_URL}/auth/providers", headers=auth_headers)
         assert response.status_code == 200
         
         providers = response.json()
         assert isinstance(providers, list)
     
-    def test_get_auth_provider_bearer(self, api_available):
+    def test_get_auth_provider_bearer(self, api_available, auth_headers):
         """Test GET /auth/providers/bearer endpoint"""
         if not api_available:
             pytest.skip("API not available")
         
-        headers = _login_admin_headers()
-        response = requests.get(f"{BASE_URL}/auth/providers/bearer", headers=headers)
+        response = requests.get(f"{BASE_URL}/auth/providers/bearer", headers=auth_headers)
         
         # May succeed or fail with 404
         assert response.status_code in [200, 404]
@@ -77,13 +64,12 @@ class TestAuthEndpoint:
             assert "method" in provider
             assert provider["method"] == "bearer"
     
-    def test_get_auth_provider_basic(self, api_available):
+    def test_get_auth_provider_basic(self, api_available, auth_headers):
         """Test GET /auth/providers/basic endpoint"""
         if not api_available:
             pytest.skip("API not available")
         
-        headers = _login_admin_headers()
-        response = requests.get(f"{BASE_URL}/auth/providers/basic", headers=headers)
+        response = requests.get(f"{BASE_URL}/auth/providers/basic", headers=auth_headers)
         
         # May succeed or fail with 404
         assert response.status_code in [200, 404]
@@ -92,7 +78,7 @@ class TestAuthEndpoint:
             provider = response.json()
             assert "method" in provider
     
-    def test_update_auth_provider(self, api_available):
+    def test_update_auth_provider(self, api_available, auth_headers):
         """Test PUT /auth/providers/{method} endpoint"""
         if not api_available:
             pytest.skip("API not available")
@@ -102,23 +88,21 @@ class TestAuthEndpoint:
             "enabled": True
         }
         
-        headers = _login_admin_headers()
         response = requests.put(
             f"{BASE_URL}/auth/providers/bearer",
             json=update_data,
-            headers=headers
+            headers=auth_headers
         )
         
         # May succeed, fail with 404, or fail with 500 (internal error)
         assert response.status_code in [200, 404, 500]
     
-    def test_reload_auth_providers(self, api_available):
+    def test_reload_auth_providers(self, api_available, auth_headers):
         """Test POST /auth/providers/reload endpoint"""
         if not api_available:
             pytest.skip("API not available")
         
-        headers = _login_admin_headers()
-        response = requests.post(f"{BASE_URL}/auth/providers/reload", headers=headers)
+        response = requests.post(f"{BASE_URL}/auth/providers/reload", headers=auth_headers)
         assert response.status_code in [200, 500]
         
         if response.status_code == 200:

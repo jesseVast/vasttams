@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request
 from typing import List, Optional
 import uuid
 from pydantic import ValidationError
@@ -289,12 +289,15 @@ async def get_source_tag(
 async def update_source_tag(
     source_id: str,
     name: str,
-    value: str = Body(..., media_type="text/plain"),
+    request: Request,
     storage: StorageInterface = Depends(get_storage_service),
     user_session: UserSession = Depends(require_editor)
 ):
     """Update Source Tag Value"""
     try:
+        # Read text/plain body (allows empty strings)
+        body = await request.body()
+        value = body.decode('utf-8')
         source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
@@ -382,12 +385,16 @@ async def get_source_description(
 @router.put("/{source_id}/description")
 async def update_source_description(
     source_id: str,
-    description: str,
+    request: Request,
     storage: StorageInterface = Depends(get_storage_service),
     user_session: UserSession = Depends(require_editor)
 ):
     """Update source description"""
     try:
+        # Read text/plain body
+        description = await request.body()
+        description = description.decode('utf-8')
+        
         # Get username for metadata
         username = user_session.username if user_session else "system"
         
@@ -477,12 +484,16 @@ async def get_source_label(
 @router.put("/{source_id}/label")
 async def update_source_label(
     source_id: str,
-    label: str,
+    request: Request,
     storage: StorageInterface = Depends(get_storage_service),
     user_session: UserSession = Depends(require_editor)
 ):
     """Update source label"""
     try:
+        # Read text/plain body
+        label = await request.body()
+        label = label.decode('utf-8')
+        
         # Get username for metadata
         username = user_session.username if user_session else "system"
         

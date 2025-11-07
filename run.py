@@ -22,12 +22,24 @@ def main():
     logger.info(f"Starting VastTAMS API server on {settings.host}:{settings.port}")
     
     # Start the server (note: need to update path to src/vasttams)
+    # Use multiple workers for better concurrency handling
+    # Workers can be configured via:
+    # 1. Settings.workers (from config.json or TAMS_WORKERS env var)
+    # 2. UVICORN_WORKERS environment variable (takes precedence)
+    import os
+    workers = int(os.getenv("UVICORN_WORKERS", str(settings.workers)))
+    
+    logger.info(f"Starting server with {workers} worker(s) on {settings.host}:{settings.port}")
+    
     uvicorn.run(
         "vasttams.main:app",
         host=settings.host,
         port=settings.port,
+        workers=workers,  # Multiple workers for better concurrency
         reload=False,  # Disable auto-reload for production-like testing
-        log_level=settings.log_level.lower()
+        log_level=settings.log_level.lower(),
+        loop="asyncio",  # Use asyncio event loop
+        access_log=True  # Enable access logging for monitoring
     )
 
 if __name__ == "__main__":

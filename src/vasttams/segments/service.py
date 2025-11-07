@@ -459,6 +459,7 @@ class SegmentStorageService:
                 
                 # Create Object record in database with storage_id, storage_path, and content_type in metadata
                 from ..objects.models import Object
+                from ..common.models import TimeRange
                 object_metadata = {
                     "storage_path": storage_path,  # Full path including root_path
                     "content_type": content_type  # Store for GET URL generation (TAMS 8.0)
@@ -466,10 +467,13 @@ class SegmentStorageService:
                 if storage_id:
                     object_metadata["storage_id"] = storage_id
                 
+                # Object requires timerange - use a default empty timerange for new objects
+                # The actual timerange will be set when segments reference this object
                 obj = Object(
                     id=object_id,
                     referenced_by_flows=[flow_id],
                     first_referenced_by_flow=flow_id,
+                    timerange=TimeRange(value="0:0"),  # Default timerange for new objects
                     metadata=object_metadata,
                     created=now
                 )

@@ -83,7 +83,7 @@ async def get_flow_by_id(
     """Get a specific flow by ID"""
     try:
         filters = FlowDetailFilters(include_timerange=include_timerange, timerange=timerange)
-        flow = await storage.get_flow(flow_id)
+        flow = await storage.get_flow(flow_id, filters)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
         return flow

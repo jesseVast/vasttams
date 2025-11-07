@@ -246,13 +246,13 @@ class TagStorageService:
     async def query_entities_by_tags(self, entity_type: str, tag_filters: Dict[str, Any], limit: int = 100) -> List[Dict[str, Any]]:
         """Query entities by tag filters using SQL queries"""
         try:
-            from .tag_manager import generate_sql_query_for_tags
+            from .manager import generate_sql_tag_query
             
             # Get qualified table name
             table_name = self.vast_db.get_qualified_table_name(entity_type + "s")
             
             # Generate SQL query for tags
-            sql_query = generate_sql_query_for_tags(table_name, tag_filters, "*", limit)
+            sql_query = generate_sql_tag_query(table_name, tag_filters, "*", limit)
             logger.debug("Generated SQL tag query: %s", sql_query)
             
             # Execute SQL query

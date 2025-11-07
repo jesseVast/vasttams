@@ -8,6 +8,7 @@ Tests C2PA validation during source creation.
 import pytest
 import sys
 import requests
+import json
 from pathlib import Path
 import uuid
 
@@ -51,7 +52,7 @@ class TestC2PAInSourceCreation:
             "format": "urn:x-nmos:format:video",
             "label": f"Test Source {source_id[:8]}",
             "tags": {
-                "c2pa": {
+                "c2pa": json.dumps({
                     "version": "1.0",
                     "assertions": [
                         {
@@ -65,7 +66,7 @@ class TestC2PAInSourceCreation:
                     "metadata": {
                         "creator": "BBC TAMS"
                     }
-                }
+                })
             }
         }
         

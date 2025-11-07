@@ -9,7 +9,7 @@ import logging
 from typing import Optional, Dict, Any, List
 
 from fastapi import HTTPException
-from .tag_service import TagStorageService
+from .service import TagStorageService
 from ..models import Tags
 
 logger = logging.getLogger(__name__)

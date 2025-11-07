@@ -10,9 +10,6 @@ Welcome to the consolidated TAMS (Time-addressable Media Store) API documentatio
 - **Data Flow**: Request/response flows and data processing
 - **Performance Characteristics**: Scalability and reliability metrics
 - **Security Architecture**: Security principles and implementation
-- **Future Architecture**: Planned enhancements and evolution
-
-### **🔧 [ARCHITECTURE.md](ARCHITECTURE.md)**
 - **Implementation Details**: TAMS 8.0 specification compliance
 - **Modular Architecture**: Resource-based organization
 - **Schema Management**: PyArrow schemas and table initialization
@@ -28,6 +25,24 @@ Welcome to the consolidated TAMS (Time-addressable Media Store) API documentatio
 - **Deployment Checklist**: Pre/post-deployment verification steps
 - **Troubleshooting**: Common issues and resolution steps
 
+### **📖 [USAGE.md](USAGE.md)**
+- **API Usage Guide**: Comprehensive examples and usage patterns
+- **Request/Response Examples**: Practical examples for all endpoints
+- **Best Practices**: Recommended patterns and workflows
+- **Error Handling**: Common errors and solutions
+
+### **✅ [TAMS_COMPLIANCE_REPORT.md](TAMS_COMPLIANCE_REPORT.md)**
+- **Comprehensive Compliance Analysis**: Full TAMS 8.0 compliance report
+- **ADR Compliance**: Architecture Decision Records compliance (100%)
+- **App Notes Compliance**: Application Notes compliance (100%)
+- **Implementation Details**: Code locations and verification methods
+- **Overall Status**: 98% compliant with TAMS 8.0 specification
+
+### **📋 [TAMS_COMPLIANCE_QUICK_REFERENCE.md](TAMS_COMPLIANCE_QUICK_REFERENCE.md)**
+- **Quick Reference**: At-a-glance compliance status
+- **Key Compliance Points**: Essential compliance information
+- **Links to Full Report**: References to comprehensive documentation
+
 ## 🎯 **Quick Navigation**
 
 ### **For Developers**
@@ -39,6 +54,7 @@ Welcome to the consolidated TAMS (Time-addressable Media Store) API documentatio
 - Focus on [DEPLOYMENT.md](DEPLOYMENT.md) for deployment procedures
 - Use [ARCHITECTURE.md](ARCHITECTURE.md) for infrastructure planning
 - Check [USAGE.md](USAGE.md) for API usage examples
+- Reference [TAMS_COMPLIANCE_REPORT.md](TAMS_COMPLIANCE_REPORT.md) for compliance details
 
 ### **For System Administrators**
 - Begin with [ARCHITECTURE.md](ARCHITECTURE.md) for system overview

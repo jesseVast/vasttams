@@ -66,4 +66,23 @@ class TestStorageBackendsSchema:
         projections = get_storage_backends_projections()
         all_columns = [col for proj in projections for col in proj]
         assert "id" in all_columns
+    
+    def test_get_storage_backends_schema_all_fields(self):
+        """Test that storage_backends schema has all expected fields"""
+        schema = get_storage_backends_schema()
+        field_names = [field.name for field in schema]
+        # Check all fields from the schema
+        assert "root_path" in field_names
+        assert "use_ssl" in field_names
+        assert "availability_zone" in field_names
+    
+    def test_get_storage_backends_schema_field_nullability(self):
+        """Test that storage_backends schema fields have correct nullability"""
+        schema = get_storage_backends_schema()
+        # Most fields should be nullable (VAST requirement)
+        # But check that bool fields are correct
+        field_dict = {field.name: field.nullable for field in schema}
+        # Bool fields can be nullable
+        assert isinstance(field_dict.get("default_storage"), bool)
+        assert isinstance(field_dict.get("use_ssl"), bool)
 

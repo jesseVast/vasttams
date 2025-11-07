@@ -34,8 +34,12 @@ class TestWebhooksSchema:
         """Test that webhooks schema has expected fields"""
         schema = get_webhooks_schema()
         field_names = [field.name for field in schema]
-        expected_fields = ["id", "url", "api_key_name", "api_key_value", "events",
-                          "flow_ids", "source_ids", "enabled", "created", "updated"]
+        expected_fields = [
+            "id", "url", "api_key_name", "api_key_value", "events",
+            "flow_ids", "source_ids", "flow_collected_by_ids", "source_collected_by_ids",
+            "accept_get_urls", "accept_storage_ids", "presigned", "verbose_storage",
+            "tags", "enabled", "created", "updated"
+        ]
         for field in expected_fields:
             assert field in field_names, f"Field {field} not found in webhooks schema"
     
@@ -61,6 +65,13 @@ class TestWebhooksSchema:
         for proj in projections:
             assert isinstance(proj, list)
             assert all(isinstance(col, str) for col in proj)
+    
+    def test_get_webhooks_projections_contains_expected(self):
+        """Test that webhooks projections contain expected columns"""
+        projections = get_webhooks_projections()
+        all_columns = [col for proj in projections for col in proj]
+        assert "id" in all_columns
+        assert "enabled" in all_columns
 
 
 class TestDeletionRequestsSchema:
@@ -75,8 +86,11 @@ class TestDeletionRequestsSchema:
         """Test that deletion_requests schema has expected fields"""
         schema = get_deletion_requests_schema()
         field_names = [field.name for field in schema]
-        expected_fields = ["id", "flow_id", "timerange_to_delete", "delete_flow",
-                          "status", "created", "updated"]
+        expected_fields = [
+            "id", "flow_id", "timerange_to_delete", "delete_flow",
+            "status", "timerange_remaining", "created", "created_by",
+            "updated", "expiry", "error"
+        ]
         for field in expected_fields:
             assert field in field_names, f"Field {field} not found in deletion_requests schema"
     
@@ -102,4 +116,11 @@ class TestDeletionRequestsSchema:
         for proj in projections:
             assert isinstance(proj, list)
             assert all(isinstance(col, str) for col in proj)
+    
+    def test_get_deletion_requests_projections_contains_expected(self):
+        """Test that deletion_requests projections contain expected columns"""
+        projections = get_deletion_requests_projections()
+        all_columns = [col for proj in projections for col in proj]
+        assert "id" in all_columns
+        assert "status" in all_columns
 

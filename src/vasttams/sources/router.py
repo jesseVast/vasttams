@@ -11,7 +11,7 @@ from ..common.storage import get_storage_service
 from ..common.storage.interfaces import StorageInterface
 from ..events import EventManager
 from ..core.dependencies import get_vast_db
-from ..core.utils import log_pydantic_validation_error, safe_model_parse
+from ..core.utils import log_pydantic_validation_error, safe_model_parse, parse_query_filters
 from ..auth.rbac import require_admin, require_editor, require_viewer
 from ..auth.middleware import UserSession
 import logging
@@ -41,6 +41,7 @@ async def head_source(source_id: str):
 # GET endpoints
 @router.get("", response_model=SourcesResponse)
 async def list_sources(
+    request: Request,
     label: Optional[str] = Query(None, description="Filter by label"),
     format: Optional[str] = Query(None, description="Filter by format"),
     page: Optional[str] = Query(None, description="Pagination key"),
@@ -48,9 +49,21 @@ async def list_sources(
     storage: StorageInterface = Depends(get_storage_service),
     user_session: UserSession = Depends(require_viewer)
 ):
-    """List sources with optional filtering"""
+    """List sources with optional filtering (TAMS 8.0 with tag filtering)"""
     try:
-        filters = SourceFilters(label=label, format=format, page=page, limit=limit)
+        # Extract all query parameters for tag filtering
+        query_params = dict(request.query_params)
+        parsed_filters = parse_query_filters(query_params)
+        
+        # Build SourceFilters with tag filtering support
+        filters = SourceFilters(
+            label=label or parsed_filters.get("label"),
+            format=format or parsed_filters.get("format"),
+            page=page or parsed_filters.get("page"),
+            limit=limit or parsed_filters.get("limit"),
+            tag_filters=parsed_filters.get("tag_filters", {}),
+            tag_exists_filters=parsed_filters.get("tag_exists_filters", {})
+        )
         sources = await storage.get_sources(filters)
         return SourcesResponse(data=sources)
     except Exception as e:

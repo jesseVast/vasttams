@@ -10,6 +10,7 @@ import sys
 import logging
 from pathlib import Path
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 # Add src to path for imports
 src_path = Path(__file__).parent.parent.parent / "src"
@@ -303,4 +304,144 @@ class TestGlobalErrorHandler:
         )
         # Should not raise an exception
         assert True
+    
+    def test_error_handler_logs_critical(self):
+        """Test that error handler logs critical errors at critical level"""
+        handler = TAMSErrorHandler()
+        error = TAMSComplianceError(
+            message="Critical error",
+            error_code=TAMSErrorCode.VALIDATION_ERROR,
+            severity=TAMSErrorSeverity.CRITICAL
+        )
+        with patch.object(handler.logger, 'critical') as mock_critical:
+            handler.handle_error(error)
+            mock_critical.assert_called_once()
+    
+    def test_error_handler_logs_high(self):
+        """Test that error handler logs high severity errors at error level"""
+        handler = TAMSErrorHandler()
+        error = TAMSComplianceError(
+            message="High severity error",
+            error_code=TAMSErrorCode.VALIDATION_ERROR,
+            severity=TAMSErrorSeverity.HIGH
+        )
+        with patch.object(handler.logger, 'error') as mock_error:
+            handler.handle_error(error)
+            mock_error.assert_called_once()
+    
+    def test_error_handler_logs_medium(self):
+        """Test that error handler logs medium severity errors at warning level"""
+        handler = TAMSErrorHandler()
+        error = TAMSComplianceError(
+            message="Medium severity error",
+            error_code=TAMSErrorCode.VALIDATION_ERROR,
+            severity=TAMSErrorSeverity.MEDIUM
+        )
+        with patch.object(handler.logger, 'warning') as mock_warning:
+            handler.handle_error(error)
+            mock_warning.assert_called_once()
+    
+    def test_error_handler_logs_low(self):
+        """Test that error handler logs low severity errors at info level"""
+        handler = TAMSErrorHandler()
+        error = TAMSComplianceError(
+            message="Low severity error",
+            error_code=TAMSErrorCode.VALIDATION_ERROR,
+            severity=TAMSErrorSeverity.LOW
+        )
+        with patch.object(handler.logger, 'info') as mock_info:
+            handler.handle_error(error)
+            mock_info.assert_called_once()
+    
+    def test_error_handler_logs_with_field_path(self):
+        """Test that error handler includes field_path in log message"""
+        handler = TAMSErrorHandler()
+        error = TAMSComplianceError(
+            message="Test error",
+            error_code=TAMSErrorCode.VALIDATION_ERROR,
+            severity=TAMSErrorSeverity.MEDIUM,
+            field_path="source.id"
+        )
+        with patch.object(handler.logger, 'warning') as mock_warning:
+            handler.handle_error(error)
+            call_args = mock_warning.call_args[0][0]
+            assert "Field: source.id" in call_args
+    
+    def test_error_handler_logs_with_compliance_requirement(self):
+        """Test that error handler includes compliance_requirement in log message"""
+        handler = TAMSErrorHandler()
+        error = TAMSComplianceError(
+            message="Test error",
+            error_code=TAMSErrorCode.VALIDATION_ERROR,
+            severity=TAMSErrorSeverity.MEDIUM,
+            compliance_requirement="TAMS 8.0 Spec"
+        )
+        with patch.object(handler.logger, 'warning') as mock_warning:
+            handler.handle_error(error)
+            call_args = mock_warning.call_args[0][0]
+            assert "Requirement: TAMS 8.0 Spec" in call_args
+    
+    def test_error_handler_tracks_medium_severity_violations(self):
+        """Test that medium severity errors are NOT tracked as violations"""
+        handler = TAMSErrorHandler()
+        error = TAMSComplianceError(
+            message="Medium error",
+            error_code=TAMSErrorCode.VALIDATION_ERROR,
+            severity=TAMSErrorSeverity.MEDIUM
+        )
+        handler.handle_error(error)
+        assert len(handler.compliance_violations) == 0
+    
+    def test_error_handler_tracks_low_severity_violations(self):
+        """Test that low severity errors are NOT tracked as violations"""
+        handler = TAMSErrorHandler()
+        error = TAMSComplianceError(
+            message="Low error",
+            error_code=TAMSErrorCode.VALIDATION_ERROR,
+            severity=TAMSErrorSeverity.LOW
+        )
+        handler.handle_error(error)
+        assert len(handler.compliance_violations) == 0
+    
+    def test_get_error_statistics_no_errors(self):
+        """Test getting error statistics when no errors have been handled"""
+        handler = TAMSErrorHandler()
+        stats = handler.get_error_statistics()
+        assert stats["total_errors"] == 0
+        assert stats["error_counts"] == {}
+        assert stats["compliance_violations_count"] == 0
+        assert stats["last_compliance_violation"] is None
+    
+    def test_get_compliance_report_no_violations(self):
+        """Test getting compliance report when no violations"""
+        handler = TAMSErrorHandler()
+        report = handler.get_compliance_report()
+        assert report["total_violations"] == 0
+        assert report["violations_by_severity"]["low"] == 0
+        assert report["violations_by_severity"]["medium"] == 0
+        assert report["violations_by_severity"]["high"] == 0
+        assert report["violations_by_severity"]["critical"] == 0
+        assert len(report["recent_violations"]) == 0
+    
+    def test_get_compliance_report_multiple_violations(self):
+        """Test getting compliance report with multiple violations"""
+        handler = TAMSErrorHandler()
+        error1 = TAMSComplianceError(
+            message="Error 1",
+            error_code=TAMSErrorCode.VALIDATION_ERROR,
+            severity=TAMSErrorSeverity.HIGH
+        )
+        error2 = TAMSComplianceError(
+            message="Error 2",
+            error_code=TAMSErrorCode.INTERNAL_ERROR,
+            severity=TAMSErrorSeverity.CRITICAL
+        )
+        handler.handle_error(error1)
+        handler.handle_error(error2)
+        
+        report = handler.get_compliance_report()
+        assert report["total_violations"] == 2
+        assert report["violations_by_severity"]["high"] == 1
+        assert report["violations_by_severity"]["critical"] == 1
+        assert len(report["recent_violations"]) == 2
 

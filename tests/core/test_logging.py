@@ -278,4 +278,259 @@ class TestSetupLogging:
         
         # Verify root logger level was set
         mock_logger.setLevel.assert_called()
+    
+    def test_tams_compliance_filter_compliance_only(self):
+        """Test TAMSComplianceFilter with compliance_only=True"""
+        from vasttams.core.tams_logging import TAMSComplianceFilter
+        
+        filter_obj = TAMSComplianceFilter(compliance_only=True)
+        
+        # Create a record with compliance data
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="test.py",
+            lineno=1,
+            msg="TAMS compliance message",
+            args=(),
+            exc_info=None
+        )
+        record.tams_compliance_data = {"field": "id"}
+        
+        assert filter_obj.filter(record) is True
+        
+        # Create a record without compliance data
+        record2 = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="test.py",
+            lineno=1,
+            msg="Regular message",
+            args=(),
+            exc_info=None
+        )
+        assert filter_obj.filter(record2) is False
+    
+    def test_tams_compliance_filter_compliance_only_tams_in_name(self):
+        """Test TAMSComplianceFilter with TAMS in logger name"""
+        from vasttams.core.tams_logging import TAMSComplianceFilter
+        
+        filter_obj = TAMSComplianceFilter(compliance_only=True)
+        
+        record = logging.LogRecord(
+            name="tams.compliance",
+            level=logging.INFO,
+            pathname="test.py",
+            lineno=1,
+            msg="Regular message",
+            args=(),
+            exc_info=None
+        )
+        assert filter_obj.filter(record) is True
+    
+    def test_tams_compliance_filter_compliance_only_compliance_in_message(self):
+        """Test TAMSComplianceFilter with 'compliance' in message"""
+        from vasttams.core.tams_logging import TAMSComplianceFilter
+        
+        filter_obj = TAMSComplianceFilter(compliance_only=True)
+        
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="test.py",
+            lineno=1,
+            msg="This is a compliance message",
+            args=(),
+            exc_info=None
+        )
+        assert filter_obj.filter(record) is True
+    
+    def test_tams_logging_config_init(self):
+        """Test TAMSLoggingConfig initialization"""
+        from vasttams.core.tams_logging import TAMSLoggingConfig
+        from unittest.mock import patch
+        
+        with patch('vasttams.core.tams_logging.get_settings') as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_get_settings.return_value = mock_settings
+            
+            config = TAMSLoggingConfig()
+            
+            assert config.settings == mock_settings
+            assert config.log_dir.exists()
+    
+    @patch('vasttams.core.tams_logging.get_settings')
+    @patch('logging.config.dictConfig')
+    @patch('logging.getLogger')
+    def test_tams_logging_config_setup_logging(self, mock_get_logger, mock_dict_config, mock_get_settings):
+        """Test TAMSLoggingConfig.setup_logging"""
+        from vasttams.core.tams_logging import TAMSLoggingConfig
+        
+        mock_settings = MagicMock()
+        mock_settings.debug = False
+        mock_settings.tams_audit_logging = True
+        mock_get_settings.return_value = mock_settings
+        
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        
+        config = TAMSLoggingConfig()
+        config.setup_logging()
+        
+        mock_dict_config.assert_called_once()
+        config_dict = mock_dict_config.call_args[0][0]
+        assert "version" in config_dict
+        assert "formatters" in config_dict
+        assert "handlers" in config_dict
+        assert "loggers" in config_dict
+    
+    def test_log_tams_compliance_event(self):
+        """Test log_tams_compliance_event function"""
+        from vasttams.core.tams_logging import log_tams_compliance_event
+        
+        logger = logging.getLogger("test")
+        with patch.object(logger, 'info') as mock_info:
+            log_tams_compliance_event(
+                logger=logger,
+                event_type="validation",
+                compliance_status="passed",
+                details={"field": "id"},
+                severity="info"
+            )
+            mock_info.assert_called_once()
+            call_args = mock_info.call_args
+            assert "TAMS Compliance Event" in call_args[0][0]
+            assert "validation" in call_args[0][0]
+            assert "tams_compliance_data" in call_args[1]["extra"]
+    
+    def test_log_tams_compliance_event_error(self):
+        """Test log_tams_compliance_event with error severity"""
+        from vasttams.core.tams_logging import log_tams_compliance_event
+        
+        logger = logging.getLogger("test")
+        with patch.object(logger, 'error') as mock_error:
+            log_tams_compliance_event(
+                logger=logger,
+                event_type="validation",
+                compliance_status="failed",
+                severity="error"
+            )
+            mock_error.assert_called_once()
+    
+    def test_log_tams_compliance_event_warning(self):
+        """Test log_tams_compliance_event with warning severity"""
+        from vasttams.core.tams_logging import log_tams_compliance_event
+        
+        logger = logging.getLogger("test")
+        with patch.object(logger, 'warning') as mock_warning:
+            log_tams_compliance_event(
+                logger=logger,
+                event_type="validation",
+                compliance_status="warning",
+                severity="warning"
+            )
+            mock_warning.assert_called_once()
+    
+    def test_log_tams_compliance_event_debug(self):
+        """Test log_tams_compliance_event with debug severity"""
+        from vasttams.core.tams_logging import log_tams_compliance_event
+        
+        logger = logging.getLogger("test")
+        with patch.object(logger, 'debug') as mock_debug:
+            log_tams_compliance_event(
+                logger=logger,
+                event_type="validation",
+                compliance_status="debug",
+                severity="debug"
+            )
+            mock_debug.assert_called_once()
+    
+    def test_log_tams_validation_result_passed(self):
+        """Test log_tams_validation_result with passed result"""
+        from vasttams.core.tams_logging import log_tams_validation_result
+        
+        logger = logging.getLogger("test")
+        with patch.object(logger, 'info') as mock_info:
+            log_tams_validation_result(
+                logger=logger,
+                field_path="source.id",
+                validation_result=True,
+                validation_rule="UUID format"
+            )
+            mock_info.assert_called_once()
+            call_args = mock_info.call_args
+            assert "PASSED" in call_args[0][0]
+            assert "source.id" in call_args[0][0]
+    
+    def test_log_tams_validation_result_failed(self):
+        """Test log_tams_validation_result with failed result"""
+        from vasttams.core.tams_logging import log_tams_validation_result
+        
+        logger = logging.getLogger("test")
+        with patch.object(logger, 'warning') as mock_warning:
+            log_tams_validation_result(
+                logger=logger,
+                field_path="source.id",
+                validation_result=False,
+                validation_rule="UUID format"
+            )
+            mock_warning.assert_called_once()
+            call_args = mock_warning.call_args
+            assert "FAILED" in call_args[0][0]
+    
+    def test_log_tams_api_request(self):
+        """Test log_tams_api_request function"""
+        from vasttams.core.tams_logging import log_tams_api_request
+        
+        logger = logging.getLogger("test")
+        with patch.object(logger, 'info') as mock_info:
+            log_tams_api_request(
+                logger=logger,
+                endpoint="/sources",
+                method="GET",
+                user_id="user123",
+                request_id="req456"
+            )
+            mock_info.assert_called_once()
+            call_args = mock_info.call_args
+            assert "TAMS API Request" in call_args[0][0]
+            assert "GET /sources" in call_args[0][0]
+            assert "api_context" in call_args[1]["extra"]
+    
+    def test_log_tams_storage_operation_success(self):
+        """Test log_tams_storage_operation with success"""
+        from vasttams.core.tams_logging import log_tams_storage_operation
+        
+        logger = logging.getLogger("test")
+        with patch.object(logger, 'info') as mock_info:
+            log_tams_storage_operation(
+                logger=logger,
+                operation="upload",
+                storage_backend_id="backend123",
+                entity_type="object",
+                entity_id="obj456",
+                success=True
+            )
+            mock_info.assert_called_once()
+            call_args = mock_info.call_args
+            assert "SUCCESS" in call_args[0][0]
+            assert "upload" in call_args[0][0]
+    
+    def test_log_tams_storage_operation_failed(self):
+        """Test log_tams_storage_operation with failure"""
+        from vasttams.core.tams_logging import log_tams_storage_operation
+        
+        logger = logging.getLogger("test")
+        with patch.object(logger, 'error') as mock_error:
+            log_tams_storage_operation(
+                logger=logger,
+                operation="upload",
+                storage_backend_id="backend123",
+                entity_type="object",
+                entity_id="obj456",
+                success=False
+            )
+            mock_error.assert_called_once()
+            call_args = mock_error.call_args
+            assert "FAILED" in call_args[0][0]
 

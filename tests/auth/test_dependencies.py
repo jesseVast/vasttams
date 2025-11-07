@@ -82,4 +82,45 @@ class TestAuthDependencies:
         assert "bearer" in provider_methods
         assert "basic" in provider_methods
         assert "url_token" in provider_methods
+    
+    def test_get_auth_manager_reuses_instance(self):
+        """Test get_auth_manager reuses same instance on subsequent calls"""
+        import vasttams.auth.dependencies
+        vasttams.auth.dependencies._auth_manager = None
+        
+        mock_store1 = Mock()
+        mock_store2 = Mock()
+        
+        manager1 = get_auth_manager(mock_store1)
+        manager2 = get_auth_manager(mock_store2)
+        
+        # Should be same instance
+        assert manager1 is manager2
+    
+    def test_get_jwt_provider_creates_new(self):
+        """Test get_jwt_provider creates new instance each time"""
+        provider1 = get_jwt_provider()
+        provider2 = get_jwt_provider()
+        
+        # Should be different instances
+        assert provider1 is not provider2
+        assert isinstance(provider1, JWTProvider)
+        assert isinstance(provider2, JWTProvider)
+    
+    def test_get_basic_provider_with_store(self):
+        """Test get_basic_provider with vast_store"""
+        mock_store = Mock()
+        provider = get_basic_provider(mock_store)
+        
+        assert isinstance(provider, BasicAuthProvider)
+        assert provider.vast_store == mock_store
+        assert provider.user_service is not None
+    
+    def test_get_url_token_provider_with_store(self):
+        """Test get_url_token_provider with vast_store"""
+        mock_store = Mock()
+        provider = get_url_token_provider(mock_store)
+        
+        assert isinstance(provider, URLTokenProvider)
+        assert provider.vast_store == mock_store
 

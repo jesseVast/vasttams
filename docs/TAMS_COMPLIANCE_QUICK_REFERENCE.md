@@ -1,6 +1,8 @@
 # TAMS API Compliance Quick Reference
 
-## ✅ **TAMS COMPLIANCE STATUS: 99% COMPLETE**
+> **📋 For the complete compliance report, see [TAMS_COMPLIANCE_REPORT.md](TAMS_COMPLIANCE_REPORT.md)**
+
+## ✅ **TAMS COMPLIANCE STATUS: 98% COMPLETE**
 
 ### **🎯 Current Status Overview**
 - **Object Model**: ✅ **FULLY COMPLIANT** - Fixed field names and data types
@@ -113,3 +115,14 @@ All TAMS API compliance issues have been resolved. The project is now 99% TAMS c
 - ✅ Full test coverage with all tests passing
 
 **Next Steps**: Enable table projections for performance optimization and final production deployment.
+
+## 📋 **Full Compliance Report**
+
+For a comprehensive compliance analysis including:
+- Detailed endpoint coverage
+- TAMS 8.0 specific features verification
+- Validation and error handling details
+- Event streaming compliance
+- Authentication and authorization compliance
+
+See: **[TAMS_COMPLIANCE_REPORT.md](TAMS_COMPLIANCE_REPORT.md)**

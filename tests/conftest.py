@@ -138,10 +138,14 @@ def auth_headers():
     # Try to load cached token first
     cached_token = _load_cached_token()
     if cached_token:
-        logger.debug("Using cached authentication token")
-        return {"Authorization": f"Bearer {cached_token}"}
+        # Double-check token is still valid (may have expired since loading)
+        if _is_token_valid(cached_token):
+            logger.debug("Using cached authentication token")
+            return {"Authorization": f"Bearer {cached_token}"}
+        else:
+            logger.debug("Cached token expired, re-authenticating")
     
-    # Need to authenticate
+    # Need to authenticate (either no cache or expired)
     max_retries = 5
     base_delay = 0.5
     

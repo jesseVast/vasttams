@@ -149,7 +149,7 @@ class TAMSClient:
         from .api import sources as source_api
         source_data = await source_api.get_source(self, source_id)
         if source_data:
-            return TAMSSource(self, id=source_id, **source_data)
+            return TAMSSource(self, **source_data)
         return None
     
     async def get_flow(self, flow_id: str) -> Optional[TAMSFlow]:
@@ -157,20 +157,20 @@ class TAMSClient:
         from .api import flows as flow_api
         flow_data = await flow_api.get_flow(self, flow_id)
         if flow_data:
-            return TAMSFlow(self, id=flow_id, **flow_data)
+            return TAMSFlow(self, **flow_data)
         return None
     
     async def list_sources(self, **query_params) -> List[TAMSSource]:
         """List sources."""
         from .api import sources as source_api
         sources_data = await source_api.list_sources(self, query_params)
-        return [TAMSSource(self, id=s["id"], **s) for s in sources_data]
+        return [TAMSSource(self, **s) for s in sources_data]
     
     async def list_flows(self, **query_params) -> List[TAMSFlow]:
         """List flows."""
         from .api import flows as flow_api
         flows_data = await flow_api.list_flows(self, query_params)
-        return [TAMSFlow(self, id=f["id"], **f) for f in flows_data]
+        return [TAMSFlow(self, **f) for f in flows_data]
     
     # Sync wrappers
     def get_source_sync(self, source_id: str) -> Optional[TAMSSource]:

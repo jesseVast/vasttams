@@ -6,6 +6,7 @@ Tests will be skipped if the server is not available.
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 import sys
 from pathlib import Path
@@ -24,7 +25,7 @@ from vasttamsclient.domain.flow import TAMSFlow
 # Test server configuration
 TEST_SERVER_URL = "http://localhost:8000"
 TEST_USERNAME = "admin"  # Default test user
-TEST_PASSWORD = "admin"  # Default test password
+TEST_PASSWORD = "vastdata"  # Default test password (per TAMS server defaults)
 
 
 def check_server_available() -> bool:
@@ -54,7 +55,7 @@ def server_available():
     return True
 
 
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function")
 async def client(server_available):
     """Create a TAMSClient instance connected to real server."""
     client = TAMSClient(
@@ -68,7 +69,7 @@ async def client(server_available):
     # Cleanup is handled by context manager
 
 
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function")
 async def test_source(client):
     """Create a test source for use in tests."""
     source = client.TAMSSource(
@@ -84,13 +85,16 @@ async def test_source(client):
         pass  # Ignore cleanup errors
 
 
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function")
 async def test_flow(client, test_source):
     """Create a test flow for use in tests."""
     flow = test_source.TAMSFlow(
         format="urn:x-nmos:format:video",
         codec="video/h264",
-        label="Integration Test Flow"
+        label="Integration Test Flow",
+        frame_width=1920,
+        frame_height=1080,
+        frame_rate={"numerator": 25, "denominator": 1}
     )
     await flow._ensure_created()
     yield flow
@@ -215,7 +219,10 @@ class TestFlowIntegration:
         flow = test_source.TAMSFlow(
             format="urn:x-nmos:format:video",
             codec="video/h264",
-            label="Test Flow Create"
+            label="Test Flow Create",
+            frame_width=1920,
+            frame_height=1080,
+            frame_rate={"numerator": 25, "denominator": 1}
         )
         await flow._ensure_created()
         
@@ -300,7 +307,10 @@ class TestSourceFlowWorkflow:
         flow = source.TAMSFlow(
             format="urn:x-nmos:format:video",
             codec="video/h264",
-            label="Workflow Test Flow"
+            label="Workflow Test Flow",
+            frame_width=1920,
+            frame_height=1080,
+            frame_rate={"numerator": 25, "denominator": 1}
         )
         await flow._ensure_created()
         
@@ -331,14 +341,20 @@ class TestSourceFlowWorkflow:
         flow1 = source.TAMSFlow(
             format="urn:x-nmos:format:video",
             codec="video/h264",
-            label="Flow 1"
+            label="Flow 1",
+            frame_width=1920,
+            frame_height=1080,
+            frame_rate={"numerator": 25, "denominator": 1}
         )
         await flow1._ensure_created()
         
         flow2 = source.TAMSFlow(
             format="urn:x-nmos:format:video",
             codec="video/h264",
-            label="Flow 2"
+            label="Flow 2",
+            frame_width=1920,
+            frame_height=1080,
+            frame_rate={"numerator": 25, "denominator": 1}
         )
         await flow2._ensure_created()
         

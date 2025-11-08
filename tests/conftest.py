@@ -285,4 +285,5 @@ def get_auth_headers():
 
 
 # Register test tracker plugin (must be at end of file)
-pytest_plugins = ["pytest_test_tracker"]
+# Plugin hooks are now in test_tracker.py
+pytest_plugins = ["test_tracker"]

@@ -276,19 +276,16 @@ def discover_video_files(directory: Path) -> List[Dict[str, Any]]:
     return video_files
 
 
-def get_presigned_url(token: str, flow_id: str, label: str = None) -> Tuple[str, str, str]:
+def get_presigned_url(token: str, flow_id: str) -> Tuple[str, str, str]:
     """Get presigned URL for S3 upload
     
     Returns:
         Tuple of (presigned_url, object_id, content_type)
     """
-    if label is None:
-        label = f"object-{str(uuid.uuid4())[:8]}"
-    
     # Ensure allocation uses a concrete storage backend for dynamic get_urls
     storage_id = get_default_storage_id(token)
+    # TAMS spec: POST /flows/{flowId}/storage accepts limit and storage_id (no label)
     storage_data = {
-        "label": label,
         "limit": 1,  # Request only 1 presigned URL
         "storage_id": storage_id
     }
@@ -482,8 +479,8 @@ def main():
                 video_name = video_info['name']
                 
                 print(f"   [{idx}/{len(videos)}] Uploading {video_name}...")
-                label = f"{flow_data['flow_label'].lower().replace(' ', '-')}-{video_name.replace(' ', '_').replace('.', '_')}"
-                presigned_url, object_id, content_type = get_presigned_url(token, flow_id, label)
+                # TAMS spec: POST /flows/{flowId}/storage uses limit and storage_id (no label)
+                presigned_url, object_id, content_type = get_presigned_url(token, flow_id)
                 
                 # Upload video file
                 upload_to_s3(presigned_url, video_path, content_type)
@@ -540,8 +537,8 @@ def main():
                 )
                 segments_created += 1
                 
-                print(f"   ✅ [{idx}/{len(flow_objects)}] {obj_data['video_name']}: "
-                      f"[{start_seconds:.2f}s}_{end_seconds:.2f}s)")
+                timerange_display = f"[{start_seconds:.2f}s_{end_seconds:.2f}s)"
+                print(f"   ✅ [{idx}/{len(flow_objects)}] {obj_data['video_name']}: {timerange_display}")
                 
                 # Update cumulative start time for next segment
                 cumulative_start = end_seconds

@@ -1,0 +1,15 @@
+---
+description: Dockerfile rules
+globs: 
+alwaysApply: false
+---
+
+- create containers following best practices
+- don't run code inside containers are root
+- create necessary files for deploying in kubernetes
+- when using kubernetes mount the config as a configmap on /app/config
+- create secrets for passwords and usernames
+- create a single json file for all settings where possible
+- create all Kubernetes artifacts for running the container
+- use configmaps for configurations and secrets for passwords
+

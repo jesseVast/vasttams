@@ -5,7 +5,7 @@ This is a minimal working segments router that uses the new storage service arch
 It provides basic endpoint structure that can be expanded later.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks, Response
 from typing import List, Optional
 from pydantic import ValidationError
 from .models import FlowSegment
@@ -423,11 +423,19 @@ async def delete_flow_segments_by_id(
             return {"message": f"Deleted {deleted_count} segments with object_id {object_id}"}
         else:
             # Original behavior for timerange-only deletion
-            success = await storage.delete_flow_segments(flow_id, timerange)
-            if not success:
-                raise HTTPException(status_code=404, detail="No segments found to delete")
-            
-            return {"message": "Segments deleted successfully"}
+            try:
+                success = await storage.delete_flow_segments(flow_id, timerange)
+                if not success:
+                    # No segments found to delete (idempotent - return 204)
+                    return Response(status_code=204)
+                
+                return {"message": "Segments deleted successfully"}
+            except Exception as e:
+                logger.error("Failed to delete segments for flow %s: %s", flow_id, e)
+                # If it's a flow not found or segments not found, return 404
+                if "not found" in str(e).lower() or "no segments" in str(e).lower():
+                    raise HTTPException(status_code=404, detail="No segments found to delete")
+                raise HTTPException(status_code=500, detail="Internal server error")
         
     except HTTPException:
         raise

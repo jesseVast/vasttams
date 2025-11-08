@@ -118,17 +118,10 @@ def _save_cached_token(token: str):
         pass
 
 
-@pytest.fixture(scope="session")
-def auth_headers():
+def _get_auth_headers_internal():
     """
-    Fixture that provides authentication headers for test requests.
-    Uses token caching to avoid re-authenticating for every test.
-    Tokens are cached in a file shared across all test processes.
-    Only re-authenticates if token is expired or missing.
-    
-    Token cache location: /tmp/vasttams_test_cache/auth_token.json
-    Tokens are valid for 30 minutes (JWT default), but we re-authenticate
-    if token expires within 5 minutes to avoid mid-test expiration.
+    Internal function to get auth headers with automatic token refresh.
+    This function checks token validity and refreshes if needed.
     """
     import time
     import logging
@@ -138,12 +131,12 @@ def auth_headers():
     # Try to load cached token first
     cached_token = _load_cached_token()
     if cached_token:
-        # Double-check token is still valid (may have expired since loading)
+        # Check if token is still valid (with 5-minute buffer)
         if _is_token_valid(cached_token):
             logger.debug("Using cached authentication token")
             return {"Authorization": f"Bearer {cached_token}"}
         else:
-            logger.debug("Cached token expired, re-authenticating")
+            logger.debug("Cached token expired or expiring soon, re-authenticating")
     
     # Need to authenticate (either no cache or expired)
     max_retries = 5
@@ -188,6 +181,70 @@ def auth_headers():
     logger.error(error_msg)
     # Use pytest.fail() to ensure all dependent tests fail with a clear message
     pytest.fail(error_msg, pytrace=False)
+
+
+@pytest.fixture(scope="session")
+def auth_headers():
+    """
+    Fixture that provides authentication headers for test requests.
+    Uses token caching to avoid re-authenticating for every test.
+    Tokens are cached in a file shared across all test processes.
+    Automatically refreshes tokens if they expire during long test runs.
+    
+    Token cache location: /tmp/vasttams_test_cache/auth_token.json
+    Tokens are valid for 30 minutes (JWT default), but we re-authenticate
+    if token expires within 5 minutes to avoid mid-test expiration.
+    
+    For long test runs, the fixture will automatically refresh expired tokens.
+    """
+    # Return a dict-like object that checks token validity on each access
+    # This allows the token to be refreshed during long test runs
+    class AuthHeaders:
+        def __init__(self):
+            self._headers = None
+            self._last_check = 0
+        
+        def _refresh_if_needed(self):
+            """Refresh headers if token is expired or expiring soon"""
+            import time
+            # Check token validity every 5 minutes or if headers not set
+            now = time.time()
+            if self._headers is None or (now - self._last_check) > 300:  # Check every 5 minutes
+                self._headers = _get_auth_headers_internal()
+                self._last_check = now
+            else:
+                # Quick check: verify token is still valid
+                token = self._headers.get("Authorization", "").replace("Bearer ", "")
+                if token and not _is_token_valid(token):
+                    # Token expired, refresh it
+                    self._headers = _get_auth_headers_internal()
+                    self._last_check = now
+        
+        def __getitem__(self, key):
+            self._refresh_if_needed()
+            return self._headers[key]
+        
+        def get(self, key, default=None):
+            self._refresh_if_needed()
+            return self._headers.get(key, default)
+        
+        def keys(self):
+            self._refresh_if_needed()
+            return self._headers.keys()
+        
+        def values(self):
+            self._refresh_if_needed()
+            return self._headers.values()
+        
+        def items(self):
+            self._refresh_if_needed()
+            return self._headers.items()
+        
+        def __contains__(self, key):
+            self._refresh_if_needed()
+            return key in self._headers
+    
+    return AuthHeaders()
 
 
 @pytest.fixture(scope="session")

@@ -376,8 +376,8 @@ class TestFlowStorageServiceAdditional:
         
         service = FlowStorageService(mock_db, mock_s3)
         
-        # Mock SegmentStorageService
-        with patch('vasttams.flows.service.SegmentStorageService') as mock_segment_service_class:
+        # Mock SegmentStorageService - patch at the import location
+        with patch('vasttams.segments.service.SegmentStorageService') as mock_segment_service_class:
             mock_segment_service = Mock()
             from vasttams.segments.models import FlowSegment
             from vasttams.common.models import TimeRange
@@ -409,8 +409,8 @@ class TestFlowStorageServiceAdditional:
         
         service = FlowStorageService(mock_db, mock_s3)
         
-        # Mock SegmentStorageService
-        with patch('vasttams.flows.service.SegmentStorageService') as mock_segment_service_class:
+        # Mock SegmentStorageService - patch at the import location
+        with patch('vasttams.segments.service.SegmentStorageService') as mock_segment_service_class:
             mock_segment_service = Mock()
             mock_segment_service.get_flow_segments = AsyncMock(return_value=[])
             mock_segment_service_class.return_value = mock_segment_service

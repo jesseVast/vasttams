@@ -1,0 +1,18 @@
+2025-11-07 20:57:18,403 - urllib3.connectionpool - DEBUG - Starting new HTTP connection (1): 0.0.0.0:8000
+2025-11-07 20:57:19,475 - urllib3.connectionpool - DEBUG - http://0.0.0.0:8000 "POST /sources HTTP/1.1" 201 301
+2025-11-07 20:57:19,477 - urllib3.connectionpool - DEBUG - Starting new HTTP connection (1): 0.0.0.0:8000
+2025-11-07 20:57:21,300 - urllib3.connectionpool - DEBUG - http://0.0.0.0:8000 "POST /flows HTTP/1.1" 201 986
+2025-11-07 20:57:21,302 - urllib3.connectionpool - DEBUG - Starting new HTTP connection (1): 0.0.0.0:8000
+2025-11-07 20:57:22,336 - urllib3.connectionpool - DEBUG - http://0.0.0.0:8000 "POST /flows/8e95ad7e-2974-464f-b40d-e3b898a08aba/storage HTTP/1.1" 201 478
+2025-11-07 20:57:22,338 - __main__ - DEBUG - Attempting to GET object aab1d4d2-f026-4b86-84e0-4692b1d76491
+2025-11-07 20:57:22,340 - urllib3.connectionpool - DEBUG - Starting new HTTP connection (1): 0.0.0.0:8000
+2025-11-07 20:57:23,699 - urllib3.connectionpool - DEBUG - http://0.0.0.0:8000 "GET /objects/aab1d4d2-f026-4b86-84e0-4692b1d76491 HTTP/1.1" 200 181
+2025-11-07 20:57:23,699 - __main__ - DEBUG - Object retrieved successfully: {'id': 'aab1d4d2-f026-4b86-84e0-4692b1d76491', 'referenced_by_flows': [], 'first_referenced_by_flow': None, 'timerange': {'value': '0:0'}, 'size': None, 'created': '2025-11-08T01:57:21.766016'}
+2025-11-07 20:57:23,699 - __main__ - DEBUG - Creating segment for object aab1d4d2-f026-4b86-84e0-4692b1d76491 with data: {'object_id': 'aab1d4d2-f026-4b86-84e0-4692b1d76491', 'timerange': {'value': '[0:0_60:0)'}, 'sample_offset': 0, 'sample_count': 1500}
+2025-11-07 20:57:23,701 - urllib3.connectionpool - DEBUG - Starting new HTTP connection (1): 0.0.0.0:8000
+2025-11-07 20:57:26,205 - urllib3.connectionpool - DEBUG - http://0.0.0.0:8000 "POST /flows/8e95ad7e-2974-464f-b40d-e3b898a08aba/segments HTTP/1.1" 201 202
+2025-11-07 20:57:26,678 - __main__ - DEBUG - Segment created successfully: {'object_id': 'aab1d4d2-f026-4b86-84e0-4692b1d76491', 'timerange': {'value': '[0:0_60:0)'}, 'ts_offset': None, 'last_duration': None, 'sample_offset': 0, 'sample_count': 1500, 'get_urls': None, 'key_frame_count': None}
+2025-11-07 20:57:26,681 - urllib3.connectionpool - DEBUG - Starting new HTTP connection (1): 0.0.0.0:8000
+2025-11-07 20:57:27,686 - urllib3.connectionpool - DEBUG - http://0.0.0.0:8000 "GET /objects/aab1d4d2-f026-4b86-84e0-4692b1d76491 HTTP/1.1" 200 253
+2025-11-07 20:57:27,687 - __main__ - DEBUG - Attempting to DELETE object aab1d4d2-f026-4b86-84e0-4692b1d76491
+2025-11-07 20:57:27,688 - urllib3.connectionpool - DEBUG - Starting new HTTP connection (1): 0.0.0.0:8000

@@ -1,0 +1,236 @@
+"""
+TAMS Flow Domain Object
+
+Encapsulates flow operations and provides fluent API.
+"""
+
+import uuid
+import asyncio
+from typing import Optional, Dict, Any, List
+from pathlib import Path
+from .base import TAMSDomainObject
+from .segment import TAMSSegment
+from ..api import flows as flow_api
+from ..api import segments as segment_api
+from ..api import tags as tag_api
+from ..api import storage_backends as storage_api
+from ..exceptions import TAMSClientError
+from ..utils.ffmpeg_probe import probe_and_extract_essence_parameters
+
+
+class TAMSFlow(TAMSDomainObject):
+    """TAMS Flow domain object."""
+    
+    def __init__(self, client, source=None, id: Optional[str] = None, format: str = None, 
+                 codec: str = None, label: Optional[str] = None, **flow_data):
+        """
+        Create or represent a TAMS flow.
+        
+        Args:
+            client: TAMSClient instance
+            source: Optional TAMSSource instance or source_id string
+            id: Optional flow ID (if None, creates new flow)
+            format: Flow format URN (required for new flow)
+            codec: Flow codec MIME type (required for new flow)
+            label: Optional flow label
+            **flow_data: Additional flow data
+        """
+        if id is None:
+            # Create new flow
+            if format is None or codec is None:
+                raise ValueError("format and codec are required for new flow")
+            
+            # Handle source parameter
+            if source is not None:
+                if hasattr(source, 'id'):
+                    # TAMSSource instance
+                    flow_data["source_id"] = source.id
+                else:
+                    # source_id string
+                    flow_data["source_id"] = source
+            elif "source_id" not in flow_data:
+                raise ValueError("source or source_id is required for new flow")
+            
+            if "id" not in flow_data:
+                flow_data["id"] = str(uuid.uuid4())
+            
+            flow_data.update({
+                "format": format,
+                "codec": codec,
+                "label": label
+            })
+        else:
+            # Represent existing flow
+            flow_data["id"] = id
+        
+        super().__init__(client, flow_data["id"], flow_data)
+        self._created = id is None
+        self._segment_count = 0
+    
+    async def _ensure_created(self):
+        """Ensure flow is created on server."""
+        if self._created:
+            try:
+                # Create flow with minimal data
+                result = await flow_api.create_flow(self._client, self._data)
+                self._data.update(result)
+                self._created = False
+            except Exception as e:
+                raise TAMSClientError(f"Failed to create flow: {e}")
+    
+    async def add_segment(self, file_path: Optional[str] = None, s3_object: Optional[Dict[str, Any]] = None,
+                         timerange: Optional[Dict[str, Any]] = None, auto_probe: bool = True,
+                         **segment_data) -> 'TAMSSegment':
+        """
+        Add a segment to this flow (combined operation: allocate → upload → create).
+        
+        Args:
+            file_path: Path to local file to upload
+            s3_object: Dict with 'bucket', 'key', 'region' for S3 object (alternative to file_path)
+            timerange: Timerange dict with 'value' key (TAMS format: "[start:0_end:0)")
+            auto_probe: If True and first segment, probe file and update flow essence_parameters
+            **segment_data: Additional segment data
+            
+        Returns:
+            TAMSSegment: Created segment instance
+        """
+        await self._ensure_created()
+        
+        if not file_path and not s3_object:
+            raise ValueError("Either file_path or s3_object must be provided")
+        
+        # Auto-probe on first segment
+        if auto_probe and self._segment_count == 0 and file_path:
+            try:
+                essence_params = probe_and_extract_essence_parameters(file_path, self._data.get("format", ""))
+                # Update flow with essence parameters
+                update_data = {"essence_parameters": essence_params}
+                await flow_api.update_flow(self._client, self._id, {**self._data, **update_data})
+                self._data.update(update_data)
+            except Exception as e:
+                # Log but don't fail - flow can be updated manually later
+                import logging
+                logging.warning(f"Auto-probe failed: {e}")
+        
+        # Allocate storage
+        storage_result = await segment_api.allocate_storage(
+            self._client,
+            self._id,
+            label=segment_data.get("label"),
+            limit=1
+        )
+        
+        # Extract presigned URL and object_id
+        media_objects = storage_result.get("media_objects", [])
+        if not media_objects:
+            raise TAMSClientError("No storage allocation returned")
+        
+        media_obj = media_objects[0]
+        object_id = media_obj["object_id"]
+        put_url_obj = media_obj["put_url"]
+        presigned_url = put_url_obj["url"]
+        content_type = put_url_obj.get("content-type", "application/octet-stream")
+        
+        # Upload file or use S3 object
+        if file_path:
+            file_path_obj = Path(file_path)
+            if not file_path_obj.exists():
+                raise FileNotFoundError(f"File not found: {file_path}")
+            
+            with open(file_path, 'rb') as f:
+                file_data = f.read()
+                await segment_api.upload_to_storage(self._client, presigned_url, file_data, content_type)
+        elif s3_object:
+            # For S3 objects, we assume the object already exists in S3
+            # In a real implementation, you might need to copy from S3 to the presigned URL
+            # For now, we'll just use the object_id
+            pass
+        
+        # Create segment
+        if not timerange:
+            # Generate default timerange if not provided
+            start_seconds = self._segment_count * 10
+            end_seconds = start_seconds + 10
+            timerange = {"value": f"[{start_seconds}:0_{end_seconds}:0)"}
+        
+        segment_data.update({
+            "object_id": object_id,
+            "timerange": timerange
+        })
+        
+        segment_result = await segment_api.create_segment(self._client, self._id, segment_data)
+        self._segment_count += 1
+        
+        return TAMSSegment(self._client, self._id, segment_result)
+    
+    async def get_segment(self, segment_id: str) -> Optional['TAMSSegment']:
+        """Get a segment by object_id."""
+        segments = await segment_api.list_segments(self._client, self._id, {"object_id": segment_id})
+        if segments:
+            return TAMSSegment(self._client, self._id, segments[0])
+        return None
+    
+    async def list_segments(self, **query_params) -> List['TAMSSegment']:
+        """List segments for this flow."""
+        segments_data = await segment_api.list_segments(self._client, self._id, query_params)
+        return [TAMSSegment(self._client, self._id, s) for s in segments_data]
+    
+    async def delete_segments(self, **filters):
+        """Delete segments matching filters."""
+        await segment_api.delete_segments(self._client, self._id, filters)
+    
+    async def refresh(self):
+        """Refresh flow data from server."""
+        flow_data = await flow_api.get_flow(self._client, self._id)
+        if flow_data:
+            self._data.update(flow_data)
+        else:
+            raise TAMSClientError(f"Flow {self._id} not found")
+    
+    async def update(self, **updates):
+        """Update flow metadata."""
+        self._data.update(updates)
+        result = await flow_api.update_flow(self._client, self._id, self._data)
+        self._data.update(result)
+    
+    async def delete(self):
+        """Delete flow."""
+        await flow_api.delete_flow(self._client, self._id)
+    
+    async def get_tags(self) -> Dict[str, str]:
+        """Get all tags."""
+        return await tag_api.get_tags(self._client, "flow", self._id)
+    
+    async def get_tag(self, name: str) -> Optional[str]:
+        """Get a specific tag."""
+        return await tag_api.get_tag(self._client, "flow", self._id, name)
+    
+    async def set_tag(self, name: str, value: str):
+        """Set or update a tag."""
+        await tag_api.set_tag(self._client, "flow", self._id, name, value)
+    
+    async def delete_tag(self, name: str):
+        """Delete a tag."""
+        await tag_api.delete_tag(self._client, "flow", self._id, name)
+    
+    # Properties
+    @property
+    def source_id(self) -> str:
+        return self._data.get("source_id", "")
+    
+    @property
+    def format(self) -> str:
+        return self._data.get("format", "")
+    
+    @property
+    def codec(self) -> str:
+        return self._data.get("codec", "")
+    
+    @property
+    def label(self) -> Optional[str]:
+        return self._data.get("label")
+    
+    @property
+    def essence_parameters(self) -> Dict[str, Any]:
+        return self._data.get("essence_parameters", {})
+

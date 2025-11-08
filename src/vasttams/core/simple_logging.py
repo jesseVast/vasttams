@@ -7,6 +7,19 @@ import sys
 from .config import get_settings
 
 
+class S3NotFoundFilter(logging.Filter):
+    """Filter to suppress expected 404 errors from S3 client when objects don't exist yet"""
+    
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Suppress ERROR logs from vasts3.client for 404 errors (expected when objects are allocated but not uploaded)
+        if record.name == "vasts3.client" and record.levelno == logging.ERROR:
+            message = str(record.getMessage()).lower()
+            if '404' in message or 'not found' in message or 'headobject' in message:
+                # These are expected - objects are allocated before upload
+                return False
+        return True
+
+
 class EnhancedFormatter(logging.Formatter):
     """Enhanced human-readable formatter with optional extra context"""
     
@@ -87,12 +100,18 @@ def setup_logging():
                 "include_extra": False
             }
         },
+        "filters": {
+            "s3_not_found_filter": {
+                "()": S3NotFoundFilter
+            }
+        },
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
                 "level": log_level,
                 "formatter": "simple",
-                "stream": sys.stdout
+                "stream": sys.stdout,
+                "filters": ["s3_not_found_filter"]
             },
             "file": {
                 "class": "logging.handlers.RotatingFileHandler",
@@ -100,7 +119,8 @@ def setup_logging():
                 "formatter": "detailed",
                 "filename": str(log_dir / "tams.log"),
                 "maxBytes": 10485760,  # 10MB
-                "backupCount": 5
+                "backupCount": 5,
+                "filters": ["s3_not_found_filter"]
             },
             "error_file": {
                 "class": "logging.handlers.RotatingFileHandler",
@@ -108,7 +128,8 @@ def setup_logging():
                 "formatter": "detailed",
                 "filename": str(log_dir / "tams_errors.log"),
                 "maxBytes": 10485760,  # 10MB
-                "backupCount": 3
+                "backupCount": 3,
+                "filters": ["s3_not_found_filter"]
             }
         },
         "loggers": {
@@ -123,6 +144,11 @@ def setup_logging():
             },
             "vastdb": {  # VAST database logger
                 "level": log_level,
+                "handlers": ["console", "file", "error_file"],
+                "propagate": False
+            },
+            "vasts3.client": {  # S3 client logger - suppress expected 404 errors
+                "level": "WARNING",  # Only show WARNING and above (suppress ERROR for expected 404s)
                 "handlers": ["console", "file", "error_file"],
                 "propagate": False
             }

@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from ..common.storage.interfaces import StorageInterface
 from ..common.storage.timestamp_utils import (
+    is_timestamp_field,
     get_tams_timestamp, 
     get_timeline_synchronizer,
     prepare_data_for_pyarrow,
@@ -48,6 +49,79 @@ class FlowStorageService:
     def __init__(self, vast_db, s3_client):
         self.vast_db = vast_db
         self.s3_client = s3_client
+    
+    def _ensure_required_flow_fields(self, flow_data: Dict[str, Any], flow_class) -> Dict[str, Any]:
+        """
+        Ensure required fields are present in flow_data before creating flow object.
+        Provides defaults for missing required fields to handle incomplete database records.
+        """
+        # Ensure codec is present for flows that require it
+        if flow_class in [VideoFlow, AudioFlow, ImageFlow, DataFlow]:
+            if 'codec' not in flow_data or flow_data.get('codec') is None:
+                # Provide default codec based on flow type
+                if flow_class == VideoFlow:
+                    flow_data['codec'] = 'video/mp4'
+                elif flow_class == AudioFlow:
+                    flow_data['codec'] = 'audio/mp4'
+                elif flow_class == ImageFlow:
+                    flow_data['codec'] = 'image/jpeg'
+                elif flow_class == DataFlow:
+                    flow_data['codec'] = 'application/octet-stream'
+        
+        # Ensure essence_parameters is present and complete
+        if flow_class == VideoFlow:
+            if 'essence_parameters' not in flow_data or not flow_data.get('essence_parameters'):
+                flow_data['essence_parameters'] = {}
+            ep = flow_data['essence_parameters']
+            if not isinstance(ep, dict):
+                ep = {}
+                flow_data['essence_parameters'] = ep
+            # Ensure required video essence parameters
+            if 'frame_width' not in ep or ep.get('frame_width') is None:
+                ep['frame_width'] = 1920  # Default HD width
+            if 'frame_height' not in ep or ep.get('frame_height') is None:
+                ep['frame_height'] = 1080  # Default HD height
+            if 'vfr' not in ep:
+                ep['vfr'] = False
+            if not ep.get('vfr') and 'frame_rate' not in ep:
+                # Default 25fps - SegmentDuration requires numerator and denominator
+                ep['frame_rate'] = {'numerator': 25, 'denominator': 1}
+        
+        elif flow_class == AudioFlow:
+            if 'essence_parameters' not in flow_data or not flow_data.get('essence_parameters'):
+                flow_data['essence_parameters'] = {}
+            ep = flow_data['essence_parameters']
+            if not isinstance(ep, dict):
+                ep = {}
+                flow_data['essence_parameters'] = ep
+            # Ensure required audio essence parameters
+            if 'sample_rate' not in ep or ep.get('sample_rate') is None:
+                ep['sample_rate'] = 48000  # Default 48kHz
+            if 'channels' not in ep or ep.get('channels') is None:
+                ep['channels'] = 2  # Default stereo
+        
+        elif flow_class == ImageFlow:
+            if 'essence_parameters' not in flow_data or not flow_data.get('essence_parameters'):
+                flow_data['essence_parameters'] = {}
+            ep = flow_data['essence_parameters']
+            if not isinstance(ep, dict):
+                ep = {}
+                flow_data['essence_parameters'] = ep
+            # Ensure required image essence parameters
+            if 'frame_width' not in ep or ep.get('frame_width') is None:
+                ep['frame_width'] = 1920
+            if 'frame_height' not in ep or ep.get('frame_height') is None:
+                ep['frame_height'] = 1080
+        
+        elif flow_class == DataFlow:
+            if 'essence_parameters' not in flow_data or not flow_data.get('essence_parameters'):
+                flow_data['essence_parameters'] = {}
+            ep = flow_data['essence_parameters']
+            if not isinstance(ep, dict):
+                ep = {}
+                flow_data['essence_parameters'] = ep
+        
+        return flow_data
     
     async def get_flows(self, filters: FlowFilters) -> List[Flow]:
         """Get flows with filtering (TAMS 8.0 with tag filtering)"""
@@ -110,12 +184,21 @@ class FlowStorageService:
                                     try:
                                         import json
                                         flow_data[column] = json.loads(value)
-                                    except (json.JSONDecodeError, TypeError):
-                                        flow_data[column] = value
+                                    except (json.JSONDecodeError, TypeError) as e:
+                                        # For essence_parameters, invalid JSON should cause validation error
+                                        if column == 'essence_parameters':
+                                            raise HTTPException(
+                                                status_code=500, 
+                                                detail=f"Invalid JSON in essence_parameters for flow {flow_data.get('id', 'unknown')}: {str(e)}"
+                                            )
+                                        # For tags, set to None on parse error
+                                        flow_data[column] = None
                                 else:
                                     flow_data[column] = value
                         # Get the appropriate flow class based on format
                         flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
+                        # Ensure required fields are present before creating flow object
+                        flow_data = self._ensure_required_flow_fields(flow_data, flow_class)
                         flows.append(flow_class(**flow_data))
                 elif isinstance(data, list):
                     # If data is a list, iterate directly
@@ -126,11 +209,25 @@ class FlowStorageService:
                             if field in flow_data and isinstance(flow_data[field], str):
                                 try:
                                     import json
-                                    flow_data[field] = json.loads(flow_data[field])
-                                except (json.JSONDecodeError, TypeError):
-                                    pass
+                                    parsed = json.loads(flow_data[field])
+                                    # Handle empty JSON strings like '{}' or '[]'
+                                    if parsed == {} or parsed == []:
+                                        flow_data[field] = None if field == 'tags' else parsed
+                                    else:
+                                        flow_data[field] = parsed
+                                except (json.JSONDecodeError, TypeError) as e:
+                                    # For essence_parameters, invalid JSON should cause validation error
+                                    if field == 'essence_parameters':
+                                        raise HTTPException(
+                                            status_code=500, 
+                                            detail=f"Invalid JSON in essence_parameters for flow {flow_data.get('id', 'unknown')}: {str(e)}"
+                                        )
+                                    # For tags, set to None on parse error
+                                    flow_data[field] = None
                         # Get the appropriate flow class based on format
                         flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
+                        # Ensure required fields are present before creating flow object
+                        flow_data = self._ensure_required_flow_fields(flow_data, flow_class)
                         flows.append(flow_class(**flow_data))
             else:
                 # Fallback for direct list results
@@ -141,11 +238,21 @@ class FlowStorageService:
                         if field in flow_data and isinstance(flow_data[field], str):
                             try:
                                 import json
-                                flow_data[field] = json.loads(flow_data[field])
+                                parsed = json.loads(flow_data[field])
+                                # Handle empty JSON strings like '{}' or '[]'
+                                if parsed == {} or parsed == []:
+                                    flow_data[field] = None if field == 'tags' else parsed
+                                else:
+                                    flow_data[field] = parsed
                             except (json.JSONDecodeError, TypeError):
+                                # If parsing fails, set to None for tags, keep as-is for essence_parameters
+                                if field == 'tags':
+                                    flow_data[field] = None
                                 pass
                     # Get the appropriate flow class based on format
                     flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
+                    # Ensure required fields are present before creating flow object
+                    flow_data = self._ensure_required_flow_fields(flow_data, flow_class)
                     flows.append(flow_class(**flow_data))
             
             return flows
@@ -177,9 +284,18 @@ class FlowStorageService:
                             if column in ['essence_parameters', 'tags'] and isinstance(value, str):
                                 try:
                                     import json
-                                    flow_data[column] = json.loads(value)
+                                    parsed = json.loads(value)
+                                    # Handle empty JSON strings like '{}' or '[]'
+                                    if parsed == {} or parsed == []:
+                                        flow_data[column] = None if column == 'tags' else parsed
+                                    else:
+                                        flow_data[column] = parsed
                                 except (json.JSONDecodeError, TypeError):
-                                    flow_data[column] = value
+                                    # If parsing fails, set to None for tags, keep as-is for essence_parameters
+                                    if column == 'tags':
+                                        flow_data[column] = None
+                                    else:
+                                        flow_data[column] = value
                             else:
                                 flow_data[column] = value
                 elif isinstance(data, list):
@@ -191,20 +307,37 @@ class FlowStorageService:
                         if field in flow_data and isinstance(flow_data[field], str):
                             try:
                                 import json
-                                flow_data[field] = json.loads(flow_data[field])
+                                parsed = json.loads(flow_data[field])
+                                # Handle empty JSON strings like '{}' or '[]'
+                                if parsed == {} or parsed == []:
+                                    flow_data[field] = None if field == 'tags' else parsed
+                                else:
+                                    flow_data[field] = parsed
                             except (json.JSONDecodeError, TypeError):
+                                # If parsing fails, set to None for tags, keep as-is for essence_parameters
+                                if field == 'tags':
+                                    flow_data[field] = None
                                 pass
             else:
                 if not result or len(result) == 0:
                     return None
                 flow_data = dict(result[0]) if hasattr(result[0], '__iter__') and not isinstance(result[0], str) else result[0]
                 # Parse JSON fields
-                if 'essence_parameters' in flow_data and isinstance(flow_data['essence_parameters'], str):
-                    try:
-                        import json
-                        flow_data['essence_parameters'] = json.loads(flow_data['essence_parameters'])
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                for field in ['essence_parameters', 'tags']:
+                    if field in flow_data and isinstance(flow_data[field], str):
+                        try:
+                            import json
+                            parsed = json.loads(flow_data[field])
+                            # Handle empty JSON strings like '{}' or '[]'
+                            if parsed == {} or parsed == []:
+                                flow_data[field] = None if field == 'tags' else parsed
+                            else:
+                                flow_data[field] = parsed
+                        except (json.JSONDecodeError, TypeError):
+                            # If parsing fails, set to None for tags, keep as-is for essence_parameters
+                            if field == 'tags':
+                                flow_data[field] = None
+                            pass
             
             if not flow_data:
                 return None
@@ -242,6 +375,8 @@ class FlowStorageService:
             
             # Get the appropriate flow class based on format
             flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
+            # Ensure required fields are present before creating flow object
+            flow_data = self._ensure_required_flow_fields(flow_data, flow_class)
             return flow_class(**flow_data)
         except Exception as e:
             logger.error("Failed to get flow %s: %s", flow_id, e)
@@ -523,8 +658,9 @@ class FlowStorageService:
                     # Build SQL update statement directly
                     set_clauses = []
                     for column, value in flow_data.items():
-                        if column in ['metadata_updated', 'segments_updated'] and isinstance(value, str) and value.startswith('CAST('):
-                            # Handle timestamp fields that are already CAST expressions
+                        # Check if this is a timestamp field that should be CAST
+                        if is_timestamp_field(column) and isinstance(value, str) and value.startswith('CAST('):
+                            # Handle timestamp fields that are already CAST expressions - don't quote them
                             set_clauses.append(f"{column} = {value}")
                         else:
                             # Handle regular fields

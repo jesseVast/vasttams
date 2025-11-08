@@ -25,11 +25,75 @@ class AuthProviderService:
             # Query auth_provider_configs table
             result = self.vast_db.query("auth_provider_configs").select("*").execute()
             
-            if result and result.get('data'):
+            # Handle different result formats (dict with 'data' key, or list)
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
                 configs = []
-                for row in result['data']:
+                
+                # Handle columnar format: {'data': {'method': [...], 'enabled': [...], ...}}
+                if isinstance(data, dict) and data:
+                    num_rows = len(next(iter(data.values())))
+                    for i in range(num_rows):
+                        row = {}
+                        for column, values in data.items():
+                            if column != '$row_id':
+                                value = values[i] if i < len(values) else None
+                                row[column] = value
+                        
+                        import json
+                        config_dict = {}
+                        if row.get('config'):
+                            try:
+                                config_dict = json.loads(row['config']) if isinstance(row['config'], str) else row['config']
+                            except (json.JSONDecodeError, TypeError):
+                                config_dict = {}
+                        
+                        config = AuthProviderConfig(
+                            method=AuthMethod(row['method']),
+                            enabled=row.get('enabled', True),
+                            config=config_dict,
+                            jwt_secret=row.get('jwt_secret'),
+                            jwt_algorithm=row.get('jwt_algorithm'),
+                            jwt_expire_minutes=row.get('jwt_expire_minutes'),
+                            description=row.get('description'),
+                            order=row.get('order', 0)
+                        )
+                        configs.append(config)
+                # Handle row-oriented format: {'data': [{'method': ..., 'enabled': ...}, ...]}
+                elif isinstance(data, list):
+                    for row in data:
+                        import json
+                        config_dict = {}
+                        if row.get('config'):
+                            try:
+                                config_dict = json.loads(row['config']) if isinstance(row['config'], str) else row['config']
+                            except (json.JSONDecodeError, TypeError):
+                                config_dict = {}
+                        
+                        config = AuthProviderConfig(
+                            method=AuthMethod(row['method']),
+                            enabled=row.get('enabled', True),
+                            config=config_dict,
+                            jwt_secret=row.get('jwt_secret'),
+                            jwt_algorithm=row.get('jwt_algorithm'),
+                            jwt_expire_minutes=row.get('jwt_expire_minutes'),
+                            description=row.get('description'),
+                            order=row.get('order', 0)
+                        )
+                        configs.append(config)
+                
+                # If no configs found, return defaults
+                if not configs:
+                    return self._get_default_configs()
+                
+                # Sort by order
+                configs.sort(key=lambda x: x.order)
+                return configs
+            elif isinstance(result, list):
+                # Handle direct list format
+                configs = []
+                for row in result:
                     import json
-                    
                     config_dict = {}
                     if row.get('config'):
                         try:
@@ -49,7 +113,10 @@ class AuthProviderService:
                     )
                     configs.append(config)
                 
-                # Sort by order
+                # If no configs found, return defaults
+                if not configs:
+                    return self._get_default_configs()
+                
                 configs.sort(key=lambda x: x.order)
                 return configs
             
@@ -110,14 +177,18 @@ class AuthProviderService:
             
             if existing and existing.get('data'):
                 # Update existing using SQL
-                from ..common.storage.timestamp_utils import prepare_data_for_sql
+                from ..common.storage.timestamp_utils import prepare_data_for_sql, is_timestamp_field
                 update_data = prepare_data_for_sql(data)
                 
                 set_clauses = []
                 for column, value in update_data.items():
                     # Quote column names to handle reserved keywords like 'order'
                     quoted_column = f'"{column}"'
-                    if isinstance(value, str):
+                    # Check if this is a timestamp field that should be CAST
+                    if is_timestamp_field(column) and isinstance(value, str) and value.startswith('CAST('):
+                        # Handle timestamp fields that are already CAST expressions - don't quote them
+                        set_clauses.append(f"{quoted_column} = {value}")
+                    elif isinstance(value, str):
                         escaped_value = value.replace("'", "''")
                         set_clauses.append(f"{quoted_column} = '{escaped_value}'")
                     elif value is None:

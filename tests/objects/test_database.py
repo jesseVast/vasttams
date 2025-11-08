@@ -96,10 +96,10 @@ class TestObjectDatabaseIntegration:
                 assert "referenced_by_flows" in obj
                 assert "timerange" in obj  # TAMS 8.0 requirement
                 
-                # Verify timerange structure
+                # Verify timerange structure (TAMS 8.0: timerange is a TimeRange object with 'value' field)
                 timerange = obj["timerange"]
                 assert isinstance(timerange, dict)
-                assert "start" in timerange or "end" in timerange
+                assert "value" in timerange, "Timerange must have 'value' field per TAMS 8.0 spec"
 
 
 @pytest.mark.usefixtures("api_available")
@@ -147,5 +147,5 @@ class TestObjectTimerange:
                 
                 timerange = obj["timerange"]
                 assert isinstance(timerange, dict)
-                assert "start" in timerange or "end" in timerange
+                assert "value" in timerange, "Timerange must have 'value' field per TAMS 8.0 spec"
 

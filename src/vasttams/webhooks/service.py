@@ -10,7 +10,7 @@ from typing import List, Optional
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
-from ..common.storage.timestamp_utils import get_tams_timestamp, prepare_data_for_pyarrow
+from ..common.storage.timestamp_utils import get_tams_timestamp, prepare_data_for_pyarrow, is_timestamp_field
 from .models import Webhook, WebhookPost, WebhookUpdate
 
 logger = logging.getLogger(__name__)
@@ -216,7 +216,11 @@ class WebhookService:
                 
                 set_clauses = []
                 for column, value in sql_data.items():
-                    if isinstance(value, str):
+                    # Check if this is a timestamp field that should be CAST
+                    if is_timestamp_field(column) and isinstance(value, str) and value.startswith('CAST('):
+                        # Handle timestamp fields that are already CAST expressions - don't quote them
+                        set_clauses.append(f"{column} = {value}")
+                    elif isinstance(value, str):
                         escaped_value = value.replace("'", "''")
                         set_clauses.append(f"{column} = '{escaped_value}'")
                     elif value is None:

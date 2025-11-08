@@ -16,9 +16,9 @@ import json
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.auth.service import AuthProviderService
-from vasttams.auth.models import AuthMethod
-from vasttams.auth.provider_config import AuthProviderConfig
+from vasttamsserver.auth.service import AuthProviderService
+from vasttamsserver.auth.models import AuthMethod
+from vasttamsserver.auth.provider_config import AuthProviderConfig
 
 
 class TestAuthProviderService:

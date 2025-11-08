@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, AsyncMock, patch
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.looprecorder.manager import LoopRecorderManager
+from vasttamsserver.looprecorder.manager import LoopRecorderManager
 
 
 class TestLoopRecorderManager:
@@ -154,8 +154,8 @@ class TestLoopRecorderManager:
         manager = LoopRecorderManager(mock_vast_db)
         
         # Mock segments with timeranges - need proper FlowSegment objects
-        from vasttams.segments.models import FlowSegment
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.segments.models import FlowSegment
+        from vasttamsserver.common.models import TimeRange
         
         # Create segments with timeranges (TimeRange objects)
         segment1 = FlowSegment(
@@ -212,7 +212,7 @@ class TestLoopRecorderManager:
         mock_vast_db = MagicMock()
         manager = LoopRecorderManager(mock_vast_db)
         
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.common.models import TimeRange
         # Use TAMS timerange format that matches the regex pattern: [seconds:nanoseconds...]
         # The regex looks for [sec:nanosec pattern
         timerange = TimeRange(value="[1234567890:0_1234567891:0)")
@@ -250,7 +250,7 @@ class TestLoopRecorderManager:
         mock_vast_db = MagicMock()
         manager = LoopRecorderManager(mock_vast_db)
         
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.common.models import TimeRange
         timerange = TimeRange(value="[1234567890:0_1234567891:0)")
         
         start = manager._get_timerange_start(timerange)
@@ -273,8 +273,8 @@ class TestLoopRecorderManager:
         mock_vast_db = MagicMock()
         manager = LoopRecorderManager(mock_vast_db)
         
-        from vasttams.segments.models import FlowSegment
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.segments.models import FlowSegment
+        from vasttamsserver.common.models import TimeRange
         
         segments = [
             FlowSegment(object_id="obj1", timerange=TimeRange(value="0:0_5:0")),
@@ -293,8 +293,8 @@ class TestLoopRecorderManager:
         mock_vast_db = MagicMock()
         manager = LoopRecorderManager(mock_vast_db)
         
-        from vasttams.segments.models import FlowSegment
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.segments.models import FlowSegment
+        from vasttamsserver.common.models import TimeRange
         
         segments = [
             FlowSegment(object_id="obj1", timerange=TimeRange(value="0:0_5:0")),
@@ -319,8 +319,8 @@ class TestLoopRecorderManager:
         mock_vast_db = MagicMock()
         manager = LoopRecorderManager(mock_vast_db)
         
-        from vasttams.segments.models import FlowSegment
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.segments.models import FlowSegment
+        from vasttamsserver.common.models import TimeRange
         
         segment = FlowSegment(
             object_id="obj1",
@@ -342,7 +342,7 @@ class TestLoopRecorderManager:
         mock_vast_db = MagicMock()
         manager = LoopRecorderManager(mock_vast_db)
         
-        from vasttams.segments.models import FlowSegment
+        from vasttamsserver.segments.models import FlowSegment
         
         # The _delete_segment method checks `if segment.timerange:`
         # We need to create a segment where timerange evaluates to False
@@ -361,8 +361,8 @@ class TestLoopRecorderManager:
         mock_vast_db = MagicMock()
         manager = LoopRecorderManager(mock_vast_db)
         
-        from vasttams.segments.models import FlowSegment
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.segments.models import FlowSegment
+        from vasttamsserver.common.models import TimeRange
         
         # Create segment with timerange that has empty value
         # This should still pass the `if segment.timerange:` check but fail later
@@ -387,9 +387,9 @@ class TestLoopRecorderManager:
         mock_vast_db = MagicMock()
         manager = LoopRecorderManager(mock_vast_db)
         
-        from vasttams.flows.models import VideoFlow
-        from vasttams.segments.models import FlowSegment
-        from vasttams.common.models import TimeRange, Tags
+        from vasttamsserver.flows.models import VideoFlow
+        from vasttamsserver.segments.models import FlowSegment
+        from vasttamsserver.common.models import TimeRange, Tags
         import uuid
         
         # Mock flow with duration limit
@@ -426,9 +426,9 @@ class TestLoopRecorderManager:
         mock_vast_db = MagicMock()
         manager = LoopRecorderManager(mock_vast_db)
         
-        from vasttams.flows.models import VideoFlow
-        from vasttams.segments.models import FlowSegment
-        from vasttams.common.models import TimeRange, Tags
+        from vasttamsserver.flows.models import VideoFlow
+        from vasttamsserver.segments.models import FlowSegment
+        from vasttamsserver.common.models import TimeRange, Tags
         import uuid
         
         # Mock flow with duration limit

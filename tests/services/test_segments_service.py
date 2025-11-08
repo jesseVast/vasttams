@@ -16,9 +16,9 @@ import json
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.segments.service import SegmentStorageService
-from vasttams.segments.models import FlowSegment
-from vasttams.common.models import TimeRange
+from vasttamsserver.segments.service import SegmentStorageService
+from vasttamsserver.segments.models import FlowSegment
+from vasttamsserver.common.models import TimeRange
 
 
 class TestSegmentStorageService:
@@ -241,7 +241,7 @@ class TestSegmentStorageService:
         flow_id = str(uuid.uuid4())
         object_id = str(uuid.uuid4())
         
-        from vasttams.service.storage_models import FlowStoragePost
+        from vasttamsserver.service.storage_models import FlowStoragePost
         
         storage_request = FlowStoragePost(
             object_id=object_id,
@@ -268,7 +268,7 @@ class TestSegmentStorageService:
         
         # Mock flow service to return a valid flow
         from unittest.mock import patch
-        from vasttams.flows.models import VideoFlow
+        from vasttamsserver.flows.models import VideoFlow
         mock_flow = VideoFlow(
             id=flow_id,
             source_id=str(uuid.uuid4()),
@@ -288,8 +288,8 @@ class TestSegmentStorageService:
             mock_flow_service_class.return_value = mock_flow_service
             
             # Mock _create_object to return a proper Object with timerange
-            from vasttams.objects.models import Object
-            from vasttams.common.models import TimeRange
+            from vasttamsserver.objects.models import Object
+            from vasttamsserver.common.models import TimeRange
             mock_object = Object(
                 id=object_id,
                 timerange=TimeRange(value="0:0_100:0"),
@@ -337,8 +337,8 @@ class TestSegmentStorageService:
         import uuid
         object_id = str(uuid.uuid4())
         
-        from vasttams.objects.models import Object
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.objects.models import Object
+        from vasttamsserver.common.models import TimeRange
         
         obj = Object(
             id=object_id,
@@ -856,7 +856,7 @@ class TestSegmentStorageService:
         flow_id = str(uuid.uuid4())
         object_id = str(uuid.uuid4())
         
-        from vasttams.segments.models import GetUrl
+        from vasttamsserver.segments.models import GetUrl
         segment = FlowSegment(
             object_id=object_id,
             timerange=TimeRange(value="0:0_100:0"),
@@ -1070,7 +1070,7 @@ class TestSegmentStorageService:
         import uuid
         flow_id = str(uuid.uuid4())
         
-        from vasttams.service.storage_models import FlowStoragePost
+        from vasttamsserver.service.storage_models import FlowStoragePost
         
         storage_request = FlowStoragePost(
             object_ids=[str(uuid.uuid4())],
@@ -1107,8 +1107,8 @@ class TestSegmentStorageService:
         flow_id = str(uuid.uuid4())
         object_id = str(uuid.uuid4())
         
-        from vasttams.service.storage_models import FlowStoragePost
-        from vasttams.flows.models import VideoFlow
+        from vasttamsserver.service.storage_models import FlowStoragePost
+        from vasttamsserver.flows.models import VideoFlow
         
         storage_request = FlowStoragePost(
             object_ids=[object_id],
@@ -1153,7 +1153,7 @@ class TestSegmentStorageService:
             
             # Mock storage backend service to return default backend
             with patch('vasttams.storagebackends.service.StorageBackendService') as mock_backend_service_class:
-                from vasttams.storagebackends.models import StorageBackend
+                from vasttamsserver.storagebackends.models import StorageBackend
                 default_backend = StorageBackend(
                     id=str(uuid.uuid4()),
                     default_storage=True,
@@ -1181,8 +1181,8 @@ class TestSegmentStorageService:
         flow_id = str(uuid.uuid4())
         object_id = str(uuid.uuid4())
         
-        from vasttams.service.storage_models import FlowStoragePost
-        from vasttams.flows.models import VideoFlow
+        from vasttamsserver.service.storage_models import FlowStoragePost
+        from vasttamsserver.flows.models import VideoFlow
         
         storage_request = FlowStoragePost(
             object_ids=[object_id],
@@ -1235,8 +1235,8 @@ class TestSegmentStorageService:
         object_id = str(uuid.uuid4())
         storage_id = str(uuid.uuid4())
         
-        from vasttams.service.storage_models import FlowStoragePost
-        from vasttams.flows.models import VideoFlow
+        from vasttamsserver.service.storage_models import FlowStoragePost
+        from vasttamsserver.flows.models import VideoFlow
         
         storage_request = FlowStoragePost(
             object_ids=[object_id],
@@ -1282,7 +1282,7 @@ class TestSegmentStorageService:
             # Mock backend with root_path
             # StorageBackendService is imported inside the method, so patch at the source module
             with patch('vasttams.storagebackends.service.StorageBackendService') as mock_backend_service_class:
-                from vasttams.storagebackends.models import StorageBackend
+                from vasttamsserver.storagebackends.models import StorageBackend
                 backend = StorageBackend(
                     id=storage_id,
                     root_path="/root/path",
@@ -1309,8 +1309,8 @@ class TestSegmentStorageService:
         flow_id = str(uuid.uuid4())
         object_id = str(uuid.uuid4())
         
-        from vasttams.service.storage_models import FlowStoragePost
-        from vasttams.flows.models import VideoFlow
+        from vasttamsserver.service.storage_models import FlowStoragePost
+        from vasttamsserver.flows.models import VideoFlow
         
         storage_request = FlowStoragePost(
             object_ids=[object_id],
@@ -1462,8 +1462,8 @@ class TestSegmentStorageService:
     async def test_create_object_exception_handling(self):
         """Test _create_object exception handling"""
         import uuid
-        from vasttams.objects.models import Object
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.objects.models import Object
+        from vasttamsserver.common.models import TimeRange
         
         obj = Object(
             id=str(uuid.uuid4()),

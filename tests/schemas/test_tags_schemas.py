@@ -14,7 +14,7 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.common.tags.schemas import (
+from vasttamsserver.common.tags.schemas import (
     get_tags_schema,
     get_tags_projections
 )

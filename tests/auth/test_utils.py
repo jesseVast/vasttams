@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.auth.utils import (
+from vasttamsserver.auth.utils import (
     generate_user_id,
     hash_password,
     verify_password,

@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.core.timerange_utils import (
+from vasttamsserver.core.timerange_utils import (
     TimerangeGenerator,
     get_default_timerange,
     get_long_timerange,

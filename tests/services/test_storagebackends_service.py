@@ -17,8 +17,8 @@ import uuid
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.storagebackends.service import StorageBackendService
-from vasttams.storagebackends.models import StorageBackend, StorageBackendPost, StorageBackendPatch
+from vasttamsserver.storagebackends.service import StorageBackendService
+from vasttamsserver.storagebackends.models import StorageBackend, StorageBackendPost, StorageBackendPatch
 
 
 class TestStorageBackendService:

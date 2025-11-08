@@ -108,7 +108,7 @@ SECRET_KEY=your-secret-key-here
 #### **VAST Database Connection**
 ```bash
 # Test VAST connection
-python -m vasttams.core.diagnostics --check=db
+python -m vasttamsserver.core.diagnostics --check=db
 
 # Create required tables (automatic on first run)
 python run.py
@@ -117,10 +117,10 @@ python run.py
 #### **S3 Storage Setup**
 ```bash
 # Test S3 connection
-python -m vasttams.core.diagnostics --check=s3
+python -m vasttamsserver.core.diagnostics --check=s3
 
 # Verify bucket access
-python -c "from vasttams.common.storage.main_service import TAMSStorageService; service = TAMSStorageService(); print(service.check_s3_connection())"
+python -c "from vasttamsserver.common.storage.main_service import TAMSStorageService; service = TAMSStorageService(); print(service.check_s3_connection())"
 ```
 
 ### **3. Application Startup**
@@ -131,13 +131,13 @@ python -c "from vasttams.common.storage.main_service import TAMSStorageService; 
 python run.py
 
 # Or use uvicorn directly
-uvicorn vasttams.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn vasttamsserver.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 #### **Development with Hot Reload**
 ```bash
 # Start with auto-reload for development
-uvicorn vasttams.main:app --reload --host 0.0.0.0 --port 8000 --log-level debug
+uvicorn vasttamsserver.main:app --reload --host 0.0.0.0 --port 8000 --log-level debug
 ```
 
 ### **4. Verification**
@@ -1083,10 +1083,10 @@ spec:
 #### **Connection Issues**
 ```bash
 # Test VAST connection
-python -m vasttams.core.diagnostics --check=db
+python -m vasttamsserver.core.diagnostics --check=db
 
 # Test S3 connection
-python -m vasttams.core.diagnostics --check=s3
+python -m vasttamsserver.core.diagnostics --check=s3
 
 # Check network connectivity
 telnet your-vast-server 9090

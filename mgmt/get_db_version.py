@@ -68,7 +68,7 @@ def get_config_info():
         import sys
         sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
         
-        from vasttams.core.config import get_settings
+        from vasttamsserver.core.config import get_settings
         
         print("\n🔧 Configuration Information")
         print("=" * 30)

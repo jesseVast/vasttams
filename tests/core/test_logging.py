@@ -16,8 +16,8 @@ from unittest.mock import patch, MagicMock
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.core.simple_logging import setup_logging, EnhancedFormatter
-from vasttams.core.tams_logging import TAMSHumanReadableFormatter
+from vasttamsserver.core.simple_logging import setup_logging, EnhancedFormatter
+from vasttamsserver.core.tams_logging import TAMSHumanReadableFormatter
 
 
 class TestEnhancedFormatter:
@@ -281,7 +281,7 @@ class TestSetupLogging:
     
     def test_tams_compliance_filter_compliance_only(self):
         """Test TAMSComplianceFilter with compliance_only=True"""
-        from vasttams.core.tams_logging import TAMSComplianceFilter
+        from vasttamsserver.core.tams_logging import TAMSComplianceFilter
         
         filter_obj = TAMSComplianceFilter(compliance_only=True)
         
@@ -313,7 +313,7 @@ class TestSetupLogging:
     
     def test_tams_compliance_filter_compliance_only_tams_in_name(self):
         """Test TAMSComplianceFilter with TAMS in logger name"""
-        from vasttams.core.tams_logging import TAMSComplianceFilter
+        from vasttamsserver.core.tams_logging import TAMSComplianceFilter
         
         filter_obj = TAMSComplianceFilter(compliance_only=True)
         
@@ -330,7 +330,7 @@ class TestSetupLogging:
     
     def test_tams_compliance_filter_compliance_only_compliance_in_message(self):
         """Test TAMSComplianceFilter with 'compliance' in message"""
-        from vasttams.core.tams_logging import TAMSComplianceFilter
+        from vasttamsserver.core.tams_logging import TAMSComplianceFilter
         
         filter_obj = TAMSComplianceFilter(compliance_only=True)
         
@@ -347,7 +347,7 @@ class TestSetupLogging:
     
     def test_tams_logging_config_init(self):
         """Test TAMSLoggingConfig initialization"""
-        from vasttams.core.tams_logging import TAMSLoggingConfig
+        from vasttamsserver.core.tams_logging import TAMSLoggingConfig
         from unittest.mock import patch
         
         with patch('vasttams.core.tams_logging.get_settings') as mock_get_settings:
@@ -364,7 +364,7 @@ class TestSetupLogging:
     @patch('logging.getLogger')
     def test_tams_logging_config_setup_logging(self, mock_get_logger, mock_dict_config, mock_get_settings):
         """Test TAMSLoggingConfig.setup_logging"""
-        from vasttams.core.tams_logging import TAMSLoggingConfig
+        from vasttamsserver.core.tams_logging import TAMSLoggingConfig
         
         mock_settings = MagicMock()
         mock_settings.debug = False
@@ -386,7 +386,7 @@ class TestSetupLogging:
     
     def test_log_tams_compliance_event(self):
         """Test log_tams_compliance_event function"""
-        from vasttams.core.tams_logging import log_tams_compliance_event
+        from vasttamsserver.core.tams_logging import log_tams_compliance_event
         
         logger = logging.getLogger("test")
         with patch.object(logger, 'info') as mock_info:
@@ -405,7 +405,7 @@ class TestSetupLogging:
     
     def test_log_tams_compliance_event_error(self):
         """Test log_tams_compliance_event with error severity"""
-        from vasttams.core.tams_logging import log_tams_compliance_event
+        from vasttamsserver.core.tams_logging import log_tams_compliance_event
         
         logger = logging.getLogger("test")
         with patch.object(logger, 'error') as mock_error:
@@ -419,7 +419,7 @@ class TestSetupLogging:
     
     def test_log_tams_compliance_event_warning(self):
         """Test log_tams_compliance_event with warning severity"""
-        from vasttams.core.tams_logging import log_tams_compliance_event
+        from vasttamsserver.core.tams_logging import log_tams_compliance_event
         
         logger = logging.getLogger("test")
         with patch.object(logger, 'warning') as mock_warning:
@@ -433,7 +433,7 @@ class TestSetupLogging:
     
     def test_log_tams_compliance_event_debug(self):
         """Test log_tams_compliance_event with debug severity"""
-        from vasttams.core.tams_logging import log_tams_compliance_event
+        from vasttamsserver.core.tams_logging import log_tams_compliance_event
         
         logger = logging.getLogger("test")
         with patch.object(logger, 'debug') as mock_debug:
@@ -447,7 +447,7 @@ class TestSetupLogging:
     
     def test_log_tams_validation_result_passed(self):
         """Test log_tams_validation_result with passed result"""
-        from vasttams.core.tams_logging import log_tams_validation_result
+        from vasttamsserver.core.tams_logging import log_tams_validation_result
         
         logger = logging.getLogger("test")
         with patch.object(logger, 'info') as mock_info:
@@ -464,7 +464,7 @@ class TestSetupLogging:
     
     def test_log_tams_validation_result_failed(self):
         """Test log_tams_validation_result with failed result"""
-        from vasttams.core.tams_logging import log_tams_validation_result
+        from vasttamsserver.core.tams_logging import log_tams_validation_result
         
         logger = logging.getLogger("test")
         with patch.object(logger, 'warning') as mock_warning:
@@ -480,7 +480,7 @@ class TestSetupLogging:
     
     def test_log_tams_api_request(self):
         """Test log_tams_api_request function"""
-        from vasttams.core.tams_logging import log_tams_api_request
+        from vasttamsserver.core.tams_logging import log_tams_api_request
         
         logger = logging.getLogger("test")
         with patch.object(logger, 'info') as mock_info:
@@ -499,7 +499,7 @@ class TestSetupLogging:
     
     def test_log_tams_storage_operation_success(self):
         """Test log_tams_storage_operation with success"""
-        from vasttams.core.tams_logging import log_tams_storage_operation
+        from vasttamsserver.core.tams_logging import log_tams_storage_operation
         
         logger = logging.getLogger("test")
         with patch.object(logger, 'info') as mock_info:
@@ -518,7 +518,7 @@ class TestSetupLogging:
     
     def test_log_tams_storage_operation_failed(self):
         """Test log_tams_storage_operation with failure"""
-        from vasttams.core.tams_logging import log_tams_storage_operation
+        from vasttamsserver.core.tams_logging import log_tams_storage_operation
         
         logger = logging.getLogger("test")
         with patch.object(logger, 'error') as mock_error:

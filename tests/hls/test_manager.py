@@ -14,8 +14,8 @@ import uuid
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.hls.manager import HLSManager
-from vasttams.hls.models import HLSPlaylist, HLSSegment
+from vasttamsserver.hls.manager import HLSManager
+from vasttamsserver.hls.models import HLSPlaylist, HLSSegment
 
 import logging
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class TestHLSManager:
         manager = HLSManager(None)  # vast_db not needed for this test
         
         # Test standard timerange - use string directly
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.common.models import TimeRange
         timerange = TimeRange(value="[1234567890:0_1234567891:0)")
         duration = manager._parse_timerange_duration(timerange)
         assert duration == 1.0
@@ -47,8 +47,8 @@ class TestHLSManager:
         """Test duration calculation from timerange"""
         manager = HLSManager(None)
         
-        from vasttams.segments.models import FlowSegment, GetUrl
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.segments.models import FlowSegment, GetUrl
+        from vasttamsserver.common.models import TimeRange
         
         segment = FlowSegment(
             object_id=str(uuid.uuid4()),
@@ -70,8 +70,8 @@ class TestHLSManager:
         """Test duration calculation from sample_count"""
         manager = HLSManager(None)
         
-        from vasttams.segments.models import FlowSegment, GetUrl
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.segments.models import FlowSegment, GetUrl
+        from vasttamsserver.common.models import TimeRange
         
         # Use Optional for timerange
         segment = FlowSegment(
@@ -95,8 +95,8 @@ class TestHLSManager:
         """Test that URLs with 'hls' in label are preferred"""
         manager = HLSManager(None)
         
-        from vasttams.segments.models import FlowSegment, GetUrl
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.segments.models import FlowSegment, GetUrl
+        from vasttamsserver.common.models import TimeRange
         
         segment = FlowSegment(
             object_id=str(uuid.uuid4()),
@@ -126,8 +126,8 @@ class TestHLSManager:
         """Test URL selection falls back to first URL if no HLS label"""
         manager = HLSManager(None)
         
-        from vasttams.segments.models import FlowSegment, GetUrl
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.segments.models import FlowSegment, GetUrl
+        from vasttamsserver.common.models import TimeRange
         
         segment = FlowSegment(
             object_id=str(uuid.uuid4()),
@@ -150,8 +150,8 @@ class TestHLSManager:
         """Test URL selection with no URLs"""
         manager = HLSManager(None)
         
-        from vasttams.segments.models import FlowSegment
-        from vasttams.common.models import TimeRange
+        from vasttamsserver.segments.models import FlowSegment
+        from vasttamsserver.common.models import TimeRange
         
         segment = FlowSegment(
             object_id=str(uuid.uuid4()),

@@ -57,7 +57,7 @@ The TAMS API is built using FastAPI, a modern, fast web framework for building A
 
 **Architecture:**
 ```
-src/vasttams/
+src/server/vasttamsserver/
 ├── main.py              # FastAPI application entry point
 ├── sources/             # Source resource (models, router, service)
 ├── flows/               # Flow resource (models, router, service)
@@ -202,7 +202,7 @@ The system uses Pydantic v2 for comprehensive data validation and serialization.
 
 **Model Structure:**
 ```
-src/vasttams/
+src/server/vasttamsserver/
 ├── sources/models.py     # Source data models
 ├── flows/models.py       # Flow data models
 ├── segments/models.py    # Segment data models

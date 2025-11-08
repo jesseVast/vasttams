@@ -13,7 +13,7 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.common.c2pa_utils import (
+from vasttamsserver.common.c2pa_utils import (
     C2PAValidator,
     validate_c2pa_in_metadata,
     extract_c2pa_provenance
@@ -182,7 +182,7 @@ class TestC2PAValidation:
     
     def test_validate_c2pa_chain_valid(self):
         """Test C2PA chain validation with valid chain"""
-        from vasttams.common.c2pa_utils import C2PAAssertion, C2PAManifest
+        from vasttamsserver.common.c2pa_utils import C2PAAssertion, C2PAManifest
         
         assertions = [
             C2PAAssertion(

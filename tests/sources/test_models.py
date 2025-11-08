@@ -14,9 +14,9 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.sources.models import Source
-from vasttams.common.filters import SourceFilters
-from vasttams.common.models import Tags
+from vasttamsserver.sources.models import Source
+from vasttamsserver.common.filters import SourceFilters
+from vasttamsserver.common.models import Tags
 
 import logging
 logger = logging.getLogger(__name__)

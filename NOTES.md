@@ -126,7 +126,7 @@ notes/
 - **Problem**: `GET /objects` returning 500 error due to missing `referenced_by_flows` and `timerange` fields
 - **Root Cause**: `get_objects()` not computing required fields like `get_object()` does
 - **Solution**: 
-  - Updated `get_objects()` in `src/vasttams/objects/service.py` to:
+  - Updated `get_objects()` in `src/server/vasttamsserver/objects/service.py` to:
     - Compute `referenced_by_flows` from segments table for each object
     - Handle `timerange` conversion (None/string → TimeRange instance)
     - Add proper error handling with defensive checks
@@ -181,8 +181,8 @@ notes/
 
 #### **📊 Files Updated**
 - `tests/ingest_test_data.py` - Extract content-type, add Content-Type header to uploads
-- `src/vasttams/common/storage/main_service.py` - Prioritize flow.container, cleanup logging
-- `src/vasttams/segments/service.py` - Prioritize flow.container, cleanup logging
+- `src/server/vasttamsserver/common/storage/main_service.py` - Prioritize flow.container, cleanup logging
+- `src/server/vasttamsserver/segments/service.py` - Prioritize flow.container, cleanup logging
 
 #### **🔧 VAST S3 Compatibility Fix**
 - **Issue**: vasts3 supports `response_content_type` and `response_content_disposition` parameters, but VAST S3 backend does not support them in presigned URLs
@@ -227,13 +227,13 @@ notes/
 - **Result**: All `vasttams.*` submodules now respect configured log level
 
 #### **📊 Files Updated**
-- `src/vasttams/storagebackends/schemas.py` - Added bucket_name, root_path, use_ssl fields
-- `src/vasttams/storagebackends/models.py` - Added fields to StorageBackend, StorageBackendPost, StorageBackendPatch
-- `src/vasttams/storagebackends/service.py` - Updated create method to include new fields
-- `src/vasttams/main.py` - Updated initialization to include new fields from config
-- `src/vasttams/common/storage/main_service.py` - Use backend root_path/bucket_name/use_ssl in presigned URLs
-- `src/vasttams/segments/service.py` - Use backend root_path/bucket_name/use_ssl in presigned URLs
-- `src/vasttams/core/simple_logging.py` - Use settings.log_level and set for all loggers
+- `src/server/vasttamsserver/storagebackends/schemas.py` - Added bucket_name, root_path, use_ssl fields
+- `src/server/vasttamsserver/storagebackends/models.py` - Added fields to StorageBackend, StorageBackendPost, StorageBackendPatch
+- `src/server/vasttamsserver/storagebackends/service.py` - Updated create method to include new fields
+- `src/server/vasttamsserver/main.py` - Updated initialization to include new fields from config
+- `src/server/vasttamsserver/common/storage/main_service.py` - Use backend root_path/bucket_name/use_ssl in presigned URLs
+- `src/server/vasttamsserver/segments/service.py` - Use backend root_path/bucket_name/use_ssl in presigned URLs
+- `src/server/vasttamsserver/core/simple_logging.py` - Use settings.log_level and set for all loggers
 - `ui/src/pages/StorageBackends.tsx` - New page for storage backend management
 - `ui/src/App.tsx` - Added route for storage-backends
 - `ui/src/components/Layout.tsx` - Reorganized navigation with admin section
@@ -279,8 +279,8 @@ notes/
 - `tests/sources/test_database.py` - Updated all tests to use authentication
 - `tests/flows/test_endpoint.py` - Updated all tests and fixtures
 - `tests/segments/test_endpoint.py` - Updated all tests and fixtures
-- `src/vasttams/segments/service.py` - Fixed content-type serialization and credential validation
-- `src/vasttams/common/storage/main_service.py` - Fixed content-type serialization and credential validation
+- `src/server/vasttamsserver/segments/service.py` - Fixed content-type serialization and credential validation
+- `src/server/vasttamsserver/common/storage/main_service.py` - Fixed content-type serialization and credential validation
 - `tests/ingest_test_data.py` - Dynamic video discovery, improved upload handling
 
 #### **✅ Test Results**
@@ -308,9 +308,9 @@ notes/
 - **Key Prefix Support**: Integrate `s3_root_path` as `key_prefix` in S3Config for namespace isolation
 
 #### **📊 Files Updated**
-- `src/vasttams/common/storage/main_service.py` - Real S3 presigned URL generation
-- `src/vasttams/core/dependencies.py` - Normalized key_prefix handling
-- `src/vasttams/segments/service.py` - Consistent path normalization
+- `src/server/vasttamsserver/common/storage/main_service.py` - Real S3 presigned URL generation
+- `src/server/vasttamsserver/core/dependencies.py` - Normalized key_prefix handling
+- `src/server/vasttamsserver/segments/service.py` - Consistent path normalization
 - `tests/s3_upload_test.py` - Updated for proper API response format
 
 #### **✅ Test Results**
@@ -356,8 +356,8 @@ notes/
 - **Format Validation**: ✅ Updated for video/audio/data formats
 
 **Files Modified**:
-- `src/vasttams/sources/router.py` - Added cascade logging
-- `src/vasttams/sources/service.py` - Implemented cascade delete with flow/segment cleanup
+- `src/server/vasttamsserver/sources/router.py` - Added cascade logging
+- `src/server/vasttamsserver/sources/service.py` - Implemented cascade delete with flow/segment cleanup
 - `tests/sources/test_database.py` - Added cascade delete tests
 - `tests/sources/test_crud.py` - Updated for TAMS 8.0 partial updates
 - `tests/sources/test_endpoint.py` - Updated for TAMS 8.0 partial updates

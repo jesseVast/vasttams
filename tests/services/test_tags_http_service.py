@@ -16,9 +16,9 @@ from fastapi import HTTPException
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.common.tags.http_service import TagHTTPService
-from vasttams.common.tags.service import TagStorageService
-from vasttams.common.models import Tags
+from vasttamsserver.common.tags.http_service import TagHTTPService
+from vasttamsserver.common.tags.service import TagStorageService
+from vasttamsserver.common.models import Tags
 import uuid
 
 

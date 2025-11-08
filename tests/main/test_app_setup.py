@@ -23,7 +23,7 @@ class TestAppCreation:
     @patch('vasttams.main.get_vast_db')
     def test_app_creation(self, mock_get_vast_db, mock_get_settings):
         """Test that FastAPI app can be created"""
-        from vasttams.main import app
+        from vasttamsserver.main import app
         assert app is not None
         assert app.title is not None
     
@@ -31,7 +31,7 @@ class TestAppCreation:
     @patch('vasttams.main.get_vast_db')
     def test_app_has_routers(self, mock_get_vast_db, mock_get_settings):
         """Test that app has all required routers"""
-        from vasttams.main import app
+        from vasttamsserver.main import app
         router_paths = [route.path for route in app.routes]
         expected_paths = ["/sources", "/flows", "/segments", "/objects", "/auth"]
         # Check that at least some expected paths exist
@@ -41,7 +41,7 @@ class TestAppCreation:
     @patch('vasttams.main.get_vast_db')
     def test_app_has_middleware(self, mock_get_vast_db, mock_get_settings):
         """Test that app has middleware configured"""
-        from vasttams.main import app
+        from vasttamsserver.main import app
         # Check that middleware is configured (CORS, telemetry, etc.)
         # FastAPI stores middleware in user_middleware list
         assert len(app.user_middleware) > 0
@@ -56,7 +56,7 @@ class TestLifespanEvents:
     @patch('vasttams.common.storage.table_initializer.TAMSTableInitializer')
     async def test_lifespan_startup(self, mock_initializer_class, mock_get_vast_db, mock_telemetry):
         """Test lifespan startup events"""
-        from vasttams.main import lifespan, app
+        from vasttamsserver.main import lifespan, app
         
         # Mock dependencies
         mock_vast_db = MagicMock()
@@ -81,7 +81,7 @@ class TestLifespanEvents:
     @patch('vasttams.common.storage.table_initializer.TAMSTableInitializer')
     async def test_lifespan_startup_with_missing_tables(self, mock_initializer_class, mock_get_vast_db, mock_telemetry, mock_user_service):
         """Test lifespan startup when tables are missing"""
-        from vasttams.main import lifespan, app
+        from vasttamsserver.main import lifespan, app
         
         mock_vast_db = MagicMock()
         mock_get_vast_db.return_value = mock_vast_db
@@ -111,7 +111,7 @@ class TestLifespanEvents:
     @patch('vasttams.common.storage.table_initializer.TAMSTableInitializer')
     async def test_lifespan_startup_initializes_storage_backends(self, mock_initializer_class, mock_get_s3, mock_get_vast_db, mock_telemetry, mock_user_service, mock_backend_service):
         """Test lifespan startup initializes storage backends"""
-        from vasttams.main import lifespan, app
+        from vasttamsserver.main import lifespan, app
         
         mock_vast_db = MagicMock()
         mock_get_vast_db.return_value = mock_vast_db
@@ -142,7 +142,7 @@ class TestLifespanEvents:
     @patch('vasttams.main.get_vast_db')
     async def test_lifespan_shutdown(self, mock_get_vast_db, mock_telemetry):
         """Test lifespan shutdown events"""
-        from vasttams.main import lifespan, app
+        from vasttamsserver.main import lifespan, app
         
         mock_vast_db = MagicMock()
         mock_get_vast_db.return_value = None  # No DB for shutdown test
@@ -163,7 +163,7 @@ class TestExceptionHandlers:
     @patch('vasttams.main.get_vast_db')
     def test_app_has_exception_handlers(self, mock_get_vast_db, mock_get_settings):
         """Test that app has exception handlers configured"""
-        from vasttams.main import app
+        from vasttamsserver.main import app
         # Check that exception handlers exist
         assert hasattr(app, 'exception_handlers') or len(app.exception_handlers) >= 0
     
@@ -173,7 +173,7 @@ class TestExceptionHandlers:
     @patch('vasttams.main.get_vast_db')
     async def test_http_exception_handler_401(self, mock_get_vast_db, mock_get_settings, mock_logger):
         """Test HTTP exception handler for 401 errors (logs at DEBUG)"""
-        from vasttams.main import app, http_exception_handler
+        from vasttamsserver.main import app, http_exception_handler
         from fastapi import HTTPException, Request
         
         mock_request = MagicMock(spec=Request)
@@ -191,7 +191,7 @@ class TestExceptionHandlers:
     @patch('vasttams.main.get_vast_db')
     async def test_http_exception_handler_400(self, mock_get_vast_db, mock_get_settings, mock_logger):
         """Test HTTP exception handler for 400 errors (logs at WARNING)"""
-        from vasttams.main import app, http_exception_handler
+        from vasttamsserver.main import app, http_exception_handler
         from fastapi import HTTPException, Request
         
         mock_request = MagicMock(spec=Request)
@@ -208,7 +208,7 @@ class TestExceptionHandlers:
     @patch('vasttams.main.get_vast_db')
     async def test_http_exception_handler_500(self, mock_get_vast_db, mock_get_settings, mock_logger):
         """Test HTTP exception handler for 500 errors (logs at ERROR)"""
-        from vasttams.main import app, http_exception_handler
+        from vasttamsserver.main import app, http_exception_handler
         from fastapi import HTTPException, Request
         
         mock_request = MagicMock(spec=Request)
@@ -225,7 +225,7 @@ class TestExceptionHandlers:
     @patch('vasttams.main.get_vast_db')
     async def test_validation_exception_handler(self, mock_get_vast_db, mock_get_settings, mock_log_error):
         """Test validation exception handler"""
-        from vasttams.main import app, validation_exception_handler
+        from vasttamsserver.main import app, validation_exception_handler
         from fastapi import Request
         from fastapi.exceptions import RequestValidationError
         
@@ -252,7 +252,7 @@ class TestExceptionHandlers:
     @patch('vasttams.main.get_vast_db')
     async def test_timeout_exception_handler(self, mock_get_vast_db, mock_get_settings, mock_logger):
         """Test timeout exception handler"""
-        from vasttams.main import app, timeout_exception_handler
+        from vasttamsserver.main import app, timeout_exception_handler
         from fastapi import Request
         import asyncio
         
@@ -275,7 +275,7 @@ class TestExceptionHandlers:
     @patch('vasttams.main.get_vast_db')
     async def test_connection_exception_handler(self, mock_get_vast_db, mock_get_settings, mock_logger):
         """Test connection exception handler"""
-        from vasttams.main import app, connection_exception_handler
+        from vasttamsserver.main import app, connection_exception_handler
         from fastapi import Request
         
         mock_request = MagicMock(spec=Request)
@@ -299,7 +299,7 @@ class TestOpenAPISchema:
     @patch('vasttams.main.get_vast_db')
     def test_openapi_schema_generation(self, mock_get_vast_db, mock_get_settings):
         """Test that OpenAPI schema can be generated"""
-        from vasttams.main import app
+        from vasttamsserver.main import app
         schema = app.openapi()
         assert schema is not None
         assert "info" in schema
@@ -309,7 +309,7 @@ class TestOpenAPISchema:
     @patch('vasttams.main.get_vast_db')
     def test_openapi_schema_info(self, mock_get_vast_db, mock_get_settings):
         """Test OpenAPI schema info"""
-        from vasttams.main import app
+        from vasttamsserver.main import app
         schema = app.openapi()
         assert "title" in schema["info"]
         assert "version" in schema["info"]
@@ -318,7 +318,7 @@ class TestOpenAPISchema:
     @patch('vasttams.main.get_vast_db')
     def test_openapi_schema_has_tags(self, mock_get_vast_db, mock_get_settings):
         """Test OpenAPI schema has custom tags"""
-        from vasttams.main import app
+        from vasttamsserver.main import app
         schema = app.openapi()
         assert "tags" in schema
         tag_names = [tag["name"] for tag in schema["tags"]]
@@ -334,7 +334,7 @@ class TestRootEndpoints:
     @patch('vasttams.main.get_vast_db')
     async def test_head_root(self, mock_get_vast_db, mock_get_settings):
         """Test HEAD / endpoint"""
-        from vasttams.main import app, head_root
+        from vasttamsserver.main import app, head_root
         from fastapi import Request
         
         mock_request = MagicMock(spec=Request)
@@ -347,7 +347,7 @@ class TestRootEndpoints:
     @patch('vasttams.main.get_vast_db')
     async def test_get_root(self, mock_get_vast_db, mock_get_settings):
         """Test GET / endpoint"""
-        from vasttams.main import app, get_root
+        from vasttamsserver.main import app, get_root
         
         response = await get_root()
         
@@ -361,7 +361,7 @@ class TestRootEndpoints:
     @patch('vasttams.main.get_vast_db')
     async def test_get_openapi_json(self, mock_get_vast_db, mock_get_settings):
         """Test GET /openapi.json endpoint"""
-        from vasttams.main import app, get_openapi_json
+        from vasttamsserver.main import app, get_openapi_json
         
         response = await get_openapi_json()
         
@@ -379,7 +379,7 @@ class TestHealthEndpoints:
     @patch('vasttams.main.get_vast_db')
     async def test_head_health(self, mock_get_vast_db, mock_get_settings):
         """Test HEAD /health endpoint"""
-        from vasttams.main import app, head_health
+        from vasttamsserver.main import app, head_health
         
         response = await head_health()
         
@@ -391,7 +391,7 @@ class TestHealthEndpoints:
     @patch('vasttams.main.get_vast_db')
     async def test_get_health(self, mock_get_vast_db, mock_get_settings, mock_health_check):
         """Test GET /health endpoint"""
-        from vasttams.main import app, health_check
+        from vasttamsserver.main import app, health_check
         
         mock_health_check.return_value = {"status": "healthy"}
         
@@ -406,7 +406,7 @@ class TestHealthEndpoints:
     @patch('vasttams.main.get_vast_db')
     async def test_get_metrics(self, mock_get_vast_db, mock_get_settings, mock_metrics):
         """Test GET /metrics endpoint"""
-        from vasttams.main import app, get_metrics
+        from vasttamsserver.main import app, get_metrics
         
         mock_metrics.return_value = {"requests_total": 100}
         
@@ -424,7 +424,7 @@ class TestConfigEndpoints:
     @patch('vasttams.main.get_vast_db')
     async def test_get_async_deletion_threshold(self, mock_get_vast_db, mock_get_settings):
         """Test GET /config/async-deletion-threshold endpoint"""
-        from vasttams.main import app, get_async_deletion_threshold
+        from vasttamsserver.main import app, get_async_deletion_threshold
         
         mock_settings = MagicMock()
         mock_settings.async_deletion_threshold = 100
@@ -440,7 +440,7 @@ class TestConfigEndpoints:
     @patch('vasttams.main.get_vast_db')
     async def test_update_async_deletion_threshold_success(self, mock_get_vast_db, mock_get_settings, mock_update_settings):
         """Test PUT /config/async-deletion-threshold endpoint with valid threshold"""
-        from vasttams.main import app, update_async_deletion_threshold
+        from vasttamsserver.main import app, update_async_deletion_threshold
         
         response = await update_async_deletion_threshold(threshold=200)
         
@@ -453,7 +453,7 @@ class TestConfigEndpoints:
     @patch('vasttams.main.get_vast_db')
     async def test_update_async_deletion_threshold_negative(self, mock_get_vast_db, mock_get_settings):
         """Test PUT /config/async-deletion-threshold endpoint with negative threshold"""
-        from vasttams.main import app, update_async_deletion_threshold
+        from vasttamsserver.main import app, update_async_deletion_threshold
         from fastapi import HTTPException
         
         with pytest.raises(HTTPException) as exc_info:

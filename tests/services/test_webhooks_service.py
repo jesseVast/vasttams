@@ -17,8 +17,8 @@ import uuid
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.webhooks.service import WebhookService
-from vasttams.webhooks.models import Webhook
+from vasttamsserver.webhooks.service import WebhookService
+from vasttamsserver.webhooks.models import Webhook
 
 
 class TestWebhookService:
@@ -410,7 +410,7 @@ class TestWebhookServiceCreateWebhook:
     @pytest.mark.asyncio
     async def test_create_webhook_basic(self):
         """Test create_webhook with basic data"""
-        from vasttams.webhooks.models import WebhookPost
+        from vasttamsserver.webhooks.models import WebhookPost
         
         webhook_id = str(uuid.uuid4())
         
@@ -451,7 +451,7 @@ class TestWebhookServiceCreateWebhook:
     @pytest.mark.asyncio
     async def test_create_webhook_with_all_fields(self):
         """Test create_webhook with all optional fields"""
-        from vasttams.webhooks.models import WebhookPost
+        from vasttamsserver.webhooks.models import WebhookPost
         
         webhook_id = str(uuid.uuid4())
         
@@ -478,7 +478,7 @@ class TestWebhookServiceCreateWebhook:
         
         service = WebhookService(mock_db)
         
-        from vasttams.common.models import Tags
+        from vasttamsserver.common.models import Tags
         flow_id = str(uuid.uuid4())
         source_id = str(uuid.uuid4())
         webhook_post = WebhookPost(
@@ -504,7 +504,7 @@ class TestWebhookServiceCreateWebhook:
     @pytest.mark.asyncio
     async def test_create_webhook_exception_handling(self):
         """Test create_webhook handles exceptions"""
-        from vasttams.webhooks.models import WebhookPost
+        from vasttamsserver.webhooks.models import WebhookPost
         
         mock_db = Mock()
         mock_db.insert_record.side_effect = Exception("Database error")
@@ -532,7 +532,7 @@ class TestWebhookServiceUpdateWebhook:
     @pytest.mark.asyncio
     async def test_update_webhook_basic(self):
         """Test update_webhook with basic update"""
-        from vasttams.webhooks.models import WebhookUpdate
+        from vasttamsserver.webhooks.models import WebhookUpdate
         
         webhook_id = str(uuid.uuid4())
         
@@ -567,7 +567,7 @@ class TestWebhookServiceUpdateWebhook:
     @pytest.mark.asyncio
     async def test_update_webhook_not_found(self):
         """Test update_webhook with non-existent webhook"""
-        from vasttams.webhooks.models import WebhookUpdate
+        from vasttamsserver.webhooks.models import WebhookUpdate
         
         webhook_id = str(uuid.uuid4())
         
@@ -591,7 +591,7 @@ class TestWebhookServiceUpdateWebhook:
     @pytest.mark.asyncio
     async def test_update_webhook_all_fields(self):
         """Test update_webhook with all fields"""
-        from vasttams.webhooks.models import WebhookUpdate
+        from vasttamsserver.webhooks.models import WebhookUpdate
         
         webhook_id = str(uuid.uuid4())
         
@@ -617,7 +617,7 @@ class TestWebhookServiceUpdateWebhook:
         
         service = WebhookService(mock_db)
         
-        from vasttams.common.models import Tags
+        from vasttamsserver.common.models import Tags
         new_flow_id = str(uuid.uuid4())
         webhook_update = WebhookUpdate(
             url="http://new-url.com/webhook",
@@ -638,7 +638,7 @@ class TestWebhookServiceUpdateWebhook:
     @pytest.mark.asyncio
     async def test_update_webhook_partial_update(self):
         """Test update_webhook with partial fields"""
-        from vasttams.webhooks.models import WebhookUpdate
+        from vasttamsserver.webhooks.models import WebhookUpdate
         
         webhook_id = str(uuid.uuid4())
         
@@ -674,7 +674,7 @@ class TestWebhookServiceUpdateWebhook:
     @pytest.mark.asyncio
     async def test_update_webhook_no_fields(self):
         """Test update_webhook with no fields to update"""
-        from vasttams.webhooks.models import WebhookUpdate
+        from vasttamsserver.webhooks.models import WebhookUpdate
         
         webhook_id = str(uuid.uuid4())
         
@@ -707,7 +707,7 @@ class TestWebhookServiceUpdateWebhook:
     @pytest.mark.asyncio
     async def test_update_webhook_exception_handling(self):
         """Test update_webhook handles exceptions"""
-        from vasttams.webhooks.models import WebhookUpdate
+        from vasttamsserver.webhooks.models import WebhookUpdate
         
         webhook_id = str(uuid.uuid4())
         

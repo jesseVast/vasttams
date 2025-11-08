@@ -32,7 +32,7 @@ warnings.simplefilter("ignore")
 
 # Import settings for BASE_URL
 try:
-    from vasttams.core.config import get_settings
+    from vasttamsserver.core.config import get_settings
     settings = get_settings()
     BASE_URL = f"http://{settings.host}:{settings.port}"
 except Exception:
@@ -43,7 +43,7 @@ def _get_token_cache_path():
     """Get path to token cache file (shared across all test processes)"""
     import tempfile
     import os
-    cache_dir = os.path.join(tempfile.gettempdir(), "vasttams_test_cache")
+    cache_dir = os.path.join(tempfile.gettempdir(), "vasttamsserver_test_cache")
     os.makedirs(cache_dir, exist_ok=True)
     return os.path.join(cache_dir, "auth_token.json")
 
@@ -263,7 +263,7 @@ def get_auth_headers():
     Use the auth_headers fixture in tests instead of calling this directly.
     """
     try:
-        from vasttams.core.config import get_settings
+        from vasttamsserver.core.config import get_settings
         settings = get_settings()
         base_url = f"http://{settings.host}:{settings.port}"
     except Exception:

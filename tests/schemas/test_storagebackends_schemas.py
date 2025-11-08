@@ -14,7 +14,7 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.storagebackends.schemas import (
+from vasttamsserver.storagebackends.schemas import (
     get_storage_backends_schema,
     get_storage_backends_projections
 )

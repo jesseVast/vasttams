@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
-    ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r tamsuser \
     && useradd -r -g tamsuser -s /bin/bash -d /app tamsuser

@@ -102,7 +102,7 @@ class StorageInterface(ABC):
     
     # Flow segment operations
     @abstractmethod
-    async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
+    async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None, skip_get_urls_generation: bool = False) -> List[FlowSegment]:
         """Get flow segments with optional timerange filtering"""
         pass
     

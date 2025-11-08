@@ -35,16 +35,26 @@ async def get_source(client, source_id: str) -> Optional[Dict[str, Any]]:
             raise TAMSAPIError(f"Failed to get source: {error_text}", response.status, error_text)
 
 
-async def update_source(client, source_id: str, source_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Update a source."""
-    url = f"{client.server_url}/sources/{source_id}"
+async def update_source_label(client, source_id: str, label: str) -> None:
+    """Update a source label."""
+    url = f"{client.server_url}/sources/{source_id}/label"
     headers = await client._get_headers()
-    async with client._session.put(url, json=source_data, headers=headers) as response:
-        if response.status == 200:
-            return await response.json()
-        else:
+    headers["Content-Type"] = "text/plain"
+    async with client._session.put(url, data=label, headers=headers) as response:
+        if response.status not in (200, 204):
             error_text = await response.text()
-            raise TAMSAPIError(f"Failed to update source: {error_text}", response.status, error_text)
+            raise TAMSAPIError(f"Failed to update source label: {error_text}", response.status, error_text)
+
+
+async def update_source_description(client, source_id: str, description: str) -> None:
+    """Update a source description."""
+    url = f"{client.server_url}/sources/{source_id}/description"
+    headers = await client._get_headers()
+    headers["Content-Type"] = "text/plain"
+    async with client._session.put(url, data=description, headers=headers) as response:
+        if response.status not in (200, 204):
+            error_text = await response.text()
+            raise TAMSAPIError(f"Failed to update source description: {error_text}", response.status, error_text)
 
 
 async def delete_source(client, source_id: str) -> None:

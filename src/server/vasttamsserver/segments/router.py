@@ -223,7 +223,9 @@ async def list_flow_segments(
 ):
     """List segments for a specific flow"""
     try:
-        segments = await storage.get_flow_segments(flow_id, timerange)
+        # Skip expensive get_urls generation if accept_get_urls is empty string (per TAMS spec ADR-0023)
+        skip_get_urls_generation = accept_get_urls == ""
+        segments = await storage.get_flow_segments(flow_id, timerange, skip_get_urls_generation=skip_get_urls_generation)
         
         # Apply object_id filtering if specified
         if object_id:

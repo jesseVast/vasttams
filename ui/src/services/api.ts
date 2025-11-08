@@ -97,6 +97,8 @@ export const userService = {
 
 export const sourceService = {
   list: async (): Promise<Source[]> => {
+    // source_collection is computed on-demand in get_source() only
+    // List operations return empty source_collection for performance
     const response = await api.get('/sources');
     return response.data?.data || response.data || [];
   },

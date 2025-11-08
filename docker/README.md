@@ -134,11 +134,13 @@ docker-compose -f docker-compose.observability.yml up -d
   - Custom DNS resolver support
 - **Profiles**: `prod`, `full` (not in `dev` profile)
 
-### **Observability Stack**
+### **Observability Stack** (Profile: `observability`)
 - **Prometheus**: Metrics collection (port 9090)
 - **Grafana**: Dashboards (port 3000, admin/admin)
 - **Jaeger**: Distributed tracing (port 16686)
 - **Alertmanager**: Alert management (port 9093)
+- **Node Exporter**: System metrics (port 9100)
+- **Profiles**: `observability`, `full` (can be combined with `dev` or `prod`)
 
 ## 🔐 **Environment Configuration**
 
@@ -194,6 +196,9 @@ HAPROXY_DNS=10.140.3.248      # DNS resolver for HAProxy (default: 10.140.3.248)
 cd docker
 # Development mode (server + Trino, no UI)
 docker-compose --profile dev up -d
+
+# With observability stack
+docker-compose --profile dev --profile observability up -d
 ```
 
 **Access Points:**
@@ -201,6 +206,12 @@ docker-compose --profile dev up -d
 - API Docs: http://localhost:8000/docs
 - Health Check: http://localhost:8000/health
 - Trino: http://localhost:8080
+
+**With Observability:**
+- Grafana: http://localhost:3000 (admin/admin)
+- Prometheus: http://localhost:9090
+- Jaeger: http://localhost:16686
+- Alertmanager: http://localhost:9093
 
 **Note**: For development, run the UI separately with `npm start` in the `ui/` directory for hot-reload.
 
@@ -211,6 +222,9 @@ cd docker
 cp config/production.json.example config/production.json
 # Edit config/production.json with your production settings
 CONFIG_FILE=./config/production.json docker-compose --profile prod up -d
+
+# With observability stack
+CONFIG_FILE=./config/production.json docker-compose --profile prod --profile observability up -d
 ```
 
 **Features:**
@@ -227,6 +241,12 @@ CONFIG_FILE=./config/production.json docker-compose --profile prod up -d
 - TAMS API: http://localhost:8000 (direct access)
 - HAProxy S3 Proxy: http://localhost:4001 (default, configurable)
 - API Docs: http://localhost:8000/docs
+
+**With Observability:**
+- Grafana: http://localhost:3000 (admin/admin)
+- Prometheus: http://localhost:9090
+- Jaeger: http://localhost:16686
+- Alertmanager: http://localhost:9093
 - Health Check: http://localhost:8000/health
 
 **Note**: Configure your S3 endpoint in `production.json` to use `http://tams-haproxy:80` so clients route through HAProxy instead of directly to S3.
@@ -248,13 +268,19 @@ cp config/production.json.example config/production.json
 # DO NOT commit production.json to git (contains secrets)
 ```
 
-### **Full Monitoring Stack**
+### **Full Stack with Observability**
 ```bash
 cd docker
-docker-compose -f docker-compose.observability.yml up -d
+# Full stack: dev + prod + observability
+docker-compose --profile full up -d
+
+# Or combine profiles manually
+docker-compose --profile dev --profile prod --profile observability up -d
 ```
 
 **Access Points:**
+- TAMS UI: http://localhost (port 80)
+- TAMS API: http://localhost:8000
 - Grafana: http://localhost:3000 (admin/admin)
 - Prometheus: http://localhost:9090
 - Jaeger: http://localhost:16686

@@ -30,7 +30,7 @@ class SegmentStorageService:
         self.s3_client = s3_client
         self.settings = settings
     
-    async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
+    async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None, skip_get_urls_generation: bool = False) -> List[FlowSegment]:
         """Get flow segments with optional timerange filtering"""
         try:
             # Query segments using vaststore
@@ -183,16 +183,18 @@ class SegmentStorageService:
                     # Continue with unfiltered segments if parsing fails
             
             # Populate get_urls if missing (per TAMS spec - service should auto-populate controlled URLs)
-            for segment in segments:
-                if not segment.get_urls or len(segment.get_urls) == 0:
-                    logger.debug(f"Auto-populating get_urls for segment with object_id: {segment.object_id}")
-                    # Generate get_urls for the object_id
-                    get_urls = await self._generate_get_urls(segment.object_id)
-                    if get_urls:
-                        logger.debug(f"Generated {len(get_urls)} get_urls for object_id: {segment.object_id}")
-                        segment.get_urls = get_urls
-                    else:
-                        logger.warning(f"Failed to generate get_urls for object_id: {segment.object_id}")
+            # Skip if skip_get_urls_generation is True (e.g., when accept_get_urls="" to avoid expensive operations)
+            if not skip_get_urls_generation:
+                for segment in segments:
+                    if not segment.get_urls or len(segment.get_urls) == 0:
+                        logger.debug(f"Auto-populating get_urls for segment with object_id: {segment.object_id}")
+                        # Generate get_urls for the object_id
+                        get_urls = await self._generate_get_urls(segment.object_id)
+                        if get_urls:
+                            logger.debug(f"Generated {len(get_urls)} get_urls for object_id: {segment.object_id}")
+                            segment.get_urls = get_urls
+                        else:
+                            logger.warning(f"Failed to generate get_urls for object_id: {segment.object_id}")
             
             return segments
         except Exception as e:

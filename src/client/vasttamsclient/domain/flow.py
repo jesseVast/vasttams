@@ -33,7 +33,7 @@ class TAMSFlow(TAMSDomainObject):
             format: Flow format URN (required for new flow)
             codec: Flow codec MIME type (required for new flow)
             label: Optional flow label
-            **flow_data: Additional flow data
+            **flow_data: Additional flow data (essence_parameters fields can be passed as top-level)
         """
         if id is None:
             # Create new flow
@@ -53,6 +53,25 @@ class TAMSFlow(TAMSDomainObject):
             
             if "id" not in flow_data:
                 flow_data["id"] = str(uuid.uuid4())
+            
+            # Extract essence_parameters fields if passed as top-level
+            essence_param_fields = ['frame_width', 'frame_height', 'frame_rate', 'vfr', 
+                                   'bit_depth', 'interlace_mode', 'colorspace', 
+                                   'transfer_characteristic', 'aspect_ratio', 'pixel_aspect_ratio',
+                                   'component_type', 'horiz_chroma_subs', 'vert_chroma_subs',
+                                   'sample_rate', 'channels', 'codec_parameters', 'unc_parameters',
+                                   'avc_parameters']
+            
+            # If essence_parameters not already structured, build it from top-level params
+            if "essence_parameters" not in flow_data or not flow_data.get("essence_parameters"):
+                essence_params = {}
+                for field in essence_param_fields:
+                    if field in flow_data:
+                        essence_params[field] = flow_data.pop(field)
+                
+                # Only add essence_parameters if we have some values
+                if essence_params:
+                    flow_data["essence_parameters"] = essence_params
             
             flow_data.update({
                 "format": format,

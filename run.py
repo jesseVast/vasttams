@@ -5,6 +5,16 @@ TAMS FastAPI Application Runner
 This script starts the TAMS (Time-addressable Media Store) API server.
 """
 
+import sys
+import os
+from pathlib import Path
+
+# Add src/server to Python path to allow importing vasttamsserver
+project_root = Path(__file__).parent
+server_path = project_root / "src" / "server"
+if str(server_path) not in sys.path:
+    sys.path.insert(0, str(server_path))
+
 import uvicorn
 import logging
 from vasttamsserver.core.config import get_settings
@@ -21,7 +31,7 @@ def main():
     logger = logging.getLogger(__name__)
     logger.info(f"Starting VastTAMS API server on {settings.host}:{settings.port}")
     
-    # Start the server (note: need to update path to src/vasttams)
+    # Start the server
     # Use multiple workers for better concurrency handling
     # Workers can be configured via:
     # 1. Settings.workers (from config.json or TAMS_WORKERS env var)

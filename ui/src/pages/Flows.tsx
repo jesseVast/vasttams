@@ -50,10 +50,14 @@ const Flows: React.FC = () => {
   const [flowDurations, setFlowDurations] = useState<Record<string, number>>({});
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
+  // Filter values loaded independently for dropdowns
+  const [uniqueCodecsForFilters, setUniqueCodecsForFilters] = useState<string[]>([]);
+  const [uniqueResolutionsForFilters, setUniqueResolutionsForFilters] = useState<string[]>([]);
+  const [uniqueFrameRatesForFilters, setUniqueFrameRatesForFilters] = useState<string[]>([]);
 
   useEffect(() => {
     loadSources();
-    loadFlows();
+    loadFlows(); // Load flows - filter values will be extracted immediately
   }, []);
 
   useEffect(() => {
@@ -78,6 +82,53 @@ const Flows: React.FC = () => {
     }
   };
 
+  // Extract filter values from flows immediately when they load
+  const extractFilterValues = (flowsData: Flow[]) => {
+    const codecs = new Set<string>();
+    const resolutions = new Set<string>();
+    const frameRates = new Set<string>();
+    
+    flowsData.forEach(flow => {
+      if (flow.codec) {
+        codecs.add(flow.codec);
+      }
+      if (flow.essence_parameters?.frame_width && flow.essence_parameters?.frame_height) {
+        const resolution = `${flow.essence_parameters.frame_width}x${flow.essence_parameters.frame_height}`;
+        resolutions.add(resolution);
+      }
+      if (flow.essence_parameters?.frame_rate) {
+        const fr = flow.essence_parameters.frame_rate;
+        const frameRateStr = fr.value || 
+          (fr.numerator && fr.denominator ? `${fr.numerator}/${fr.denominator}` : '');
+        if (frameRateStr) {
+          frameRates.add(frameRateStr);
+        }
+      }
+    });
+    
+    // Set filter values immediately so dropdowns are populated right away
+    setUniqueCodecsForFilters(Array.from(codecs).sort());
+    setUniqueResolutionsForFilters(Array.from(resolutions).sort((a, b) => {
+      const [aWidth, aHeight] = a.split('x').map(Number);
+      const [bWidth, bHeight] = b.split('x').map(Number);
+      if (aWidth !== bWidth) return aWidth - bWidth;
+      return aHeight - bHeight;
+    }));
+    setUniqueFrameRatesForFilters(Array.from(frameRates).sort((a, b) => {
+      const aNum = parseFloat(a);
+      const bNum = parseFloat(b);
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+      if (a.includes('/') && b.includes('/')) {
+        const [aNum, aDen] = a.split('/').map(Number);
+        const [bNum, bDen] = b.split('/').map(Number);
+        const aVal = aNum / aDen;
+        const bVal = bNum / bDen;
+        return aVal - bVal;
+      }
+      return a.localeCompare(b);
+    }));
+  };
+
   // Format duration in human-readable format
   const formatDuration = (seconds: number | null): string => {
     if (seconds === null || seconds === 0) return '-';
@@ -98,29 +149,37 @@ const Flows: React.FC = () => {
   const loadFlows = async () => {
     try {
       setLoading(true);
-      // Load flows list and analytics in parallel
-      const [flowsData, analyticsData] = await Promise.all([
-        flowService.list(),
-        analyticsService.getFlowAnalytics()
-      ]);
+      // Load flows list first - extract filter values immediately
+      const flowsData = await flowService.list();
       
+      // Extract filter values immediately so dropdowns are populated right away
+      extractFilterValues(flowsData);
+      
+      // Set flows immediately so UI can start rendering
       setFlows(flowsData);
       
-      // Extract segment counts and durations from analytics
-      const counts: Record<string, number> = {};
-      const durations: Record<string, number> = {};
-      
-      analyticsData.forEach((analytics) => {
-        if (analytics.flow_id) {
-          counts[analytics.flow_id] = analytics.segment_count || 0;
-          if (analytics.total_duration_seconds !== null && analytics.total_duration_seconds !== undefined) {
-            durations[analytics.flow_id] = analytics.total_duration_seconds;
-          }
-        }
-      });
-      
-      setSegmentCounts(counts);
-      setFlowDurations(durations);
+      // Load analytics in parallel (non-blocking for filter dropdowns)
+      analyticsService.getFlowAnalytics()
+        .then(analyticsData => {
+          // Extract segment counts and durations from analytics
+          const counts: Record<string, number> = {};
+          const durations: Record<string, number> = {};
+          
+          analyticsData.forEach((analytics) => {
+            if (analytics.flow_id) {
+              counts[analytics.flow_id] = analytics.segment_count || 0;
+              if (analytics.total_duration_seconds !== null && analytics.total_duration_seconds !== undefined) {
+                durations[analytics.flow_id] = analytics.total_duration_seconds;
+              }
+            }
+          });
+          
+          setSegmentCounts(counts);
+          setFlowDurations(durations);
+        })
+        .catch(error => {
+          console.error('Failed to load analytics:', error);
+        });
     } catch (error) {
       console.error('Failed to load flows:', error);
     } finally {
@@ -128,19 +187,19 @@ const Flows: React.FC = () => {
     }
   };
 
-  // Extract unique values for dropdowns
+  // Extract unique values for dropdowns - merge with pre-loaded filter values
   const uniqueCodecs = useMemo(() => {
-    const codecs = new Set<string>();
+    const codecs = new Set<string>(uniqueCodecsForFilters); // Start with pre-loaded values
     flows.forEach(flow => {
       if (flow.codec) {
         codecs.add(flow.codec);
       }
     });
     return Array.from(codecs).sort();
-  }, [flows]);
+  }, [flows, uniqueCodecsForFilters]);
 
   const uniqueResolutions = useMemo(() => {
-    const resolutions = new Set<string>();
+    const resolutions = new Set<string>(uniqueResolutionsForFilters); // Start with pre-loaded values
     flows.forEach(flow => {
       if (flow.essence_parameters?.frame_width && flow.essence_parameters?.frame_height) {
         const resolution = `${flow.essence_parameters.frame_width}x${flow.essence_parameters.frame_height}`;
@@ -153,10 +212,10 @@ const Flows: React.FC = () => {
       if (aWidth !== bWidth) return aWidth - bWidth;
       return aHeight - bHeight;
     });
-  }, [flows]);
+  }, [flows, uniqueResolutionsForFilters]);
 
   const uniqueFrameRates = useMemo(() => {
-    const frameRates = new Set<string>();
+    const frameRates = new Set<string>(uniqueFrameRatesForFilters); // Start with pre-loaded values
     flows.forEach(flow => {
       if (flow.essence_parameters?.frame_rate) {
         const fr = flow.essence_parameters.frame_rate;
@@ -182,7 +241,7 @@ const Flows: React.FC = () => {
       }
       return a.localeCompare(b);
     });
-  }, [flows]);
+  }, [flows, uniqueFrameRatesForFilters]);
 
   const handleSort = (property: string | keyof Flow) => {
     const sortField = property as SortableField;
@@ -310,9 +369,18 @@ const Flows: React.FC = () => {
     { id: 'actions', label: 'Actions', sortable: false },
   ];
 
-  const handleOpenDetail = (flow: Flow) => {
-    setSelectedFlow(flow);
-    setDetailModalOpen(true);
+  const handleOpenDetail = async (flow: Flow) => {
+    // Fetch full flow data to get flow_collection computed on-demand
+    try {
+      const fullFlow = await flowService.get(flow.id);
+      setSelectedFlow(fullFlow);
+      setDetailModalOpen(true);
+    } catch (error) {
+      console.error('Failed to load flow details:', error);
+      // Fallback to list data if fetch fails
+      setSelectedFlow(flow);
+      setDetailModalOpen(true);
+    }
   };
 
   const renderRow = (flow: Flow, index: number) => {

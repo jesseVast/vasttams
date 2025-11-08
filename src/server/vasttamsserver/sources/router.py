@@ -49,7 +49,11 @@ async def list_sources(
     storage: StorageInterface = Depends(get_storage_service),
     user_session: UserSession = Depends(require_viewer)
 ):
-    """List sources with optional filtering (TAMS 8.0 with tag filtering)"""
+    """List sources with optional filtering (TAMS 8.0 with tag filtering)
+    
+    Note: source_collection is not included in list responses for performance.
+    Use GET /sources/{source_id} to retrieve a single source with source_collection computed on-demand.
+    """
     try:
         # Extract all query parameters for tag filtering
         query_params = dict(request.query_params)

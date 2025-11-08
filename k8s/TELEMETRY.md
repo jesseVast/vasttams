@@ -1,77 +1,80 @@
 # TAMS Telemetry Integration with Kubernetes
 
-This document describes how the telemetry features are integrated with the existing Kubernetes deployment.
+This document describes how telemetry features are configured in the Helm chart deployment.
 
 ## 🚀 Quick Start
 
-### Apply Telemetry Updates
+### Using Helm
+
+Telemetry is configured through Helm values:
+
 ```bash
-cd k8s
-./apply-telemetry.sh
+# Install with telemetry enabled (default)
+helm install tams-api ./k8s/helm \
+  --set telemetry.enabled=true \
+  --set telemetry.metricsEnabled=true \
+  --set telemetry.tracingEnabled=true \
+  --set telemetry.jaegerEndpoint="jaeger-collector:14268" \
+  --set telemetry.otlpEndpoint="http://otel-collector:4318/v1/traces"
 ```
 
-### Manual Application
-```bash
-kubectl apply -f deployment.yaml
-kubectl apply -f configmap.yaml
-kubectl apply -f service.yaml
-kubectl rollout restart deployment tams-api -n tams
+Or configure in `values.yaml`:
+
+```yaml
+telemetry:
+  enabled: true
+  metricsEnabled: true
+  tracingEnabled: true
+  jaegerEndpoint: "jaeger-collector:14268"
+  otlpEndpoint: "http://otel-collector:4318/v1/traces"
 ```
 
-## 📊 Telemetry Features Enabled
+## 📊 Telemetry Features
 
 ### 1. **Enhanced Health Checks**
 - **Endpoint**: `/health`
 - **Features**: System metrics, telemetry status, dependency health
-- **K8s Integration**: Already configured in liveness/readiness probes
+- **K8s Integration**: Configured in liveness/readiness probes via Helm values
 
 ### 2. **Prometheus Metrics**
 - **Endpoint**: `/metrics`
 - **Features**: HTTP metrics, business metrics, performance metrics
-- **K8s Integration**: Service annotations for Prometheus scraping
+- **K8s Integration**: Service annotations can be added via `service.annotations` in values.yaml
 
 ### 3. **Structured Logging**
 - **Features**: Correlation IDs, structured JSON format
 - **K8s Integration**: Available in pod logs
+- **Configurable**: Log directory via `config.logDir` in values.yaml
 
 ### 4. **OpenTelemetry Tracing**
 - **Features**: Distributed tracing, correlation IDs
-- **K8s Integration**: Environment variables for Jaeger/OTLP endpoints
+- **K8s Integration**: Environment variables configured via Helm values
 
-## 🔧 Configuration Details
+## 🔧 Configuration
 
-### Environment Variables Added
+### Helm Values
+
+Telemetry is configured in the Helm chart's `values.yaml`:
+
 ```yaml
-env:
-- name: TELEMETRY_ENABLED
-  value: "true"
-- name: METRICS_ENABLED
-  value: "true"
-- name: TRACING_ENABLED
-  value: "true"
-- name: JAEGER_ENDPOINT
-  value: "jaeger-collector:14268"
-- name: OTLP_ENDPOINT
-  value: "http://otel-collector:4318/v1/traces"
+telemetry:
+  enabled: true
+  metricsEnabled: true
+  tracingEnabled: true
+  jaegerEndpoint: ""  # Optional: Jaeger collector endpoint
+  otlpEndpoint: ""    # Optional: OTLP collector endpoint
 ```
 
-### ConfigMap Updates
-```json
-{
-  "telemetry_enabled": true,
-  "metrics_enabled": true,
-  "tracing_enabled": true,
-  "jaeger_endpoint": "jaeger-collector:14268",
-  "otlp_endpoint": "http://otel-collector:4318/v1/traces"
-}
-```
+### Service Annotations for Prometheus
 
-### Service Annotations
+To enable Prometheus scraping, add annotations to the service:
+
 ```yaml
-annotations:
-  prometheus.io/scrape: "true"
-  prometheus.io/path: "/metrics"
-  prometheus.io/port: "8000"
+service:
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "8000"
 ```
 
 ## 📈 Available Metrics
@@ -90,6 +93,10 @@ annotations:
 ### Performance Metrics
 - `tams_vast_query_duration_seconds` - VAST database performance
 - `tams_s3_operation_duration_seconds` - S3 operation performance
+- `tams_list_query_duration_seconds` - List operation query duration
+- `tams_list_json_parse_duration_seconds` - JSON parsing duration
+- `tams_list_processing_duration_seconds` - Total list processing time
+- `tams_list_record_count` - Number of records in list operations
 
 ### System Metrics
 - `tams_memory_usage_bytes` - Memory usage
@@ -99,25 +106,29 @@ annotations:
 
 ### Check Deployment Status
 ```bash
-kubectl get pods -n tams
-kubectl logs -f deployment/tams-api -n tams
+kubectl get pods -l app.kubernetes.io/name=tams-api
+kubectl logs -f deployment/tams-api
 ```
 
 ### Test Health Endpoint
 ```bash
-kubectl port-forward service/tams-api-service 8080:80 -n tams
+kubectl port-forward service/tams-api-service 8080:80
 curl http://localhost:8080/health
 ```
 
 ### Test Metrics Endpoint
 ```bash
-kubectl port-forward service/tams-api-service 8080:80 -n tams
+kubectl port-forward service/tams-api-service 8080:80
 curl http://localhost:8080/metrics
 ```
 
-### Check Service Annotations
+### Check Configuration
 ```bash
-kubectl get service tams-api-service -n tams -o yaml
+# Check configmap
+kubectl get configmap tams-api-config -o jsonpath='{.data.config\.json}' | jq .telemetry
+
+# Check environment variables
+kubectl exec -it deployment/tams-api -- env | grep TELEMETRY
 ```
 
 ## 🚨 Troubleshooting
@@ -127,69 +138,54 @@ kubectl get service tams-api-service -n tams -o yaml
 1. **Telemetry not working**
    ```bash
    # Check environment variables
-   kubectl exec -it deployment/tams-api -n tams -- env | grep TELEMETRY
+   kubectl exec -it deployment/tams-api -- env | grep TELEMETRY
    
    # Check logs for telemetry initialization
-   kubectl logs deployment/tams-api -n tams | grep telemetry
+   kubectl logs deployment/tams-api | grep telemetry
    ```
 
 2. **Metrics endpoint not accessible**
    ```bash
    # Check service annotations
-   kubectl get service tams-api-service -n tams -o yaml
+   kubectl get service tams-api-service -o yaml
    
    # Test endpoint directly
-   kubectl port-forward service/tams-api-service 8080:80 -n tams
+   kubectl port-forward service/tams-api-service 8080:80
    curl http://localhost:8080/metrics
    ```
 
 3. **Health check failures**
    ```bash
    # Check health endpoint
-   kubectl port-forward service/tams-api-service 8080:80 -n tams
+   kubectl port-forward service/tams-api-service 8080:80
    curl http://localhost:8080/health
    
    # Check probe configuration
-   kubectl get deployment tams-api -n tams -o yaml
+   kubectl get deployment tams-api -o yaml
    ```
-
-### Debug Commands
-
-```bash
-# Check all resources
-kubectl get all -n tams
-
-# Check events
-kubectl get events -n tams --sort-by='.lastTimestamp'
-
-# Check resource usage
-kubectl top pods -n tams
-
-# Check configuration
-kubectl get configmap tams-config -n tams -o yaml
-```
 
 ## 🔄 Updates and Maintenance
 
 ### Updating Telemetry Configuration
+
 ```bash
-# Update configmap
-kubectl apply -f configmap.yaml
+# Update via Helm
+helm upgrade tams-api ./k8s/helm \
+  --set telemetry.jaegerEndpoint="new-jaeger-endpoint:14268" \
+  --reuse-values
 
-# Update deployment
-kubectl apply -f deployment.yaml
-
-# Restart deployment
-kubectl rollout restart deployment tams-api -n tams
+# Or update values.yaml and upgrade
+helm upgrade tams-api ./k8s/helm -f values.yaml
 ```
 
 ### Rolling Back Changes
+
 ```bash
 # Rollback to previous version
-kubectl rollout undo deployment tams-api -n tams
+helm rollback tams-api
 
 # Check rollback status
-kubectl rollout status deployment tams-api -n tams
+helm history tams-api
 ```
 
 ## 📝 Next Steps
@@ -198,25 +194,28 @@ kubectl rollout status deployment tams-api -n tams
 
 1. **Prometheus for Metrics Collection**
    ```bash
-   # Deploy Prometheus operator
-   kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/kube-prometheus/main/manifests/setup/0-namespace.yaml
-   kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/kube-prometheus/main/manifests/setup/
-   kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/kube-prometheus/main/manifests/
+   # Using Helm
+   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+   helm install prometheus prometheus-community/kube-prometheus-stack
    ```
 
 2. **Grafana for Visualization**
    ```bash
-   # Deploy Grafana
-   kubectl apply -f https://raw.githubusercontent.com/grafana/helm-charts/main/charts/grafana/templates/deployment.yaml
+   # Included with kube-prometheus-stack
+   # Access at: kubectl port-forward svc/prometheus-grafana 3000:80
    ```
 
 3. **Jaeger for Distributed Tracing**
    ```bash
-   # Deploy Jaeger
-   kubectl apply -f https://raw.githubusercontent.com/jaegertracing/jaeger-kubernetes/main/all-in-one/jaeger-all-in-one-template.yml
+   # Using Helm
+   helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+   helm install jaeger jaegertracing/jaeger
    ```
 
 ### Service Monitor for Prometheus
+
+Create a ServiceMonitor resource (if using Prometheus Operator):
+
 ```yaml
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -226,7 +225,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: tams-api
+      app.kubernetes.io/name: tams-api
   endpoints:
   - port: http
     path: /metrics
@@ -238,6 +237,6 @@ spec:
 For issues with telemetry integration:
 1. Check the troubleshooting section
 2. Review pod logs for telemetry initialization
-3. Verify environment variables are set correctly
+3. Verify Helm values are set correctly
 4. Test endpoints directly with port-forward
-5. Check service annotations for Prometheus scraping 
+5. Check service annotations for Prometheus scraping

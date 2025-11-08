@@ -1,0 +1,42 @@
+{{- if .Values.persistence.logs.enabled }}
+{{- if .Values.persistence.logs.storageClassName }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "tams.fullname" . }}-logs
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tams.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.logs.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.logs.size }}
+  {{- if .Values.persistence.logs.storageClassName }}
+  storageClassName: {{ .Values.persistence.logs.storageClassName }}
+  {{- end }}
+---
+{{- end }}
+{{- end }}
+{{- if .Values.persistence.vastData.enabled }}
+{{- if .Values.persistence.vastData.storageClassName }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "tams.fullname" . }}-vast-data
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tams.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.vastData.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.vastData.size }}
+  {{- if .Values.persistence.vastData.storageClassName }}
+  storageClassName: {{ .Values.persistence.vastData.storageClassName }}
+  {{- end }}
+{{- end }}
+{{- end }}
+

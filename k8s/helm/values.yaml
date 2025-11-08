@@ -13,6 +13,33 @@ image:
   tag: "latest"
   pullPolicy: IfNotPresent
 
+# UI Image configuration
+ui:
+  enabled: true
+  image:
+    repository: tams-ui
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+# HAProxy configuration
+haproxy:
+  enabled: true
+  image:
+    repository: haproxy
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  port: 4001
+  dns: "10.140.3.248"
+  # HAProxy backend servers (S3 VIPs)
+  backendServers:
+    - "172.200.204.1:80"
+    - "172.200.204.2:80"
+    - "172.200.204.3:80"
+    - "172.200.204.4:80"
+    - "172.200.204.5:80"
+    - "172.200.204.6:80"
+    - "172.200.204.7:80"
+
 # Image pull secrets
 imagePullSecrets: []
 
@@ -31,7 +58,7 @@ podSecurityContext:
 # Container security context
 containerSecurityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true
+  readOnlyRootFilesystem: false  # Set to false to allow writing logs
   capabilities:
     drop:
       - ALL
@@ -41,6 +68,20 @@ service:
   type: ClusterIP
   port: 80
   targetPort: 8000
+  annotations: {}
+
+# UI Service configuration
+uiService:
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+  annotations: {}
+
+# HAProxy Service configuration
+haproxyService:
+  type: ClusterIP
+  port: 4001
+  targetPort: 80
   annotations: {}
 
 # Ingress configuration
@@ -112,6 +153,24 @@ resources:
     cpu: 500m
     memory: 512Mi
 
+# UI Resource limits and requests
+uiResources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+# HAProxy Resource limits and requests
+haproxyResources:
+  requests:
+    cpu: 50m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi
+
 # Replica count
 replicaCount: 3
 
@@ -142,13 +201,27 @@ vast:
   accessKey: ""
   secretKey: ""
 
+# Trino configuration (optional, for dev environments)
+trino:
+  enabled: false
+  image:
+    repository: vastdataorg/trino-vast
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  host: "trino-vast"
+  port: 8080
+  user: "admin"
+  catalog: "vast"
+
 # S3 Storage configuration
 s3:
-  endpointUrl: "http://172.200.204.1"
+  endpointUrl: "http://tams-haproxy:80"  # Use HAProxy if enabled, otherwise direct endpoint
   bucketName: "jthaloor-s3"
   useSsl: false
   accessKeyId: ""
   secretAccessKey: ""
+  rootPath: "/tams8"
+  region: "us-east-1"
 
 # Application configuration
 config:
@@ -156,7 +229,56 @@ config:
   port: 8000
   debug: false
   logLevel: "INFO"
-  logFormat: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  logFormat: "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
+  logDir: "logs"  # Configurable logs directory
+
+# Storage configuration
+storage:
+  defaultBackendId: "default"
+  tamsStoragePath: "tams"
+  tamsRoot: "/tams"
+  presignedUrl:
+    uploadTimeout: 3600
+    downloadTimeout: 3600
+  getUrlsMaxCount: 5
+  flowStorageDefaultLimit: 10
+  segmentStorageDefaultLimit: 10
+  asyncDeletionThreshold: 1000
+
+# TAMS Compliance configuration
+tamsCompliance:
+  enabled: true
+  validationLevel: "strict"
+  uuidValidation: true
+  timestampValidation: true
+  contentFormatValidation: true
+  mimeTypeValidation: true
+  errorReporting: true
+  auditLogging: true
+  cacheEnabled: true
+  cacheTtl: 300
+
+# Telemetry configuration
+telemetry:
+  enabled: true
+  metricsEnabled: true
+  tracingEnabled: true
+  jaegerEndpoint: ""
+  otlpEndpoint: ""
+
+# Authentication configuration
+auth:
+  enabled: true
+  jwtSecret: ""
+  jwtAlgorithm: "HS256"
+  tokenExpiration: 3600
+  refreshTokenExpiration: 86400
+
+# CORS configuration
+cors:
+  origins: ["*"]
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  headers: ["*"]
 
 # Secrets management
 secrets:
@@ -165,6 +287,21 @@ secrets:
   vastSecretKey: ""
   s3AccessKeyId: ""
   s3SecretAccessKey: ""
+  jwtSecret: ""
+
+# Persistent volumes
+persistence:
+  enabled: true
+  logs:
+    enabled: true
+    size: 10Gi
+    storageClassName: ""
+    accessMode: ReadWriteOnce
+  vastData:
+    enabled: true
+    size: 50Gi
+    storageClassName: ""
+    accessMode: ReadWriteOnce
 
 # Node selector
 nodeSelector: {}
@@ -185,4 +322,4 @@ podLabels: {}
 deploymentAnnotations: {}
 
 # Deployment labels
-deploymentLabels: {} 
+deploymentLabels: {}

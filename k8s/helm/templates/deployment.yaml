@@ -42,6 +42,9 @@ spec:
               containerPort: {{ .Values.config.port }}
               protocol: TCP
           env:
+            # Config file path
+            - name: TAMS_CONFIG_PATH
+              value: "/etc/tams/config.json"
             # VAST Database credentials
             - name: VAST_ACCESS_KEY
               valueFrom:
@@ -64,10 +67,53 @@ spec:
                 secretKeyRef:
                   name: {{ include "tams.fullname" . }}-secrets
                   key: s3-secret-access-key
+            # JWT Secret
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tams.fullname" . }}-secrets
+                  key: jwt-secret
+            # VAST Database configuration
+            - name: VAST_ENDPOINT
+              value: "{{ .Values.vast.endpoint }}"
+            - name: VAST_BUCKET
+              value: "{{ .Values.vast.bucket }}"
+            - name: VAST_SCHEMA
+              value: "{{ .Values.vast.schema }}"
+            # S3 Storage configuration
+            - name: S3_ENDPOINT_URL
+              value: "{{ .Values.s3.endpointUrl }}"
+            - name: S3_BUCKET_NAME
+              value: "{{ .Values.s3.bucketName }}"
+            - name: S3_USE_SSL
+              value: "{{ .Values.s3.useSsl }}"
+            - name: S3_REGION
+              value: "{{ .Values.s3.region }}"
+            # Trino configuration
+            {{- if .Values.trino.enabled }}
+            - name: TRINO_HOST
+              value: "{{ .Values.trino.host }}"
+            - name: TRINO_PORT
+              value: "{{ .Values.trino.port }}"
+            - name: TRINO_USER
+              value: "{{ .Values.trino.user }}"
+            - name: TRINO_CATALOG
+              value: "{{ .Values.trino.catalog }}"
+            - name: VASTSTORE_ENABLE_TRINO
+              value: "true"
+            {{- end }}
           volumeMounts:
             - name: tams-config
               mountPath: /etc/tams
               readOnly: true
+            {{- if .Values.persistence.logs.enabled }}
+            - name: logs
+              mountPath: /app/logs
+            {{- end }}
+            {{- if .Values.persistence.vastData.enabled }}
+            - name: vast-data
+              mountPath: /app/vast_data
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.probes.liveness.enabled }}
@@ -96,6 +142,24 @@ spec:
         - name: tams-config
           configMap:
             name: {{ include "tams.fullname" . }}-config
+        {{- if .Values.persistence.logs.enabled }}
+        - name: logs
+          {{- if .Values.persistence.logs.storageClassName }}
+          persistentVolumeClaim:
+            claimName: {{ include "tams.fullname" . }}-logs
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.persistence.vastData.enabled }}
+        - name: vast-data
+          {{- if .Values.persistence.vastData.storageClassName }}
+          persistentVolumeClaim:
+            claimName: {{ include "tams.fullname" . }}-vast-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -107,4 +171,4 @@ spec:
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
-      {{- end }} 
+      {{- end }}

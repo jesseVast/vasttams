@@ -8,18 +8,98 @@ metadata:
 data:
   config.json: |
     {
-      "host": "{{ .Values.config.host }}",
-      "port": {{ .Values.config.port }},
-      "debug": {{ .Values.config.debug }},
-      "vast_endpoint": "{{ .Values.vast.endpoint }}",
-      "vast_bucket": "{{ .Values.vast.bucket }}",
-      "vast_schema": "{{ .Values.vast.schema }}",
-      "s3_endpoint_url": "{{ .Values.s3.endpointUrl }}",
-      "s3_bucket_name": "{{ .Values.s3.bucketName }}",
-      "s3_use_ssl": {{ .Values.s3.useSsl }},
-      "log_level": "{{ .Values.config.logLevel }}",
-      "log_format": "{{ .Values.config.logFormat }}",
-      "health_check_path": "/health",
-      "health_check_interval": "30s",
-      "health_check_timeout": "10s"
-    } 
+      "api": {
+        "title": "TAMS API",
+        "version": "8.0",
+        "description": "Time-addressable Media Store API"
+      },
+      "server": {
+        "host": "{{ .Values.config.host }}",
+        "port": {{ .Values.config.port }},
+        "debug": {{ .Values.config.debug }},
+        "workers": 4
+      },
+      "database": {
+        "vast": {
+          "endpoint": "{{ .Values.vast.endpoint }}",
+          "access_key": "VAST_ACCESS_KEY_PLACEHOLDER",
+          "secret_key": "VAST_SECRET_KEY_PLACEHOLDER",
+          "bucket": "{{ .Values.vast.bucket }}",
+          "schema": "{{ .Values.vast.schema }}"
+        },
+        "trino": {
+          "host": "{{ .Values.trino.host }}",
+          "port": {{ .Values.trino.port }},
+          "user": "{{ .Values.trino.user }}",
+          "catalog": "{{ .Values.trino.catalog }}",
+          "enabled": {{ .Values.trino.enabled }}
+        },
+        "enable_table_projections": true
+      },
+      "storage_backends": [
+        {
+          "id": "default",
+          "label": "default-s3-storage",
+          "store_type": "http_object_store",
+          "provider": "vast",
+          "store_product": "vast-s3",
+          "region": "{{ .Values.s3.region }}",
+          "availability_zone": null,
+          "endpoint_url": "{{ .Values.s3.endpointUrl }}",
+          "access_key": "S3_ACCESS_KEY_PLACEHOLDER",
+          "secret_key": "S3_SECRET_KEY_PLACEHOLDER",
+          "bucket_name": "{{ .Values.s3.bucketName }}",
+          "root_path": "{{ .Values.s3.rootPath }}",
+          "use_ssl": {{ .Values.s3.useSsl }},
+          "chunk_size": 8388608,
+          "max_concurrent_parts": 10,
+          "default_storage": true
+        }
+      ],
+      "storage": {
+        "default_backend_id": "{{ .Values.storage.defaultBackendId }}",
+        "tams_storage_path": "{{ .Values.storage.tamsStoragePath }}",
+        "tams_root": "{{ .Values.storage.tamsRoot }}",
+        "presigned_url": {
+          "upload_timeout": {{ .Values.storage.presignedUrl.uploadTimeout }},
+          "download_timeout": {{ .Values.storage.presignedUrl.downloadTimeout }}
+        },
+        "get_urls_max_count": {{ .Values.storage.getUrlsMaxCount }},
+        "flow_storage_default_limit": {{ .Values.storage.flowStorageDefaultLimit }},
+        "segment_storage_default_limit": {{ .Values.storage.segmentStorageDefaultLimit }},
+        "async_deletion_threshold": {{ .Values.storage.asyncDeletionThreshold }}
+      },
+      "logging": {
+        "level": "{{ .Values.config.logLevel }}",
+        "format": "{{ .Values.config.logFormat }}",
+        "dir": "{{ .Values.config.logDir }}"
+      },
+      "tams_compliance": {
+        "enabled": {{ .Values.tamsCompliance.enabled }},
+        "validation_level": "{{ .Values.tamsCompliance.validationLevel }}",
+        "uuid_validation": {{ .Values.tamsCompliance.uuidValidation }},
+        "timestamp_validation": {{ .Values.tamsCompliance.timestampValidation }},
+        "content_format_validation": {{ .Values.tamsCompliance.contentFormatValidation }},
+        "mime_type_validation": {{ .Values.tamsCompliance.mimeTypeValidation }},
+        "error_reporting": {{ .Values.tamsCompliance.errorReporting }},
+        "audit_logging": {{ .Values.tamsCompliance.auditLogging }},
+        "cache_enabled": {{ .Values.tamsCompliance.cacheEnabled }},
+        "cache_ttl": {{ .Values.tamsCompliance.cacheTtl }}
+      },
+      "telemetry": {
+        "enabled": {{ .Values.telemetry.enabled }},
+        "metrics_enabled": {{ .Values.telemetry.metricsEnabled }},
+        "tracing_enabled": {{ .Values.telemetry.tracingEnabled }}{{ if .Values.telemetry.jaegerEndpoint }},
+        "jaeger_endpoint": "{{ .Values.telemetry.jaegerEndpoint }}"{{ end }}{{ if .Values.telemetry.otlpEndpoint }},
+        "otlp_endpoint": "{{ .Values.telemetry.otlpEndpoint }}"{{ end }}
+      },
+      "authentication": {
+        "secret_key": "JWT_SECRET_PLACEHOLDER",
+        "algorithm": "{{ .Values.auth.jwtAlgorithm }}",
+        "access_token_expire_minutes": {{ .Values.auth.tokenExpiration }}
+      },
+      "webhooks": {
+        "timeout": 30,
+        "retry_attempts": 3
+      }
+    }

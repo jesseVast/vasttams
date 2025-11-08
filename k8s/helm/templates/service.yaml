@@ -18,4 +18,58 @@ spec:
       name: http
   selector:
     {{- include "tams.selectorLabels" . | nindent 4 }}
-  sessionAffinity: None 
+  sessionAffinity: None
+
+---
+{{- if .Values.ui.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tams.fullname" . }}-ui-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tams.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+  {{- with .Values.uiService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.uiService.type }}
+  ports:
+    - port: {{ .Values.uiService.port }}
+      targetPort: {{ .Values.uiService.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "tams.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+  sessionAffinity: None
+{{- end }}
+
+---
+{{- if .Values.haproxy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tams.fullname" . }}-haproxy-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tams.labels" . | nindent 4 }}
+    app.kubernetes.io/component: haproxy
+  {{- with .Values.haproxyService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.haproxyService.type }}
+  ports:
+    - port: {{ .Values.haproxyService.port }}
+      targetPort: {{ .Values.haproxyService.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "tams.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: haproxy
+  sessionAffinity: None
+{{- end }}

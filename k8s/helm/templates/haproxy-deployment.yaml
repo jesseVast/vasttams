@@ -1,0 +1,80 @@
+{{- if .Values.haproxy.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tams.fullname" . }}-haproxy
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tams.labels" . | nindent 4 }}
+    app.kubernetes.io/component: haproxy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      {{- include "tams.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: haproxy
+  template:
+    metadata:
+      labels:
+        {{- include "tams.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: haproxy
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: haproxy
+          image: "{{ .Values.haproxy.image.repository }}:{{ .Values.haproxy.image.tag }}"
+          imagePullPolicy: {{ .Values.haproxy.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: haproxy-config
+              mountPath: /usr/local/etc/haproxy/haproxy.cfg
+              subPath: haproxy.cfg
+              readOnly: true
+          resources:
+            {{- toYaml .Values.haproxyResources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command:
+                - haproxy
+                - -c
+                - -f
+                - /usr/local/etc/haproxy/haproxy.cfg
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - haproxy
+                - -c
+                - -f
+                - /usr/local/etc/haproxy/haproxy.cfg
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: haproxy-config
+          configMap:
+            name: {{ include "tams.fullname" . }}-haproxy-config
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+

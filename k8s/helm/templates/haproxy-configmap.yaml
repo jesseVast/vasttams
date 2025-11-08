@@ -1,0 +1,46 @@
+{{- if .Values.haproxy.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tams.fullname" . }}-haproxy-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tams.labels" . | nindent 4 }}
+    app.kubernetes.io/component: haproxy
+data:
+  haproxy.cfg: |
+    global
+        log stdout format raw local0 info
+        stats socket /tmp/haproxy.sock mode 660 level admin expose-fd listeners
+    defaults
+        log     global
+        mode    http
+        option  httplog
+        option  dontlognull
+        timeout connect 5s
+        timeout client  50s
+        timeout server  50s
+
+    resolvers my_dns
+        nameserver dns1 {{ .Values.haproxy.dns }}:53
+        resolve_retries 3
+        timeout retry 1s
+        accepted_payload_size 8192
+
+    frontend s3_proxy_in
+        bind *:80
+        mode http
+        acl is_presigned_url urlp(Signature) -m found
+        http-request set-header Host main.selab-var204.selab.vastdata.com if is_presigned_url
+        http-request del-header Authorization if is_presigned_url
+        default_backend s3_backend
+
+    backend s3_backend
+        mode http
+        balance random
+        option abortonclose
+        {{- range $index, $server := .Values.haproxy.backendServers }}
+        server vip{{ add $index 1 }} {{ $server }} check
+        {{- end }}
+{{- end }}
+

@@ -282,7 +282,7 @@ class TestSegmentStorageService:
         )
         
         # Patch FlowStorageService where it's imported (in flows.service module)
-        with patch('vasttams.flows.service.FlowStorageService') as mock_flow_service_class:
+        with patch('vasttamsserver.flows.service.FlowStorageService') as mock_flow_service_class:
             mock_flow_service = Mock()
             mock_flow_service.get_flow = AsyncMock(return_value=mock_flow)
             mock_flow_service_class.return_value = mock_flow_service
@@ -710,7 +710,7 @@ class TestSegmentStorageService:
         service = SegmentStorageService(mock_db, Mock(), Mock())
         # Mock parse_tams_timerange to raise exception - should be caught and logged
         # The import happens inside the method, so we need to patch it at the module level
-        with patch('vasttams.core.timerange_utils.parse_tams_timerange', side_effect=Exception("Parse error")):
+        with patch('vasttamsserver.core.timerange_utils.parse_tams_timerange', side_effect=Exception("Parse error")):
             segments = await service.get_flow_segments(flow_id, timerange="invalid")
             # Should continue with unfiltered segments (exception is caught)
             assert isinstance(segments, list)
@@ -1092,7 +1092,7 @@ class TestSegmentStorageService:
         
         # Mock flow service to return None (flow not found)
         # FlowStorageService is imported inside the method, so patch at the source module
-        with patch('vasttams.flows.service.FlowStorageService') as mock_flow_service_class:
+        with patch('vasttamsserver.flows.service.FlowStorageService') as mock_flow_service_class:
             mock_flow_service = Mock()
             mock_flow_service.get_flow = AsyncMock(return_value=None)
             mock_flow_service_class.return_value = mock_flow_service
@@ -1146,13 +1146,13 @@ class TestSegmentStorageService:
         )
         
         # Mock flow service - FlowStorageService is imported inside the method, so patch at the source module
-        with patch('vasttams.flows.service.FlowStorageService') as mock_flow_service_class:
+        with patch('vasttamsserver.flows.service.FlowStorageService') as mock_flow_service_class:
             mock_flow_service = Mock()
             mock_flow_service.get_flow = AsyncMock(return_value=mock_flow)
             mock_flow_service_class.return_value = mock_flow_service
             
             # Mock storage backend service to return default backend
-            with patch('vasttams.storagebackends.service.StorageBackendService') as mock_backend_service_class:
+            with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_backend_service_class:
                 from vasttamsserver.storagebackends.models import StorageBackend
                 default_backend = StorageBackend(
                     id=str(uuid.uuid4()),
@@ -1217,7 +1217,7 @@ class TestSegmentStorageService:
         )
         
         # FlowStorageService is imported inside the method, so patch at the source module
-        with patch('vasttams.flows.service.FlowStorageService') as mock_flow_service_class:
+        with patch('vasttamsserver.flows.service.FlowStorageService') as mock_flow_service_class:
             mock_flow_service = Mock()
             mock_flow_service.get_flow = AsyncMock(return_value=mock_flow)
             mock_flow_service_class.return_value = mock_flow_service
@@ -1274,14 +1274,14 @@ class TestSegmentStorageService:
         )
         
         # FlowStorageService is imported inside the method, so patch at the source module
-        with patch('vasttams.flows.service.FlowStorageService') as mock_flow_service_class:
+        with patch('vasttamsserver.flows.service.FlowStorageService') as mock_flow_service_class:
             mock_flow_service = Mock()
             mock_flow_service.get_flow = AsyncMock(return_value=mock_flow)
             mock_flow_service_class.return_value = mock_flow_service
             
             # Mock backend with root_path
             # StorageBackendService is imported inside the method, so patch at the source module
-            with patch('vasttams.storagebackends.service.StorageBackendService') as mock_backend_service_class:
+            with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_backend_service_class:
                 from vasttamsserver.storagebackends.models import StorageBackend
                 backend = StorageBackend(
                     id=storage_id,
@@ -1345,7 +1345,7 @@ class TestSegmentStorageService:
         )
         
         # FlowStorageService is imported inside the method, so patch at the source module
-        with patch('vasttams.flows.service.FlowStorageService') as mock_flow_service_class:
+        with patch('vasttamsserver.flows.service.FlowStorageService') as mock_flow_service_class:
             mock_flow_service = Mock()
             mock_flow_service.get_flow = AsyncMock(return_value=mock_flow)
             mock_flow_service_class.return_value = mock_flow_service
@@ -1609,7 +1609,7 @@ class TestSegmentStorageService:
         service._generate_presigned_url = AsyncMock(return_value="https://example.com/get-url")
         
         # Mock storage backend service for root_path
-        with patch('vasttams.storagebackends.service.StorageBackendService') as mock_backend_service_class:
+        with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_backend_service_class:
             mock_backend_service = Mock()
             mock_backend_service.get_storage_backend = AsyncMock(return_value=None)
             mock_backend_service.get_storage_backends = AsyncMock(return_value=[])
@@ -1644,7 +1644,7 @@ class TestSegmentStorageService:
         service._generate_presigned_url = AsyncMock(return_value="https://example.com/get-url")
         
         # Mock storage backend service
-        with patch('vasttams.storagebackends.service.StorageBackendService') as mock_backend_service_class:
+        with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_backend_service_class:
             mock_backend_service = Mock()
             mock_backend_service.get_storage_backends = AsyncMock(return_value=[])
             mock_backend_service_class.return_value = mock_backend_service

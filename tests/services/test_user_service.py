@@ -100,7 +100,7 @@ class TestUserService:
         
         service = UserService(mock_db)
         
-        with patch('vasttams.auth.user_service.uuid.uuid4') as mock_uuid:
+        with patch('vasttamsserver.auth.user_service.uuid.uuid4') as mock_uuid:
             mock_uuid.return_value = uuid.UUID('12345678-1234-5678-1234-567812345678')
             
             user = await service.create_user("testuser", "password123", UserRole.EDITOR)
@@ -130,7 +130,7 @@ class TestUserService:
         
         service = UserService(mock_db)
         
-        with patch('vasttams.auth.user_service.uuid.uuid4') as mock_uuid:
+        with patch('vasttamsserver.auth.user_service.uuid.uuid4') as mock_uuid:
             mock_uuid.return_value = uuid.UUID('12345678-1234-5678-1234-567812345678')
             
             user = await service.create_user("testuser", "password123")

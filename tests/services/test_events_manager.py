@@ -69,7 +69,7 @@ class TestEventManager:
         mock_webhook.model_dump.return_value = {"id": webhook_id, "url": "http://example.com", "enabled": True}
         
         # Patch WebhookService at the import location
-        with patch('vasttams.webhooks.service.WebhookService') as mock_service_class:
+        with patch('vasttamsserver.webhooks.service.WebhookService') as mock_service_class:
             mock_service = Mock()
             mock_service.get_webhooks = AsyncMock(return_value=[mock_webhook])
             mock_service_class.return_value = mock_service
@@ -92,7 +92,7 @@ class TestEventManager:
     @pytest.mark.asyncio
     async def test_get_webhooks_error_handling(self, manager):
         """Test _get_webhooks handles errors gracefully"""
-        with patch('vasttams.events.manager.WebhookService', create=True) as mock_service_class:
+        with patch('vasttamsserver.events.manager.WebhookService', create=True) as mock_service_class:
             mock_service = Mock()
             mock_service.get_webhooks = AsyncMock(side_effect=Exception("Database error"))
             mock_service_class.return_value = mock_service
@@ -323,13 +323,13 @@ class TestEventManager:
         webhook2 = {"id": tams_uuid(), "enabled": True, "events": ["sources/updated"]}
         
         with patch.object(manager, '_get_webhooks', return_value=[webhook1, webhook2]):
-            with patch('vasttams.events.manager.WebhookDelivery', create=True) as mock_delivery_class:
+            with patch('vasttamsserver.events.manager.WebhookDelivery', create=True) as mock_delivery_class:
                 mock_delivery = Mock()
                 mock_delivery.deliver = AsyncMock(return_value=True)
                 mock_delivery_class.return_value = mock_delivery
                 
                 # Also patch Webhook model creation
-                with patch('vasttams.events.manager.Webhook', create=True):
+                with patch('vasttamsserver.events.manager.Webhook', create=True):
                     event_data = SourceEventData(
                         event_type="sources/created",
                         entity_id=source_id,
@@ -668,12 +668,12 @@ class TestEventManager:
         webhook = {"id": webhook_id, "enabled": True, "events": ["sources/created"]}
         
         with patch.object(manager, '_get_webhooks', return_value=[webhook]):
-            with patch('vasttams.events.manager.WebhookDelivery', create=True) as mock_delivery_class:
+            with patch('vasttamsserver.events.manager.WebhookDelivery', create=True) as mock_delivery_class:
                 mock_delivery = Mock()
                 mock_delivery.deliver = AsyncMock(return_value=True)
                 mock_delivery_class.return_value = mock_delivery
                 
-                with patch('vasttams.events.manager.Webhook', create=True) as mock_webhook_class:
+                with patch('vasttamsserver.events.manager.Webhook', create=True) as mock_webhook_class:
                     mock_webhook = Mock()
                     mock_webhook.url = "http://example.com"
                     mock_webhook_class.return_value = mock_webhook

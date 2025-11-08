@@ -136,6 +136,35 @@ class TAMSMetrics:
             buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
         )
         
+        # UI List Performance Metrics
+        self.list_query_duration_seconds = Histogram(
+            'tams_list_query_duration_seconds',
+            'Database query duration for list operations',
+            ['entity_type', 'has_filters'],
+            buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+        )
+        
+        self.list_json_parse_duration_seconds = Histogram(
+            'tams_list_json_parse_duration_seconds',
+            'JSON parsing duration for list operations',
+            ['entity_type'],
+            buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.25, 0.5]
+        )
+        
+        self.list_processing_duration_seconds = Histogram(
+            'tams_list_processing_duration_seconds',
+            'Total processing duration for list operations',
+            ['entity_type', 'record_count'],
+            buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+        )
+        
+        self.list_record_count = Histogram(
+            'tams_list_record_count',
+            'Number of records returned in list operations',
+            ['entity_type'],
+            buckets=[1, 5, 10, 25, 50, 100, 250, 500, 1000]
+        )
+        
         # System metrics
         self.active_connections = Gauge(
             'tams_active_connections',
@@ -254,10 +283,19 @@ class TelemetryManager:
         
         # Log request with user context
         # Only log at INFO level for errors or slow requests (>1s), otherwise use DEBUG
-        if status_code >= DEFAULT_ERROR_THRESHOLD or duration > 1.0:
+        # For list endpoints, always log at INFO to track UI performance
+        is_list_endpoint = endpoint in ['/flows', '/sources', '/segments', '/objects'] and method == 'GET'
+        
+        if status_code >= DEFAULT_ERROR_THRESHOLD or duration > 1.0 or is_list_endpoint:
+            log_level_msg = (
+                f"{method} {endpoint} - user={user_info}, duration={duration:.3fs}, status={status_code}"
+            )
+            if is_list_endpoint and duration > 0.5:
+                # Add warning for slow list endpoints
+                log_level_msg += f" [SLOW LIST - UI may be unresponsive]"
+            
             logger.info(
-                "%s %s - user=%s, duration=%.3fs, status=%d",
-                method, endpoint, user_info, duration, status_code,
+                log_level_msg,
                 extra={"user_context": user_context, "api_context": {"endpoint": endpoint, "method": method}}
             )
         else:
@@ -333,6 +371,41 @@ class TelemetryManager:
             metrics.s3_operation_duration_seconds.labels(
                 operation=operation
             ).observe(duration)
+    
+    def record_list_performance(self, entity_type: str, query_duration: float, 
+                               json_parse_duration: float, total_duration: float,
+                               record_count: int, has_filters: bool = False):
+        """Record detailed performance metrics for list operations"""
+        # Record query duration
+        metrics.list_query_duration_seconds.labels(
+            entity_type=entity_type,
+            has_filters="true" if has_filters else "false"
+        ).observe(query_duration)
+        
+        # Record JSON parsing duration
+        if json_parse_duration > 0:
+            metrics.list_json_parse_duration_seconds.labels(
+                entity_type=entity_type
+            ).observe(json_parse_duration)
+        
+        # Record total processing duration with record count bucket
+        record_count_bucket = "small" if record_count < 50 else ("medium" if record_count < 250 else "large")
+        metrics.list_processing_duration_seconds.labels(
+            entity_type=entity_type,
+            record_count=record_count_bucket
+        ).observe(total_duration)
+        
+        # Record record count
+        metrics.list_record_count.labels(
+            entity_type=entity_type
+        ).observe(record_count)
+        
+        # Log slow operations (>1s) with details
+        if total_duration > 1.0:
+            logger.warning(
+                "Slow list operation: %s - query=%.3fs, json_parse=%.3fs, total=%.3fs, records=%d, filters=%s",
+                entity_type, query_duration, json_parse_duration, total_duration, record_count, has_filters
+            )
     
     def record_error(self, error_type: str, endpoint: str, error_message: str = None):
         """Record error metrics"""

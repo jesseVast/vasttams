@@ -15,67 +15,196 @@ This directory contains management scripts for the TAMS (Time-addressable Media 
 
 **Features**:
 - Safe deletion order (handles dependencies)
-- User confirmation before deletion
+- User confirmation before deletion (or use `--yes` flag)
+- Dry-run mode with `--dry-run` flag
 - Detailed logging and reporting
-- Error handling and rollback information
+- Error handling
 
 **Usage**:
 ```bash
-cd mgmt
-python cleanup_database.py
+# Interactive mode (requires confirmation)
+python mgmt/cleanup_database.py
+
+# Non-interactive mode (skip confirmation)
+python mgmt/cleanup_database.py --yes
+
+# Dry-run mode (see what would be deleted)
+python mgmt/cleanup_database.py --dry-run
 ```
 
 **Safety Features**:
-- Requires explicit user confirmation
+- Requires explicit user confirmation (unless `--yes` is used)
 - Shows warning about data loss
 - Lists all tables before deletion
 - Provides detailed summary after completion
 
-### `cleanup_database_auto.py`
+### `delete_sources_by_label_filter.py`
 
-**Purpose**: Automatic database cleanup without user confirmation.
+**Purpose**: Delete sources by label prefix filter with cascade delete.
 
 **Use Cases**:
-- Automated testing and CI/CD pipelines
-- Scripted database resets
-- Non-interactive environments
+- Clean up test data
+- Remove sources matching specific naming patterns
+- Bulk deletion with safety filters
 
 **Features**:
-- Same safe deletion order as interactive version
-- No user confirmation required
-- Automatic execution
-- Detailed logging and reporting
+- Filter by label prefix
+- Negate filter option (`-n` flag for "all except X")
+- Cascade delete (removes flows, segments, and objects)
+- Preview before deletion
+- User confirmation required
 
 **Usage**:
 ```bash
-cd mgmt
-python cleanup_database_auto.py
+# Delete all sources starting with "Test"
+python mgmt/delete_sources_by_label_filter.py "Test"
+
+# Delete all sources NOT starting with "Test" (all except "Test")
+python mgmt/delete_sources_by_label_filter.py "Test" -n
+
+# Delete all sources NOT starting with "Production"
+python mgmt/delete_sources_by_label_filter.py "Production" -n
 ```
 
-**Warning**: This script will delete all data without confirmation!
+**Warning**: This performs cascade deletion - all flows, segments, and objects associated with deleted sources will also be removed.
 
-### `cleanup_database_final.py`
+### `user_mgmt.py`
 
-**Purpose**: Complete database cleanup using VastDBManager directly.
+**Purpose**: User management CLI for TAMS authentication system.
 
 **Use Cases**:
-- Complete database reset
-- Avoiding table recreation during cleanup
-- Final cleanup before schema changes
+- Create new users
+- Delete users
+- Update passwords
+- Update user roles
+- Initialize default users (admin, editor, viewer)
 
 **Features**:
-- Uses VastDBManager directly (no table recreation)
-- Safe deletion order
-- No user confirmation required
-- Proper connection cleanup
+- Create users with roles (admin, editor, viewer)
+- Delete users (soft or hard delete)
+- Update passwords
+- Update roles
+- List all users
+- Initialize default users with password 'vastdata'
 
 **Usage**:
 ```bash
-cd mgmt
-python cleanup_database_final.py
+# Initialize default users (admin, editor, viewer with password 'vastdata')
+python mgmt/user_mgmt.py init-default-users
+
+# Create a new user
+python mgmt/user_mgmt.py create <username> <role> [--password <password>]
+
+# Delete a user
+python mgmt/user_mgmt.py delete <username>
+
+# Update password
+python mgmt/user_mgmt.py update-password <username>
+
+# Update role
+python mgmt/user_mgmt.py update-role <username> <role>
+
+# List all users
+python mgmt/user_mgmt.py list
 ```
 
-**Note**: This is the recommended script for completely clearing the database.
+### `query_tables.py`
+
+**Purpose**: Query and export data from TAMS database tables.
+
+**Use Cases**:
+- Export table data to JSON or CSV
+- Get table statistics
+- Inspect database contents
+- Data migration and backup
+
+**Features**:
+- Query any TAMS table
+- Export to JSON or CSV format
+- Get table statistics
+- Limit results
+- List all available tables
+
+**Usage**:
+```bash
+# List all tables
+python mgmt/query_tables.py --list-tables
+
+# Query a table and export to JSON
+python mgmt/query_tables.py --table sources --format json
+
+# Query with limit and export to CSV
+python mgmt/query_tables.py --table flows --format csv --limit 100
+
+# Get table statistics
+python mgmt/query_tables.py --table segments --stats
+
+# Export to file
+python mgmt/query_tables.py --table users --format json --output users.json
+```
+
+### `get_db_version.py`
+
+**Purpose**: Get VAST database version and configuration information.
+
+**Use Cases**:
+- Check database version
+- Verify configuration
+- Debug connection issues
+- System information
+
+**Features**:
+- Shows VAST DB Python client version
+- Shows VAST database version
+- Displays configuration information
+- Tests imports
+
+**Usage**:
+```bash
+python mgmt/get_db_version.py
+```
+
+### `create_table_projections.py`
+
+**Purpose**: Show table projection status (DEPRECATED).
+
+**Note**: This script is deprecated as projections are now managed automatically during table initialization. It is kept for informational purposes only.
+
+**Usage**:
+```bash
+# Show projection status
+python mgmt/create_table_projections.py --status
+```
+
+### `generate_openapi.py`
+
+**Purpose**: Generate OpenAPI JSON specification from the TAMS FastAPI application.
+
+**Use Cases**:
+- Generate API documentation
+- Export OpenAPI schema for external tools
+- Update API specification files
+
+**Features**:
+- Generates OpenAPI 3.0 specification
+- Exports to JSON format
+- Shows endpoint count
+
+**Usage**:
+```bash
+python mgmt/generate_openapi.py
+```
+
+**Output**: Creates `api/openapi.json` with the complete OpenAPI specification.
+
+### `generate_self_signed_cert.sh`
+
+**Purpose**: Generate self-signed SSL certificate for development/testing.
+
+**Usage**:
+```bash
+bash mgmt/generate_self_signed_cert.sh
+```
 
 ## Safety Warnings
 
@@ -85,34 +214,47 @@ python cleanup_database_final.py
 - These scripts are designed for development and testing environments
 - Use with extreme caution in production environments
 - Some operations cannot be undone
+- Cascade delete operations will remove dependent data
 
 ## Prerequisites
 
-- Python 3.8+
+- Python 3.12+
 - Access to VAST database
 - Proper environment configuration
 - TAMS application dependencies installed
 
-## Environment
+## Environment Configuration
 
-Make sure your environment variables are properly configured:
-- `VAST_ENDPOINT`
-- `VAST_ACCESS_KEY`
-- `VAST_SECRET_KEY`
-- `VAST_BUCKET`
-- `VAST_SCHEMA`
-- `S3_ENDPOINT_URL`
-- `S3_ACCESS_KEY_ID`
-- `S3_SECRET_ACCESS_KEY`
-- `S3_BUCKET_NAME`
+Scripts use the same configuration as the TAMS server. Make sure your `config/config.json` is properly configured with:
+
+- `vast_endpoint`
+- `vast_access_key`
+- `vast_secret_key`
+- `vast_bucket`
+- `vast_schema`
+- `s3_endpoint_url`
+- `s3_access_key_id`
+- `s3_secret_access_key`
+- `s3_bucket_name`
+
+## Notes
+
+- All scripts use dependency injection (`get_vast_db()`, `get_s3_client()`) - no manual connection initialization needed
+- Logging is automatically initialized at startup - no need to configure logging in scripts
+- Scripts should be run from the project root directory
+- Test data generation scripts are located in `tests/` directory
 
 ## Directory Structure
 
 ```
 mgmt/
-├── README.md                    # This file
-├── cleanup_database.py          # Interactive database cleanup script
-├── cleanup_database_auto.py     # Automatic database cleanup script
-├── cleanup_database_final.py    # Final database cleanup script (recommended)
-└── ...                          # Future management scripts
-``` 
+├── README.md                          # This file
+├── cleanup_database.py                # Database cleanup script
+├── delete_sources_by_label_filter.py  # Delete sources by label prefix filter
+├── user_mgmt.py                       # User management CLI
+├── query_tables.py                    # Query and export table data
+├── get_db_version.py                  # Get database version info
+├── create_table_projections.py        # Show projection status (deprecated)
+├── generate_openapi.py                # Generate OpenAPI specification
+└── generate_self_signed_cert.sh      # Generate SSL certificate
+```

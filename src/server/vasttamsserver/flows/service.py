@@ -125,7 +125,22 @@ class FlowStorageService:
     
     async def get_flows(self, filters: FlowFilters) -> List[Flow]:
         """Get flows with filtering (TAMS 8.0 with tag filtering)"""
+        import time
+        from ..core.telemetry import telemetry_manager
+        
+        total_start = time.time()
+        query_start = time.time()
+        json_parse_start = 0
+        json_parse_duration = 0
+        
         try:
+            # Check if filters are being used
+            has_filters = bool(
+                filters.source_id or filters.label or filters.format or filters.codec or
+                filters.frame_width or filters.frame_height or filters.tag_filters or
+                filters.tag_exists_filters
+            )
+            
             # Build query using vaststore
             query = self.vast_db.query("flows").select("*")
             
@@ -173,6 +188,8 @@ class FlowStorageService:
                 query = query.limit(filters.limit)
             
             result = query.execute()
+            query_duration = time.time() - query_start
+            json_parse_start = time.time()
             
             # Convert to Flow objects
             flows = []
@@ -206,7 +223,7 @@ class FlowStorageService:
                                             )
                                         # For tags, set to None on parse error
                                         if column == 'tags':
-                                            flow_data[column] = None
+                                        flow_data[column] = None
                                         # For flow_collection, keep as-is if parse fails (will be handled later)
                                         elif column == 'flow_collection':
                                             flow_data[column] = value
@@ -266,7 +283,7 @@ class FlowStorageService:
                                         )
                                     # For tags, set to None on parse error
                                     if field == 'tags':
-                                        flow_data[field] = None
+                                    flow_data[field] = None
                                     # For flow_collection, keep as-is if parse fails (will be handled later)
                                     elif field == 'flow_collection':
                                         flow_data[field] = flow_data[field]
@@ -293,9 +310,9 @@ class FlowStorageService:
                         # Ensure required fields are present before creating flow object
                         flow_data = self._ensure_required_flow_fields(flow_data, flow_class)
                         flows.append(flow_class(**flow_data))
-                else:
-                    # Fallback for direct list results
-                    for row in result:
+            else:
+                # Fallback for direct list results
+                for row in result:
                         # Ensure flow_data is a dictionary
                         if isinstance(row, dict):
                             flow_data = row.copy()
@@ -304,21 +321,21 @@ class FlowStorageService:
                         else:
                             # Skip non-dict rows
                             continue
-                        # Parse JSON fields
+                    # Parse JSON fields
                         for field in ['essence_parameters', 'tags', 'flow_collection']:
-                            if field in flow_data and isinstance(flow_data[field], str):
-                                try:
-                                    import json
-                                    parsed = json.loads(flow_data[field])
-                                    # Handle empty JSON strings like '{}' or '[]'
-                                    if parsed == {} or parsed == []:
-                                        flow_data[field] = None if field == 'tags' else parsed
-                                    else:
-                                        flow_data[field] = parsed
-                                except (json.JSONDecodeError, TypeError):
-                                    # If parsing fails, set to None for tags, keep as-is for essence_parameters
-                                    if field == 'tags':
-                                        flow_data[field] = None
+                        if field in flow_data and isinstance(flow_data[field], str):
+                            try:
+                                import json
+                                parsed = json.loads(flow_data[field])
+                                # Handle empty JSON strings like '{}' or '[]'
+                                if parsed == {} or parsed == []:
+                                    flow_data[field] = None if field == 'tags' else parsed
+                                else:
+                                    flow_data[field] = parsed
+                            except (json.JSONDecodeError, TypeError):
+                                # If parsing fails, set to None for tags, keep as-is for essence_parameters
+                                if field == 'tags':
+                                    flow_data[field] = None
                                     # For flow_collection, keep as-is if parse fails (will be handled later)
                                     elif field == 'flow_collection':
                                         pass
@@ -340,16 +357,30 @@ class FlowStorageService:
                                 # If it's not a list and not None, set to None (invalid format)
                                 flow_data['flow_collection'] = None
                         
-                        # Get the appropriate flow class based on format
-                        flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
-                        # Ensure required fields are present before creating flow object
-                        flow_data = self._ensure_required_flow_fields(flow_data, flow_class)
-                        flows.append(flow_class(**flow_data))
+                    # Get the appropriate flow class based on format
+                    flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
+                    # Ensure required fields are present before creating flow object
+                    flow_data = self._ensure_required_flow_fields(flow_data, flow_class)
+                    flows.append(flow_class(**flow_data))
+            
+            json_parse_duration = time.time() - json_parse_start
+            total_duration = time.time() - total_start
+            
+            # Record telemetry metrics
+            telemetry_manager.record_list_performance(
+                entity_type="flows",
+                query_duration=query_duration,
+                json_parse_duration=json_parse_duration,
+                total_duration=total_duration,
+                record_count=len(flows),
+                has_filters=has_filters
+            )
             
             return flows
         except Exception as e:
             import traceback
-            logger.error("Failed to get flows: %s\n%s", e, traceback.format_exc())
+            total_duration = time.time() - total_start if 'total_start' in locals() else 0
+            logger.error("Failed to get flows (duration=%.3fs): %s\n%s", total_duration, e, traceback.format_exc())
             raise HTTPException(status_code=500, detail="Internal server error")
     
     async def get_flow(self, flow_id: str, filters: Optional[FlowDetailFilters] = None) -> Optional[Flow]:

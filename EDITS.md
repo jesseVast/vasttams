@@ -30,6 +30,119 @@ notes/
 
 ## 📝 **RECENT EDITS**
 
+## Edit #53: Remove Legacy Client Folder and Fix Observability (January 27, 2025)
+
+### Summary
+Removed legacy `client/` folder that was superseded by `src/client/vasttamsclient/`. Fixed observability stack integration into Docker Compose. Updated Kubernetes to Helm-only deployment. Made logging directory configurable.
+
+### Files Removed
+- **client/** folder (15 files total):
+  - `client/tams_ingestclient/` - Old ingest client package (10 files)
+  - `client/batch_media_upload.py` - Batch upload script
+  - `client/tams_video_upload.py` - Single video upload script
+  - `client/README.md`, `client/MEDIA_UPLOAD_GUIDE.md` - Documentation
+
+### Files Modified
+- **docker/docker-compose.yml**:
+  - Added observability services with `observability` profile:
+    - Prometheus (port 9090)
+    - Grafana (port 3000)
+    - Jaeger (ports 16686, 14268, 14250)
+    - Alertmanager (port 9093)
+    - Node Exporter (port 9100)
+  - Added volumes: `prometheus_data`, `grafana_data`, `alertmanager_data`
+  - All services use `tams-network` and depend on `tams-api`
+
+- **observability/prometheus/prometheus.yml**:
+  - Fixed scrape target from `host.docker.internal:8000` to `tams-api:8000`
+  - Uses Docker service name for proper network connectivity
+
+- **observability/alertmanager/alertmanager.yml**:
+  - Changed default receiver from `web.hook` to `null` (no alerts sent)
+  - Removed invalid webhook URL
+  - Added commented example for webhook configuration
+
+- **docker/start-observability.sh**:
+  - Updated to use `--profile observability` instead of separate compose file
+  - Consistent with main docker-compose structure
+
+- **docker/README.md**:
+  - Added observability profile documentation
+  - Updated deployment scenarios with observability examples
+  - Added access points for all observability services
+
+- **k8s/helm/values.yaml**:
+  - Added comprehensive configuration for UI, HAProxy, telemetry
+  - Added `config.logDir` for configurable logging
+  - Updated all service configurations
+
+- **k8s/helm/templates/**:
+  - Added `ui-deployment.yaml` - UI container deployment
+  - Added `haproxy-deployment.yaml` - HAProxy S3 proxy
+  - Added `haproxy-configmap.yaml` - HAProxy configuration
+  - Added `pvc.yaml` - Persistent volume claims
+  - Updated existing templates for full config support
+
+- **k8s/README.md**, **k8s/TELEMETRY.md**:
+  - Updated to reflect Helm-only approach
+  - Removed references to standalone YAML files
+
+- **src/server/vasttamsserver/core/config.py**:
+  - Added `log_dir: Optional[str] = Field(default="logs", ...)` to Settings class
+  - Loads from JSON config with fallback to "logs"
+
+- **src/server/vasttamsserver/core/simple_logging.py**:
+  - Updated to use `settings.log_dir` for log directory
+  - Supports relative and absolute paths
+
+- **src/server/vasttamsserver/core/tams_logging.py**:
+  - Updated to use `self.settings.log_dir` for log directory
+
+- **config/config.json**:
+  - Added `"dir": "logs"` to logging section
+
+### Files Created
+- **observability/README.md**:
+  - Comprehensive guide for observability stack
+  - Usage instructions, configuration, troubleshooting
+  - Access points and customization guide
+
+### Technical Details
+- **Client Package**: New implementation in `src/client/vasttamsclient/` is properly packaged and independently installable
+- **Observability**: All services integrated into main docker-compose.yml with profile-based activation
+- **K8s**: Only Helm charts supported, all standalone YAML files removed
+- **Logging**: Configurable via `config.json`, supports both relative and absolute paths
+
+### Impact
+- Cleaner codebase with legacy code removed
+- Better observability integration with Docker Compose
+- Simplified Kubernetes deployment (Helm-only)
+- More flexible logging configuration
+
+## Edit #52: Update K8s to Helm-only and Add Configurable Logging (January 27, 2025)
+
+### Summary
+Migrated Kubernetes deployment to Helm-only approach. Removed all standalone YAML files. Enhanced Helm chart with UI, HAProxy, and PVC support. Made logging directory configurable.
+
+### Files Removed
+- **k8s/** (11 standalone manifests):
+  - `configmap.yaml`, `deployment.yaml`, `service.yaml`, `secrets.yaml`
+  - `hpa.yaml`, `ingress.yaml`, `kustomization.yaml`, `namespace.yaml`
+  - `network-policy.yaml`, `pdb.yaml`, `service-account.yaml`
+  - `apply-telemetry.sh` script
+
+### Files Modified
+- **k8s/helm/values.yaml**: Comprehensive configuration updates
+- **k8s/helm/templates/*.yaml**: Added UI, HAProxy, PVC templates
+- **k8s/README.md**, **k8s/TELEMETRY.md**: Updated documentation
+- **src/server/vasttamsserver/core/config.py**: Added log_dir setting
+- **src/server/vasttamsserver/core/simple_logging.py**: Use configurable path
+- **src/server/vasttamsserver/core/tams_logging.py**: Use configurable path
+- **config/config.json**: Added log_dir configuration
+
+### Impact
+Simplified Kubernetes deployment with Helm-only approach. Configurable logging for different environments.
+
 ## Edit #51: Fix Flow Filtering and Test Failures (November 8, 2025)
 
 ### Summary

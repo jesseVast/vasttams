@@ -33,6 +33,93 @@ notes/
 
 ## 🎯 **CURRENT STATUS**
 
+### **🧹 CODEBASE CLEANUP AND OBSERVABILITY FIXES** (January 27, 2025)
+**Date**: January 27, 2025  
+**Task**: Remove legacy client folder, fix observability stack integration, update K8s to Helm-only  
+**Status**: ✅ **COMPLETED**
+
+#### **🗑️ Legacy Code Removal**
+1. **Removed Root `client/` Folder**: Deleted 15 files from legacy client implementation
+   - `client/tams_ingestclient/` - Old ingest client package (10 files)
+   - `client/batch_media_upload.py` - Batch upload script
+   - `client/tams_video_upload.py` - Single video upload script
+   - Documentation files (README.md, MEDIA_UPLOAD_GUIDE.md)
+   - **Reason**: Superseded by `src/client/vasttamsclient/` (properly packaged)
+   - **Impact**: No code references found, safe removal
+
+#### **📊 Observability Stack Integration**
+1. **Docker Compose Integration**: Integrated observability services into main `docker-compose.yml`
+   - Added `observability` profile for Prometheus, Grafana, Jaeger, Alertmanager, Node Exporter
+   - Services use `tams-network` for proper service discovery
+   - Can be combined with `dev`, `prod`, or `full` profiles
+
+2. **Prometheus Configuration Fix**: Fixed scrape target from `host.docker.internal:8000` to `tams-api:8000`
+   - Uses Docker service name for proper network connectivity
+   - Works correctly in Docker Compose environment
+
+3. **Alertmanager Configuration Fix**: Changed default receiver to `null` (no alerts sent by default)
+   - Removed invalid webhook URL pointing to non-existent endpoint
+   - Added commented example for webhook configuration
+
+4. **Start Script Update**: Updated `docker/start-observability.sh` to use profile-based approach
+   - Changed from `docker-compose.observability.yml` to `--profile observability`
+   - Consistent with main docker-compose structure
+
+5. **Documentation**: Created `observability/README.md` with comprehensive guide
+   - Usage instructions, configuration details, troubleshooting
+   - Updated `docker/README.md` with observability profile documentation
+
+#### **☸️ Kubernetes Helm-Only Migration**
+1. **Removed Standalone YAML Files**: Deleted 11 deprecated Kubernetes manifests
+   - `configmap.yaml`, `deployment.yaml`, `service.yaml`, `secrets.yaml`
+   - `hpa.yaml`, `ingress.yaml`, `kustomization.yaml`, `namespace.yaml`
+   - `network-policy.yaml`, `pdb.yaml`, `service-account.yaml`
+   - `apply-telemetry.sh` script
+
+2. **Helm Chart Updates**: Enhanced Helm chart to match Docker structure
+   - Added UI deployment template (optional)
+   - Added HAProxy deployment template with S3 proxy config
+   - Added HAProxy ConfigMap with backend server configuration
+   - Added PVC templates for logs and vast_data persistence
+   - Updated configmap to full config.json structure
+   - Added environment variables for all configuration
+   - Support configurable logs directory via `config.logDir`
+
+3. **Values.yaml Updates**: Comprehensive configuration options
+   - UI and HAProxy enable/disable flags
+   - HAProxy backend servers configuration
+   - Trino optional support
+   - Persistent volume configuration
+   - Full telemetry, auth, CORS, compliance settings
+
+4. **Documentation Updates**: Updated K8s documentation
+   - `k8s/README.md` - Reflects Helm-only approach
+   - `k8s/TELEMETRY.md` - References Helm instead of standalone YAML
+   - `k8s/helm/README.md` - Comprehensive Helm documentation
+
+#### **📝 Files Modified**
+- **Removed**: `client/` folder (15 files)
+- **Removed**: `k8s/*.yaml` (11 standalone manifests)
+- **Modified**: `docker/docker-compose.yml` (added observability services)
+- **Modified**: `observability/prometheus/prometheus.yml` (fixed scrape target)
+- **Modified**: `observability/alertmanager/alertmanager.yml` (fixed webhook config)
+- **Modified**: `docker/start-observability.sh` (updated to use profiles)
+- **Modified**: `docker/README.md` (added observability documentation)
+- **Created**: `observability/README.md` (comprehensive guide)
+- **Modified**: `k8s/helm/values.yaml` (comprehensive configuration)
+- **Modified**: `k8s/helm/templates/*.yaml` (added UI, HAProxy, PVC templates)
+- **Modified**: `k8s/README.md`, `k8s/TELEMETRY.md` (updated documentation)
+- **Modified**: `src/server/vasttamsserver/core/config.py` (configurable log_dir)
+- **Modified**: `src/server/vasttamsserver/core/simple_logging.py` (use configurable path)
+- **Modified**: `src/server/vasttamsserver/core/tams_logging.py` (use configurable path)
+- **Modified**: `config/config.json` (added log_dir setting)
+
+#### **🔍 Technical Details**
+- **Client Package**: New implementation in `src/client/vasttamsclient/` is properly packaged with setup.py, pyproject.toml
+- **Observability**: All services use Docker Compose profiles for flexible deployment
+- **K8s Deployment**: Only Helm charts supported, standalone YAML deprecated
+- **Logging**: Log directory now configurable via `config.json` (default: "logs")
+
 ### **🔧 FLOW FILTERING AND TEST FIXES COMPLETE** (November 8, 2025)
 **Date**: November 8, 2025  
 **Task**: Fix flow filtering parameters and resolve test failures  

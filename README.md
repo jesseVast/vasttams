@@ -88,16 +88,43 @@ Soft-deleted records are automatically excluded from all query operations to mai
 
 ```
 bbctams/
-├── app/
-│   ├── __init__.py
-│   ├── main.py                 # Core FastAPI application
-│   ├── config.py               # Configuration management
-│   ├── dependencies.py         # Dependency injection
-│   ├── models.py               # Pydantic data models
-│   ├── storage/                # Enhanced storage architecture
-│   │   ├── core/               # Core storage modules
-│   │   │   ├── s3_core.py      # S3 infrastructure
-│   │   │   ├── vast_core.py    # VAST infrastructure
+├── src/
+│   ├── server/                  # Server package (vasttamsserver)
+│   │   └── vasttamsserver/    # TAMS API server implementation
+│   │       ├── main.py         # Core FastAPI application
+│   │       ├── core/           # Core modules (config, logging, telemetry)
+│   │       ├── flows/          # Flow management
+│   │       ├── segments/       # Segment management
+│   │       ├── sources/        # Source management
+│   │       ├── objects/        # Object management
+│   │       └── ...
+│   └── client/                 # Client package (vasttamsclient)
+│       └── vasttamsclient/    # TAMS Python client library
+│           ├── client.py       # Main client class
+│           ├── domain/         # Domain objects (Source, Flow, Segment)
+│           ├── api/            # Low-level API methods
+│           └── ...
+├── docker/                     # Docker configuration
+│   ├── Dockerfile              # Server container
+│   ├── Dockerfile.ui           # UI container
+│   ├── docker-compose.yml      # Multi-profile compose file
+│   ├── haproxy/                # HAProxy S3 proxy config
+│   └── trino/                  # Trino connector config
+├── k8s/                        # Kubernetes deployment (Helm-only)
+│   └── helm/                   # Helm chart
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       └── templates/          # K8s resource templates
+├── observability/              # Observability stack config
+│   ├── prometheus/             # Prometheus configuration
+│   ├── grafana/                # Grafana dashboards and provisioning
+│   ├── alertmanager/           # Alertmanager configuration
+│   └── README.md              # Observability guide
+├── tests/                      # Test suite
+├── config/                     # Configuration files
+├── mgmt/                       # Management scripts
+├── scripts/                    # Utility scripts
+└── ...
 │   │   │   └── storage_factory.py
 │   │   ├── endpoints/          # TAMS-specific storage modules
 │   │   │   ├── sources/        # Source storage operations

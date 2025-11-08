@@ -110,6 +110,39 @@ This allows tests to run without requiring:
 - Actual S3 storage
 - FFmpeg/ffprobe
 
+## Integration Tests
+
+Integration tests that run against a real TAMS server are in `test_integration.py`.
+
+### Running Integration Tests
+
+**Prerequisites:**
+- TAMS server must be running at `http://localhost:8000`
+- Server must have default test user (`admin`/`admin`) or update `TEST_USERNAME`/`TEST_PASSWORD` in the test file
+
+**Run integration tests:**
+```bash
+# Run all integration tests
+pytest tests/client/test_integration.py -v -m integration
+
+# Run only integration tests (skip unit tests)
+pytest tests/client/ -v -m integration
+
+# Run only unit tests (skip integration tests)
+pytest tests/client/ -v -m "not integration"
+```
+
+**Test Coverage:**
+- Client connection and authentication
+- Source CRUD operations
+- Flow CRUD operations
+- Tag operations
+- Source-flow workflows
+- Error handling
+- Query parameters and filtering
+
+**Note:** Integration tests will be automatically skipped if the server is not available.
+
 ## Future Test Files
 
 Additional test files to be created:
@@ -121,7 +154,6 @@ Additional test files to be created:
 - `test_api_tags.py` - Tag API method tests
 - `test_api_storage_backends.py` - Storage backend API tests
 - `test_utils_ffmpeg.py` - FFmpeg probe utility tests
-- `test_integration.py` - Integration tests (requires running server)
 
 ## Notes
 

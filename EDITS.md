@@ -30,6 +30,48 @@ notes/
 
 ## 📝 **RECENT EDITS**
 
+## Edit #51: Fix Flow Filtering and Test Failures (November 8, 2025)
+
+### Summary
+Fixed two failing tests by adding support for codec, frame_width, and frame_height filters in get_flows method. Fixed JSON type casting issues for Trino database queries. Fixed 'str' object has no attribute 'get' error by ensuring flow_data is always a dictionary. Fixed test_update_flow_collection to send correct FlowCollectionItem format. Fixed CollectionItem.get() error in sources service.
+
+### Files Modified
+- **src/server/vasttamsserver/flows/service.py**:
+  - Added support for `codec` filter in `get_flows` method
+  - Added support for `frame_width` and `frame_height` filters using JSON_EXTRACT with CAST to INTEGER
+  - Fixed 'str' object has no attribute 'get' error by ensuring flow_data is always a dictionary in all code paths:
+    - Columnar format processing (dict with 'data' field)
+    - List format processing
+    - Fallback format processing
+  - Added better error logging with traceback for debugging
+
+- **src/server/vasttamsserver/sources/service.py**:
+  - Fixed CollectionItem.get() error by using `.id` attribute instead of `.get('id')` method
+  - Line 221: Changed `item.get('id')` to `item.id if hasattr(item, 'id') else item.get('id')`
+
+- **tests/flows/test_router_comprehensive.py**:
+  - Fixed `test_update_flow_collection` to send correct format:
+    - Changed from `{"collection_id": "..."}` to `[{"id": "...", "role": "video"}]`
+    - Flow collection should be a list of FlowCollectionItem objects with `id` and `role` fields
+
+- **tests/conftest.py**:
+  - Updated to add `src/server` to Python path for imports
+  - Ensures `vasttamsserver` module can be imported correctly
+
+### Technical Details
+- **JSON Type Casting**: Trino requires explicit CAST when comparing JSON_EXTRACT results to integers
+  - Fixed: `CAST(JSON_EXTRACT(essence_parameters, '$.frame_width') AS INTEGER) = {value}`
+- **Data Type Safety**: Added checks to ensure flow_data is always a dictionary before calling `.get()` method
+- **Flow Collection Format**: TAMS spec requires FlowCollection to be a list of FlowCollectionItem objects
+
+### Test Results
+- **Before**: 2 failed tests, 265 passed, 155 skipped
+- **After**: 0 failed tests, 267 passed, 358 skipped
+- **Test Tracker**: All 267 tracked tests passing
+
+### Impact
+All flow filtering parameters now work correctly. Test suite is fully passing. Improved error handling and type safety in flow data processing.
+
 ## Edit #50: Phase 6 Application Entry Points Coverage and Documentation Cleanup (January 7, 2025)
 
 ### Summary

@@ -33,6 +33,34 @@ notes/
 
 ## 🎯 **CURRENT STATUS**
 
+### **🔧 FLOW FILTERING AND TEST FIXES COMPLETE** (November 8, 2025)
+**Date**: November 8, 2025  
+**Task**: Fix flow filtering parameters and resolve test failures  
+**Status**: ✅ **COMPLETED**
+
+#### **🐛 Bugs Fixed**
+1. **Flow Filtering**: Added support for `codec`, `frame_width`, and `frame_height` filters in `get_flows` method
+2. **JSON Type Casting**: Fixed Trino database type mismatch by using `CAST(JSON_EXTRACT(...) AS INTEGER)`
+3. **Data Type Safety**: Fixed `'str' object has no attribute 'get'` error by ensuring `flow_data` is always a dictionary
+4. **Flow Collection Test**: Fixed `test_update_flow_collection` to send correct `FlowCollectionItem` format
+5. **Sources Service**: Fixed `CollectionItem.get()` error by using `.id` attribute
+
+#### **📊 Test Results**
+- **Before**: 2 failed tests, 265 passed, 155 skipped
+- **After**: 0 failed tests, 267 passed, 358 skipped
+- **Test Tracker**: All 267 tracked tests passing ✅
+
+#### **📝 Files Modified**
+- `src/server/vasttamsserver/flows/service.py` (156 lines changed)
+- `src/server/vasttamsserver/sources/service.py` (6 lines changed)
+- `tests/flows/test_router_comprehensive.py` (3 lines changed)
+- `tests/conftest.py` (7 lines changed)
+
+#### **🔍 Technical Details**
+- **Trino JSON Queries**: Requires explicit CAST when comparing JSON_EXTRACT results to integers
+- **Flow Collection Format**: TAMS spec requires list of `FlowCollectionItem` objects with `id` and `role` fields
+- **Data Processing**: Added type safety checks in all code paths (columnar, list, fallback formats)
+
 ### **📋 PHASE 6: APPLICATION ENTRY POINTS COVERAGE COMPLETE** (January 7, 2025)
 **Date**: January 7, 2025  
 **Task**: Complete Phase 6 test coverage for application entry points (main.py, looprecorder) and cleanup redundant documentation  

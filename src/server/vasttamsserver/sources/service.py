@@ -6,6 +6,7 @@ CRUD operations, filtering, and collection management.
 """
 
 import logging
+import time
 from typing import List, Optional
 from datetime import datetime, timezone
 
@@ -20,6 +21,7 @@ from ..common.storage.timestamp_utils import (
 from .models import Source
 from ..common.filters import SourceFilters
 from ..common.models import Tags, CollectionItem
+from ..core.telemetry import telemetry_manager
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +35,21 @@ class SourceStorageService:
     
     async def get_sources(self, filters: SourceFilters) -> List[Source]:
         """Get sources with filtering (TAMS 8.0 with tag filtering)"""
+        total_start = time.time()
+        query_start = time.time()
+        json_parse_start = 0
+        json_parse_duration = 0
+        
         try:
+            # Check if filters are being used
+            has_filters = bool(filters.label or filters.format)
+            
             # Check if we need tag filtering - if so, use SQL JOIN query
             has_tag_filters = (filters.tag_filters and len(filters.tag_filters) > 0) or \
                             (filters.tag_exists_filters and len(filters.tag_exists_filters) > 0)
+            
+            if has_tag_filters:
+                has_filters = True
             
             if has_tag_filters:
                 # Use SQL JOIN query for tag filtering
@@ -119,6 +132,8 @@ class SourceStorageService:
                     sql += f" {limit_clause}"
                 
                 result = self.vast_db.execute_sql(sql)
+                query_duration = time.time() - query_start
+                json_parse_start = time.time()
             else:
                 # No tag filters - use standard query builder
                 query = self.vast_db.query("sources").select("*")
@@ -134,6 +149,9 @@ class SourceStorageService:
                     query = query.limit(filters.limit)
                 
                 result = query.execute()
+            
+            query_duration = time.time() - query_start
+            json_parse_start = time.time()
             
             # Convert to Source objects
             sources_data = []
@@ -171,87 +189,32 @@ class SourceStorageService:
                     source_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
                     sources_data.append(source_data)
             
-            # Optimize: Batch compute source_collection for all sources using JOIN query
-            if sources_data:
-                source_ids = [s.get('id') for s in sources_data if s.get('id')]
-                if source_ids:
-                    # Use JOIN query to get all flows with their collections for all sources at once
-                    sources_table = self.vast_db.get_qualified_table_name("sources")
-                    flows_table = self.vast_db.get_qualified_table_name("flows")
-                    
-                    # Escape source IDs for SQL
-                    escaped_source_ids = [sid.replace("'", "''") for sid in source_ids]
-                    source_ids_str = "', '".join(escaped_source_ids)
-                    
-                    join_query = f"""
-                        SELECT 
-                            s.id as source_id,
-                            f.id as flow_id,
-                            f.flow_collection
-                        FROM {sources_table} s
-                        LEFT JOIN {flows_table} f ON s.id = f.source_id
-                        WHERE s.id IN ('{source_ids_str}')
-                        ORDER BY s.id
-                    """
-                    
-                    join_result = self.vast_db.execute_sql(join_query)
-                    
-                    # Build source_collection map: source_id -> list of CollectionItems
-                    source_collection_map = {}
-                    if isinstance(join_result, dict) and 'data' in join_result:
-                        data = join_result['data']
-                        if isinstance(data, dict):
-                            source_id_col = data.get('source_id', [])
-                            flow_id_col = data.get('flow_id', [])
-                            flow_collection_col = data.get('flow_collection', [])
-                            
-                            if isinstance(source_id_col, list):
-                                for i in range(len(source_id_col)):
-                                    source_id = source_id_col[i] if i < len(source_id_col) else None
-                                    flow_id = flow_id_col[i] if i < len(flow_id_col) else None
-                                    flow_collection = flow_collection_col[i] if i < len(flow_collection_col) else None
-                                    
-                                    if source_id and flow_collection and isinstance(flow_collection, str):
-                                        try:
-                                            import json
-                                            collection_data = json.loads(flow_collection)
-                                            if isinstance(collection_data, list):
-                                                if source_id not in source_collection_map:
-                                                    source_collection_map[source_id] = []
-                                                # CollectionItem objects have .id attribute, not .get() method
-                                                processed_collections = {
-                                                    item.id if hasattr(item, 'id') else item.get('id') 
-                                                    for item in source_collection_map[source_id]
-                                                }
-                                                
-                                                for item in collection_data:
-                                                    if isinstance(item, dict) and 'id' in item and 'role' in item:
-                                                        item_id = item['id']
-                                                        if item_id not in processed_collections:
-                                                            from ..common.models import CollectionItem
-                                                            collection_item = CollectionItem(
-                                                                id=item['id'],
-                                                                role=item['role']
-                                                            )
-                                                            source_collection_map[source_id].append(collection_item)
-                                                            processed_collections.add(item_id)
-                                        except (json.JSONDecodeError, TypeError):
-                                            pass
-            
-            # Build final sources list with pre-computed source_collection
+            # source_collection is computed on-demand in get_source() only
+            # For list operations, set it to empty list to avoid expensive JOIN queries
             sources = []
             for source_data in sources_data:
-                source_id = source_data.get('id')
-                if source_id:
-                    # Use pre-computed source_collection from JOIN query
-                    source_data['source_collection'] = source_collection_map.get(source_id, [])
-                else:
-                    source_data['source_collection'] = []
+                # Set source_collection to empty list for list operations
+                # It will be computed on-demand when retrieving a single source via get_source()
+                source_data['source_collection'] = []
                 sources.append(Source(**source_data))
+            
+            json_parse_duration = time.time() - json_parse_start
+            total_duration = time.time() - total_start
+            
+            # Record telemetry metrics
+            telemetry_manager.record_list_performance(
+                entity_type="sources",
+                query_duration=query_duration,
+                json_parse_duration=json_parse_duration,
+                total_duration=total_duration,
+                record_count=len(sources),
+                has_filters=has_filters
+            )
             
             return sources
         except Exception as e:
-            logger.error("Failed to get sources: %s", e)
+            total_duration = time.time() - total_start if 'total_start' in locals() else 0
+            logger.error("Failed to get sources (duration=%.3fs): %s", total_duration, e)
             raise HTTPException(status_code=500, detail="Internal server error")
     
     async def get_source(self, source_id: str) -> Optional[Source]:
@@ -464,7 +427,10 @@ class SourceStorageService:
             raise HTTPException(status_code=500, detail="Internal server error")
     
     async def _cascade_delete_flows(self, source_id: str) -> bool:
-        """Delete all flows and their segments for a source (cascade delete)"""
+        """Delete all flows and their segments for a source (cascade delete)
+        
+        Per TAMS 8.0 spec: After deleting segments, unreferenced objects should be cleaned up.
+        """
         try:
             # Get all flow IDs for this source
             flows_result = self.vast_db.query("flows").select("id").where(f"source_id = '{source_id}'").execute()
@@ -502,6 +468,18 @@ class SourceStorageService:
                 except Exception as e:
                     logger.warning("Failed to delete segments for flow %s: %s", flow_id, e)
                     # Continue with other flows
+            
+            # Clean up unreferenced objects after deleting segments (TAMS 8.0 spec requirement)
+            try:
+                from ..objects.service import ObjectStorageService
+                object_service = ObjectStorageService(self.vast_db, self.s3_client)
+                unreferenced = await object_service.get_unreferenced_objects()
+                if unreferenced:
+                    deleted_count = await object_service.delete_unreferenced_objects(unreferenced)
+                    logger.info("Cleaned up %d unreferenced objects after cascade deleting source %s", deleted_count, source_id)
+            except Exception as e:
+                logger.warning("Failed to cleanup unreferenced objects after cascade delete for source %s: %s", source_id, e)
+                # Don't fail the deletion if cleanup fails
             
             # Delete all flows for this source
             if flow_ids:

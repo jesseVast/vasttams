@@ -48,22 +48,13 @@ class TAMSTableQuery:
         self.db_manager = None
     
     def initialize(self):
-        """Initialize database connection"""
+        """Initialize database connection (uses already-initialized connection)"""
         try:
-            self.db_manager = VastDBManager(
-                endpoints=[self.settings.vast_endpoint],
-                access_key=self.settings.vast_access_key,
-                secret_key=self.settings.vast_secret_key,
-                bucket=self.settings.vast_bucket,
-                schema=self.settings.vast_schema,
-                enable_trino=True,  # Always enable Trino for queries
-                trino_host=self.settings.trino_host,
-                trino_port=self.settings.trino_port,
-                trino_user=self.settings.trino_user,
-                trino_catalog=self.settings.trino_catalog,
-                auto_connect=True
-            )
-            print("✅ Connected to VAST database")
+            self.db_manager = get_vast_db()
+            if self.db_manager:
+                print("✅ Connected to VAST database")
+            else:
+                print("❌ Failed to get VAST database connection", file=sys.stderr)
         except Exception as e:
             print(f"❌ Failed to connect to VAST database: {e}", file=sys.stderr)
             self.db_manager = None

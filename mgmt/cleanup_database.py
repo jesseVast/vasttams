@@ -22,15 +22,10 @@ sys.path.insert(0, root_dir)
 os.chdir(root_dir)
 
 from vasttamsserver.core.config import get_settings
-from vastdbmanager import VastDBManager
+from vasttamsserver.core.dependencies import get_vast_db
+import logging
 
-# Configure logging
-# Configure logging based on environment
-env = os.getenv("ENVIRONMENT", "production")
-log_level = logging.DEBUG if env == "development" else logging.INFO
-log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s" if env == "production" else "%(asctime)s - %(levelname)s - %(message)s"
-
-logging.basicConfig(level=log_level, format=log_format)
+# Logging is already initialized at startup (via simple_logging module import)
 logger = logging.getLogger(__name__)
 
 def parse_arguments():
@@ -104,20 +99,13 @@ async def cleanup_database(dry_run=False):
     logger.info("VAST Schema: %s", settings.vast_schema)
     
     try:
-        # Connect to VAST using VastDBManager
+        # Get VAST database connection (already initialized at startup)
         logger.info("🔌 Connecting to VAST database...")
-        vast_db = VastDBManager(
-            endpoints=[settings.vast_endpoint],
-            access_key=settings.vast_access_key,
-            secret_key=settings.vast_secret_key,
-            bucket=settings.vast_bucket,
-            schema=settings.vast_schema,
-            enable_trino=settings.vaststore_enable_trino,
-            trino_host=settings.trino_host,
-            trino_port=settings.trino_port,
-            trino_user=settings.trino_user,
-            trino_catalog=settings.trino_catalog
-        )
+        vast_db = get_vast_db()
+        
+        if not vast_db:
+            logger.error("❌ Failed to get VAST database connection")
+            return False
         
         logger.info("✅ Connected to VAST database")
         
@@ -179,30 +167,15 @@ async def cleanup_database(dry_run=False):
         if not dry_run:
             try:
                 # Close existing connection before verifying
-                try:
-                    vast_db.close()
-                except Exception:
-                    pass
-                verifier = VastDBManager(
-                    endpoints=[settings.vast_endpoint],
-                    access_key=settings.vast_access_key,
-                    secret_key=settings.vast_secret_key,
-                    bucket=settings.vast_bucket,
-                    schema=settings.vast_schema,
-                    enable_trino=settings.vaststore_enable_trino,
-                    trino_host=settings.trino_host,
-                    trino_port=settings.trino_port,
-                    trino_user=settings.trino_user,
-                    trino_catalog=settings.trino_catalog
-                )
-                remaining_tables = verifier.list_tables()
-                remaining_names = [t for t in remaining_tables] if remaining_tables else []
-                logger.info(f"Remaining tables after cleanup (verified): {remaining_names}")
-            finally:
-                try:
-                    verifier.close()
-                except Exception:
-                    pass
+                # Verify deletion by checking if table still exists
+                verifier = get_vast_db()
+                if verifier:
+                    remaining_tables = verifier.list_tables()
+                    remaining_names = [t for t in remaining_tables] if remaining_tables else []
+                    logger.info(f"Remaining tables after cleanup (verified): {remaining_names}")
+                else:
+                    logger.warning("Could not verify deletion - failed to get database connection")
+                    remaining_names = []
         else:
             remaining_names = []
             logger.info("🔍 [DRY RUN] No actual deletion performed")
@@ -250,13 +223,8 @@ async def cleanup_database(dry_run=False):
         traceback.print_exc()
         return False
     finally:
-        # Ensure VastDBManager is properly closed
-        try:
-            if 'vast_db' in locals():
-                vast_db.close()
-                logger.info("✅ VastDBManager connection closed")
-        except Exception as e:
-            logger.warning(f"⚠️ Warning: Error closing VastDBManager: {e}")
+        # Database connections are managed by dependencies, no explicit closing needed
+        pass
 
 async def main():
     """Main function."""

@@ -1,0 +1,11 @@
+---
+globs: ["**/*.tsx", "**/*.jsx"]
+alwaysApply: false
+---
+# Tailwind CSS Standards
+
+- **Primary Styling Method:** Use Tailwind CSS utility classes for all styling.
+- **Avoid Inline Styles:** Do not use the `style={{...}}` attribute unless absolutely necessary for dynamic, calculated values.
+- **Mobile-First:** Write all CSS utility classes with a mobile-first approach. Use prefixes like `md:` and `lg:` for larger screen sizes.
+- **Dynamic Classes:** When applying classes conditionally, use the `clsx` or `classnames` library to safely combine class strings.---
+---

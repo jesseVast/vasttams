@@ -30,118 +30,159 @@ class ObjectStorageService:
         self.s3_client = s3_client
     
     async def get_object(self, object_id: str) -> Optional[Object]:
-        """Get a specific object by ID"""
+        """Get a specific object by ID using optimized JOIN query"""
         try:
-            result = self.vast_db.query("objects").select("*").where(f"id = '{object_id}'").execute()
+            # Use JOIN query to get object with referenced flows in a single query
+            # This is more efficient than separate queries
+            objects_table = self.vast_db.get_qualified_table_name("objects")
+            segments_table = self.vast_db.get_qualified_table_name("segments")
             
-            # Handle VAST query result format (columnar or row-oriented)
+            join_query = f"""
+                SELECT 
+                    o.id,
+                    o.size,
+                    o.timerange,
+                    o.created,
+                    o.first_referenced_by_flow,
+                    o.metadata,
+                    s.flow_id,
+                    s.created as segment_created
+                FROM {objects_table} o
+                LEFT JOIN {segments_table} s ON o.id = s.object_id AND s.flow_id IS NOT NULL
+                WHERE o.id = '{object_id}'
+                ORDER BY s.created ASC
+            """
+            
+            join_result = self.vast_db.execute_sql(join_query)
+            
+            # Debug logging for troubleshooting
+            logger.debug("get_object query result type: %s, keys: %s", type(join_result), list(join_result.keys()) if isinstance(join_result, dict) else "N/A")
+            
+            # Process JOIN results: extract object data and collect flow_ids
             object_data = None
-            if isinstance(result, dict) and 'data' in result:
-                data = result['data']
+            referenced_flows = []
+            first_ref_flow_id = None
+            first_ref_created = None
+            
+            if isinstance(join_result, dict) and 'data' in join_result:
+                data = join_result['data']
                 if isinstance(data, dict) and data:
-                    # Columnar format - convert to row dictionary
-                    # Get first row (index 0) since we're querying by ID
-                    num_rows = len(next(iter(data.values())))
-                    if num_rows == 0:
+                    # Columnar format
+                    # Check if we have any columns with data
+                    if not data:
+                        logger.warning("get_object: Empty data dict for object_id %s", object_id)
                         return None
                     
-                    object_data = {}
-                    for column, values in data.items():
-                        if column != '$row_id':  # Skip internal row IDs
-                            value = values[0] if len(values) > 0 else None
-                            object_data[column] = value
+                    # Debug: log what columns we have
+                    logger.debug("get_object: Data columns: %s", list(data.keys()))
+                    
+                    # Get number of rows from first non-empty column
+                    num_rows = 0
+                    for col_name, col_values in data.items():
+                        if col_values and isinstance(col_values, list):
+                            num_rows = len(col_values)
+                            logger.debug("get_object: Found %d rows from column '%s'", col_name)
+                            break
+                    
+                    if num_rows == 0:
+                        logger.warning("get_object: No rows returned for object_id %s (object may not exist). Data keys: %s", object_id, list(data.keys()) if isinstance(data, dict) else "N/A")
+                        return None
+                    
+                    # Get object data from first row
+                    object_data = {
+                        'id': data.get('id', [None])[0] if data.get('id') else None,
+                        'size': data.get('size', [None])[0] if data.get('size') else None,
+                        'timerange': data.get('timerange', [None])[0] if data.get('timerange') else None,
+                        'created': data.get('created', [None])[0] if data.get('created') else None,
+                        'first_referenced_by_flow': data.get('first_referenced_by_flow', [None])[0] if data.get('first_referenced_by_flow') else None,
+                        'metadata': data.get('metadata', [None])[0] if data.get('metadata') else None,
+                    }
+                    
+                    # Collect all flow_ids from all rows
+                    flow_ids = data.get('flow_id', [])
+                    segment_created = data.get('segment_created', [])
+                    for i in range(num_rows):
+                        if i < len(flow_ids) and flow_ids[i]:
+                            flow_id = str(flow_ids[i])
+                            if flow_id not in referenced_flows:
+                                referenced_flows.append(flow_id)
+                            
+                            # Track first referenced flow (earliest segment creation)
+                            if i < len(segment_created) and segment_created[i]:
+                                if first_ref_created is None or segment_created[i] < first_ref_created:
+                                    first_ref_created = segment_created[i]
+                                    first_ref_flow_id = flow_id
                 elif isinstance(data, list) and len(data) > 0:
                     # Row-oriented format
                     first_row = data[0]
                     if isinstance(first_row, dict):
-                        object_data = first_row
-                    else:
-                        logger.warning("Unexpected row format in objects query result")
-                        return None
-            elif isinstance(result, list) and len(result) > 0:
-                # Direct list result
-                first_row = result[0]
-                if isinstance(first_row, dict):
-                    object_data = first_row
-                else:
-                    logger.warning("Unexpected row format in objects query result")
-                    return None
-            
-            if not object_data:
-                return None
-            
-            # Remove referenced_by_flows from object_data if present (no longer stored in schema, computed dynamically)
-            if 'referenced_by_flows' in object_data:
-                del object_data['referenced_by_flows']
-            
-            # Compute referenced_by_flows dynamically from segments/flow_object_references (normalized table)
-            # Instead of storing as JSON, we compute it using a JOIN - cleaner and more maintainable
-            try:
-                segments_table = self.vast_db.get_qualified_table_name("segments")
-                # Query distinct flow_ids that reference this object via segments
-                ref_query = f"""
-                    SELECT DISTINCT flow_id 
-                    FROM {segments_table} 
-                    WHERE object_id = '{object_id}' AND flow_id IS NOT NULL
-                """
-                ref_result = self.vast_db.execute_sql(ref_query)
-                referenced_flows = []
-                
-                if isinstance(ref_result, dict) and 'data' in ref_result:
-                    data = ref_result['data']
-                    if isinstance(data, dict):
-                        # Columnar format
-                        flow_id_col = data.get('flow_id', [])
-                        if isinstance(flow_id_col, list):
-                            referenced_flows = [str(fid) for fid in flow_id_col if fid]
-                    elif isinstance(data, list):
-                        # Row-oriented format
+                        object_data = {
+                            'id': first_row.get('id'),
+                            'size': first_row.get('size'),
+                            'timerange': first_row.get('timerange'),
+                            'created': first_row.get('created'),
+                            'first_referenced_by_flow': first_row.get('first_referenced_by_flow'),
+                            'metadata': first_row.get('metadata'),
+                        }
+                        
+                        # Collect flow_ids from all rows
                         for row in data:
                             if isinstance(row, dict) and row.get('flow_id'):
-                                referenced_flows.append(str(row['flow_id']))
-                            elif isinstance(row, (list, tuple)) and len(row) > 0:
-                                referenced_flows.append(str(row[0]))
-                
-                # Also check flow_object_references table as fallback
-                if not referenced_flows:
-                    ref_table = self.vast_db.get_qualified_table_name("flow_object_references")
-                    ref_query2 = f"""
-                        SELECT DISTINCT flow_id 
-                        FROM {ref_table} 
-                        WHERE object_id = '{object_id}' AND flow_id IS NOT NULL
-                    """
-                    ref_result2 = self.vast_db.execute_sql(ref_query2)
-                    if isinstance(ref_result2, dict) and 'data' in ref_result2:
-                        data = ref_result2['data']
-                        if isinstance(data, dict):
-                            flow_id_col = data.get('flow_id', [])
-                            if isinstance(flow_id_col, list):
-                                referenced_flows = [str(fid) for fid in flow_id_col if fid]
-                
-                # Set referenced_by_flows (TAMS spec requirement)
-                object_data['referenced_by_flows'] = referenced_flows if referenced_flows else []
-                
-                # Compute first_referenced_by_flow as the flow with earliest segment creation
+                                flow_id = str(row['flow_id'])
+                                if flow_id not in referenced_flows:
+                                    referenced_flows.append(flow_id)
+                                
+                                # Track first referenced flow
+                                seg_created = row.get('segment_created')
+                                if seg_created:
+                                    if first_ref_created is None or seg_created < first_ref_created:
+                                        first_ref_created = seg_created
+                                        first_ref_flow_id = flow_id
+            elif isinstance(join_result, list) and len(join_result) > 0:
+                # Direct list result
+                first_row = join_result[0]
+                if isinstance(first_row, dict):
+                    object_data = {
+                        'id': first_row.get('id'),
+                        'size': first_row.get('size'),
+                        'timerange': first_row.get('timerange'),
+                        'created': first_row.get('created'),
+                        'first_referenced_by_flow': first_row.get('first_referenced_by_flow'),
+                        'metadata': first_row.get('metadata'),
+                    }
+                    
+                    # Collect flow_ids from all rows
+                    for row in join_result:
+                        if isinstance(row, dict) and row.get('flow_id'):
+                            flow_id = str(row['flow_id'])
+                            if flow_id not in referenced_flows:
+                                referenced_flows.append(flow_id)
+                            
+                            # Track first referenced flow
+                            seg_created = row.get('segment_created')
+                            if seg_created:
+                                if first_ref_created is None or seg_created < first_ref_created:
+                                    first_ref_created = seg_created
+                                    first_ref_flow_id = flow_id
+            
+            if not object_data or not object_data.get('id'):
+                return None
+            
+            # Validate that we have object data, not instance data
+            if 'label' in object_data and 'id' not in object_data:
+                logger.error("get_object received instance data instead of object data for object_id %s", object_id)
+                return None
+            
+            # Set referenced_by_flows (TAMS spec requirement)
+            object_data['referenced_by_flows'] = referenced_flows if referenced_flows else []
+            
+            # Set first_referenced_by_flow if we found one from the JOIN query
+            if first_ref_flow_id:
+                object_data['first_referenced_by_flow'] = first_ref_flow_id
+            elif not object_data.get('first_referenced_by_flow'):
+                # Fallback: use the first referenced flow if we have any
                 if referenced_flows:
-                    first_ref_query = f"""
-                        SELECT flow_id, MIN(created) as first_created
-                        FROM {segments_table}
-                        WHERE object_id = '{object_id}' AND flow_id IS NOT NULL
-                        GROUP BY flow_id
-                        ORDER BY first_created ASC
-                        LIMIT 1
-                    """
-                    first_ref_result = self.vast_db.execute_sql(first_ref_query)
-                    if isinstance(first_ref_result, dict) and 'data' in first_ref_result:
-                        data = first_ref_result['data']
-                        if isinstance(data, dict):
-                            flow_id_col = data.get('flow_id', [])
-                            if isinstance(flow_id_col, list) and len(flow_id_col) > 0:
-                                object_data['first_referenced_by_flow'] = str(flow_id_col[0])
-            except Exception as e:
-                logger.error("Failed to compute referenced_by_flows for object %s: %s", object_id, e)
-                # Set empty list on error - object will be returned but with no references
-                object_data['referenced_by_flows'] = []
+                    object_data['first_referenced_by_flow'] = referenced_flows[0]
             
             # Parse timerange
             import json
@@ -361,13 +402,53 @@ class ObjectStorageService:
         self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}'").execute()
     
     async def delete_object(self, object_id: str) -> bool:
-        """Delete an object and all its instances and S3 files"""
+        """Delete an object and all its instances and S3 files
+        
+        Per TAMS 8.0 spec: Objects are immutable and cannot be deleted if referenced by flows or segments.
+        Raises ValueError if object has dependencies (will be caught by router and returned as 409 Conflict).
+        """
         try:
+            # Check if object exists and get its dependencies
+            obj = await self.get_object(object_id)
+            if not obj:
+                # Idempotent delete: return True if object doesn't exist
+                return True
+            
+            # TAMS 8.0: Objects are immutable - cannot be deleted if referenced by flows
+            if obj.referenced_by_flows and len(obj.referenced_by_flows) > 0:
+                raise ValueError(f"Cannot delete object {object_id}: {len(obj.referenced_by_flows)} flow references exist. Objects are immutable per TAMS spec.")
+            
+            # Check if object is referenced by any segments
+            segments_table = self.vast_db.get_qualified_table_name("segments")
+            check_segments_query = f"""
+                SELECT COUNT(*) as count
+                FROM {segments_table}
+                WHERE object_id = '{object_id}'
+            """
+            segments_result = self.vast_db.execute_sql(check_segments_query)
+            
+            segment_count = 0
+            if isinstance(segments_result, dict) and 'data' in segments_result:
+                data = segments_result['data']
+                if isinstance(data, dict) and 'count' in data:
+                    count_values = data['count']
+                    if isinstance(count_values, list) and len(count_values) > 0:
+                        segment_count = count_values[0] or 0
+                    elif isinstance(count_values, (int, float)):
+                        segment_count = int(count_values)
+                elif isinstance(data, list) and len(data) > 0:
+                    first_row = data[0]
+                    if isinstance(first_row, dict):
+                        segment_count = first_row.get('count', 0) or 0
+            
+            if segment_count > 0:
+                raise ValueError(f"Cannot delete object {object_id}: {segment_count} segment references exist. Objects are immutable per TAMS spec.")
+            
+            # Object has no dependencies - safe to delete
             # Delete all instances and S3 files first
             await self._delete_object_instances_s3(object_id)
             
             # Get object metadata to try to delete main storage path
-            obj = await self.get_object(object_id)
             if obj and hasattr(obj, '_internal_metadata') and obj._internal_metadata:
                 storage_path = obj._internal_metadata.get('storage_path')
                 storage_id = obj._internal_metadata.get('storage_id')
@@ -377,6 +458,9 @@ class ObjectStorageService:
             # Delete object from database
             self.vast_db.query("objects").delete().where(f"id = '{object_id}'").execute()
             return True
+        except ValueError:
+            # Re-raise ValueError (dependency violations) to be caught by router as 409 Conflict
+            raise
         except Exception as e:
             logger.error("Failed to delete object %s: %s", object_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -581,13 +665,35 @@ class ObjectStorageService:
             result = self.vast_db.query("object_instances").select("*").where(f"object_id = '{object_id}'").execute()
             
             instances = []
-            rows = result.get('data', []) if isinstance(result, dict) else result
-            
-            for row in rows:
-                instance_data = dict(row)
-                # Create ObjectInstance without object_id field (not part of model)
-                instance_dict = {k: v for k, v in instance_data.items() if k in ['label', 'storage_id', 'url', 'controlled', 'metadata']}
-                instances.append(ObjectInstance(**instance_dict))
+            # Handle VAST query result format (columnar or row-oriented)
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
+                if isinstance(data, dict) and data:
+                    # Columnar format - convert to row dictionaries
+                    num_rows = len(next(iter(data.values())))
+                    for i in range(num_rows):
+                        instance_data = {}
+                        for column, values in data.items():
+                            if column != '$row_id':  # Skip internal row IDs
+                                value = values[i] if i < len(values) else None
+                                instance_data[column] = value
+                        # Create ObjectInstance without object_id field (not part of model)
+                        instance_dict = {k: v for k, v in instance_data.items() if k in ['label', 'storage_id', 'url', 'controlled', 'metadata']}
+                        instances.append(ObjectInstance(**instance_dict))
+                elif isinstance(data, list):
+                    # Row-oriented format
+                    for row in data:
+                        instance_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
+                        # Create ObjectInstance without object_id field (not part of model)
+                        instance_dict = {k: v for k, v in instance_data.items() if k in ['label', 'storage_id', 'url', 'controlled', 'metadata']}
+                        instances.append(ObjectInstance(**instance_dict))
+            elif isinstance(result, list):
+                # Direct list result
+                for row in result:
+                    instance_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
+                    # Create ObjectInstance without object_id field (not part of model)
+                    instance_dict = {k: v for k, v in instance_data.items() if k in ['label', 'storage_id', 'url', 'controlled', 'metadata']}
+                    instances.append(ObjectInstance(**instance_dict))
             
             return instances
         except Exception as e:
@@ -793,15 +899,31 @@ class ObjectStorageService:
                     # Columnar format
                     num_rows = len(next(iter(data.values())))
                     if num_rows == 0:
-                        return False
+                        # Instance not found - idempotent delete, return True
+                        logger.debug("Instance not found for object %s (label=%s, storage_id=%s) - idempotent delete", 
+                                   object_id, label, storage_id)
+                        return True
                     instance_data = {col: values[0] for col, values in data.items() if col != '$row_id'}
                 elif isinstance(data, list) and len(data) > 0:
                     instance_data = dict(data[0]) if isinstance(data[0], dict) else None
+                else:
+                    # Empty result - idempotent delete
+                    logger.debug("Instance not found for object %s (label=%s, storage_id=%s) - idempotent delete", 
+                               object_id, label, storage_id)
+                    return True
             elif isinstance(instance_result, list) and len(instance_result) > 0:
                 instance_data = dict(instance_result[0]) if isinstance(instance_result[0], dict) else None
+            else:
+                # No result - idempotent delete
+                logger.debug("Instance not found for object %s (label=%s, storage_id=%s) - idempotent delete", 
+                           object_id, label, storage_id)
+                return True
             
             if not instance_data:
-                return False
+                # Instance not found - idempotent delete, return True
+                logger.debug("Instance data empty for object %s (label=%s, storage_id=%s) - idempotent delete", 
+                           object_id, label, storage_id)
+                return True
             
             # Check if controlled and delete from S3 if needed (TAMS 8.0 spec)
             controlled = instance_data.get('controlled', False)
@@ -825,16 +947,22 @@ class ObjectStorageService:
                                  instance_data.get('label', 'unknown'), object_id, label, storage_id)
             
             # Delete from database
-            if label:
-                query = self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}' AND label = '{label}'")
-            else:
-                query = self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}' AND storage_id = '{storage_id}'")
-            
-            query.execute()
-            
-            logger.debug("Deleted object instance for object %s (label=%s, storage_id=%s, controlled=%s)", 
-                       object_id, label, storage_id, controlled)
-            return True
+            try:
+                if label:
+                    query = self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}' AND label = '{label}'")
+                else:
+                    query = self.vast_db.query("object_instances").delete().where(f"object_id = '{object_id}' AND storage_id = '{storage_id}'")
+                
+                query.execute()
+                
+                logger.debug("Deleted object instance for object %s (label=%s, storage_id=%s, controlled=%s)", 
+                           object_id, label, storage_id, controlled)
+                return True
+            except Exception as delete_error:
+                # If delete fails (e.g., instance already deleted), log but still return True (idempotent)
+                logger.debug("Delete query returned no rows for object %s (label=%s, storage_id=%s) - idempotent delete: %s", 
+                           object_id, label, storage_id, delete_error)
+                return True
         except Exception as e:
             logger.error("Failed to delete object instance for %s: %s", object_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")

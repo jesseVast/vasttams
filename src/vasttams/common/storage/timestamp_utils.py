@@ -360,6 +360,10 @@ def convert_timestamp_value(value: Any, field_name: str) -> Any:
     if value is None:
         return None
     
+    # Skip SQL CAST expressions - these are already in SQL format and should not be converted
+    if isinstance(value, str) and value.startswith('CAST('):
+        return value
+    
     if isinstance(value, str) and 'T' in value:
         # ISO timestamp string
         return convert_iso_to_pyarrow_timestamp(value)

@@ -120,7 +120,7 @@ class TestSegmentsRouterGET:
         
         # Test with timerange filter
         response = requests.get(
-            f"{BASE_URL}/flows/{flow_id}/segments?timerange=2024-01-01T00:00:00Z/2024-12-31T23:59:59Z",
+            f"{BASE_URL}/flows/{flow_id}/segments?timerange=[0:0_31536000:0)",
             headers=auth_headers
         )
         assert response.status_code == 200
@@ -180,7 +180,7 @@ class TestSegmentsRouterPOST:
         storage_data = {
             "object_id": object_id,
             "size": 1000000,
-            "storage_id": "test-storage"
+            "storage_id": str(uuid.uuid4())
         }
         
         storage_response = requests.post(
@@ -198,7 +198,7 @@ class TestSegmentsRouterPOST:
             "flow_id": flow_id,
             "object_id": object_id,
             "timerange": {
-                "value": "2024-01-01T00:00:00Z/2024-01-01T00:01:00Z"
+                "value": "[0:0_60:0)"  # TAMS timerange format: 60 seconds starting at 0:0
             }
         }
         
@@ -349,7 +349,7 @@ class TestSegmentsRouterDELETE:
         storage_data = {
             "object_id": object_id,
             "size": 1000000,
-            "storage_id": "test-storage"
+            "storage_id": str(uuid.uuid4())
         }
         
         storage_response = requests.post(
@@ -367,7 +367,7 @@ class TestSegmentsRouterDELETE:
             "flow_id": flow_id,
             "object_id": object_id,
             "timerange": {
-                "value": "2024-01-01T00:00:00Z/2024-01-01T00:01:00Z"
+                "value": "[0:0_60:0)"  # TAMS timerange format: 60 seconds starting at 0:0
             }
         }
         

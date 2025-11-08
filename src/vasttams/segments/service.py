@@ -202,6 +202,26 @@ class SegmentStorageService:
     async def create_flow_segment(self, flow_id: str, segment: FlowSegment) -> bool:
         """Create a new flow segment"""
         try:
+            # Validate that the object exists before creating the segment
+            # This prevents orphaned segment references that cause get_urls generation failures
+            if segment.object_id:
+                obj_dict = await self._get_object(segment.object_id)
+                if not obj_dict:
+                    logger.error(
+                        f"Cannot create segment for flow {flow_id}: object {segment.object_id} does not exist. "
+                        f"Objects must be created via POST /flows/{{flowId}}/storage before segments can reference them."
+                    )
+                    # Record metrics
+                    try:
+                        from ..core.telemetry import metrics
+                        metrics.orphaned_segment_references_total.labels(flow_id=flow_id).inc()
+                    except Exception:
+                        pass  # Don't fail if metrics unavailable
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Object {segment.object_id} not found. Objects must be allocated via POST /flows/{{flowId}}/storage before segments can reference them."
+                    )
+            
             segment_data = segment.model_dump()
             segment_data['flow_id'] = flow_id
             
@@ -289,11 +309,48 @@ class SegmentStorageService:
     async def delete_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> bool:
         """Delete flow segments"""
         try:
-            # Delete segments using vaststore
-            query = self.vast_db.query("segments").delete().where(f"flow_id = '{flow_id}'")
+            # If timerange is provided, we need to filter segments first since timerange is not a column
+            # The segments table has timerange_start and timerange_end columns
             if timerange:
-                query = query.where(f"timerange = '{timerange}'")
-            
+                # Get segments first, filter by timerange, then delete individually
+                segments = await self.get_flow_segments(flow_id, timerange)
+                if not segments:
+                    logger.debug("No segments found to delete for flow %s with timerange %s", flow_id, timerange)
+                    return True  # Idempotent delete - return True if nothing to delete
+                
+                # Delete each segment individually by flow_id, object_id, and timerange
+                # FlowSegment doesn't have an id field, so we delete by identifying fields
+                segments_table = self.vast_db.get_qualified_table_name("segments")
+                deleted_count = 0
+                for segment in segments:
+                    try:
+                        # Reconstruct timerange_start and timerange_end from segment timerange
+                        timerange_value = segment.timerange.value if segment.timerange else "0:0"
+                        if "_" in timerange_value:
+                            timerange_start, timerange_end = timerange_value.split("_", 1)
+                        else:
+                            timerange_start = timerange_value
+                            timerange_end = timerange_value
+                        
+                        delete_sql = f"""
+                            DELETE FROM {segments_table} 
+                            WHERE flow_id = '{flow_id}' 
+                            AND object_id = '{segment.object_id}' 
+                            AND timerange_start = '{timerange_start}' 
+                            AND timerange_end = '{timerange_end}'
+                        """
+                        self.vast_db.execute_sql(delete_sql)
+                        deleted_count += 1
+                    except Exception as e:
+                        logger.warning("Failed to delete segment (flow_id=%s, object_id=%s): %s", 
+                                   flow_id, segment.object_id, e)
+                        # Continue with other segments
+                
+                logger.debug("Deleted %d segments for flow %s with timerange %s", deleted_count, flow_id, timerange)
+                return deleted_count > 0
+            else:
+                # Delete all segments for the flow (no timerange filter)
+                query = self.vast_db.query("segments").delete().where(f"flow_id = '{flow_id}'")
             query.execute()
             return True
         except Exception as e:
@@ -704,32 +761,36 @@ class SegmentStorageService:
                         else:
                             storage_path = relative_path
             
-            # Fallback: if object doesn't exist or path can't be determined, use current date
+            # If object doesn't exist or path can't be determined, return None
+            # This indicates a data integrity issue - segments should not reference non-existent objects
             if not storage_path:
-                logger.warning(f"Object {object_id} not found or no storage path, using current date for path reconstruction")
-                now = get_tams_timestamp()
-                year = str(now.year)
-                month = f"{now.month:02d}"
-                date = f"{now.day:02d}"
-                tams_path = self.settings.tams_storage_path.strip('/')
-                relative_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
-                
-                # Include root_path if storage_id is available
-                if storage_id:
+                if not obj_dict:
+                    # Object doesn't exist in database - this is a data integrity issue
+                    logger.error(
+                        f"Object {object_id} not found in database when generating get_urls. "
+                        f"This indicates orphaned segment references. Returning None for get_urls."
+                    )
+                    # Record metrics
                     try:
-                        from ..storagebackends.service import StorageBackendService
-                        backend_service = StorageBackendService(self.vast_db, self.s3_client)
-                        backend = await backend_service.get_storage_backend(storage_id)
-                        if backend and backend.root_path:
-                            root_path = backend.root_path.strip('/')
-                            storage_path = f"{root_path}/{relative_path}"
-                        else:
-                            storage_path = relative_path
-                    except Exception as e:
-                        logger.warning(f"Failed to load backend {storage_id} for fallback path: {e}")
-                        storage_path = relative_path
+                        from ..core.telemetry import metrics
+                        metrics.object_fetch_failures_total.labels(reason="object_not_found").inc()
+                    except Exception:
+                        pass  # Don't fail if metrics unavailable
+                    return None
                 else:
-                    storage_path = relative_path
+                    # Object exists but has no storage_path and no created timestamp
+                    # This is also a data integrity issue - object should have proper metadata
+                    logger.error(
+                        f"Object {object_id} exists but has no storage_path in metadata and no created timestamp. "
+                        f"Cannot reconstruct storage path. Returning None for get_urls."
+                    )
+                    # Record metrics
+                    try:
+                        from ..core.telemetry import metrics
+                        metrics.object_fetch_failures_total.labels(reason="missing_metadata").inc()
+                    except Exception:
+                        pass  # Don't fail if metrics unavailable
+                    return None
             
             # Generate presigned GET URL
             backend_info = None

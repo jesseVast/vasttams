@@ -108,6 +108,19 @@ class TAMSMetrics:
             ['type', 'endpoint']
         )
         
+        # Object integrity metrics
+        self.object_fetch_failures_total = Counter(
+            'tams_object_fetch_failures_total',
+            'Total number of object fetch failures when generating get_urls',
+            ['reason']
+        )
+        
+        self.orphaned_segment_references_total = Counter(
+            'tams_orphaned_segment_references_total',
+            'Total number of segments referencing non-existent objects',
+            ['flow_id']
+        )
+        
         # Performance metrics
         self.vast_query_duration_seconds = Histogram(
             'tams_vast_query_duration_seconds',
@@ -240,11 +253,19 @@ class TelemetryManager:
                 }
         
         # Log request with user context
-        logger.info(
-            "%s %s - user=%s, duration=%.3fs, status=%d",
-            method, endpoint, user_info, duration, status_code,
-            extra={"user_context": user_context, "api_context": {"endpoint": endpoint, "method": method}}
-        )
+        # Only log at INFO level for errors or slow requests (>1s), otherwise use DEBUG
+        if status_code >= DEFAULT_ERROR_THRESHOLD or duration > 1.0:
+            logger.info(
+                "%s %s - user=%s, duration=%.3fs, status=%d",
+                method, endpoint, user_info, duration, status_code,
+                extra={"user_context": user_context, "api_context": {"endpoint": endpoint, "method": method}}
+            )
+        else:
+            logger.debug(
+                "%s %s - user=%s, duration=%.3fs, status=%d",
+                method, endpoint, user_info, duration, status_code,
+                extra={"user_context": user_context, "api_context": {"endpoint": endpoint, "method": method}}
+            )
         
         # Record request count
         metrics.http_requests_total.labels(

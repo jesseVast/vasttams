@@ -14,7 +14,8 @@ from ..common.storage.interfaces import StorageInterface
 from ..common.storage.timestamp_utils import (
     get_tams_timestamp,
     prepare_data_for_pyarrow,
-    prepare_data_for_sql
+    prepare_data_for_sql,
+    is_timestamp_field
 )
 from .models import Source
 from ..common.filters import SourceFilters
@@ -33,43 +34,106 @@ class SourceStorageService:
     async def get_sources(self, filters: SourceFilters) -> List[Source]:
         """Get sources with filtering (TAMS 8.0 with tag filtering)"""
         try:
-            # Build query using vaststore
-            query = self.vast_db.query("sources").select("*")
+            # Check if we need tag filtering - if so, use SQL JOIN query
+            has_tag_filters = (filters.tag_filters and len(filters.tag_filters) > 0) or \
+                            (filters.tag_exists_filters and len(filters.tag_exists_filters) > 0)
             
-            # Add standard filters
-            if filters.label:
-                query = query.where(f"label = '{filters.label}'")
-            if filters.format:
-                query = query.where(f"format = '{filters.format}'")
-            
-            # TAMS 8.0: Add tag filters if present
-            if filters.tag_filters:
-                for tag_name, tag_values in filters.tag_filters.items():
-                    # tag_values can be string or list
-                    if isinstance(tag_values, list):
-                        # "OR" query: tag value matches at least one in the list
-                        conditions = []
-                        for val in tag_values:
-                            conditions.append(f"JSON_CONTAINS(tags, '\"{val}\"', '$.\"{tag_name}\"') OR JSON_CONTAINS(tags, '[\"{val}\"]', '$.\"{tag_name}\"')")
-                        tag_filter = " OR ".join(conditions)
-                        query = query.where(f"({tag_filter})")
-                    else:
-                        # Single string value
-                        query = query.where(f"(JSON_EXTRACT(tags, '$.\"{tag_name}\"') = '\"{tag_values}\"' OR JSON_CONTAINS(JSON_EXTRACT(tags, '$.\"{tag_name}\"'), '\"{tag_values}\"'))")
-            
-            # TAMS 8.0: Add tag_exists filters if present
-            if filters.tag_exists_filters:
-                for tag_name, exists in filters.tag_exists_filters.items():
-                    if exists:
-                        query = query.where(f"JSON_EXTRACT(tags, '$.\"{tag_name}\"') IS NOT NULL")
-                    else:
-                        query = query.where(f"JSON_EXTRACT(tags, '$.\"{tag_name}\"') IS NULL")
-            
-            # Add limit
-            if filters.limit:
-                query = query.limit(filters.limit)
-            
-            result = query.execute()
+            if has_tag_filters:
+                # Use SQL JOIN query for tag filtering
+                sources_table = self.vast_db.get_qualified_table_name("sources")
+                tags_table = self.vast_db.get_qualified_table_name("tags")
+                
+                # Build WHERE conditions for standard filters
+                where_conditions = []
+                if filters.label:
+                    escaped_label = filters.label.replace("'", "''")
+                    where_conditions.append(f"s.label = '{escaped_label}'")
+                if filters.format:
+                    escaped_format = filters.format.replace("'", "''")
+                    where_conditions.append(f"s.format = '{escaped_format}'")
+                
+                # Separate positive (tag exists/value matches) and negative (tag doesn't exist) filters
+                positive_tag_conditions = []
+                negative_tag_names = []
+                
+                # Tag value filters (always positive - tag must exist with matching value)
+                if filters.tag_filters:
+                    for tag_name, tag_values in filters.tag_filters.items():
+                        escaped_name = tag_name.replace("'", "''")
+                        if isinstance(tag_values, list):
+                            # OR query: tag value matches at least one in the list
+                            value_conditions = []
+                            for val in tag_values:
+                                escaped_val = str(val).replace("'", "''")
+                                # Handle JSON array values - Trino doesn't have JSON_CONTAINS, use simpler check
+                                value_conditions.append(f"t.tag_value = '{escaped_val}'")
+                            positive_tag_conditions.append(f"(t.tag_name = '{escaped_name}' AND ({' OR '.join(value_conditions)}))")
+                        else:
+                            # Single string value
+                            escaped_val = str(tag_values).replace("'", "''")
+                            positive_tag_conditions.append(f"(t.tag_name = '{escaped_name}' AND t.tag_value = '{escaped_val}')")
+                
+                # Tag existence filters
+                if filters.tag_exists_filters:
+                    for tag_name, exists in filters.tag_exists_filters.items():
+                        escaped_name = tag_name.replace("'", "''")
+                        if exists:
+                            positive_tag_conditions.append(f"t.tag_name = '{escaped_name}'")
+                        else:
+                            negative_tag_names.append(escaped_name)
+                
+                # Build the query
+                where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+                limit_clause = f"LIMIT {filters.limit}" if filters.limit else ""
+                
+                # Explicitly list columns to avoid selecting non-existent 'tags' column
+                source_columns = "s.id, s.format, s.label, s.description, s.created_by, s.updated_by, s.created, s.updated"
+                
+                if positive_tag_conditions:
+                    # We have positive tag filters - use INNER JOIN
+                    positive_tag_clause = " AND ".join(positive_tag_conditions)
+                    
+                    sql = f"""
+                        SELECT DISTINCT {source_columns}
+                        FROM {sources_table} s
+                        INNER JOIN {tags_table} t ON s.id = t.entity_id AND t.entity_type = 'source'
+                        WHERE {where_clause} AND {positive_tag_clause}
+                    """
+                    
+                    # Add negative tag filters as NOT EXISTS subqueries
+                    for tag_name in negative_tag_names:
+                        sql += f" AND NOT EXISTS (SELECT 1 FROM {tags_table} t2 WHERE t2.entity_type = 'source' AND t2.entity_id = s.id AND t2.tag_name = '{tag_name}')"
+                    
+                    sql += f" {limit_clause}"
+                else:
+                    # Only negative tag filters - no JOIN needed
+                    sql = f"""
+                        SELECT {source_columns}
+                        FROM {sources_table} s
+                        WHERE {where_clause}
+                    """
+                    
+                    for tag_name in negative_tag_names:
+                        sql += f" AND NOT EXISTS (SELECT 1 FROM {tags_table} t2 WHERE t2.entity_type = 'source' AND t2.entity_id = s.id AND t2.tag_name = '{tag_name}')"
+                    
+                    sql += f" {limit_clause}"
+                
+                result = self.vast_db.execute_sql(sql)
+            else:
+                # No tag filters - use standard query builder
+                query = self.vast_db.query("sources").select("*")
+                
+                # Add standard filters
+                if filters.label:
+                    query = query.where(f"label = '{filters.label}'")
+                if filters.format:
+                    query = query.where(f"format = '{filters.format}'")
+                
+                # Add limit
+                if filters.limit:
+                    query = query.limit(filters.limit)
+                
+                result = query.execute()
             
             # Convert to Source objects
             sources_data = []
@@ -272,14 +336,21 @@ class SourceStorageService:
             
             # Only update mutable fields, exclude read-only fields and tags
             # Keep updated_by if provided, but don't overwrite created_by
-            source_data = source.model_dump(exclude={'id', 'created', 'created_by', 'source_collection', 'collected_by', 'tags'})
+            source_data = source.model_dump(exclude={'id', 'created', 'created_by', 'source_collection', 'collected_by', 'tags'}, exclude_none=False)
             
             # Convert timestamp fields to SQL format using centralized function
             from ..common.storage.timestamp_utils import prepare_data_for_sql
             source_data = prepare_data_for_sql(source_data)
             
             # Filter out None values to avoid "unknown" type errors
+            # But keep empty strings as they are valid values
+            # Use exclude_none=False to ensure all fields including empty strings are included
+            # IMPORTANT: Keep empty strings (v == '') as they are valid values for fields like label
+            # Empty strings are not None, so they will be included by the v is not None check
             source_data = {k: v for k, v in source_data.items() if v is not None}
+            
+            # Log what we're updating for debugging
+            logger.debug("Updating source %s with fields: %s", source_id, list(source_data.keys()))
             
             # Try UPDATE first
             try:
@@ -287,12 +358,20 @@ class SourceStorageService:
                     # Build SQL update statement directly
                     set_clauses = []
                     for column, value in source_data.items():
-                        if column == 'updated' and isinstance(value, str) and value.startswith('CAST('):
-                            # Handle timestamp fields that are already CAST expressions
+                        # Check if this is a timestamp field that should be CAST
+                        if is_timestamp_field(column) and isinstance(value, str) and value.startswith('CAST('):
+                            # Handle timestamp fields that are already CAST expressions - don't quote them
                             set_clauses.append(f"{column} = {value}")
+                        elif is_timestamp_field(column) and isinstance(value, datetime):
+                            # Convert datetime to SQL timestamp format
+                            from ..common.storage.timestamp_utils import prepare_data_for_sql
+                            timestamp_data = prepare_data_for_sql({column: value})
+                            if column in timestamp_data:
+                                set_clauses.append(f"{column} = {timestamp_data[column]}")
                         else:
                             # Handle regular fields
                             if isinstance(value, str):
+                                # Escape single quotes and handle empty strings
                                 escaped_value = value.replace("'", "''")
                                 set_clauses.append(f"{column} = '{escaped_value}'")
                             elif value is None:

@@ -167,13 +167,38 @@ class TestSegmentStorageService:
         """Test delete_flow_segments with timerange filter"""
         import uuid
         flow_id = str(uuid.uuid4())
+        segment_id = str(uuid.uuid4())
+        object_id = str(uuid.uuid4())
         
         mock_db = Mock()
+        mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
+        
+        # Mock get_flow_segments query (delete_flow_segments calls get_flow_segments first when timerange is provided)
+        # get_flow_segments returns a list of FlowSegment objects
         mock_query = Mock()
-        mock_query.delete.return_value = mock_query
+        mock_query.select.return_value = mock_query
         mock_query.where.return_value = mock_query
-        mock_query.execute.return_value = True
-        mock_db.query.return_value = mock_query
+        mock_query.execute.return_value = {
+            'data': {
+                'id': [segment_id],
+                'flow_id': [flow_id],
+                'object_id': [object_id],
+                'timerange_start': ['0:0'],
+                'timerange_end': ['100:0'],
+                'size': [1000000],
+                'ts_offset': [None],
+                'last_duration': [None],
+                'sample_offset': [None],
+                'sample_count': [None],
+                'get_urls': [None],
+                'key_frame_count': [None]
+            }
+        }
+        # Make query callable - when called with table name, return mock_query
+        mock_db.query = Mock(return_value=mock_query)
+        
+        # Mock execute_sql for individual segment deletion
+        mock_db.execute_sql = Mock(return_value=True)
         
         service = SegmentStorageService(mock_db, Mock(), Mock())
         result = await service.delete_flow_segments(flow_id, timerange="0:0_100:0")

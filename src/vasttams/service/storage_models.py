@@ -103,6 +103,7 @@ class FlowStoragePost(BaseModel):
     @field_validator('storage_id')
     @classmethod
     def validate_storage_id(cls, v: Optional[str]) -> Optional[str]:
+        # storage_id must be a TAMS compliant UUID4 (references storage backend id)
         if v is not None:
             return validate_tams_uuid(v)
         return v

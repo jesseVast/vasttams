@@ -158,9 +158,20 @@ async def create_sources_batch(
         if not sources:
             raise HTTPException(status_code=400, detail="No sources provided")
         
+        # Check for duplicate IDs in the batch
+        source_ids = [source.id for source in sources]
+        if len(source_ids) != len(set(source_ids)):
+            duplicate_ids = [sid for sid in source_ids if source_ids.count(sid) > 1]
+            raise HTTPException(status_code=409, detail=f"Duplicate source IDs in batch: {list(set(duplicate_ids))}")
+        
         # Create sources one by one using the storage service
         created_sources = []
         for source in sources:
+            # Check if source already exists
+            existing = await storage.get_source(source.id)
+            if existing:
+                raise HTTPException(status_code=409, detail=f"Source {source.id} already exists")
+            
             success = await storage.create_source(source)
             if not success:
                 raise HTTPException(status_code=500, detail=f"Failed to create source {source.id}")
@@ -196,6 +207,13 @@ async def delete_source_by_id(
 ):
     """Delete a source (hard delete only - TAMS compliant)"""
     try:
+        # Validate UUID format
+        from ..common.models import validate_tams_uuid
+        try:
+            validate_tams_uuid(source_id)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=f"Invalid source ID format: {str(e)}")
+        
         # Log the cascade parameter for debugging
         logger.debug("Deleting source %s with cascade=%s", source_id, cascade)
         
@@ -400,13 +418,36 @@ async def update_source_description(
     source_id: str,
     request: Request,
     storage: StorageInterface = Depends(get_storage_service),
-    user_session: UserSession = Depends(require_editor)
+    user_session: UserSession = Depends(require_editor),
+    description: Optional[str] = Query(None, description="Description value (alternative to request body)")
 ):
     """Update source description"""
     try:
-        # Read text/plain body
-        description = await request.body()
-        description = description.decode('utf-8')
+        # Read text/plain body first, fallback to query parameter
+        # Also check query params directly from request in case Query() doesn't work
+        body_description = await request.body()
+        body_description = body_description.decode('utf-8').strip() if body_description else ""
+        
+        # Also check query params directly from request
+        query_description = request.query_params.get('description')
+        if query_description:
+            query_description = query_description.strip()
+        
+        # Use body if present and non-empty, otherwise use query parameter
+        if body_description:
+            description_value = body_description
+            logger.debug("Using description from request body: %s", description_value)
+        elif description is not None and isinstance(description, str) and description.strip():
+            # Use query parameter from FastAPI Query dependency
+            description_value = description.strip()
+            logger.debug("Using description from FastAPI Query parameter: %s", description_value)
+        elif query_description:
+            # Fallback: use query parameter from request directly
+            description_value = query_description
+            logger.debug("Using description from request.query_params: %s", description_value)
+        else:
+            # Neither body nor query parameter provided - allow empty description
+            description_value = ""
         
         # Get username for metadata
         username = user_session.username if user_session else "system"
@@ -415,7 +456,7 @@ async def update_source_description(
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
-        source.description = description
+        source.description = description_value
         source.updated_by = username
         success = await storage.update_source(source_id, source)
         if not success:
@@ -503,9 +544,25 @@ async def update_source_label(
 ):
     """Update source label"""
     try:
+        # Check query params first (before reading body, as body reading might affect query param access)
+        query_label = request.query_params.get('label')
+        
         # Read text/plain body
-        label = await request.body()
-        label = label.decode('utf-8')
+        body_label = await request.body()
+        body_label = body_label.decode('utf-8').strip() if body_label else ""
+        
+        # Use body if present and non-empty, otherwise use query parameter
+        # Priority: body > request.query_params
+        if body_label:
+            label_value = body_label
+        elif query_label:
+            # Use query parameter from request directly
+            label_value = query_label.strip() if query_label else ""
+        else:
+            # Neither body nor query parameter provided
+            logger.error("No label provided! body='%s', query_label='%s', all_params=%s, url=%s", 
+                         body_label, query_label, dict(request.query_params), str(request.url))
+            raise HTTPException(status_code=400, detail="Label value required in request body or query parameter")
         
         # Get username for metadata
         username = user_session.username if user_session else "system"
@@ -514,7 +571,10 @@ async def update_source_label(
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
         
-        source.label = label
+        # Store original label for debugging
+        original_label = source.label
+        
+        source.label = label_value
         source.updated_by = username
         success = await storage.update_source(source_id, source)
         if not success:

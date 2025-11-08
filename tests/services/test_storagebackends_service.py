@@ -508,17 +508,51 @@ class TestStorageBackendService:
         mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
         mock_db.execute_sql = Mock(return_value={'data': {'count': [0]}})  # No objects reference it
         
-        mock_query = Mock()
-        mock_query.delete.return_value = mock_query
-        mock_query.where.return_value = mock_query
-        mock_query.execute = Mock()
-        mock_db.query.return_value = mock_query
+        # Mock get_storage_backend query
+        mock_get_query = Mock()
+        mock_get_query.select.return_value = mock_get_query
+        mock_get_query.where.return_value = mock_get_query
+        mock_get_query.execute.return_value = {
+            'data': {
+                'id': [backend_id],
+                'label': ['test-backend'],
+                'store_type': ['http_object_store'],  # Must be 'http_object_store' per TAMS spec
+                'provider': ['vast'],
+                'store_product': ['vast-s3'],  # Required field
+                'endpoint_url': ['http://localhost:9000'],
+                'bucket_name': ['test-bucket'],
+                'root_path': ['/'],
+                'use_ssl': [False],
+                'default_storage': [False]
+            }
+        }
+        
+        # Mock delete query - delete_storage_backend calls query("storage_backends").delete().where().execute()
+        mock_delete_query = Mock()
+        mock_delete_query.delete.return_value = mock_delete_query
+        mock_delete_query.where.return_value = mock_delete_query
+        mock_delete_query.execute = Mock()
+        
+        # When query("storage_backends") is called for get, return mock_get_query
+        # When query("storage_backends") is called for delete, return mock_delete_query
+        call_count = [0]
+        def query_side_effect(table_name):
+            if table_name == "storage_backends":
+                call_count[0] += 1
+                # First call is for get_storage_backend (select), second is for delete
+                if call_count[0] == 1:
+                    return mock_get_query
+                else:
+                    return mock_delete_query
+            return mock_delete_query
+        
+        mock_db.query = Mock(side_effect=query_side_effect)
         
         service = StorageBackendService(mock_db, Mock())
         result = await service.delete_storage_backend(backend_id)
         
         assert result is True
-        assert mock_query.execute.called
+        assert mock_delete_query.execute.called
     
     @pytest.mark.asyncio
     async def test_delete_storage_backend_with_references(self):

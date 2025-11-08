@@ -4,7 +4,7 @@ Storage Backend Router
 This module provides API endpoints for managing storage backends.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from typing import List
 from .models import StorageBackend, StorageBackendPost, StorageBackendPatch, StorageBackendsList
 from .service import StorageBackendService
@@ -79,13 +79,16 @@ async def update_storage_backend(
     return await service.update_storage_backend(backend_id, backend)
 
 
-@router.delete("/{backend_id}", status_code=204)
+@router.delete("/{backend_id}")
 async def delete_storage_backend(
     backend_id: str,
     service: StorageBackendService = Depends(get_storage_backend_service),
     user_session: UserSession = Depends(require_admin)
 ):
     """Delete a storage backend (only if no objects reference it)"""
-    await service.delete_storage_backend(backend_id)
-    return None
+    success = await service.delete_storage_backend(backend_id)
+    if not success:
+        logger.debug("Storage backend %s deletion returned False, raising 404", backend_id)
+        raise HTTPException(status_code=404, detail="Storage backend not found")
+    return Response(status_code=204)
 

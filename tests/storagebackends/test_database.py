@@ -130,10 +130,9 @@ class TestStorageBackendDatabaseIntegration:
             created = create_response.json()
             backend_id = created["id"]
             
-            # Update backend
+            # Update backend (only allowed fields: endpoint_url, bucket_name, root_path, use_ssl, access_key, secret_key)
             update_data = {
-                "label": "updated-label",
-                "region": "eu-west-1"
+                "root_path": "/updated-path"
             }
             
             update_response = requests.put(
@@ -148,8 +147,7 @@ class TestStorageBackendDatabaseIntegration:
             assert get_response.status_code == 200
             
             updated = get_response.json()
-            assert updated["label"] == "updated-label"
-            assert updated["region"] == "eu-west-1"
+            assert updated["root_path"] == "/updated-path"
             
         finally:
             # Cleanup

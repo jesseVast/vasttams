@@ -76,6 +76,11 @@ async def delete_object_by_id(
         # Get object before deletion for event emission
         obj = await storage.get_object(object_id)
         
+        # If object doesn't exist, delete_object will return True (idempotent)
+        # but we should return 404 for non-existent objects in the API
+        if not obj:
+            raise HTTPException(status_code=404, detail="Object not found")
+        
         success = await storage.delete_object(object_id)
         if not success:
             raise HTTPException(status_code=404, detail="Object not found")

@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from ..common.storage.interfaces import StorageInterface
-from ..common.storage.timestamp_utils import get_tams_timestamp, prepare_data_for_pyarrow
+from ..common.storage.timestamp_utils import get_tams_timestamp, prepare_data_for_pyarrow, is_timestamp_field
 from .models import StorageBackend, StorageBackendPost, StorageBackendPatch
 
 logger = logging.getLogger(__name__)
@@ -275,15 +275,14 @@ class StorageBackendService:
                 if update_dict:
                     set_clauses = []
                     for column, value in update_dict.items():
-                        if isinstance(value, str):
-                            # Check if it's already a SQL expression (like CAST(...))
-                            if value.startswith('CAST(') or value.upper().startswith('CAST('):
-                                # Use as-is without quotes - it's already a SQL expression
-                                set_clauses.append(f"{column} = {value}")
-                            else:
-                                # Regular string value - escape and quote
-                                escaped_value = value.replace("'", "''")
-                                set_clauses.append(f"{column} = '{escaped_value}'")
+                        # Check if this is a timestamp field that should be CAST
+                        if is_timestamp_field(column) and isinstance(value, str) and value.startswith('CAST('):
+                            # Handle timestamp fields that are already CAST expressions - don't quote them
+                            set_clauses.append(f"{column} = {value}")
+                        elif isinstance(value, str):
+                            # Regular string value - escape and quote
+                            escaped_value = value.replace("'", "''")
+                            set_clauses.append(f"{column} = '{escaped_value}'")
                         elif value is None:
                             set_clauses.append(f"{column} = NULL")
                         elif isinstance(value, bool):
@@ -415,6 +414,12 @@ class StorageBackendService:
                     detail=f"Cannot delete storage backend: {reference_count} object(s) or instance(s) reference it. "
                            "Delete or migrate the objects first."
                 )
+            
+            # Check if backend exists before attempting deletion
+            existing = await self.get_storage_backend(backend_id)
+            if not existing:
+                logger.debug("Storage backend %s not found, returning False", backend_id)
+                return False
             
             logger.debug("Deleting storage backend %s", backend_id)
             

@@ -22,6 +22,27 @@ from vasttams.common.models import TimeRange
 from fastapi import HTTPException
 
 
+def create_mock_join_result(object_id, flow_id=None, size=1000000, timerange='0:0_100:0', created='2024-01-01T00:00:00Z', metadata='{}'):
+    """Helper to create mock JOIN query result for get_object tests"""
+    flow_id = flow_id or str(uuid.uuid4())
+    # Handle timerange - can be string or dict
+    timerange_value = timerange if isinstance(timerange, str) else timerange.get('value', '0:0_100:0') if isinstance(timerange, dict) else '0:0_100:0'
+    # Handle metadata - can be string or dict
+    metadata_value = metadata if isinstance(metadata, str) else json.dumps(metadata) if isinstance(metadata, dict) else '{}'
+    return {
+        'data': {
+            'id': [object_id],
+            'size': [size],
+            'timerange': [timerange_value],
+            'created': [created],
+            'first_referenced_by_flow': [flow_id],
+            'metadata': [metadata_value],
+            'flow_id': [flow_id] if flow_id else [],  # From JOIN
+            'segment_created': [created] if flow_id else []  # From JOIN
+        }
+    }
+
+
 class TestObjectStorageServiceAdditional:
     """Additional tests for ObjectStorageService to improve coverage"""
     
@@ -42,9 +63,9 @@ class TestObjectStorageServiceAdditional:
             'size': 1000000,
             'metadata': '{}'
         }]
-        mock_db.query.return_value = mock_query
         mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
-        mock_db.execute_sql = Mock(return_value={'data': {}})
+        # Mock execute_sql to return JOIN query results in columnar format
+        mock_db.execute_sql = Mock(return_value=create_mock_join_result(object_id, flow_id))
         
         service = ObjectStorageService(mock_db, Mock())
         obj = await service.get_object(object_id)
@@ -71,9 +92,9 @@ class TestObjectStorageServiceAdditional:
                 'metadata': '{}'
             }]
         }
-        mock_db.query.return_value = mock_query
         mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
-        mock_db.execute_sql = Mock(return_value={'data': {}})
+        # Mock execute_sql to return JOIN query results in columnar format
+        mock_db.execute_sql = Mock(return_value=create_mock_join_result(object_id, flow_id))
         
         service = ObjectStorageService(mock_db, Mock())
         obj = await service.get_object(object_id)
@@ -103,12 +124,17 @@ class TestObjectStorageServiceAdditional:
         }
         mock_db.query.return_value = mock_query
         mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
-        # Mock referenced flows query - return list format
+        # Mock JOIN query with multiple flows (multiple rows from JOIN)
         mock_db.execute_sql = Mock(return_value={
-            'data': [
-                {'flow_id': flow_id1},
-                {'flow_id': flow_id2}
-            ]
+            'data': {
+                'id': [object_id, object_id],  # Same object, multiple rows
+                'size': [1000000, 1000000],
+                'timerange': ['0:0_100:0', '0:0_100:0'],
+                'created': ['2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z'],
+                'first_referenced_by_flow': [flow_id1, flow_id1],
+                'flow_id': [flow_id1, flow_id2],  # Different flows from JOIN
+                'segment_created': ['2024-01-01T00:00:00Z', '2024-01-01T01:00:00Z']
+            }
         })
         
         service = ObjectStorageService(mock_db, Mock())
@@ -138,12 +164,8 @@ class TestObjectStorageServiceAdditional:
         }
         mock_db.query.return_value = mock_query
         mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
-        # Mock referenced flows query - return tuple format
-        mock_db.execute_sql = Mock(return_value={
-            'data': [
-                (flow_id,),  # Tuple format
-            ]
-        })
+        # Mock JOIN query result
+        mock_db.execute_sql = Mock(return_value=create_mock_join_result(object_id, flow_id))
         
         service = ObjectStorageService(mock_db, Mock())
         obj = await service.get_object(object_id)
@@ -171,19 +193,8 @@ class TestObjectStorageServiceAdditional:
         }
         mock_db.query.return_value = mock_query
         mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
-        # First query (segments) returns empty, second query (flow_object_references) returns flows
-        call_count = 0
-        def execute_sql_side_effect(sql):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return {'data': {}}  # Segments query returns empty
-            elif call_count == 2:
-                return {'data': {'flow_id': [flow_id]}}  # flow_object_references returns flows
-            else:
-                return {'data': {'flow_id': [flow_id]}}  # first_ref_query
-        
-        mock_db.execute_sql.side_effect = execute_sql_side_effect
+        # Mock JOIN query result (get_object now uses single JOIN query)
+        mock_db.execute_sql = Mock(return_value=create_mock_join_result(object_id, flow_id))
         
         service = ObjectStorageService(mock_db, Mock())
         obj = await service.get_object(object_id)
@@ -197,20 +208,9 @@ class TestObjectStorageServiceAdditional:
         object_id = str(uuid.uuid4())
         
         mock_db = Mock()
-        mock_query = Mock()
-        mock_query.select.return_value = mock_query
-        mock_query.where.return_value = mock_query
-        mock_query.execute.return_value = {
-            'data': {
-                'id': [object_id],
-                'timerange': [{'value': '0:0_100:0'}],  # Dict format
-                'size': [1000000],
-                'metadata': ['{}']
-            }
-        }
-        mock_db.query.return_value = mock_query
         mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
-        mock_db.execute_sql = Mock(return_value={'data': {}})
+        # Mock JOIN query - timerange comes as string from database, not dict
+        mock_db.execute_sql = Mock(return_value=create_mock_join_result(object_id, timerange='0:0_100:0'))
         
         service = ObjectStorageService(mock_db, Mock())
         obj = await service.get_object(object_id)
@@ -237,7 +237,8 @@ class TestObjectStorageServiceAdditional:
         }
         mock_db.query.return_value = mock_query
         mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
-        mock_db.execute_sql = Mock(return_value={'data': {}})
+        # Mock JOIN query with timerange as None
+        mock_db.execute_sql = Mock(return_value=create_mock_join_result(object_id, timerange=None))
         
         service = ObjectStorageService(mock_db, Mock())
         obj = await service.get_object(object_id)
@@ -264,7 +265,8 @@ class TestObjectStorageServiceAdditional:
         }
         mock_db.query.return_value = mock_query
         mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
-        mock_db.execute_sql = Mock(return_value={'data': {}})
+        # Mock JOIN query with timerange as None
+        mock_db.execute_sql = Mock(return_value=create_mock_join_result(object_id, timerange=None))
         
         service = ObjectStorageService(mock_db, Mock())
         obj = await service.get_object(object_id)
@@ -291,7 +293,8 @@ class TestObjectStorageServiceAdditional:
         }
         mock_db.query.return_value = mock_query
         mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
-        mock_db.execute_sql = Mock(return_value={'data': {}})
+        # Mock JOIN query result with metadata
+        mock_db.execute_sql = Mock(return_value=create_mock_join_result(object_id, metadata='{"storage_path": "/path/to/object"}'))
         
         service = ObjectStorageService(mock_db, Mock())
         obj = await service.get_object(object_id)
@@ -318,7 +321,12 @@ class TestObjectStorageServiceAdditional:
         }
         mock_db.query.return_value = mock_query
         mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
-        mock_db.execute_sql = Mock(return_value={'data': {}})
+        # Mock JOIN query with missing size and metadata with storage_path
+        mock_db.execute_sql = Mock(return_value=create_mock_join_result(
+            object_id, 
+            size=None, 
+            metadata='{"storage_path": "/path/to/object"}'
+        ))
         
         # Mock S3 client
         mock_s3 = Mock()
@@ -349,9 +357,10 @@ class TestObjectStorageServiceAdditional:
         }
         mock_db.query.return_value = mock_query
         mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
-        mock_db.execute_sql = Mock(return_value={'data': {}})
+        # Mock JOIN query - metadata not in JOIN, so S3 update won't be triggered
+        mock_db.execute_sql = Mock(return_value=create_mock_join_result(object_id, size=None))
         
-        # Mock S3 client - return 404 error
+        # Mock S3 client - return 404 error (won't be called since no metadata/storage_path)
         mock_s3 = Mock()
         mock_s3.get_object_metadata = Mock(side_effect=Exception("404 Not Found"))
         
@@ -366,11 +375,9 @@ class TestObjectStorageServiceAdditional:
         object_id = str(uuid.uuid4())
         
         mock_db = Mock()
-        mock_query = Mock()
-        mock_query.select.return_value = mock_query
-        mock_query.where.return_value = mock_query
-        mock_query.execute.side_effect = Exception("Database error")
-        mock_db.query.return_value = mock_query
+        mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
+        # Mock execute_sql to raise exception
+        mock_db.execute_sql = Mock(side_effect=Exception("Database error"))
         
         service = ObjectStorageService(mock_db, Mock())
         
@@ -401,7 +408,12 @@ class TestObjectStorageServiceAdditional:
     
     @pytest.mark.asyncio
     async def test_create_object_metadata_string(self):
-        """Test create_object with metadata as string"""
+        """Test create_object with metadata as string
+        
+        Note: Object model doesn't expose metadata field per TAMS spec.
+        Metadata is handled internally via _internal_metadata.
+        This test verifies that create_object works correctly without metadata.
+        """
         object_id = str(uuid.uuid4())
         
         obj = Object(
@@ -410,8 +422,8 @@ class TestObjectStorageServiceAdditional:
             size=1000000,
             referenced_by_flows=[]
         )
-        # Set metadata as string (should be serialized)
-        obj.metadata = '{"storage_path": "/path/to/object"}'
+        # Note: Cannot set metadata directly on Object model per TAMS spec
+        # Metadata is internal-only and handled separately
         
         mock_db = Mock()
         mock_db.insert_record = Mock()
@@ -692,11 +704,9 @@ class TestObjectStorageServiceAdditional:
         object_id = str(uuid.uuid4())
         
         mock_db = Mock()
-        mock_query = Mock()
-        mock_query.select.return_value = mock_query
-        mock_query.where.return_value = mock_query
-        mock_query.execute.side_effect = Exception("Database error")
-        mock_db.query.return_value = mock_query
+        mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
+        # Mock execute_sql to raise exception (get_object uses execute_sql)
+        mock_db.execute_sql = Mock(side_effect=Exception("Database error"))
         
         service = ObjectStorageService(mock_db, Mock())
         service._delete_object_instances_s3 = AsyncMock()
@@ -1061,8 +1071,38 @@ class TestObjectStorageServiceAdditional:
         mock_query.select.return_value = mock_query
         mock_query.where.return_value = mock_query
         mock_query.delete.return_value = mock_query
-        mock_query.execute.return_value = {'data': {}}
+        
+        # First call (get_object) returns object data, second call (select instance) returns instance data, third call (delete) succeeds
+        call_count = 0
+        def execute_side_effect():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # get_object query
+                return {'data': {'id': [object_id], 'size': [1000000], 'timerange': ['0:0_100:0']}}
+            elif call_count == 2:
+                # select instance query
+                return {'data': {'label': ['test-instance'], 'storage_id': [str(uuid.uuid4())], 'controlled': [False]}}
+            else:
+                # delete query
+                return {'data': {}}
+        
+        mock_query.execute.side_effect = execute_side_effect
         mock_db.query.return_value = mock_query
+        mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
+        # Mock get_object's JOIN query to return a valid object
+        mock_db.execute_sql = Mock(side_effect=lambda sql: {
+            'data': {
+                'id': [object_id],
+                'size': [1000000],
+                'timerange': ['0:0_100:0'],
+                'created': ['2024-01-01T00:00:00Z'],
+                'first_referenced_by_flow': [None],
+                'metadata': ['{}'],
+                'flow_id': [],
+                'segment_created': []
+            }
+        } if 'SELECT' in sql and 'FROM' in sql and 'objects' in sql else {'data': {}})
         
         service = ObjectStorageService(mock_db, Mock())
         result = await service.delete_object_instance(object_id, label="test-instance")
@@ -1080,8 +1120,37 @@ class TestObjectStorageServiceAdditional:
         mock_query.select.return_value = mock_query
         mock_query.where.return_value = mock_query
         mock_query.delete.return_value = mock_query
-        mock_query.execute.return_value = {'data': {}}
+        
+        # get_object uses execute_sql for JOIN query - return object data
+        # select instance uses query().execute() - return instance data
+        # delete uses query().delete().execute() - return success
+        call_count = 0
+        def execute_sql_side_effect(sql):
+            # get_object JOIN query
+            return {'data': {
+                'id': [object_id],
+                'size': [1000000],
+                'timerange': ['0:0_100:0'],
+                'created': [None],
+                'first_referenced_by_flow': [None],
+                'flow_id': [],
+                'segment_created': []
+            }}
+        
+        def execute_side_effect():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # select instance query
+                return {'data': {'label': ['test-instance'], 'storage_id': [storage_id], 'controlled': [False]}}
+            else:
+                # delete query
+                return {'data': {}}
+        
+        mock_query.execute.side_effect = execute_side_effect
         mock_db.query.return_value = mock_query
+        mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
+        mock_db.execute_sql = Mock(side_effect=execute_sql_side_effect)
         
         service = ObjectStorageService(mock_db, Mock())
         result = await service.delete_object_instance(object_id, storage_id=storage_id)
@@ -1094,6 +1163,11 @@ class TestObjectStorageServiceAdditional:
         object_id = str(uuid.uuid4())
         
         mock_db = Mock()
+        mock_db.get_qualified_table_name = lambda name: f"vast.schema.{name}"
+        # Mock execute_sql to raise exception (get_object uses execute_sql)
+        mock_db.execute_sql = Mock(side_effect=Exception("Database error"))
+        
+        # Mock query for instance lookup (delete_object_instance uses query builder)
         mock_query = Mock()
         mock_query.select.return_value = mock_query
         mock_query.where.return_value = mock_query

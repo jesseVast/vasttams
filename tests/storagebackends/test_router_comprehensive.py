@@ -142,8 +142,9 @@ class TestStorageBackendsRouterPUT:
             if backends:
                 backend_id = backends[0].get("id")
                 if backend_id:
+                    # Only allowed fields can be updated: endpoint_url, bucket_name, root_path, use_ssl, access_key, secret_key
                     update_data = {
-                        "label": "Updated Storage Backend"
+                        "root_path": "/updated-path"
                     }
                     response = requests.put(
                         f"{BASE_URL}/service/storage-backends/{backend_id}",
@@ -170,7 +171,7 @@ class TestStorageBackendsRouterDELETE:
             "provider": "vast",
             "store_type": "http_object_store",
             "store_product": "vast-s3",
-            "label": "Test Storage Backend for Deletion"
+            "label": "Test-Storage-Backend-for-Deletion"
         }
         
         create_response = requests.post(

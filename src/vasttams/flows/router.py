@@ -466,8 +466,14 @@ async def get_flow_collection(
         flow = await storage.get_flow(flow_id)
         if not flow:
             raise HTTPException(status_code=404, detail="Flow not found")
-        # Return collection info if available
-        return {"collection_id": getattr(flow, 'collection_id', None)}
+        # Return collection data if available
+        if flow.flow_collection is not None:
+            # FlowCollection is a RootModel, so we need to get the root value
+            if hasattr(flow.flow_collection, 'root'):
+                return flow.flow_collection.root
+            else:
+                return flow.flow_collection
+        return []
     except HTTPException:
         raise
     except Exception as e:
@@ -477,13 +483,44 @@ async def get_flow_collection(
 @router.put("/{flow_id}/flow_collection", status_code=201)
 async def update_flow_collection(
     flow_id: str,
-    collection_data: dict,
+    collection_data: List[dict] = Body(...),  # Accept list of FlowCollectionItem dicts
     storage: StorageInterface = Depends(get_storage_service)
 ):
-    """Update flow collection"""
+    """Update flow collection
+    
+    collection_data should be a list of FlowCollectionItem objects:
+    [
+        {"id": "flow-uuid", "role": "video"},
+        {"id": "flow-uuid", "role": "audio"}
+    ]
+    """
     try:
-        # For now, just return success - collection management not fully implemented
-        return {"message": "Flow collection updated successfully"}
+        from ..common.models import FlowCollection
+        import json
+        # Validate the collection data
+        collection = FlowCollection.model_validate(collection_data)
+        
+        # Get the existing flow to verify it exists
+        flow = await storage.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        # Update flow_collection directly in the database
+        # Convert collection to JSON string for storage
+        collection_json = json.dumps(collection.model_dump())
+        
+        # Update flow_collection field directly in database
+        vast_db = get_vast_db()
+        flows_table = vast_db.get_qualified_table_name("flows")
+        
+        # Escape single quotes in JSON
+        escaped_json = collection_json.replace("'", "''")
+        sql = f"UPDATE {flows_table} SET flow_collection = '{escaped_json}' WHERE id = '{flow_id}'"
+        vast_db.execute_sql(sql)
+        
+        return {"message": "Flow collection updated successfully", "collection": collection.model_dump()}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Failed to update flow collection for %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")

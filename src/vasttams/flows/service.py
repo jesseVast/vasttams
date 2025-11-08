@@ -281,7 +281,7 @@ class FlowStorageService:
                         if column != '$row_id':  # Skip internal row IDs
                             value = values[0] if len(values) > 0 else None
                             # Parse JSON fields
-                            if column in ['essence_parameters', 'tags'] and isinstance(value, str):
+                            if column in ['essence_parameters', 'tags', 'flow_collection'] and isinstance(value, str):
                                 try:
                                     import json
                                     parsed = json.loads(value)
@@ -291,7 +291,7 @@ class FlowStorageService:
                                     else:
                                         flow_data[column] = parsed
                                 except (json.JSONDecodeError, TypeError):
-                                    # If parsing fails, set to None for tags, keep as-is for essence_parameters
+                                    # If parsing fails, set to None for tags, keep as-is for essence_parameters and flow_collection
                                     if column == 'tags':
                                         flow_data[column] = None
                                     else:
@@ -303,7 +303,7 @@ class FlowStorageService:
                         return None
                     flow_data = dict(data[0]) if hasattr(data[0], '__iter__') and not isinstance(data[0], str) else data[0]
                     # Parse JSON fields
-                    for field in ['essence_parameters', 'tags']:
+                    for field in ['essence_parameters', 'tags', 'flow_collection']:
                         if field in flow_data and isinstance(flow_data[field], str):
                             try:
                                 import json
@@ -314,7 +314,7 @@ class FlowStorageService:
                                 else:
                                     flow_data[field] = parsed
                             except (json.JSONDecodeError, TypeError):
-                                # If parsing fails, set to None for tags, keep as-is for essence_parameters
+                                # If parsing fails, set to None for tags, keep as-is for essence_parameters and flow_collection
                                 if field == 'tags':
                                     flow_data[field] = None
                                 pass
@@ -323,7 +323,7 @@ class FlowStorageService:
                     return None
                 flow_data = dict(result[0]) if hasattr(result[0], '__iter__') and not isinstance(result[0], str) else result[0]
                 # Parse JSON fields
-                for field in ['essence_parameters', 'tags']:
+                for field in ['essence_parameters', 'tags', 'flow_collection']:
                     if field in flow_data and isinstance(flow_data[field], str):
                         try:
                             import json
@@ -334,7 +334,7 @@ class FlowStorageService:
                             else:
                                 flow_data[field] = parsed
                         except (json.JSONDecodeError, TypeError):
-                            # If parsing fails, set to None for tags, keep as-is for essence_parameters
+                            # If parsing fails, set to None for tags, keep as-is for essence_parameters and flow_collection
                             if field == 'tags':
                                 flow_data[field] = None
                             pass
@@ -372,6 +372,23 @@ class FlowStorageService:
                 elif filters.include_timerange and not calculated_timerange:
                     # include_timerange=true but no segments found - timerange should be None/absent
                     flow_data.pop('timerange', None)
+            
+            # Convert flow_collection from list to FlowCollection object if present
+            if 'flow_collection' in flow_data and flow_data['flow_collection'] is not None:
+                from ..common.models import FlowCollection
+                import json
+                # If it's still a string, parse it first
+                if isinstance(flow_data['flow_collection'], str):
+                    try:
+                        flow_data['flow_collection'] = json.loads(flow_data['flow_collection'])
+                    except (json.JSONDecodeError, TypeError):
+                        flow_data['flow_collection'] = None
+                # Convert list to FlowCollection object
+                if isinstance(flow_data['flow_collection'], list):
+                    flow_data['flow_collection'] = FlowCollection(flow_data['flow_collection'])
+                elif flow_data['flow_collection'] is not None:
+                    # If it's not a list and not None, set to None (invalid format)
+                    flow_data['flow_collection'] = None
             
             # Get the appropriate flow class based on format
             flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))

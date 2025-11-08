@@ -1,3 +1,6 @@
 # Failed tests tracking
 failed_tests.txt
 .DS_Store
+
+# Test video files
+test_videos/

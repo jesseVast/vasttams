@@ -18,9 +18,9 @@ sys.path.insert(0, str(root_dir / "src"))
 # Change to root directory to load config correctly
 os.chdir(str(root_dir))
 
-from vasttams.core.dependencies import get_vast_db
-from vasttams.auth.user_service import UserService
-from vasttams.auth.models import UserRole
+from vasttamsserver.core.dependencies import get_vast_db
+from vasttamsserver.auth.user_service import UserService
+from vasttamsserver.auth.models import UserRole
 
 
 async def init_default_users(vast_db):

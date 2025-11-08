@@ -1,0 +1,12 @@
+MANIFEST.in
+pyproject.toml
+requirements.txt
+setup.py
+./vasttamsserver/__init__.py
+./vasttamsserver/main.py
+vasttamsserver.egg-info/PKG-INFO
+vasttamsserver.egg-info/SOURCES.txt
+vasttamsserver.egg-info/dependency_links.txt
+vasttamsserver.egg-info/entry_points.txt
+vasttamsserver.egg-info/requires.txt
+vasttamsserver.egg-info/top_level.txt

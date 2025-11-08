@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, AsyncMock, patch
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.common.storage.table_initializer import TAMSTableInitializer
+from vasttamsserver.common.storage.table_initializer import TAMSTableInitializer
 
 
 class TestTAMSTableInitializer:

@@ -14,16 +14,16 @@ from unittest.mock import Mock, AsyncMock, patch
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.auth.dependencies import (
+from vasttamsserver.auth.dependencies import (
     get_auth_manager,
     get_jwt_provider,
     get_basic_provider,
     get_url_token_provider
 )
-from vasttams.auth.core import AuthManager
-from vasttams.auth.providers.jwt import JWTProvider
-from vasttams.auth.providers.basic import BasicAuthProvider
-from vasttams.auth.providers.url_token import URLTokenProvider
+from vasttamsserver.auth.core import AuthManager
+from vasttamsserver.auth.providers.jwt import JWTProvider
+from vasttamsserver.auth.providers.basic import BasicAuthProvider
+from vasttamsserver.auth.providers.url_token import URLTokenProvider
 
 
 class TestAuthDependencies:
@@ -57,7 +57,7 @@ class TestAuthDependencies:
     def test_get_auth_manager_singleton(self):
         """Test get_auth_manager returns singleton"""
         # Clear global instance
-        import vasttams.auth.dependencies
+        import vasttamsserver.auth.dependencies
         vasttams.auth.dependencies._auth_manager = None
         
         mock_store = Mock()
@@ -70,7 +70,7 @@ class TestAuthDependencies:
     def test_get_auth_manager_initializes_providers(self):
         """Test get_auth_manager initializes providers"""
         # Clear global instance
-        import vasttams.auth.dependencies
+        import vasttamsserver.auth.dependencies
         vasttams.auth.dependencies._auth_manager = None
         
         mock_store = Mock()
@@ -85,7 +85,7 @@ class TestAuthDependencies:
     
     def test_get_auth_manager_reuses_instance(self):
         """Test get_auth_manager reuses same instance on subsequent calls"""
-        import vasttams.auth.dependencies
+        import vasttamsserver.auth.dependencies
         vasttams.auth.dependencies._auth_manager = None
         
         mock_store1 = Mock()

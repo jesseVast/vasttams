@@ -17,8 +17,8 @@ from unittest.mock import Mock, AsyncMock, patch, MagicMock
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.common.tags.service import TagStorageService
-from vasttams.common.models import Tags
+from vasttamsserver.common.tags.service import TagStorageService
+from vasttamsserver.common.models import Tags
 
 
 # Helper to generate TAMS-compliant UUIDs
@@ -561,7 +561,7 @@ class TestTagStorageService:
         mock_db.execute_sql = Mock()
         mock_db.insert_record = Mock()
         
-        from vasttams.common.models import Tags
+        from vasttamsserver.common.models import Tags
         mock_tags = Tags({})
         mock_tags.root = None
         

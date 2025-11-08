@@ -7,7 +7,7 @@ This script starts the TAMS (Time-addressable Media Store) API server.
 
 import uvicorn
 import logging
-from vasttams.core.config import get_settings
+from vasttamsserver.core.config import get_settings
 
 def main():
     """Start the VastTAMS API server"""
@@ -32,7 +32,7 @@ def main():
     logger.info(f"Starting server with {workers} worker(s) on {settings.host}:{settings.port}")
     
     uvicorn.run(
-        "vasttams.main:app",
+        "vasttamsserver.main:app",
         host=settings.host,
         port=settings.port,
         workers=workers,  # Multiple workers for better concurrency

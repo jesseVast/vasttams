@@ -29,9 +29,9 @@ sys.path.insert(0, root_dir)
 # Change to root directory so config/config.json is found
 os.chdir(root_dir)
 
-from vasttams.core.config import get_settings
-from vasttams.core.dependencies import get_vast_db
-from vasttams.common.storage.table_initializer import TAMSTableInitializer
+from vasttamsserver.core.config import get_settings
+from vasttamsserver.core.dependencies import get_vast_db
+from vasttamsserver.common.storage.table_initializer import TAMSTableInitializer
 
 # Configure logging
 logging.basicConfig(

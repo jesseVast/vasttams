@@ -15,11 +15,11 @@ from fastapi import Request
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.auth.core import AuthManager, AuthProvider
-from vasttams.auth.models import AuthResult, AuthMethod, UserRole
-from vasttams.auth.providers.jwt import JWTProvider
-from vasttams.auth.providers.basic import BasicAuthProvider
-from vasttams.auth.providers.url_token import URLTokenProvider
+from vasttamsserver.auth.core import AuthManager, AuthProvider
+from vasttamsserver.auth.models import AuthResult, AuthMethod, UserRole
+from vasttamsserver.auth.providers.jwt import JWTProvider
+from vasttamsserver.auth.providers.basic import BasicAuthProvider
+from vasttamsserver.auth.providers.url_token import URLTokenProvider
 
 
 class TestAuthManager:

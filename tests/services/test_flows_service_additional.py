@@ -16,10 +16,10 @@ import uuid
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.flows.service import FlowStorageService
-from vasttams.flows.models import VideoFlow, AudioFlow
-from vasttams.common.filters import FlowFilters, FlowDetailFilters
-from vasttams.common.models import TimeRange
+from vasttamsserver.flows.service import FlowStorageService
+from vasttamsserver.flows.models import VideoFlow, AudioFlow
+from vasttamsserver.common.filters import FlowFilters, FlowDetailFilters
+from vasttamsserver.common.models import TimeRange
 from fastapi import HTTPException
 
 
@@ -379,8 +379,8 @@ class TestFlowStorageServiceAdditional:
         # Mock SegmentStorageService - patch at the import location
         with patch('vasttams.segments.service.SegmentStorageService') as mock_segment_service_class:
             mock_segment_service = Mock()
-            from vasttams.segments.models import FlowSegment
-            from vasttams.common.models import TimeRange
+            from vasttamsserver.segments.models import FlowSegment
+            from vasttamsserver.common.models import TimeRange
             
             # Create mock segments with timeranges
             segment1 = FlowSegment(
@@ -460,7 +460,7 @@ class TestFlowStorageServiceAdditional:
         flow_id = str(uuid.uuid4())
         source_id = str(uuid.uuid4())
         
-        from vasttams.flows.models import VideoEssenceParameters
+        from vasttamsserver.flows.models import VideoEssenceParameters
         essence_params = VideoEssenceParameters(
             frame_width=1920,
             frame_height=1080,
@@ -492,7 +492,7 @@ class TestFlowStorageServiceAdditional:
         flow_id = str(uuid.uuid4())
         source_id = str(uuid.uuid4())
         
-        from vasttams.flows.models import VideoEssenceParameters
+        from vasttamsserver.flows.models import VideoEssenceParameters
         essence_params = VideoEssenceParameters(
             frame_width=1920,
             frame_height=1080,
@@ -523,7 +523,7 @@ class TestFlowStorageServiceAdditional:
         flow_id = str(uuid.uuid4())
         source_id = str(uuid.uuid4())
         
-        from vasttams.flows.models import VideoEssenceParameters
+        from vasttamsserver.flows.models import VideoEssenceParameters
         essence_params = VideoEssenceParameters(
             frame_width=1920,
             frame_height=1080,
@@ -555,7 +555,7 @@ class TestFlowStorageServiceAdditional:
         flow_id = str(uuid.uuid4())
         source_id = str(uuid.uuid4())
         
-        from vasttams.flows.models import VideoEssenceParameters
+        from vasttamsserver.flows.models import VideoEssenceParameters
         essence_params = VideoEssenceParameters(
             frame_width=1920,
             frame_height=1080,
@@ -611,7 +611,7 @@ class TestFlowStorageServiceAdditional:
         flow_id = str(uuid.uuid4())
         source_id = str(uuid.uuid4())
         
-        from vasttams.flows.models import VideoEssenceParameters
+        from vasttamsserver.flows.models import VideoEssenceParameters
         essence_params = VideoEssenceParameters(
             frame_width=1920,
             frame_height=1080,

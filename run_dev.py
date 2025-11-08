@@ -9,7 +9,7 @@ Use this for local development to automatically restart the server when code cha
 import uvicorn
 import logging
 import os
-from vasttams.core.config import get_settings
+from vasttamsserver.core.config import get_settings
 
 def main():
     """Start the VastTAMS API server in development mode"""
@@ -33,11 +33,11 @@ def main():
     # Development mode: single worker with auto-reload
     # Note: reload=True requires a single worker
     uvicorn.run(
-        "vasttams.main:app",
+        "vasttamsserver.main:app",
         host=settings.host,
         port=settings.port,
         reload=True,  # Enable auto-reload for development
-        reload_dirs=["src/vasttams"],  # Watch these directories for changes
+        reload_dirs=["src/server/vasttamsserver"],  # Watch these directories for changes
         reload_includes=["*.py"],  # Watch Python files
         log_level=settings.log_level.lower(),
         loop="asyncio",

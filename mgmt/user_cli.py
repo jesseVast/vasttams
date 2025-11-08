@@ -25,8 +25,8 @@ os.chdir(root_dir)
 
 from vastdbmanager import VastDBManager
 from vasts3 import S3Client
-from vasttams.auth.models import User
-from vasttams.core.config import get_settings
+from vasttamsserver.auth.models import User
+from vasttamsserver.core.config import get_settings
 
 # Note: UserCreate, UserUpdate, UserPasswordChange need to be defined in auth.models if used
 

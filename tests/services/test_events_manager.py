@@ -17,8 +17,8 @@ from datetime import datetime, timezone
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.events.manager import EventManager
-from vasttams.events.models import Event, SourceEventData, FlowEventData, FlowSegmentEventData, ObjectEventData
+from vasttamsserver.events.manager import EventManager
+from vasttamsserver.events.models import Event, SourceEventData, FlowEventData, FlowSegmentEventData, ObjectEventData
 import uuid
 
 

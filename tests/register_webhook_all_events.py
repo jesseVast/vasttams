@@ -15,7 +15,7 @@ sys.path.insert(0, str(src_path))
 tests_path = Path(__file__).parent
 sys.path.insert(0, str(tests_path))
 
-from vasttams.core.config import get_settings
+from vasttamsserver.core.config import get_settings
 
 settings = get_settings()
 # Use localhost instead of 0.0.0.0 for connections

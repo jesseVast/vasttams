@@ -16,10 +16,10 @@ from datetime import datetime, timedelta, timezone
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.auth.providers.jwt import JWTProvider
-from vasttams.auth.providers.basic import BasicAuthProvider
-from vasttams.auth.providers.url_token import URLTokenProvider
-from vasttams.auth.models import AuthMethod, UserRole, AuthResult
+from vasttamsserver.auth.providers.jwt import JWTProvider
+from vasttamsserver.auth.providers.basic import BasicAuthProvider
+from vasttamsserver.auth.providers.url_token import URLTokenProvider
+from vasttamsserver.auth.models import AuthMethod, UserRole, AuthResult
 
 
 class TestJWTProvider:

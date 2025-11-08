@@ -15,7 +15,7 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.flows.models import VideoFlow, VideoEssenceParameters
+from vasttamsserver.flows.models import VideoFlow, VideoEssenceParameters
 from test_examples import get_video_flow_example, get_vfr_flow_example
 
 import logging

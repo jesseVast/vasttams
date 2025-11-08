@@ -16,9 +16,9 @@ import uuid
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.objects.service import ObjectStorageService
-from vasttams.objects.models import Object, ObjectInstance
-from vasttams.common.models import TimeRange
+from vasttamsserver.objects.service import ObjectStorageService
+from vasttamsserver.objects.models import Object, ObjectInstance
+from vasttamsserver.common.models import TimeRange
 from fastapi import HTTPException
 
 
@@ -608,7 +608,7 @@ class TestObjectStorageServiceAdditional:
         """Test _delete_object_instances_s3"""
         object_id = str(uuid.uuid4())
         
-        from vasttams.objects.models import ObjectInstance
+        from vasttamsserver.objects.models import ObjectInstance
         
         instance = ObjectInstance(
             label="test-instance",
@@ -638,7 +638,7 @@ class TestObjectStorageServiceAdditional:
         """Test _delete_object_instances_s3 uses URL parsing as fallback"""
         object_id = str(uuid.uuid4())
         
-        from vasttams.objects.models import ObjectInstance
+        from vasttamsserver.objects.models import ObjectInstance
         
         instance = ObjectInstance(
             label="test-instance",
@@ -878,7 +878,7 @@ class TestObjectStorageServiceAdditional:
         """Test create_object_instance when object doesn't exist"""
         object_id = str(uuid.uuid4())
         
-        from vasttams.objects.models import ObjectInstance
+        from vasttamsserver.objects.models import ObjectInstance
         instance = ObjectInstance(
             label="test-instance",
             storage_id=str(uuid.uuid4()),
@@ -899,7 +899,7 @@ class TestObjectStorageServiceAdditional:
         """Test create_object_instance exception handling"""
         object_id = str(uuid.uuid4())
         
-        from vasttams.objects.models import ObjectInstance
+        from vasttamsserver.objects.models import ObjectInstance
         instance = ObjectInstance(
             label="test-instance",
             storage_id=str(uuid.uuid4()),

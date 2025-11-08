@@ -14,7 +14,7 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.service.schemas import (
+from vasttamsserver.service.schemas import (
     get_webhooks_schema,
     get_deletion_requests_schema,
     get_webhooks_projections,

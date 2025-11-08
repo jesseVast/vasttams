@@ -19,11 +19,11 @@ sys.path.insert(0, root_dir)
 os.chdir(root_dir)
 
 try:
-    from vasttams.main import app
+    from vasttamsserver.main import app
 except ImportError:
     # Fallback for direct execution
     sys.path.insert(0, str(Path(__file__).parent))
-    from vasttams.main import app
+    from vasttamsserver.main import app
 
 def generate_openapi_json():
     """Generate OpenAPI JSON specification"""

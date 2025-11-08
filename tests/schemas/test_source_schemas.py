@@ -14,7 +14,7 @@ import pyarrow as pa
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.sources.schemas import (
+from vasttamsserver.sources.schemas import (
     get_sources_schema,
     get_source_collections_schema,
     get_sources_projections,

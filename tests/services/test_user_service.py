@@ -17,8 +17,8 @@ import uuid
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.auth.user_service import UserService
-from vasttams.auth.models import User, UserRole
+from vasttamsserver.auth.user_service import UserService
+from vasttamsserver.auth.models import User, UserRole
 
 
 class TestUserService:

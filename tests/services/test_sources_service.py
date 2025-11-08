@@ -16,9 +16,9 @@ import json
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.sources.service import SourceStorageService
-from vasttams.common.filters import SourceFilters
-from vasttams.sources.models import Source
+from vasttamsserver.sources.service import SourceStorageService
+from vasttamsserver.common.filters import SourceFilters
+from vasttamsserver.sources.models import Source
 
 
 class TestSourceStorageService:
@@ -1102,7 +1102,7 @@ class TestSourceStorageService:
         import uuid
         source_id = str(uuid.uuid4())
         
-        from vasttams.sources.models import Source
+        from vasttamsserver.sources.models import Source
         source = Source(
             id=source_id,
             format="urn:x-nmos:format:video",

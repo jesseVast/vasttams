@@ -16,9 +16,9 @@ import time
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.core.config import get_settings
-from vasttams.flows.bitrate_calculator import BitRateCalculator
-from vasttams.segments.models import FlowSegment, GetUrl, TimeRange, Timestamp
+from vasttamsserver.core.config import get_settings
+from vasttamsserver.flows.bitrate_calculator import BitRateCalculator
+from vasttamsserver.segments.models import FlowSegment, GetUrl, TimeRange, Timestamp
 
 import logging
 logger = logging.getLogger(__name__)

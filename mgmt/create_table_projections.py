@@ -28,8 +28,8 @@ sys.path.insert(0, root_dir)
 # Change to root directory so config/config.json is found
 os.chdir(root_dir)
 
-from vasttams.core.config import get_settings
-from vasttams.common.storage.schemas import get_table_projections
+from vasttamsserver.core.config import get_settings
+from vasttamsserver.common.storage.schemas import get_table_projections
 from vastdbmanager import VastDBManager
 
 import logging

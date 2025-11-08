@@ -16,7 +16,7 @@ from unittest.mock import patch
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.core.tams_errors import (
+from vasttamsserver.core.tams_errors import (
     TAMSErrorCode,
     TAMSErrorSeverity,
     TAMSComplianceError,

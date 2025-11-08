@@ -15,14 +15,14 @@ from fastapi import HTTPException, Depends
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.auth.rbac import (
+from vasttamsserver.auth.rbac import (
     require_role,
     require_admin,
     require_editor,
     require_viewer,
     check_permission
 )
-from vasttams.auth.models import UserSession, UserRole, AuthMethod
+from vasttamsserver.auth.models import UserSession, UserRole, AuthMethod
 from datetime import datetime, timezone
 
 

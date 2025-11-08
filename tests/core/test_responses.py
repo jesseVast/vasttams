@@ -13,7 +13,7 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.common.responses import (
+from vasttamsserver.common.responses import (
     PagingInfo,
     ServiceResponse,
     SourcesResponse,
@@ -21,10 +21,10 @@ from vasttams.common.responses import (
     WebhooksResponse,
     DeletionRequestsResponse
 )
-from vasttams.service.models import Service
-from vasttams.sources.models import Source
-from vasttams.service.webhooks import Webhook
-from vasttams.service.deletion import DeletionRequestsList
+from vasttamsserver.service.models import Service
+from vasttamsserver.sources.models import Source
+from vasttamsserver.service.webhooks import Webhook
+from vasttamsserver.service.deletion import DeletionRequestsList
 
 
 class TestPagingInfo:
@@ -110,7 +110,7 @@ class TestFlowsResponse:
     
     def test_flows_response_creation_minimal(self):
         """Test creating FlowsResponse with just data"""
-        from vasttams.flows.models import VideoFlow
+        from vasttamsserver.flows.models import VideoFlow
         import uuid
         flows = [
             VideoFlow(
@@ -131,7 +131,7 @@ class TestFlowsResponse:
     
     def test_flows_response_with_paging(self):
         """Test creating FlowsResponse with paging"""
-        from vasttams.flows.models import VideoFlow
+        from vasttamsserver.flows.models import VideoFlow
         import uuid
         flows = [
             VideoFlow(
@@ -217,7 +217,7 @@ class TestDeletionRequestsResponse:
     
     def test_flows_response_serialization(self):
         """Test that FlowsResponse can be serialized"""
-        from vasttams.flows.models import VideoFlow
+        from vasttamsserver.flows.models import VideoFlow
         import uuid
         flows = [
             VideoFlow(

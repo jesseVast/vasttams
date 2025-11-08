@@ -15,7 +15,7 @@ import json
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from vasttams.core.config import get_settings
+from vasttamsserver.core.config import get_settings
 from test_examples import load_example
 
 import logging

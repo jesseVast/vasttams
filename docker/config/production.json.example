@@ -14,14 +14,14 @@
   
   "database": {
     "vast": {
-      "endpoint": "http://docker1:4001",
-      "access_key": "SRSPW0DQT9T70Y787U68",
-      "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
-      "bucket": "jthaloor-db",
-      "schema": "tams8-dev"
+      "endpoint": "http://your-vast-endpoint:4001",
+      "access_key": "YOUR_VAST_ACCESS_KEY",
+      "secret_key": "YOUR_VAST_SECRET_KEY",
+      "bucket": "your-bucket",
+      "schema": "tams8"
     },
     "trino": {
-      "host": "docker1",
+      "host": "trino-host",
       "port": 8080,
       "user": "admin",
       "catalog": "vast",
@@ -39,11 +39,11 @@
       "store_product": "vast-s3",
       "region": "us-east-1",
       "availability_zone": null,
-      "endpoint_url": "http://docker1:4001",
-      "access_key": "SRSPW0DQT9T70Y787U68",
-      "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
-      "bucket_name": "jthaloor-s3",
-      "root_path": "/tams8-dev",
+      "endpoint_url": "http://your-s3-endpoint:4001",
+      "access_key": "YOUR_S3_ACCESS_KEY",
+      "secret_key": "YOUR_S3_SECRET_KEY",
+      "bucket_name": "your-s3-bucket",
+      "root_path": "/tams8",
       "use_ssl": false,
       "chunk_size": 8388608,
       "max_concurrent_parts": 10,
@@ -67,39 +67,26 @@
   
   "logging": {
     "level": "INFO",
-    "format": "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
-    "dir": "logs"
+    "format": "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
   },
   
   "tams_compliance": {
     "enabled": true,
-    "validation_level": "strict",
-    "uuid_validation": true,
-    "timestamp_validation": true,
-    "content_format_validation": true,
-    "mime_type_validation": true,
-    "error_reporting": true,
-    "audit_logging": true,
-    "cache_enabled": true,
-    "cache_ttl": 300
+    "audit_logging": false
   },
   
-  "telemetry": {
+  "cors": {
+    "origins": ["*"],
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "headers": ["*"]
+  },
+  
+  "auth": {
     "enabled": true,
-    "metrics_enabled": true,
-    "tracing_enabled": true,
-    "jaeger_endpoint": "localhost:14268",
-    "otlp_endpoint": "http://localhost:4318/v1/traces"
-  },
-  
-  "authentication": {
-    "secret_key": "your-secret-key-here-change-in-production",
-    "algorithm": "HS256",
-    "access_token_expire_minutes": 30
-  },
-  
-  "webhooks": {
-    "timeout": 30,
-    "retry_attempts": 3
+    "jwt_secret": "CHANGE_THIS_IN_PRODUCTION",
+    "jwt_algorithm": "HS256",
+    "token_expiration": 3600,
+    "refresh_token_expiration": 86400
   }
 }
+

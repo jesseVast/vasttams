@@ -329,7 +329,11 @@ Soft delete functionality is enabled by default and cannot be disabled through c
    ```
 
 2. **Install dependencies**
+   
+   ⚠️ **Note**: This project requires private dependencies (`vastdbmanager` and `vasts3`) from a private GitLab repository. See [Private Dependencies Setup](docs/PRIVATE_DEPENDENCIES.md) for installation instructions.
+   
    ```bash
+   # First, configure GitLab authentication (see docs/PRIVATE_DEPENDENCIES.md)
    pip install -r requirements.txt
    ```
 

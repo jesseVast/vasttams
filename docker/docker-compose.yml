@@ -1,13 +1,16 @@
 version: '3.8'
 
 services:
-  # Trino integration for vaststore SQL capabilities
+  # Trino integration for vaststore SQL capabilities (development only)
   trino-vast:
     image: vastdataorg/trino-vast:latest
+    profiles:
+      - dev
+      - full
     ports:
       - "8080:8080"
     volumes:
-      - ./vast.properties:/etc/trino/catalog/vast.properties
+      - ./trino/vast.properties:/etc/trino/catalog/vast.properties
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/v1/status"]
@@ -15,47 +18,24 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - tams-network
 
+  # TAMS API Server
   tams-api:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: tams-api
     ports:
       - "8000:8000"
-    depends_on:
-      - trino-vast
-    environment:
-      # Server settings
-      - HOST=0.0.0.0
-      - PORT=8000
-      - DEBUG=false
-      
-      # VAST Database settings
-      - VAST_ENDPOINT=http://172.200.204.90
-      - VAST_ACCESS_KEY=SRSPW0DQT9T70Y787U68
-      - VAST_SECRET_KEY=WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr
-      - VAST_BUCKET=jthaloor-db
-      - VAST_SCHEMA=tams7
-      
-      # S3 settings
-      - S3_ENDPOINT_URL=http://172.200.204.91
-      - S3_ACCESS_KEY_ID=SRSPW0DQT9T70Y787U68
-      - S3_SECRET_ACCESS_KEY=WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr
-      - S3_BUCKET_NAME=jthaloor-s3
-      - S3_USE_SSL=false
-      
-      # Trino settings for vaststore
-      - TRINO_HOST=trino-vast
-      - TRINO_PORT=8080
-      - TRINO_USER=admin
-      - TRINO_CATALOG=vast
-      
-      # Logging
-      - LOG_LEVEL=INFO
-      - LOG_FORMAT=%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s
-      
-      # App directories
-      - VAST_DATA_DIR=/app/vast_data
     volumes:
       - vast_data:/app/vast_data
+      - logs_data:/app/logs
+      # Config file mounting - use production.json for prod, config.json for dev
+      - ${CONFIG_FILE:-../config/config.json}:/etc/tams/config.json:ro
+    environment:
+      - TAMS_CONFIG_PATH=/etc/tams/config.json
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -63,7 +43,65 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - tams-network
+    depends_on:
+      trino-vast:
+        condition: service_healthy
+        required: false  # Optional dependency (only when trino-vast profile is active)
+
+  # TAMS UI (production only)
+  tams-ui:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.ui
+    container_name: tams-ui
+    profiles:
+      - prod
+      - full
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - tams-network
+    depends_on:
+      - tams-api
+
+  # HAProxy S3 Proxy (production only)
+  haproxy:
+    image: haproxy:latest
+    container_name: tams-haproxy
+    profiles:
+      - prod
+      - full
+    ports:
+      - "${HAPROXY_PORT:-4001}:80"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    dns:
+      - ${HAPROXY_DNS:-10.140.3.248}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "haproxy", "-c", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - tams-network
 
 volumes:
   vast_data:
     driver: local
+  logs_data:
+    driver: local
+
+networks:
+  tams-network:
+    driver: bridge

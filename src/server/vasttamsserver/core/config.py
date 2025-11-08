@@ -70,6 +70,8 @@ class Settings(BaseSettings):
         description="Application log level")
     log_format: str = Field(default="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
         description="Log message format")
+    log_dir: Optional[str] = Field(default="logs",
+        description="Directory path for log files (relative to working directory or absolute path)")
     
     # S3 settings for flow segment storage
     s3_endpoint_url: str = Field(default="http://localhost:9000",
@@ -279,6 +281,8 @@ class Settings(BaseSettings):
                         self.log_level = logging_cfg['level']
                     if 'format' in logging_cfg:
                         self.log_format = logging_cfg['format']
+                    if 'dir' in logging_cfg:
+                        self.log_dir = logging_cfg['dir']
                 
                 # Load storage settings
                 if 'storage' in config_data:

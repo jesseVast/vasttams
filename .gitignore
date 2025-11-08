@@ -4,3 +4,17 @@ failed_tests.txt
 
 # Test video files
 test_videos/
+
+# Private dependency credentials
+.pip.conf
+pip.conf
+*.token
+*.key
+.env.local
+.env.*.local
+
+# Note: wheels/*.whl files are intentionally committed for Docker builds
+# Only ignore build artifacts, not the final wheels
+wheels/*.egg-info
+wheels/dist/
+wheels/build/

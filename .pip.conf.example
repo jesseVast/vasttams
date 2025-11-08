@@ -1,0 +1,13 @@
+# Example pip configuration for private GitLab dependencies
+# Copy this file to ~/.pip/pip.conf (Linux/Mac) or %APPDATA%\pip\pip.ini (Windows)
+# Replace YOUR_TOKEN and PROJECT_ID with your actual values
+
+[global]
+# Add GitLab Package Registry as an extra index
+# Format: https://__token__:YOUR_TOKEN@gitlab.com/api/v4/projects/PROJECT_ID/packages/pypi/simple
+extra-index-url = https://__token__:YOUR_TOKEN@gitlab.com/api/v4/projects/PROJECT_ID/packages/pypi/simple
+
+# Alternative: Use environment variable instead
+# Set PIP_EXTRA_INDEX_URL environment variable:
+# export PIP_EXTRA_INDEX_URL="https://__token__:YOUR_TOKEN@gitlab.com/api/v4/projects/PROJECT_ID/packages/pypi/simple"
+

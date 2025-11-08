@@ -218,7 +218,11 @@ class SourceStorageService:
                                             if isinstance(collection_data, list):
                                                 if source_id not in source_collection_map:
                                                     source_collection_map[source_id] = []
-                                                processed_collections = {item.get('id') for item in source_collection_map[source_id]}
+                                                # CollectionItem objects have .id attribute, not .get() method
+                                                processed_collections = {
+                                                    item.id if hasattr(item, 'id') else item.get('id') 
+                                                    for item in source_collection_map[source_id]
+                                                }
                                                 
                                                 for item in collection_data:
                                                     if isinstance(item, dict) and 'id' in item and 'role' in item:

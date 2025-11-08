@@ -510,7 +510,8 @@ class TestFlowsRouterPUT:
             pytest.skip("API not available")
         
         flow_id = test_flow_id["flow_id"]
-        collection_data = {"collection_id": str(uuid.uuid4())}
+        # Flow collection should be a list of FlowCollectionItem objects with id and role
+        collection_data = [{"id": str(uuid.uuid4()), "role": "video"}]
         
         response = requests.put(f"{BASE_URL}/flows/{flow_id}/flow_collection", json=collection_data, headers=auth_headers)
         assert response.status_code == 201

@@ -19,9 +19,10 @@ os.environ['PYTHONWARNINGS'] = 'ignore'
 app_dir = Path(__file__).parent.parent / "app"
 sys.path.insert(0, str(app_dir))
 
-# Add src to path for imports
-src_path = Path(__file__).parent.parent / "src"
-sys.path.insert(0, str(src_path))
+# Add src/server to path for imports (vasttamsserver is at src/server/vasttamsserver)
+server_path = Path(__file__).parent.parent / "src" / "server"
+if str(server_path) not in sys.path:
+    sys.path.insert(0, str(server_path))
 
 # Suppress all deprecation warnings before any imports
 warnings.filterwarnings("ignore", category=DeprecationWarning)

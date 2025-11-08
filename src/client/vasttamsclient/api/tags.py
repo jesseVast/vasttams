@@ -38,7 +38,15 @@ async def get_tag(client, entity_type: str, entity_id: str, tag_name: str) -> Op
     
     async with client._session.get(url, headers=await client._get_headers()) as response:
         if response.status == 200:
-            return await response.text()
+            text = await response.text()
+            # Try to parse as JSON if it looks like JSON (starts with quote)
+            if text.startswith('"') and text.endswith('"'):
+                import json
+                try:
+                    return json.loads(text)
+                except json.JSONDecodeError:
+                    pass
+            return text
         elif response.status == 404:
             return None
         else:

@@ -6,9 +6,18 @@ This script starts the TAMS API server in development mode with auto-reload enab
 Use this for local development to automatically restart the server when code changes.
 """
 
+import sys
+import os
+from pathlib import Path
+
+# Add src/server to Python path to allow importing vasttamsserver
+project_root = Path(__file__).parent
+server_path = project_root / "src" / "server"
+if str(server_path) not in sys.path:
+    sys.path.insert(0, str(server_path))
+
 import uvicorn
 import logging
-import os
 from vasttamsserver.core.config import get_settings
 
 def main():

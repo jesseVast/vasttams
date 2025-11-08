@@ -132,7 +132,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
 
   // Autoplay video when component mounts (only for video)
   useEffect(() => {
-    if (mediaType === 'video' && videoRef.current && firstUrl?.presigned && firstUrl?.url) {
+    if (mediaType === 'video' && videoRef.current && firstUrl?.url) {
       const video = videoRef.current;
       const playPromise = video.play();
       
@@ -145,7 +145,8 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   }, [firstUrl, mediaType]);
 
   const renderMediaContent = () => {
-    if (!firstUrl?.presigned || !firstUrl?.url) {
+    // Allow non-presigned URLs too - they might still work for video playback
+    if (!firstUrl?.url) {
       return (
         <Box 
           sx={{ 

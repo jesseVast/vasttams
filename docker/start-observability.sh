@@ -16,7 +16,8 @@ docker network create tams-network 2>/dev/null || echo "Network already exists"
 
 # Start the observability stack
 echo "🔧 Starting services..."
-docker-compose -f docker-compose.observability.yml up -d
+# Use main docker-compose.yml with observability profile
+docker-compose --profile observability up -d
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to be ready..."
@@ -24,7 +25,7 @@ sleep 10
 
 # Check service status
 echo "📊 Service Status:"
-docker-compose -f docker-compose.observability.yml ps
+docker-compose --profile observability ps
 
 echo ""
 echo "✅ Observability Stack Started!"
@@ -38,4 +39,4 @@ echo ""
 echo "🔗 TAMS API Metrics: http://localhost:8000/metrics"
 echo "🔗 TAMS API Health: http://localhost:8000/health"
 echo ""
-echo "To stop the stack: docker-compose -f docker-compose.observability.yml down" 
+echo "To stop the stack: docker-compose --profile observability down" 

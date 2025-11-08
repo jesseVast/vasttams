@@ -104,8 +104,8 @@ class TAMSStorageService(StorageInterface):
         return await self.flow_service.delete_flow(flow_id, cascade, self.object_service)
     
     # Flow segment operations - delegate to segment service
-    async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None) -> List[FlowSegment]:
-        return await self.segment_service.get_flow_segments(flow_id, timerange)
+    async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None, skip_get_urls_generation: bool = False) -> List[FlowSegment]:
+        return await self.segment_service.get_flow_segments(flow_id, timerange, skip_get_urls_generation=skip_get_urls_generation)
     
     async def create_flow_segment(self, flow_id: str, segment: FlowSegment) -> bool:
         return await self.segment_service.create_flow_segment(flow_id, segment)

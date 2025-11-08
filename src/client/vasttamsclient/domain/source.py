@@ -107,10 +107,19 @@ class TAMSSource(TAMSDomainObject):
             raise TAMSClientError(f"Source {self._id} not found")
     
     async def update(self, **updates):
-        """Update source metadata."""
-        self._data.update(updates)
-        result = await source_api.update_source(self._client, self._id, self._data)
-        self._data.update(result)
+        """Update source metadata using specific endpoints."""
+        # Update label if provided
+        if "label" in updates:
+            await source_api.update_source_label(self._client, self._id, updates["label"])
+            self._data["label"] = updates["label"]
+        
+        # Update description if provided
+        if "description" in updates:
+            await source_api.update_source_description(self._client, self._id, updates["description"])
+            self._data["description"] = updates["description"]
+        
+        # Refresh to get any other updated fields
+        await self.refresh()
     
     async def delete(self):
         """Delete source."""

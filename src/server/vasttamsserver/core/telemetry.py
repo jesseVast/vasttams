@@ -288,7 +288,7 @@ class TelemetryManager:
         
         if status_code >= DEFAULT_ERROR_THRESHOLD or duration > 1.0 or is_list_endpoint:
             log_level_msg = (
-                f"{method} {endpoint} - user={user_info}, duration={duration:.3fs}, status={status_code}"
+                f"{method} {endpoint} - user={user_info}, duration={duration:.3f}s, status={status_code}"
             )
             if is_list_endpoint and duration > 0.5:
                 # Add warning for slow list endpoints

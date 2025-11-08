@@ -6,12 +6,18 @@ route:
   group_wait: 10s
   group_interval: 10s
   repeat_interval: 1h
-  receiver: 'web.hook'
+  receiver: 'null'  # Default to null receiver (no alerts sent)
 
 receivers:
+  - name: 'null'
+    # Null receiver - no alerts sent (configure webhook receiver as needed)
+  
   - name: 'web.hook'
     webhook_configs:
-      - url: 'http://127.0.0.1:5001/'
+      # Configure your webhook endpoint here
+      # Example: - url: 'http://your-webhook-server:port/webhook'
+      # Uncomment and configure when ready:
+      # - url: 'http://your-webhook-server:port/webhook'
 
 inhibit_rules:
   - source_match:

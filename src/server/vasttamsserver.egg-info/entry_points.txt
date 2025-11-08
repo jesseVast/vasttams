@@ -1,2 +1,0 @@
-[console_scripts]
-tams = vasttamsserver.main:main

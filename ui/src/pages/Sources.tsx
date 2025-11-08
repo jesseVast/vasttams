@@ -139,9 +139,18 @@ const Sources: React.FC = () => {
     { id: 'actions', label: 'Actions', sortable: false },
   ];
 
-  const handleOpenDetail = (source: Source) => {
-    setSelectedSource(source);
-    setDetailModalOpen(true);
+  const handleOpenDetail = async (source: Source) => {
+    // Fetch full source data to get source_collection computed on-demand
+    try {
+      const fullSource = await sourceService.get(source.id);
+      setSelectedSource(fullSource);
+      setDetailModalOpen(true);
+    } catch (error) {
+      console.error('Failed to load source details:', error);
+      // Fallback to list data if fetch fails
+      setSelectedSource(source);
+      setDetailModalOpen(true);
+    }
   };
 
   const renderRow = (source: Source, index: number) => {

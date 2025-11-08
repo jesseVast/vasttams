@@ -15,7 +15,7 @@ scrape_configs:
   # TAMS API metrics
   - job_name: 'tams-api'
     static_configs:
-      - targets: ['host.docker.internal:8000']
+      - targets: ['tams-api:8000']  # Use service name when in Docker network
     metrics_path: '/metrics'
     scrape_interval: 10s
     scrape_timeout: 5s

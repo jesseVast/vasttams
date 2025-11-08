@@ -788,7 +788,7 @@ class TestSourceStorageService:
         # Mock prepare_data_for_pyarrow to handle the conversion
         # The issue is that source_data has SQL CAST expressions from prepare_data_for_sql
         # prepare_data_for_pyarrow is imported inside the method, so patch at the source module
-        with patch('vasttams.common.storage.timestamp_utils.prepare_data_for_pyarrow') as mock_prepare:
+        with patch('vasttamsserver.common.storage.timestamp_utils.prepare_data_for_pyarrow') as mock_prepare:
             def prepare_side_effect(data):
                 # Return data with clean timestamps (remove CAST expressions)
                 clean_data = {}
@@ -840,7 +840,7 @@ class TestSourceStorageService:
         # Mock prepare_data_for_pyarrow to handle the conversion
         # The issue is that source_data has SQL CAST expressions from prepare_data_for_sql
         # prepare_data_for_pyarrow is imported inside the method, so patch at the source module
-        with patch('vasttams.common.storage.timestamp_utils.prepare_data_for_pyarrow') as mock_prepare:
+        with patch('vasttamsserver.common.storage.timestamp_utils.prepare_data_for_pyarrow') as mock_prepare:
             def prepare_side_effect(data):
                 # Return data with clean timestamps (remove CAST expressions)
                 clean_data = {}
@@ -1118,7 +1118,7 @@ class TestSourceStorageService:
         service.tag_service.update_source_tags = AsyncMock(return_value=True)
         
         # Mock prepare_data_for_sql to return empty dict (no fields to update)
-        with patch('vasttams.common.storage.timestamp_utils.prepare_data_for_sql') as mock_prepare:
+        with patch('vasttamsserver.common.storage.timestamp_utils.prepare_data_for_sql') as mock_prepare:
             mock_prepare.return_value = {}  # No fields to update
             
             result = await service.update_source(source_id, source)

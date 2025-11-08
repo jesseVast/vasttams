@@ -1520,7 +1520,7 @@ class TestObjectStorageServiceAdditional:
         mock_s3.delete_object = Mock(return_value=True)
         
         # Mock get_settings (imported inside method at line 695)
-        with patch('vasttams.core.config.get_settings') as mock_get_settings:
+        with patch('vasttamsserver.core.config.get_settings') as mock_get_settings:
             mock_settings = Mock()
             mock_settings.s3_root_path = "/root"
             mock_get_settings.return_value = mock_settings

@@ -11,24 +11,25 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch, AsyncMock
 from fastapi.testclient import TestClient
 
-# Add src to path for imports
-src_path = Path(__file__).parent.parent.parent / "src"
-sys.path.insert(0, str(src_path))
+# Add src/server to path for imports
+server_path = Path(__file__).parent.parent.parent / "src" / "server"
+if str(server_path) not in sys.path:
+    sys.path.insert(0, str(server_path))
 
 
 class TestAppCreation:
     """Test FastAPI app creation"""
     
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     def test_app_creation(self, mock_get_vast_db, mock_get_settings):
         """Test that FastAPI app can be created"""
         from vasttamsserver.main import app
         assert app is not None
         assert app.title is not None
     
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     def test_app_has_routers(self, mock_get_vast_db, mock_get_settings):
         """Test that app has all required routers"""
         from vasttamsserver.main import app
@@ -37,8 +38,8 @@ class TestAppCreation:
         # Check that at least some expected paths exist
         assert any("/sources" in path or path.startswith("/sources") for path in router_paths)
     
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     def test_app_has_middleware(self, mock_get_vast_db, mock_get_settings):
         """Test that app has middleware configured"""
         from vasttamsserver.main import app
@@ -51,9 +52,9 @@ class TestLifespanEvents:
     """Test lifespan event handlers"""
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.telemetry_manager')
-    @patch('vasttams.main.get_vast_db')
-    @patch('vasttams.common.storage.table_initializer.TAMSTableInitializer')
+    @patch('vasttamsserver.main.telemetry_manager')
+    @patch('vasttamsserver.main.get_vast_db')
+    @patch('vasttamsserver.common.storage.table_initializer.TAMSTableInitializer')
     async def test_lifespan_startup(self, mock_initializer_class, mock_get_vast_db, mock_telemetry):
         """Test lifespan startup events"""
         from vasttamsserver.main import lifespan, app
@@ -75,10 +76,10 @@ class TestLifespanEvents:
             assert mock_initializer.verify_tables_exist.called
     
     @pytest.mark.asyncio
-    @patch('vasttams.auth.user_service.UserService')
-    @patch('vasttams.main.telemetry_manager')
-    @patch('vasttams.main.get_vast_db')
-    @patch('vasttams.common.storage.table_initializer.TAMSTableInitializer')
+    @patch('vasttamsserver.auth.user_service.UserService')
+    @patch('vasttamsserver.main.telemetry_manager')
+    @patch('vasttamsserver.main.get_vast_db')
+    @patch('vasttamsserver.common.storage.table_initializer.TAMSTableInitializer')
     async def test_lifespan_startup_with_missing_tables(self, mock_initializer_class, mock_get_vast_db, mock_telemetry, mock_user_service):
         """Test lifespan startup when tables are missing"""
         from vasttamsserver.main import lifespan, app
@@ -103,12 +104,12 @@ class TestLifespanEvents:
             assert mock_initializer.initialize_all_tables.called
     
     @pytest.mark.asyncio
-    @patch('vasttams.storagebackends.service.StorageBackendService')
-    @patch('vasttams.auth.user_service.UserService')
-    @patch('vasttams.main.telemetry_manager')
-    @patch('vasttams.main.get_vast_db')
-    @patch('vasttams.main.get_s3_client')
-    @patch('vasttams.common.storage.table_initializer.TAMSTableInitializer')
+    @patch('vasttamsserver.storagebackends.service.StorageBackendService')
+    @patch('vasttamsserver.auth.user_service.UserService')
+    @patch('vasttamsserver.main.telemetry_manager')
+    @patch('vasttamsserver.main.get_vast_db')
+    @patch('vasttamsserver.main.get_s3_client')
+    @patch('vasttamsserver.common.storage.table_initializer.TAMSTableInitializer')
     async def test_lifespan_startup_initializes_storage_backends(self, mock_initializer_class, mock_get_s3, mock_get_vast_db, mock_telemetry, mock_user_service, mock_backend_service):
         """Test lifespan startup initializes storage backends"""
         from vasttamsserver.main import lifespan, app
@@ -138,8 +139,8 @@ class TestLifespanEvents:
             pass
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.telemetry_manager')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.telemetry_manager')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_lifespan_shutdown(self, mock_get_vast_db, mock_telemetry):
         """Test lifespan shutdown events"""
         from vasttamsserver.main import lifespan, app
@@ -159,8 +160,8 @@ class TestLifespanEvents:
 class TestExceptionHandlers:
     """Test exception handlers"""
     
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     def test_app_has_exception_handlers(self, mock_get_vast_db, mock_get_settings):
         """Test that app has exception handlers configured"""
         from vasttamsserver.main import app
@@ -168,9 +169,9 @@ class TestExceptionHandlers:
         assert hasattr(app, 'exception_handlers') or len(app.exception_handlers) >= 0
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.logger')
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.logger')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_http_exception_handler_401(self, mock_get_vast_db, mock_get_settings, mock_logger):
         """Test HTTP exception handler for 401 errors (logs at DEBUG)"""
         from vasttamsserver.main import app, http_exception_handler
@@ -186,9 +187,9 @@ class TestExceptionHandlers:
         mock_logger.debug.assert_called_once()
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.logger')
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.logger')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_http_exception_handler_400(self, mock_get_vast_db, mock_get_settings, mock_logger):
         """Test HTTP exception handler for 400 errors (logs at WARNING)"""
         from vasttamsserver.main import app, http_exception_handler
@@ -203,9 +204,9 @@ class TestExceptionHandlers:
         mock_logger.warning.assert_called_once()
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.logger')
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.logger')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_http_exception_handler_500(self, mock_get_vast_db, mock_get_settings, mock_logger):
         """Test HTTP exception handler for 500 errors (logs at ERROR)"""
         from vasttamsserver.main import app, http_exception_handler
@@ -220,9 +221,9 @@ class TestExceptionHandlers:
         mock_logger.error.assert_called_once()
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.log_pydantic_validation_error')
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.log_pydantic_validation_error')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_validation_exception_handler(self, mock_get_vast_db, mock_get_settings, mock_log_error):
         """Test validation exception handler"""
         from vasttamsserver.main import app, validation_exception_handler
@@ -247,9 +248,9 @@ class TestExceptionHandlers:
         mock_log_error.assert_called_once()
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.logger')
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.logger')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_timeout_exception_handler(self, mock_get_vast_db, mock_get_settings, mock_logger):
         """Test timeout exception handler"""
         from vasttamsserver.main import app, timeout_exception_handler
@@ -270,9 +271,9 @@ class TestExceptionHandlers:
         mock_logger.warning.assert_called_once()
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.logger')
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.logger')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_connection_exception_handler(self, mock_get_vast_db, mock_get_settings, mock_logger):
         """Test connection exception handler"""
         from vasttamsserver.main import app, connection_exception_handler
@@ -295,8 +296,8 @@ class TestExceptionHandlers:
 class TestOpenAPISchema:
     """Test OpenAPI schema generation"""
     
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     def test_openapi_schema_generation(self, mock_get_vast_db, mock_get_settings):
         """Test that OpenAPI schema can be generated"""
         from vasttamsserver.main import app
@@ -305,8 +306,8 @@ class TestOpenAPISchema:
         assert "info" in schema
         assert "paths" in schema
     
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     def test_openapi_schema_info(self, mock_get_vast_db, mock_get_settings):
         """Test OpenAPI schema info"""
         from vasttamsserver.main import app
@@ -314,8 +315,8 @@ class TestOpenAPISchema:
         assert "title" in schema["info"]
         assert "version" in schema["info"]
     
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     def test_openapi_schema_has_tags(self, mock_get_vast_db, mock_get_settings):
         """Test OpenAPI schema has custom tags"""
         from vasttamsserver.main import app
@@ -330,8 +331,8 @@ class TestRootEndpoints:
     """Test root endpoints"""
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_head_root(self, mock_get_vast_db, mock_get_settings):
         """Test HEAD / endpoint"""
         from vasttamsserver.main import app, head_root
@@ -343,8 +344,8 @@ class TestRootEndpoints:
         assert response == {}
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_get_root(self, mock_get_vast_db, mock_get_settings):
         """Test GET / endpoint"""
         from vasttamsserver.main import app, get_root
@@ -357,8 +358,8 @@ class TestRootEndpoints:
         assert "sources" in response
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_get_openapi_json(self, mock_get_vast_db, mock_get_settings):
         """Test GET /openapi.json endpoint"""
         from vasttamsserver.main import app, get_openapi_json
@@ -375,8 +376,8 @@ class TestHealthEndpoints:
     """Test health and metrics endpoints"""
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_head_health(self, mock_get_vast_db, mock_get_settings):
         """Test HEAD /health endpoint"""
         from vasttamsserver.main import app, head_health
@@ -386,9 +387,9 @@ class TestHealthEndpoints:
         assert response == {}
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.enhanced_health_check')
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.enhanced_health_check')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_get_health(self, mock_get_vast_db, mock_get_settings, mock_health_check):
         """Test GET /health endpoint"""
         from vasttamsserver.main import app, health_check
@@ -401,9 +402,9 @@ class TestHealthEndpoints:
         mock_health_check.assert_called_once()
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.metrics_endpoint')
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.metrics_endpoint')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_get_metrics(self, mock_get_vast_db, mock_get_settings, mock_metrics):
         """Test GET /metrics endpoint"""
         from vasttamsserver.main import app, get_metrics
@@ -420,8 +421,8 @@ class TestConfigEndpoints:
     """Test configuration endpoints"""
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_get_async_deletion_threshold(self, mock_get_vast_db, mock_get_settings):
         """Test GET /config/async-deletion-threshold endpoint"""
         from vasttamsserver.main import app, get_async_deletion_threshold
@@ -435,9 +436,9 @@ class TestConfigEndpoints:
         assert response == {"async_deletion_threshold": 100}
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.update_settings')
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.update_settings')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_update_async_deletion_threshold_success(self, mock_get_vast_db, mock_get_settings, mock_update_settings):
         """Test PUT /config/async-deletion-threshold endpoint with valid threshold"""
         from vasttamsserver.main import app, update_async_deletion_threshold
@@ -449,8 +450,8 @@ class TestConfigEndpoints:
         mock_update_settings.assert_called_once_with({"async_deletion_threshold": 200})
     
     @pytest.mark.asyncio
-    @patch('vasttams.main.get_settings')
-    @patch('vasttams.main.get_vast_db')
+    @patch('vasttamsserver.main.get_settings')
+    @patch('vasttamsserver.main.get_vast_db')
     async def test_update_async_deletion_threshold_negative(self, mock_get_vast_db, mock_get_settings):
         """Test PUT /config/async-deletion-threshold endpoint with negative threshold"""
         from vasttamsserver.main import app, update_async_deletion_threshold

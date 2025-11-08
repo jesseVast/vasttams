@@ -58,7 +58,7 @@ class TestAuthDependencies:
         """Test get_auth_manager returns singleton"""
         # Clear global instance
         import vasttamsserver.auth.dependencies
-        vasttams.auth.dependencies._auth_manager = None
+        vasttamsserver.auth.dependencies._auth_manager = None
         
         mock_store = Mock()
         manager1 = get_auth_manager(mock_store)
@@ -71,7 +71,7 @@ class TestAuthDependencies:
         """Test get_auth_manager initializes providers"""
         # Clear global instance
         import vasttamsserver.auth.dependencies
-        vasttams.auth.dependencies._auth_manager = None
+        vasttamsserver.auth.dependencies._auth_manager = None
         
         mock_store = Mock()
         manager = get_auth_manager(mock_store)
@@ -86,7 +86,7 @@ class TestAuthDependencies:
     def test_get_auth_manager_reuses_instance(self):
         """Test get_auth_manager reuses same instance on subsequent calls"""
         import vasttamsserver.auth.dependencies
-        vasttams.auth.dependencies._auth_manager = None
+        vasttamsserver.auth.dependencies._auth_manager = None
         
         mock_store1 = Mock()
         mock_store2 = Mock()

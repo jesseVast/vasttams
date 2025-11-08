@@ -947,7 +947,7 @@ class TestFlowStorageService:
         service.tag_service = mock_tag_service
         
         # Mock prepare_data_for_sql to return simple values instead of CAST expressions
-        with patch('vasttams.flows.service.prepare_data_for_sql', return_value={'label': 'Test Flow', 'metadata_updated': '2024-01-01T00:00:00Z'}):
+        with patch('vasttamsserver.flows.service.prepare_data_for_sql', return_value={'label': 'Test Flow', 'metadata_updated': '2024-01-01T00:00:00Z'}):
             result = await service.update_flow(flow_id, flow)
         
         assert result is True
@@ -1153,13 +1153,13 @@ class TestFlowStorageService:
         mock_db.query.return_value = mock_query
         
         # Mock SegmentStorageService - patch at the source module
-        with patch('vasttams.segments.service.SegmentStorageService') as mock_segment_service_class:
+        with patch('vasttamsserver.segments.service.SegmentStorageService') as mock_segment_service_class:
             mock_segment_service = Mock()
             mock_segment_service.get_flow_segments = AsyncMock(return_value=[])
             mock_segment_service_class.return_value = mock_segment_service
             
             # Mock get_settings - patch at the source module
-            with patch('vasttams.core.config.get_settings', return_value=Mock()):
+            with patch('vasttamsserver.core.config.get_settings', return_value=Mock()):
                 service = FlowStorageService(mock_db, Mock())
                 
                 # Should return early without error
@@ -1207,15 +1207,15 @@ class TestFlowStorageService:
         ]
         
         # Mock SegmentStorageService - patch at the source module
-        with patch('vasttams.segments.service.SegmentStorageService') as mock_segment_service_class:
+        with patch('vasttamsserver.segments.service.SegmentStorageService') as mock_segment_service_class:
             mock_segment_service = Mock()
             mock_segment_service.get_flow_segments = AsyncMock(return_value=mock_segments)
             mock_segment_service_class.return_value = mock_segment_service
             
             # Mock get_settings - patch at the source module
-            with patch('vasttams.core.config.get_settings', return_value=Mock()):
+            with patch('vasttamsserver.core.config.get_settings', return_value=Mock()):
                 # Mock BitRateCalculator
-                with patch('vasttams.flows.service.BitRateCalculator') as mock_calculator_class:
+                with patch('vasttamsserver.flows.service.BitRateCalculator') as mock_calculator_class:
                     mock_calculator = Mock()
                     mock_calculator.calculate_avg_bit_rate = AsyncMock(return_value=1500000)
                     mock_calculator.calculate_max_bit_rate = AsyncMock(return_value=2000000)
@@ -1772,7 +1772,7 @@ class TestFlowStorageServiceAdditional:
         service = FlowStorageService(mock_db, mock_s3)
         
         # Mock SegmentStorageService - it's imported inside the method, so patch at the source module
-        with patch('vasttams.segments.service.SegmentStorageService') as mock_segment_service_class:
+        with patch('vasttamsserver.segments.service.SegmentStorageService') as mock_segment_service_class:
             mock_segment_service = Mock()
             from vasttamsserver.segments.models import FlowSegment
             from vasttamsserver.common.models import TimeRange
@@ -1805,7 +1805,7 @@ class TestFlowStorageServiceAdditional:
         service = FlowStorageService(mock_db, mock_s3)
         
         # Mock SegmentStorageService - it's imported inside the method, so patch at the source module
-        with patch('vasttams.segments.service.SegmentStorageService') as mock_segment_service_class:
+        with patch('vasttamsserver.segments.service.SegmentStorageService') as mock_segment_service_class:
             mock_segment_service = Mock()
             mock_segment_service.get_flow_segments = AsyncMock(return_value=[])
             mock_segment_service_class.return_value = mock_segment_service
@@ -1984,7 +1984,7 @@ class TestFlowStorageServiceAdditional:
         service.tag_service.update_flow_tags = AsyncMock(return_value=True)
         
         # Mock prepare_data_for_pyarrow - it's imported at module level in flows/service.py
-        with patch('vasttams.flows.service.prepare_data_for_pyarrow') as mock_prepare:
+        with patch('vasttamsserver.flows.service.prepare_data_for_pyarrow') as mock_prepare:
             def prepare_side_effect(data):
                 # Return data with clean timestamps (remove CAST expressions)
                 clean_data = {}

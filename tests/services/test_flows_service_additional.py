@@ -377,7 +377,7 @@ class TestFlowStorageServiceAdditional:
         service = FlowStorageService(mock_db, mock_s3)
         
         # Mock SegmentStorageService - patch at the import location
-        with patch('vasttams.segments.service.SegmentStorageService') as mock_segment_service_class:
+        with patch('vasttamsserver.segments.service.SegmentStorageService') as mock_segment_service_class:
             mock_segment_service = Mock()
             from vasttamsserver.segments.models import FlowSegment
             from vasttamsserver.common.models import TimeRange
@@ -410,7 +410,7 @@ class TestFlowStorageServiceAdditional:
         service = FlowStorageService(mock_db, mock_s3)
         
         # Mock SegmentStorageService - patch at the import location
-        with patch('vasttams.segments.service.SegmentStorageService') as mock_segment_service_class:
+        with patch('vasttamsserver.segments.service.SegmentStorageService') as mock_segment_service_class:
             mock_segment_service = Mock()
             mock_segment_service.get_flow_segments = AsyncMock(return_value=[])
             mock_segment_service_class.return_value = mock_segment_service
@@ -589,7 +589,7 @@ class TestFlowStorageServiceAdditional:
         service.tag_service.update_flow_tags = AsyncMock(return_value=True)
         
         # Mock prepare_data_for_pyarrow to handle the conversion
-        with patch('vasttams.common.storage.timestamp_utils.prepare_data_for_pyarrow') as mock_prepare:
+        with patch('vasttamsserver.common.storage.timestamp_utils.prepare_data_for_pyarrow') as mock_prepare:
             def prepare_side_effect(data):
                 clean_data = {}
                 for k, v in data.items():

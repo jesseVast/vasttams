@@ -179,7 +179,7 @@ class TestTagStorageService:
     async def test_update_entity_tags_invalid_tags(self, service, mock_db, source_id):
         """Test update_entity_tags with invalid tags raises ValueError"""
         # Mock validate_tags to return invalid
-        with patch('vasttams.common.tags.service.validate_tags') as mock_validate:
+        with patch('vasttamsserver.common.tags.service.validate_tags') as mock_validate:
             mock_validate.return_value = (False, ["Invalid tag name"])
             tags = Tags({"invalid!tag": "value"})
             
@@ -310,7 +310,7 @@ class TestTagStorageService:
         }
         
         # Mock the function that's imported inside the method
-        with patch('vasttams.common.tags.manager.generate_sql_tag_query') as mock_generate:
+        with patch('vasttamsserver.common.tags.manager.generate_sql_tag_query') as mock_generate:
             mock_generate.return_value = "SELECT * FROM sources WHERE ..."
             
             results = await service.query_entities_by_tags("source", {"environment": "production"})
@@ -344,7 +344,7 @@ class TestTagStorageService:
             {'id': source_id_2, 'tags': {'environment': 'staging'}}
         ]
         
-        with patch('vasttams.common.tags.service.get_tag_manager') as mock_manager:
+        with patch('vasttamsserver.common.tags.service.get_tag_manager') as mock_manager:
             mock_tag_manager = Mock()
             mock_tag_manager.get_tag_analytics.return_value = {
                 'total_tags': 2,
@@ -360,7 +360,7 @@ class TestTagStorageService:
     @pytest.mark.asyncio
     async def test_get_standardized_tags(self, service):
         """Test get_standardized_tags"""
-        with patch('vasttams.common.tags.service.get_tag_manager') as mock_manager:
+        with patch('vasttamsserver.common.tags.service.get_tag_manager') as mock_manager:
             mock_tag_manager = Mock()
             mock_definition = Mock()
             mock_definition.name = "environment"
@@ -387,7 +387,7 @@ class TestTagStorageService:
     @pytest.mark.asyncio
     async def test_create_tag_proposal(self, service):
         """Test create_tag_proposal"""
-        with patch('vasttams.common.tags.service.get_tag_manager') as mock_manager:
+        with patch('vasttamsserver.common.tags.service.get_tag_manager') as mock_manager:
             mock_tag_manager = Mock()
             mock_proposal = Mock()
             mock_proposal.name = "new_tag"

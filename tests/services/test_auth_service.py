@@ -462,9 +462,9 @@ class TestAuthProviderService:
         
         service = AuthProviderService(mock_db, mock_auth_manager)
         
-        with patch('vasttams.auth.providers.jwt.JWTProvider') as mock_jwt, \
-             patch('vasttams.auth.providers.basic.BasicAuthProvider') as mock_basic, \
-             patch('vasttams.auth.providers.url_token.URLTokenProvider') as mock_url:
+        with patch('vasttamsserver.auth.providers.jwt.JWTProvider') as mock_jwt, \
+             patch('vasttamsserver.auth.providers.basic.BasicAuthProvider') as mock_basic, \
+             patch('vasttamsserver.auth.providers.url_token.URLTokenProvider') as mock_url:
             
             mock_jwt_instance = Mock()
             mock_jwt.return_value = mock_jwt_instance

@@ -181,7 +181,7 @@ class TestEnhancedFormatter:
 class TestSetupLogging:
     """Test setup_logging function"""
     
-    @patch('vasttams.core.simple_logging.get_settings')
+    @patch('vasttamsserver.core.simple_logging.get_settings')
     @patch('logging.config.dictConfig')
     def test_setup_logging_called(self, mock_dict_config, mock_get_settings):
         """Test that setup_logging calls dictConfig"""
@@ -202,7 +202,7 @@ class TestSetupLogging:
         assert "handlers" in config
         assert "loggers" in config
     
-    @patch('vasttams.core.simple_logging.get_settings')
+    @patch('vasttamsserver.core.simple_logging.get_settings')
     @patch('logging.config.dictConfig')
     def test_setup_logging_config_structure(self, mock_dict_config, mock_get_settings):
         """Test that logging config has correct structure"""
@@ -225,7 +225,7 @@ class TestSetupLogging:
         assert "app.vaststore" in config["loggers"]
         assert "vastdb" in config["loggers"]
     
-    @patch('vasttams.core.simple_logging.get_settings')
+    @patch('vasttamsserver.core.simple_logging.get_settings')
     @patch('logging.config.dictConfig')
     def test_setup_logging_file_handlers(self, mock_dict_config, mock_get_settings):
         """Test that file handlers are configured correctly"""
@@ -246,7 +246,7 @@ class TestSetupLogging:
         assert error_file_handler["level"] == "ERROR"
         assert "tams_errors.log" in error_file_handler["filename"]
     
-    @patch('vasttams.core.simple_logging.get_settings')
+    @patch('vasttamsserver.core.simple_logging.get_settings')
     @patch('logging.config.dictConfig')
     def test_setup_logging_console_handler(self, mock_dict_config, mock_get_settings):
         """Test that console handler is configured"""
@@ -262,7 +262,7 @@ class TestSetupLogging:
         assert console_handler["level"] == "INFO"
         assert console_handler["formatter"] == "simple"
     
-    @patch('vasttams.core.simple_logging.get_settings')
+    @patch('vasttamsserver.core.simple_logging.get_settings')
     @patch('logging.config.dictConfig')
     @patch('logging.getLogger')
     def test_setup_logging_sets_logger_levels(self, mock_get_logger, mock_dict_config, mock_get_settings):
@@ -350,7 +350,7 @@ class TestSetupLogging:
         from vasttamsserver.core.tams_logging import TAMSLoggingConfig
         from unittest.mock import patch
         
-        with patch('vasttams.core.tams_logging.get_settings') as mock_get_settings:
+        with patch('vasttamsserver.core.tams_logging.get_settings') as mock_get_settings:
             mock_settings = MagicMock()
             mock_get_settings.return_value = mock_settings
             
@@ -359,7 +359,7 @@ class TestSetupLogging:
             assert config.settings == mock_settings
             assert config.log_dir.exists()
     
-    @patch('vasttams.core.tams_logging.get_settings')
+    @patch('vasttamsserver.core.tams_logging.get_settings')
     @patch('logging.config.dictConfig')
     @patch('logging.getLogger')
     def test_tams_logging_config_setup_logging(self, mock_get_logger, mock_dict_config, mock_get_settings):

@@ -89,8 +89,10 @@ class TAMSLoggingConfig:
     
     def __init__(self):
         self.settings = get_settings()
-        self.log_dir = Path("logs")
-        self.log_dir.mkdir(exist_ok=True)
+        # Use configured log directory or default to "logs"
+        log_dir_path = getattr(self.settings, 'log_dir', 'logs')
+        self.log_dir = Path(log_dir_path)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
     
     def setup_logging(self):
         """Setup TAMS logging configuration"""

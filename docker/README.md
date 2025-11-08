@@ -32,58 +32,66 @@ docker-compose down
 ```
 docker/
 ├── README.md                           # This guide
-├── Dockerfile                          # TAMS API container definition
-├── docker-compose.yml                  # Development environment
-├── docker-compose.prod.yml             # Production environment
-├── docker-compose.config.yml           # Enterprise config mounting
+├── Dockerfile                          # TAMS API server container definition
+├── Dockerfile.ui                      # TAMS UI container definition
+├── nginx.conf                          # Nginx configuration for UI
+├── docker-compose.yml                  # Unified compose file (use profiles for dev/prod)
 ├── docker-compose.observability.yml    # Full observability stack
 ├── docker.env                          # Environment variables
+├── config/
+│   └── production.json.example         # Example production config
+├── haproxy/
+│   └── haproxy.cfg                     # HAProxy S3 proxy configuration
+├── trino/
+│   └── vast.properties                 # Trino VAST connector configuration
 └── start-observability.sh              # Observability startup script
 ```
 
 ## 🔧 **Configuration Methods**
 
-### **Method 1: Development (Default)**
+### **Method 1: Development (Server Only)**
 ```bash
-# Uses docker-compose.yml with environment variables
+# Development mode - server only, with Trino
 cd docker
-docker-compose up
+docker-compose --profile dev up -d
 ```
 
 **Features:**
+- ✅ Server + Trino for local development
+- ✅ Uses local `config/config.json`
 - ✅ Fast startup
 - ✅ Easy debugging
-- ✅ Environment variable overrides
-- ❌ Not suitable for production
+- ❌ No UI (run UI separately with `npm start` for hot-reload)
 
-### **Method 2: Production with Environment File**
+### **Method 2: Production (Server + UI)**
 ```bash
-# Uses docker-compose.prod.yml with docker.env
+# Production mode - server and UI
 cd docker
-cp docker.env .env
-# Edit .env with your production values
-docker-compose -f docker-compose.prod.yml up -d
+# Create production config
+cp config/production.json.example config/production.json
+# Edit config/production.json with your settings
+CONFIG_FILE=./config/production.json docker-compose --profile prod up -d
 ```
 
 **Features:**
+- ✅ Both server and UI containers
+- ✅ HAProxy S3 proxy (clients don't talk directly to S3)
+- ✅ Config file mounted at `/etc/tams/config.json`
 - ✅ Production-ready
-- ✅ Environment-specific configuration
-- ✅ Can be versioned (without secrets)
-- ❌ Secrets in plain text
+- ✅ No Trino (assumes external)
+- ✅ Works with Kubernetes
 
-### **Method 3: Enterprise with Mounted Config**
+### **Method 3: Full Stack (Server + UI + Trino)**
 ```bash
-# Uses docker-compose.config.yml with mounted config files
+# Full stack - everything for local testing
 cd docker
-# Edit ../config/production.json with your settings
-docker-compose -f docker-compose.config.yml up -d
+docker-compose --profile full up -d
 ```
 
 **Features:**
-- ✅ Most secure
-- ✅ Complex configuration support
-- ✅ Works with Kubernetes
-- ❌ More complex setup
+- ✅ Server + UI + Trino + HAProxy
+- ✅ Complete local environment
+- ✅ Good for integration testing
 
 ### **Method 4: Full Observability Stack**
 ```bash
@@ -100,11 +108,31 @@ docker-compose -f docker-compose.observability.yml up -d
 
 ## 🐳 **Container Details**
 
-### **TAMS API Container**
+### **TAMS API Server Container**
 - **Base Image**: `python:3.12-slim`
 - **Port**: 8000 (internal), mapped to host
 - **Health Check**: `/health` endpoint
 - **Dependencies**: VAST database, S3 storage
+- **Config**: Mounted at `/etc/tams/config.json` (read-only)
+- **Structure**: Uses `src/server/` package structure
+
+### **TAMS UI Container**
+- **Base Image**: `node:20-alpine` (build), `nginx:alpine` (runtime)
+- **Port**: 80 (internal), mapped to host
+- **Health Check**: `/health` endpoint
+- **Build**: Multi-stage build (React build + Nginx serve)
+- **Proxy**: API requests proxied to `tams-api:8000`
+
+### **HAProxy S3 Proxy Container**
+- **Base Image**: `haproxy:latest`
+- **Port**: 4001 (default, configurable via `HAPROXY_PORT`)
+- **Purpose**: Proxies S3 requests so clients don't talk directly to S3
+- **Config**: `haproxy/haproxy.cfg` mounted at `/usr/local/etc/haproxy/haproxy.cfg`
+- **Features**:
+  - Handles presigned URL authentication
+  - Load balances across multiple S3 VIPs
+  - Custom DNS resolver support
+- **Profiles**: `prod`, `full` (not in `dev` profile)
 
 ### **Observability Stack**
 - **Prometheus**: Metrics collection (port 9090)
@@ -124,7 +152,10 @@ VAST_BUCKET=your-bucket
 VAST_SCHEMA=your-schema
 
 # S3 Storage
-S3_ENDPOINT_URL=http://your-s3-server:9000
+# Use HAProxy proxy in production (clients don't talk directly to S3)
+S3_ENDPOINT_URL=http://tams-haproxy:80  # When using HAProxy
+# Or direct S3 endpoint for development
+# S3_ENDPOINT_URL=http://your-s3-server:9000
 S3_ACCESS_KEY_ID=your-access-key
 S3_SECRET_ACCESS_KEY=your-secret-key
 S3_BUCKET_NAME=your-bucket
@@ -150,6 +181,10 @@ DATABASE_URL=postgresql://user:pass@host:5432/db
 # Monitoring
 ENABLE_TELEMETRY=true
 METRICS_PORT=9090
+
+# HAProxy Configuration
+HAPROXY_PORT=4001              # Port to expose HAProxy on host (default: 4001)
+HAPROXY_DNS=10.140.3.248      # DNS resolver for HAProxy (default: 10.140.3.248)
 ```
 
 ## 🚀 **Deployment Scenarios**
@@ -157,42 +192,61 @@ METRICS_PORT=9090
 ### **Local Development**
 ```bash
 cd docker
-docker-compose up
+# Development mode (server + Trino, no UI)
+docker-compose --profile dev up -d
 ```
 
 **Access Points:**
 - TAMS API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 - Health Check: http://localhost:8000/health
+- Trino: http://localhost:8080
+
+**Note**: For development, run the UI separately with `npm start` in the `ui/` directory for hot-reload.
 
 ### **Production Deployment**
 ```bash
 cd docker
-cp docker.env .env
-# Edit .env with production values
-docker-compose -f docker-compose.prod.yml up -d
+# Create production config from example
+cp config/production.json.example config/production.json
+# Edit config/production.json with your production settings
+CONFIG_FILE=./config/production.json docker-compose --profile prod up -d
 ```
 
 **Features:**
-- Restart policy: always
-- Resource limits configured
-- Health checks enabled
+- Both server and UI containers
+- HAProxy S3 proxy (clients use `tams-haproxy:80` instead of direct S3)
+- Config file mounted at `/etc/tams/config.json`
+- Restart policy: unless-stopped
+- Health checks enabled for all services
 - Logging configured
+- UI proxies API requests to backend
 
-### **Enterprise Deployment**
+**Access Points:**
+- TAMS UI: http://localhost (port 80)
+- TAMS API: http://localhost:8000 (direct access)
+- HAProxy S3 Proxy: http://localhost:4001 (default, configurable)
+- API Docs: http://localhost:8000/docs
+- Health Check: http://localhost:8000/health
+
+**Note**: Configure your S3 endpoint in `production.json` to use `http://tams-haproxy:80` so clients route through HAProxy instead of directly to S3.
+
+### **Config File Mounting**
+
+The production docker-compose mounts `config/production.json` to `/etc/tams/config.json` in the container. The application automatically loads this file if it exists, otherwise falls back to `config/config.json` for local development.
+
+**Config File Location:**
+- Container path: `/etc/tams/config.json` (read-only mount)
+- Local path: `docker/config/production.json`
+- Example: `docker/config/production.json.example`
+
+**Creating Production Config:**
 ```bash
 cd docker
-# Create production config
-cp ../config/production.json ../config/production-custom.json
-# Edit production-custom.json
-docker-compose -f docker-compose.config.yml up -d
+cp config/production.json.example config/production.json
+# Edit config/production.json with your settings
+# DO NOT commit production.json to git (contains secrets)
 ```
-
-**Features:**
-- Mounted configuration files
-- Encrypted volume support
-- Kubernetes compatibility
-- Advanced security
 
 ### **Full Monitoring Stack**
 ```bash
@@ -466,13 +520,16 @@ docker exec -it tams-api ls -la /app
 
 ### **Common Patterns**
 ```bash
-# Development workflow
-docker-compose up -d
+# Development workflow (server + Trino)
+docker-compose --profile dev up -d
 # Make code changes
 docker-compose restart tams-api
 
-# Production deployment
-docker-compose -f docker-compose.prod.yml up -d
+# Production deployment (server + UI)
+CONFIG_FILE=./config/production.json docker-compose --profile prod up -d
+
+# Full stack (server + UI + Trino)
+docker-compose --profile full up -d
 
 # Debug mode
 docker-compose logs -f tams-api

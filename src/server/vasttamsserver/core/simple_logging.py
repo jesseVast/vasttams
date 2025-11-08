@@ -78,8 +78,10 @@ class EnhancedFormatter(logging.Formatter):
 def setup_logging():
     """Setup simple, unified logging configuration"""
     settings = get_settings()
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
+    # Use configured log directory or default to "logs"
+    log_dir_path = getattr(settings, 'log_dir', 'logs')
+    log_dir = Path(log_dir_path)
+    log_dir.mkdir(parents=True, exist_ok=True)
     
     # Get log level from settings, with fallback
     log_level = settings.log_level.upper() if hasattr(settings, 'log_level') and settings.log_level else "INFO"

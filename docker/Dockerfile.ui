@@ -1,0 +1,44 @@
+# TAMS UI Dockerfile - Multi-stage build
+# Stage 1: Build the React application
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY ui/package.json ./
+COPY ui/package-lock.json* ./
+
+# Install dependencies
+# Use npm ci if package-lock.json exists, otherwise use npm install
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+# Copy UI source code
+COPY ui/ ./
+
+# Set API URL for production build (use relative path for nginx proxy)
+# The nginx config proxies /api to the backend
+ARG REACT_APP_API_URL=/api
+ENV REACT_APP_API_URL=${REACT_APP_API_URL}
+
+# Build the React application
+RUN npm run build
+
+# Stage 2: Serve with nginx
+FROM nginx:alpine
+
+# Copy built files from builder stage
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose port
+EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
+

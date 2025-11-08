@@ -153,19 +153,16 @@ def create_audio_flow(token: str, source_id: str, flow_num: int) -> Dict:
     return result
 
 
-def get_presigned_url(token: str, flow_id: str, label: str = None) -> Tuple[str, str, str]:
+def get_presigned_url(token: str, flow_id: str) -> Tuple[str, str, str]:
     """Get presigned URL for S3 upload
     
     Returns:
         Tuple of (presigned_url, object_id, content_type)
     """
-    if label is None:
-        label = f"object-{str(uuid.uuid4())[:8]}"
-    
     # Ensure allocation uses a concrete storage backend for dynamic get_urls
     storage_id = get_default_storage_id(token)
+    # TAMS spec: POST /flows/{flowId}/storage accepts limit and storage_id (no label)
     storage_data = {
-        "label": label,
         "limit": 1,  # Request only 1 presigned URL
         "storage_id": storage_id
     }
@@ -288,7 +285,7 @@ def main():
         
         # Flow 1: 3 objects (segments 0-2)
         for i in range(3):
-            presigned_url, object_id, content_type = get_presigned_url(token, flow1_id, f"flow1-obj-{i}")
+            presigned_url, object_id, content_type = get_presigned_url(token, flow1_id)
             test_data = f"Test content for object {i} in flow 1".encode()
             upload_to_s3(presigned_url, test_data, content_type)
             objects_data.append((flow1_id, object_id, i))
@@ -298,7 +295,7 @@ def main():
         # Flow 2: 3 objects (segments 0-2) - these will be shared with flow4
         shared_objects = []
         for i in range(3):
-            presigned_url, object_id, content_type = get_presigned_url(token, flow2_id, f"flow2-obj-{i}")
+            presigned_url, object_id, content_type = get_presigned_url(token, flow2_id)
             test_data = f"Test content for shared object {i}".encode()
             upload_to_s3(presigned_url, test_data, content_type)
             objects_data.append((flow2_id, object_id, i))
@@ -308,7 +305,7 @@ def main():
         
         # Flow 3 (Audio): 2 objects (segments 0-1)
         for i in range(2):
-            presigned_url, object_id, content_type = get_presigned_url(token, flow3_id, f"flow3-audio-obj-{i}")
+            presigned_url, object_id, content_type = get_presigned_url(token, flow3_id)
             test_data = f"Audio test content for object {i}".encode()
             upload_to_s3(presigned_url, test_data, content_type)
             objects_data.append((flow3_id, object_id, i))
@@ -317,7 +314,7 @@ def main():
         
         # Flow 4: 2 new objects (segments 3-4) + will share 3 from flow2
         for i in range(2):
-            presigned_url, object_id, content_type = get_presigned_url(token, flow4_id, f"flow4-obj-{i+3}")
+            presigned_url, object_id, content_type = get_presigned_url(token, flow4_id)
             test_data = f"Test content for object {i+3} in flow 4".encode()
             upload_to_s3(presigned_url, test_data, content_type)
             objects_data.append((flow4_id, object_id, i+3))

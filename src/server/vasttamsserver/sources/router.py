@@ -328,11 +328,30 @@ async def update_source_tag(
     storage: StorageInterface = Depends(get_storage_service),
     user_session: UserSession = Depends(require_editor)
 ):
-    """Update Source Tag Value"""
+    """Update Source Tag Value (supports both string and JSON array values)"""
     try:
-        # Read text/plain body (allows empty strings)
+        # Read body to support both text/plain and application/json
         body = await request.body()
-        value = body.decode('utf-8')
+        content_type = request.headers.get("content-type", "").lower()
+        
+        # Parse value based on content type
+        if "application/json" in content_type:
+            # JSON array value
+            import json
+            try:
+                value = json.loads(body.decode('utf-8'))
+                # If it's a list, convert to JSON string for storage
+                if isinstance(value, list):
+                    value = json.dumps(value)
+                else:
+                    value = str(value)
+            except (json.JSONDecodeError, ValueError):
+                # Fallback to string if JSON parsing fails
+                value = body.decode('utf-8')
+        else:
+            # Text/plain string value
+            value = body.decode('utf-8')
+        
         source = await storage.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")

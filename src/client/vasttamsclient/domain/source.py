@@ -5,7 +5,7 @@ Encapsulates source operations and provides fluent API.
 """
 
 import uuid
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from .base import TAMSDomainObject
 from .flow import TAMSFlow
 from ..api import sources as source_api
@@ -88,7 +88,9 @@ class TAMSSource(TAMSDomainObject):
         from ..api import flows as flow_api
         flow_data = await flow_api.get_flow(self._client, flow_id)
         if flow_data:
-            return TAMSFlow(self._client, id=flow_id, **flow_data)
+            # Remove id from flow_data since we pass it as a keyword argument
+            flow_data_copy = {k: v for k, v in flow_data.items() if k != "id"}
+            return TAMSFlow(self._client, id=flow_id, **flow_data_copy)
         return None
     
     async def list_flows(self, **query_params) -> List['TAMSFlow']:
@@ -96,13 +98,21 @@ class TAMSSource(TAMSDomainObject):
         from ..api import flows as flow_api
         query_params["source_id"] = self._id
         flows_data = await flow_api.list_flows(self._client, query_params)
-        return [TAMSFlow(self._client, id=f["id"], **f) for f in flows_data]
+        result = []
+        for f in flows_data:
+            # Remove id from flow_data since we pass it as a keyword argument
+            flow_id = f.pop("id", None)
+            if flow_id:
+                result.append(TAMSFlow(self._client, id=flow_id, **f))
+        return result
     
     async def refresh(self):
         """Refresh source data from server."""
         source_data = await source_api.get_source(self._client, self._id)
         if source_data:
             self._data.update(source_data)
+            # Clear tags cache since data may have changed
+            self._tags_cache = None
         else:
             raise TAMSClientError(f"Source {self._id} not found")
     
@@ -120,26 +130,89 @@ class TAMSSource(TAMSDomainObject):
         
         # Refresh to get any other updated fields
         await self.refresh()
+        # Note: Tags cache cleared in refresh()
     
     async def delete(self):
         """Delete source."""
         await source_api.delete_source(self._client, self._id)
+        # Remove from client cache
+        if hasattr(self._client, '_cache') and "source" in self._client._cache:
+            self._client._cache["source"].pop(self._id, None)
     
-    async def get_tags(self) -> Dict[str, str]:
-        """Get all tags."""
-        return await tag_api.get_tags(self._client, "source", self._id)
+    async def get_tags(self, use_cache: bool = True) -> Dict[str, Union[str, List[str]]]:
+        """
+        Get all tags.
+        
+        Args:
+            use_cache: If True, return cached tags if available
+            
+        Returns:
+            Dict mapping tag names to values (string or list of strings)
+        """
+        # Return cached tags if available
+        if use_cache and self._tags_cache is not None:
+            return self._tags_cache
+        
+        # Fetch from server
+        tags = await tag_api.get_tags(self._client, "source", self._id)
+        # Cache the result (empty dict is valid, so we cache it)
+        self._tags_cache = tags
+        return tags
     
-    async def get_tag(self, name: str) -> Optional[str]:
-        """Get a specific tag."""
-        return await tag_api.get_tag(self._client, "source", self._id, name)
+    async def get_tag(self, name: str, use_cache: bool = True) -> Optional[Union[str, List[str]]]:
+        """
+        Get a specific tag.
+        
+        Args:
+            name: Tag name
+            use_cache: If True, check cached tags first
+            
+        Returns:
+            Tag value (string or list of strings) or None if not found
+        """
+        # Check cache first
+        if use_cache and self._tags_cache is not None:
+            return self._tags_cache.get(name)
+        
+        # Fetch from server
+        value = await tag_api.get_tag(self._client, "source", self._id, name)
+        # Update cache if we have one
+        if self._tags_cache is not None:
+            if value is None:
+                self._tags_cache.pop(name, None)
+            else:
+                self._tags_cache[name] = value
+        return value
     
-    async def set_tag(self, name: str, value: str):
-        """Set or update a tag."""
+    async def set_tag(self, name: str, value: Union[str, List[str]]):
+        """
+        Set or update a tag.
+        
+        Args:
+            name: Tag name
+            value: Tag value (string or list of strings)
+        """
         await tag_api.set_tag(self._client, "source", self._id, name, value)
+        # Update cache
+        if self._tags_cache is None:
+            self._tags_cache = {}
+        self._tags_cache[name] = value
     
     async def delete_tag(self, name: str):
-        """Delete a tag."""
+        """
+        Delete a tag.
+        
+        Args:
+            name: Tag name
+        """
         await tag_api.delete_tag(self._client, "source", self._id, name)
+        # Update cache
+        if self._tags_cache is not None:
+            self._tags_cache.pop(name, None)
+    
+    def clear_tags_cache(self):
+        """Clear the tags cache (force refresh on next get_tags/get_tag call)."""
+        self._tags_cache = None
     
     # Properties
     @property

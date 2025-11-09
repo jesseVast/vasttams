@@ -5,7 +5,7 @@ Base class for all TAMS domain objects.
 """
 
 import asyncio
-from typing import Any, Optional
+from typing import Any, Optional, Dict, Union, List
 
 
 class TAMSDomainObject:
@@ -23,6 +23,8 @@ class TAMSDomainObject:
         self._client = client
         self._id = id
         self._data = data or {}
+        # Tag cache: None means not loaded, {} means loaded but empty, dict means cached
+        self._tags_cache: Optional[Dict[str, Union[str, List[str]]]] = None
     
     @property
     def id(self) -> str:

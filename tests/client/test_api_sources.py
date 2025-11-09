@@ -4,7 +4,7 @@ Tests for source API methods.
 
 import pytest
 import aiohttp
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from vasttamsclient.api import sources as source_api
 from vasttamsclient.exceptions import TAMSAPIError
 
@@ -86,22 +86,25 @@ class TestSourceAPI:
         assert result is None
     
     @pytest.mark.asyncio
-    async def test_update_source_success(self, mock_client, mock_session):
-        """Test updating a source successfully."""
-        source_data = {
-            "id": "source-123",
-            "label": "Updated Label"
-        }
+    async def test_update_source_label_success(self, mock_client, mock_session):
+        """Test updating a source label successfully."""
+        source_id = "source-123"
+        label = "Updated Label"
         
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=source_data)
         
-        mock_session.put.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.put.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_put_context = MagicMock()
+        mock_put_context.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_put_context.__aexit__ = AsyncMock(return_value=None)
         
-        result = await source_api.update_source(mock_client, "source-123", source_data)
-        assert result == source_data
+        mock_session.put = MagicMock(return_value=mock_put_context)
+        
+        await source_api.update_source_label(mock_client, source_id, label)
+        mock_session.put.assert_called_once()
+        call_args = mock_session.put.call_args
+        assert call_args[1]["data"] == label
+        assert call_args[1]["headers"]["Content-Type"] == "text/plain"
     
     @pytest.mark.asyncio
     async def test_delete_source_success(self, mock_client, mock_session):
@@ -122,13 +125,17 @@ class TestSourceAPI:
             {"id": "source-1", "format": "urn:x-nmos:format:video", "label": "Source 1"},
             {"id": "source-2", "format": "urn:x-nmos:format:video", "label": "Source 2"}
         ]
+        mock_response_data = {"data": sources_data}
         
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=sources_data)
+        mock_response.json = AsyncMock(return_value=mock_response_data)
         
-        mock_session.get.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.get.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_get_context = MagicMock()
+        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_get_context.__aexit__ = AsyncMock(return_value=None)
+        
+        mock_session.get = MagicMock(return_value=mock_get_context)
         
         result = await source_api.list_sources(mock_client, {})
         assert result == sources_data

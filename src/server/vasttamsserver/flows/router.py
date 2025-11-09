@@ -5,7 +5,7 @@ This is a minimal working flows router that can be imported without errors.
 It provides basic endpoint structure that can be expanded later.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request
 from typing import List, Optional
 from .models import Flow
 from ..common.filters import FlowFilters, FlowDetailFilters
@@ -298,11 +298,33 @@ async def get_flow_tag(
 async def update_flow_tag(
     flow_id: str,
     name: str,
-    value: str = Body(..., media_type="text/plain"),
+    request: Request,
     storage: StorageInterface = Depends(get_storage_service)
 ):
-    """Update flow tag value"""
+    """Update flow tag value (supports both string and JSON array values)"""
     try:
+        # Read body to support both text/plain and application/json
+        body = await request.body()
+        content_type = request.headers.get("content-type", "").lower()
+        
+        # Parse value based on content type
+        if "application/json" in content_type:
+            # JSON array value
+            import json
+            try:
+                value = json.loads(body.decode('utf-8'))
+                # If it's a list, convert to JSON string for storage
+                if isinstance(value, list):
+                    value = json.dumps(value)
+                else:
+                    value = str(value)
+            except (json.JSONDecodeError, ValueError):
+                # Fallback to string if JSON parsing fails
+                value = body.decode('utf-8')
+        else:
+            # Text/plain string value
+            value = body.decode('utf-8')
+        
         success = await storage.update_flow_tag(flow_id, name, value)
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")

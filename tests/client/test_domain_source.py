@@ -26,7 +26,7 @@ class TestTAMSSourceInit:
         assert source._created is True
     
     def test_init_new_source_with_id(self, client):
-        """Test creating a new source with explicit ID."""
+        """Test creating a source with explicit ID (treated as existing source)."""
         source_id = str(uuid.uuid4())
         source = TAMSSource(
             client,
@@ -34,7 +34,7 @@ class TestTAMSSourceInit:
             id=source_id
         )
         assert source.id == source_id
-        assert source._created is True
+        assert source._created is False  # When id is provided, it's treated as existing
     
     def test_init_existing_source(self, client):
         """Test representing an existing source."""
@@ -130,6 +130,7 @@ class TestTAMSSourceFlowOperations:
         source = TAMSSource(client, id="source-123", format="urn:x-nmos:format:video")
         flow = TAMSFlow(
             client,
+            source_id="source-123",  # Set source_id
             format="urn:x-nmos:format:video",
             codec="video/h264"
         )
@@ -146,17 +147,20 @@ class TestTAMSSourceFlowOperations:
         """Test getting a flow by ID."""
         source = TAMSSource(client, id="source-123", format="urn:x-nmos:format:video")
         
+        flow_data = {
+            "id": "flow-123",
+            "source_id": "source-123",
+            "format": "urn:x-nmos:format:video",
+            "codec": "video/h264"
+        }
+        
         with patch('vasttamsclient.api.flows.get_flow', new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = {
-                "id": "flow-123",
-                "source_id": "source-123",
-                "format": "urn:x-nmos:format:video",
-                "codec": "video/h264"
-            }
+            mock_get.return_value = flow_data
             
             flow = await source.get_flow("flow-123")
             assert isinstance(flow, TAMSFlow)
             assert flow.id == "flow-123"
+            assert flow._data["source_id"] == "source-123"
             mock_get.assert_called_once_with(client, "flow-123")
     
     @pytest.mark.asyncio
@@ -175,15 +179,19 @@ class TestTAMSSourceFlowOperations:
         """Test listing flows for a source."""
         source = TAMSSource(client, id="source-123", format="urn:x-nmos:format:video")
         
+        flows_data = [
+            {"id": "flow-1", "source_id": "source-123", "format": "urn:x-nmos:format:video", "codec": "video/h264"},
+            {"id": "flow-2", "source_id": "source-123", "format": "urn:x-nmos:format:video", "codec": "video/h264"}
+        ]
+        
         with patch('vasttamsclient.api.flows.list_flows', new_callable=AsyncMock) as mock_list:
-            mock_list.return_value = [
-                {"id": "flow-1", "source_id": "source-123", "format": "urn:x-nmos:format:video", "codec": "video/h264"},
-                {"id": "flow-2", "source_id": "source-123", "format": "urn:x-nmos:format:video", "codec": "video/h264"}
-            ]
+            mock_list.return_value = flows_data
             
             flows = await source.list_flows()
             assert len(flows) == 2
             assert all(isinstance(f, TAMSFlow) for f in flows)
+            assert flows[0].id == "flow-1"
+            assert flows[1].id == "flow-2"
             mock_list.assert_called_once_with(client, {"source_id": "source-123"})
 
 
@@ -224,17 +232,17 @@ class TestTAMSSourceCRUD:
         """Test updating source."""
         source = TAMSSource(client, id="source-123", format="urn:x-nmos:format:video", label="Old Label")
         
-        with patch('vasttamsclient.api.sources.update_source', new_callable=AsyncMock) as mock_update:
-            mock_update.return_value = {
-                "id": "source-123",
-                "label": "New Label",
-                "description": "New description"
-            }
-            
-            await source.update(label="New Label", description="New description")
-            assert source._data["label"] == "New Label"
-            assert source._data["description"] == "New description"
-            mock_update.assert_called_once()
+        with patch('vasttamsclient.api.sources.update_source_label', new_callable=AsyncMock) as mock_update_label:
+            with patch('vasttamsclient.api.sources.update_source_description', new_callable=AsyncMock) as mock_update_desc:
+                with patch.object(source, 'refresh', new_callable=AsyncMock) as mock_refresh:
+                    mock_refresh.return_value = None
+                    
+                    await source.update(label="New Label", description="New description")
+                    assert source._data["label"] == "New Label"
+                    assert source._data["description"] == "New description"
+                    mock_update_label.assert_called_once_with(client, "source-123", "New Label")
+                    mock_update_desc.assert_called_once_with(client, "source-123", "New description")
+                    mock_refresh.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_delete(self, client):

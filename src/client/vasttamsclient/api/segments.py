@@ -7,8 +7,9 @@ Low-level API calls for segment operations.
 import json
 import os
 import logging
+import asyncio
 from typing import Dict, Any, List, Optional
-import aiohttp
+import requests
 from pathlib import Path
 from ..exceptions import TAMSAPIError
 
@@ -76,6 +77,10 @@ async def list_segments(client, flow_id: str, query_params: Optional[Dict[str, A
     async with client._session.get(url, params=query_params or {}, headers=await client._get_headers()) as response:
         if response.status == 200:
             data = await response.json()
+            # Server returns a list directly, not a dict with "data" key
+            if isinstance(data, list):
+                return data
+            # Handle pagination case if server returns dict with "data" key
             return data.get("data", [])
         else:
             error_text = await response.text()
@@ -111,72 +116,120 @@ async def allocate_storage(client, flow_id: str, label: Optional[str] = None, li
 async def upload_to_storage(client, presigned_url: str, data: bytes = None, file_path: Optional[str] = None, 
                            content_type: str = "application/octet-stream", chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
     """
-    Upload data to storage using presigned URL with multipart support.
+    Upload data to storage using presigned URL.
+    
+    When the server generates a presigned URL with content_type, the signature
+    includes it, so we MUST include a matching Content-Type header in the request.
+    The server provides content-type in the put_url response.
     
     Args:
         client: TAMSClient instance
         presigned_url: Presigned URL for upload
         data: Bytes data to upload (if file_path not provided)
         file_path: Path to file to upload (alternative to data)
-        content_type: Content type for upload
-        chunk_size: Chunk size for streaming uploads (default: 8MB)
+        content_type: Content-Type header value (must match what was used to sign the URL)
+        chunk_size: Threshold for chunked uploads (default: 8MB)
     
     Returns:
         bool: True if upload successful
     """
-    headers = {"Content-Type": content_type}
+    # If content_type is provided, check if presigned URL already has it in query string
+    # If it's in the query string, we may not need to add it as a header (depends on S3 implementation)
+    # Some S3 implementations require it in both places, others only in query string
+    headers = {}
+    
+    # Check if presigned URL has content-type in query string
+    from urllib.parse import urlparse, parse_qs
+    parsed = urlparse(presigned_url)
+    query_params = parse_qs(parsed.query)
+    has_content_type_in_query = 'content-type' in query_params or 'Content-Type' in query_params
+    
+    # Include Content-Type header if provided
+    # Note: Some S3 implementations require it even if in query string, others don't
+    # The server's ingest_test_data_real.py always includes it, so we do too
+    if content_type:
+        headers["Content-Type"] = content_type
+        if has_content_type_in_query:
+            logger.debug(f"Presigned URL has content-type in query string, also adding as header")
     
     if file_path:
-        # Stream file in chunks for large files
         file_path_obj = Path(file_path)
         if not file_path_obj.exists():
             raise TAMSAPIError(f"File not found: {file_path}")
         
         file_size = file_path_obj.stat().st_size
-        logger.debug(f"Uploading file {file_path} ({file_size} bytes) to presigned URL using chunked upload")
+        logger.debug(f"Uploading file {file_path} ({file_size} bytes) to presigned URL")
+        logger.debug(f"Presigned URL: {presigned_url[:100]}...")  # Truncate for logging
+        logger.debug(f"Content-Type header: {content_type}")
+        logger.debug(f"Headers to send: {headers}")
         
-        # Use aiohttp's streaming upload
-        async def file_reader():
-            with open(file_path, 'rb') as f:
-                while True:
-                    chunk = f.read(chunk_size)
-                    if not chunk:
-                        break
-                    yield chunk
-        
-        async with client._session.put(presigned_url, data=file_reader(), headers=headers) as response:
-            if response.status in (200, 201, 204):
-                return True
+        # Use requests library (synchronous) to match server's ingest_test_data_real.py implementation
+        # Run in thread pool to avoid blocking the event loop
+        def _upload_file():
+            if file_size < chunk_size:
+                # Small file: read into memory (matches server script behavior)
+                with open(file_path, 'rb') as f:
+                    file_data = f.read()
+                logger.debug(f"Uploading {len(file_data)} bytes as data (small file)")
+                response = requests.put(presigned_url, data=file_data, headers=headers)
+                logger.debug(f"Response status: {response.status_code}")
+                if response.status_code in (200, 201, 204):
+                    return True
+                else:
+                    error_text = response.text
+                    logger.error(f"Upload failed. Response body: {error_text}")
+                    raise TAMSAPIError(f"Failed to upload to storage: {error_text}", response.status_code, error_text)
             else:
-                error_text = await response.text()
-                raise TAMSAPIError(f"Failed to upload to storage: {error_text}", response.status, error_text)
+                # Large file: use file handle for streaming (matches server script behavior)
+                logger.debug(f"Uploading as file handle (large file, streaming)")
+                with open(file_path, 'rb') as f:
+                    response = requests.put(presigned_url, data=f, headers=headers)
+                    logger.debug(f"Response status: {response.status_code}")
+                    if response.status_code in (200, 201, 204):
+                        return True
+                    else:
+                        error_text = response.text
+                        logger.error(f"Upload failed. Response body: {error_text}")
+                        raise TAMSAPIError(f"Failed to upload to storage: {error_text}", response.status_code, error_text)
+        
+        # Run synchronous requests.put in thread pool
+        return await asyncio.to_thread(_upload_file)
     elif data:
-        # For small data, upload directly
-        # For large data, still use chunked approach
-        if len(data) > chunk_size:
-            logger.debug(f"Uploading {len(data)} bytes in chunks to presigned URL")
-            # Create a generator for chunked upload
-            async def data_reader():
-                offset = 0
-                while offset < len(data):
-                    chunk = data[offset:offset + chunk_size]
-                    yield chunk
-                    offset += chunk_size
-            
-            async with client._session.put(presigned_url, data=data_reader(), headers=headers) as response:
-                if response.status in (200, 201, 204):
+        # Presigned URLs should be used with a plain session (no auth headers)
+        logger.debug(f"Uploading {len(data)} bytes of data to presigned URL")
+        logger.debug(f"Presigned URL: {presigned_url}")
+        
+        # Use requests library (synchronous) to match server's ingest_test_data_real.py implementation
+        # Run in thread pool to avoid blocking the event loop
+        def _upload_data():
+            if len(data) < chunk_size:
+                # Small data: upload directly
+                logger.debug(f"Uploading {len(data)} bytes directly (small data)")
+                response = requests.put(presigned_url, data=data, headers=headers)
+                logger.debug(f"Response status: {response.status_code}")
+                if response.status_code in (200, 201, 204):
                     return True
                 else:
-                    error_text = await response.text()
-                    raise TAMSAPIError(f"Failed to upload to storage: {error_text}", response.status, error_text)
-        else:
-            # Small data, upload directly
-            async with client._session.put(presigned_url, data=data, headers=headers) as response:
-                if response.status in (200, 201, 204):
+                    error_text = response.text
+                    logger.error(f"Upload failed. Response body: {error_text}")
+                    raise TAMSAPIError(f"Failed to upload to storage: {error_text}", response.status_code, error_text)
+            else:
+                # Large data: requests will handle chunking automatically when streaming
+                logger.debug(f"Uploading {len(data)} bytes (large data, requests will handle chunking)")
+                # Create a file-like object from bytes for streaming
+                import io
+                data_stream = io.BytesIO(data)
+                response = requests.put(presigned_url, data=data_stream, headers=headers)
+                logger.debug(f"Response status: {response.status_code}")
+                if response.status_code in (200, 201, 204):
                     return True
                 else:
-                    error_text = await response.text()
-                    raise TAMSAPIError(f"Failed to upload to storage: {error_text}", response.status, error_text)
+                    error_text = response.text
+                    logger.error(f"Upload failed. Response body: {error_text}")
+                    raise TAMSAPIError(f"Failed to upload to storage: {error_text}", response.status_code, error_text)
+        
+        # Run synchronous requests.put in thread pool
+        return await asyncio.to_thread(_upload_data)
     else:
         raise ValueError("Either data or file_path must be provided")
 

@@ -6,7 +6,7 @@ Encapsulates flow operations and provides fluent API.
 
 import uuid
 import asyncio
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from pathlib import Path
 from .base import TAMSDomainObject
 from .segment import TAMSSegment
@@ -80,6 +80,13 @@ class TAMSFlow(TAMSDomainObject):
             })
         else:
             # Represent existing flow
+            # Include format, codec, label if provided as keyword arguments
+            if format is not None:
+                flow_data["format"] = format
+            if codec is not None:
+                flow_data["codec"] = codec
+            if label is not None:
+                flow_data["label"] = label
             flow_data["id"] = id
         
         super().__init__(client, flow_data["id"], flow_data)
@@ -99,7 +106,7 @@ class TAMSFlow(TAMSDomainObject):
     
     async def add_segment(self, file_path: Optional[str] = None, s3_object: Optional[Dict[str, Any]] = None,
                          timerange: Optional[Dict[str, Any]] = None, auto_probe: bool = True,
-                         **segment_data) -> 'TAMSSegment':
+                         chunk_size: int = 8 * 1024 * 1024, **segment_data) -> 'TAMSSegment':
         """
         Add a segment to this flow (combined operation: allocate → upload → create).
         
@@ -149,6 +156,15 @@ class TAMSFlow(TAMSDomainObject):
         put_url_obj = media_obj["put_url"]
         presigned_url = put_url_obj["url"]
         content_type = put_url_obj.get("content-type", "application/octet-stream")
+        
+        # Log storage allocation details
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Storage allocation received:")
+        logger.debug(f"  Object ID: {object_id}")
+        logger.debug(f"  Presigned URL: {presigned_url}")
+        logger.debug(f"  Content-Type: {content_type}")
+        logger.debug(f"  Put URL object: {put_url_obj}")
         
         # Upload file or use S3 object
         if file_path:
@@ -208,6 +224,8 @@ class TAMSFlow(TAMSDomainObject):
         flow_data = await flow_api.get_flow(self._client, self._id)
         if flow_data:
             self._data.update(flow_data)
+            # Clear tags cache since data may have changed
+            self._tags_cache = None
         else:
             raise TAMSClientError(f"Flow {self._id} not found")
     
@@ -216,26 +234,89 @@ class TAMSFlow(TAMSDomainObject):
         self._data.update(updates)
         result = await flow_api.update_flow(self._client, self._id, self._data)
         self._data.update(result)
+        # Note: Tags cache not cleared here as tags are managed separately
     
     async def delete(self):
         """Delete flow."""
         await flow_api.delete_flow(self._client, self._id)
+        # Remove from client cache
+        if hasattr(self._client, '_cache') and "flow" in self._client._cache:
+            self._client._cache["flow"].pop(self._id, None)
     
-    async def get_tags(self) -> Dict[str, str]:
-        """Get all tags."""
-        return await tag_api.get_tags(self._client, "flow", self._id)
+    async def get_tags(self, use_cache: bool = True) -> Dict[str, Union[str, List[str]]]:
+        """
+        Get all tags.
+        
+        Args:
+            use_cache: If True, return cached tags if available
+            
+        Returns:
+            Dict mapping tag names to values (string or list of strings)
+        """
+        # Return cached tags if available
+        if use_cache and self._tags_cache is not None:
+            return self._tags_cache
+        
+        # Fetch from server
+        tags = await tag_api.get_tags(self._client, "flow", self._id)
+        # Cache the result (empty dict is valid, so we cache it)
+        self._tags_cache = tags
+        return tags
     
-    async def get_tag(self, name: str) -> Optional[str]:
-        """Get a specific tag."""
-        return await tag_api.get_tag(self._client, "flow", self._id, name)
+    async def get_tag(self, name: str, use_cache: bool = True) -> Optional[Union[str, List[str]]]:
+        """
+        Get a specific tag.
+        
+        Args:
+            name: Tag name
+            use_cache: If True, check cached tags first
+            
+        Returns:
+            Tag value (string or list of strings) or None if not found
+        """
+        # Check cache first
+        if use_cache and self._tags_cache is not None:
+            return self._tags_cache.get(name)
+        
+        # Fetch from server
+        value = await tag_api.get_tag(self._client, "flow", self._id, name)
+        # Update cache if we have one
+        if self._tags_cache is not None:
+            if value is None:
+                self._tags_cache.pop(name, None)
+            else:
+                self._tags_cache[name] = value
+        return value
     
-    async def set_tag(self, name: str, value: str):
-        """Set or update a tag."""
+    async def set_tag(self, name: str, value: Union[str, List[str]]):
+        """
+        Set or update a tag.
+        
+        Args:
+            name: Tag name
+            value: Tag value (string or list of strings)
+        """
         await tag_api.set_tag(self._client, "flow", self._id, name, value)
+        # Update cache
+        if self._tags_cache is None:
+            self._tags_cache = {}
+        self._tags_cache[name] = value
     
     async def delete_tag(self, name: str):
-        """Delete a tag."""
+        """
+        Delete a tag.
+        
+        Args:
+            name: Tag name
+        """
         await tag_api.delete_tag(self._client, "flow", self._id, name)
+        # Update cache
+        if self._tags_cache is not None:
+            self._tags_cache.pop(name, None)
+    
+    def clear_tags_cache(self):
+        """Clear the tags cache (force refresh on next get_tags/get_tag call)."""
+        self._tags_cache = None
     
     # Properties
     @property

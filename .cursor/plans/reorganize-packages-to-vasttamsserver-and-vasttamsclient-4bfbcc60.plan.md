@@ -1,176 +1,159 @@
-<!-- 4bfbcc60-1e1c-4ba3-b763-bb765e060d46 f9314e26-f383-40c3-aeb0-e298686a3d63 -->
-# Package Reorganization Plan
+<!-- 4bfbcc60-1e1c-4ba3-b763-bb765e060d46 99aa9da1-7322-46a6-90e3-ba2653d129ab -->
+# Folder Ingestor Application
 
 ## Overview
 
-Reorganize codebase to have two independent packages under `src/` with proper Python packaging structure:
+Create `apps/folder_ingestor/` application that ingests all files from a folder into TAMS. Each folder becomes one source and one flow. Media files are chunked into 30-second segments, non-media files are stored as data files.
 
-- `src/server/vasttamsserver/` (server code, currently `src/vasttams/`)
-- `src/client/vasttamsclient/` (client code, currently `tams_client/src/tams_client/`)
+## Structure
 
-Both packages will be independently installable with their own setup files in their respective directories.
+```
+apps/folder_ingestor/
+├── README.md
+├── requirements.txt
+├── folder_ingestor.py (main application)
+├── media_processor.py (handles chunking via jthaloor-ffmpeg)
+├── file_detector.py (uses ffprobe to detect media files)
+└── config.json.example (example configuration)
+```
 
-## Phase 1: Server Package Reorganization
+## Implementation Details
 
-### 1.1 Create server directory structure
+### 1. Main Application (`folder_ingestor.py`)
 
-- Create `src/server/` directory
-- Move `src/vasttams/` → `src/server/vasttamsserver/`
-- Update `src/server/vasttamsserver/__init__.py` to reflect new package name
+- **CLI Interface**: Accept folder path, source format, label, description via argparse
+- **Config File Support**: Optional JSON config file for additional settings (TAMS server URL, credentials, chunk duration, etc.)
+- **Workflow**:
 
-### 1.2 Move and update server package configuration
+  1. Validate folder exists and is readable
+  2. Create TAMS client connection
+  3. Create source with format, label, description
+  4. Set source tag `folder_path` with absolute folder path
+  5. Detect all files in folder (recursive or flat - need to decide)
+  6. For each file:
 
-- Move `src/setup.py` → `src/server/setup.py`
-- Move `src/pyproject.toml` → `src/server/pyproject.toml`
-- Move `src/requirements.txt` → `src/server/requirements.txt` (if exists)
-- Move `src/MANIFEST.in` → `src/server/MANIFEST.in` (if exists)
-- Update `src/server/setup.py`:
-- Change `name="vasttams"` → `name="vasttamsserver"`
-- Update `packages=find_packages(where=".")` or `packages=["vasttamsserver"]`
-- Update `package_dir={"": "."}` to point to current directory
-- Update entry point: `"tams=vasttamsserver.main:main"`
-- Update `src/server/pyproject.toml`:
-- Change `name = "vasttams"` → `name = "vasttamsserver"`
-- Update `[tool.setuptools]` section: `packages = ["vasttamsserver"]`
-- Update `[tool.setuptools.package-dir]`: `"" = "."`
-- Update `[project.scripts]`: `tams = "vasttamsserver.main:main"`
-- Update `[tool.setuptools.package-data]`: `vasttamsserver = [...]`
+     - Use ffprobe to detect if media (video/audio)
+     - If media: chunk and upload segments
+     - If non-media: upload as data file
 
-### 1.3 Update all server internal imports
+  1. Create single flow for the source
+  2. Upload all segments/data files to the flow
 
-- All files in `src/server/vasttamsserver/` that import from `vasttams.*` need to change to `vasttamsserver.*`
-- Use find/replace: `from vasttams.` → `from vasttamsserver.`
-- Use find/replace: `import vasttams.` → `import vasttamsserver.`
+### 2. Media Detection (`file_detector.py`)
 
-## Phase 2: Client Package Reorganization
+- Use `ffprobe` to detect file type
+- Function: `detect_media_type(file_path: str) -> Optional[str]`
+- Returns: `"video"`, `"audio"`, or `None` (non-media)
+- Handle ffprobe errors gracefully (non-media files will fail)
 
-### 2.1 Create client directory structure
+### 3. Media Processing (`media_processor.py`)
 
-- Create `src/client/` directory
-- Move `tams_client/src/tams_client/` → `src/client/vasttamsclient/`
-- Update `src/client/vasttamsclient/__init__.py` to reflect new package name
+- **Dependency**: Install `jthaloor-ffmpeg` from `~/Developer/gitlab/jthaloor-ffmpeg` (local install)
+- **Chunking**: Use jthaloor-ffmpeg's chunk output functionality to split media into 30s chunks
+- **Function**: `chunk_media_file(file_path: str, chunk_duration: int = 30) -> List[Path]`
+- Returns list of chunk file paths
+- Each chunk will be uploaded as a separate segment
 
-### 2.2 Move and update client package configuration
+### 4. TAMS Integration
 
-- Move `tams_client/setup.py` → `src/client/setup.py`
-- Move `tams_client/pyproject.toml` → `src/client/pyproject.toml`
-- Move `tams_client/requirements.txt` → `src/client/requirements.txt`
-- Move `tams_client/README.md` → `src/client/README.md` (optional)
-- Update `src/client/setup.py`:
-- Change `name="tams-client"` → `name="vasttamsclient"`
-- Update `packages=find_packages(where=".")` or `packages=["vasttamsclient"]`
-- Update `package_dir={"": "."}` to point to current directory
-- Update `src/client/pyproject.toml`:
-- Change `name = "tams-client"` → `name = "vasttamsclient"`
-- Update `[tool.setuptools]` section: `packages = ["vasttamsclient"]`
-- Update `[tool.setuptools.package-dir]`: `"" = "."`
+- **Source Creation**: 
+  - Format from CLI/config
+  - Label and description from CLI/config
+  - Tag `folder_path` with absolute path
+- **Flow Creation**:
+  - Single flow per folder
+  - Format matches source format
+  - Codec determined from first media file (or default)
+  - Essence parameters from first video/audio file
+- **Segment Creation**:
+  - Each media chunk becomes a segment
+  - Segment tag `filename` with original filename
+  - Segment tag `chunk_index` with chunk number
+  - Timerange calculated based on chunk position
+- **Data Files**:
+  - Non-media files uploaded as data objects
+  - Need to research TAMS data file handling (may need to create objects directly or use a special flow type)
 
-### 2.3 Update all client internal imports
+### 5. Configuration
 
-- All files in `src/client/vasttamsclient/` that import from `tams_client.*` need to change to `vasttamsclient.*`
-- Use find/replace: `from tams_client.` → `from vasttamsclient.`
-- Use find/replace: `import tams_client.` → `import vasttamsclient.`
+- **CLI Arguments**:
+  - `--folder` (required): Path to folder to ingest
+  - `--format` (required): Source format URN (e.g., `urn:x-nmos:format:video`)
+  - `--label` (optional): Source label
+  - `--description` (optional): Source description
+  - `--config` (optional): Path to JSON config file
+  - `--server-url` (optional): TAMS server URL
+  - `--username` (optional): TAMS username
+  - `--password` (optional): TAMS password
+  - `--chunk-duration` (optional): Chunk duration in seconds (default: 30)
+- **Config File** (JSON):
+  ```json
+  {
+    "server_url": "http://localhost:8000",
+    "username": "user",
+    "password": "pass",
+    "chunk_duration": 30,
+    "recursive": false
+  }
+  ```
 
-## Phase 3: Update External References
 
-### 3.1 Update entry point scripts
+### 6. Error Handling
 
-- `run.py`: Change `from vasttams.core.config` → `from vasttamsserver.core.config`
-- `run.py`: Change `"vasttams.main:app"` → `"vasttamsserver.main:app"`
-- `run_dev.py`: Change `from vasttams.core.config` → `from vasttamsserver.core.config`
-- `run_dev.py`: Change `"vasttams.main:app"` → `"vasttamsserver.main:app"`
-- `run_dev.py`: Change `reload_dirs=["src/vasttams"]` → `reload_dirs=["src/server/vasttamsserver"]`
+- Handle missing files gracefully
+- Handle ffprobe failures (treat as non-media)
+- Handle chunking failures (log and continue)
+- Handle upload failures (retry logic or skip)
+- Provide progress feedback
 
-### 3.2 Update test files (~98 files)
+### 7. Dependencies
 
-- Use find/replace across `tests/` directory:
-- `from vasttams.` → `from vasttamsserver.`
-- `import vasttams.` → `import vasttamsserver.`
-- Update `tests/conftest.py`:
-- Change `from vasttams.core.config` → `from vasttamsserver.core.config`
-- Update any cache paths that reference "vasttams"
+- `vasttamsclient` (from `../src/client`)
+- `jthaloor-ffmpeg` (local install from `~/Developer/gitlab/jthaloor-ffmpeg`)
+- `ffmpeg`/`ffprobe` (system dependency)
 
-### 3.3 Update management scripts
+## Files to Create/Modify
 
-- Update all `mgmt/*.py` files:
-- `from vasttams.` → `from vasttamsserver.`
-- `import vasttams.` → `import vasttamsserver.`
+1. `apps/folder_ingestor/folder_ingestor.py` - Main application entry point
+2. `apps/folder_ingestor/media_processor.py` - Media chunking using jthaloor-ffmpeg
+3. `apps/folder_ingestor/file_detector.py` - Media file detection using ffprobe
+4. `apps/folder_ingestor/requirements.txt` - Dependencies
+5. `apps/folder_ingestor/README.md` - Usage documentation
+6. `apps/folder_ingestor/config.json.example` - Example configuration
+7. Update `apps/README.md` - Add folder_ingestor to available applications
 
-### 3.4 Update documentation
+## Key Implementation Notes
 
-- Update `README.md` (main) to reflect new package structure and names
-- Update `NOTES.md` to document the reorganization
-- Update `EDITS.md` to track the changes
-- Update `docs/` directory files:
-- `docs/README.md`
-- `docs/ARCHITECTURE.md`
-- `docs/DEPLOYMENT.md`
-- `docs/USAGE.md`
-- Any other docs that reference package names or paths
-- Update `src/server/README.md` (if exists) or create one for server package
-- Update `src/client/README.md` (if exists) or create one for client package
+- **jthaloor-ffmpeg Integration**: Need to research the module's API for chunking. May need to:
+  - Create a VideoProcessor instance
+  - Configure chunk output
+  - Process file and collect chunk paths
+- **Data Files**: Research TAMS 8.0 spec for handling non-media files. May need to:
+  - Create objects with appropriate content-type
+  - Use a data flow type or special handling
+- **Segment Timerange**: Calculate timerange for each chunk based on:
+  - Chunk index * chunk_duration
+  - Need to handle frame rate for accurate timestamps
+- **Async Processing**: Use asyncio for concurrent uploads where possible
+- **Duplicate Detection Performance**:
+  - Query segments once per flow (not per file) using tag filters
+  - Build in-memory lookup: `{file_path: {chunk_indices}}`
+  - Use TAMS API tag filtering: `/flows/{flow_id}/segments?tag.file_path={path}`
+  - Cache segment list during processing to avoid repeated queries
+  - Only re-query if process is interrupted and resumed
+- **Resume Efficiency**:
+  - Single API call to list all segments with tag filters
+  - Parse segment tags to build processing state map
+  - No local state files needed (all state in TAMS tags)
+  - Minimal overhead: one segment list query per resume
 
-## Phase 4: Cleanup and Verification
+### To-dos
 
-### 4.1 Remove old directories
-
-- Remove `tams_client/` directory (after confirming all files moved)
-- Verify no remaining references to old paths
-
-### 4.2 Update .gitignore if needed
-
-- Ensure both packages are properly tracked
-
-### 4.3 Verify independent installation
-
-- Test: `cd src && pip install -e .` (should install vasttamsserver
-- Test: `cd src && pip install -e . -e .` with both packages (if using separate setup files)
-- Or test installing each package independently
-
-## Implementation Strategy
-
-### Minimize Import Changes
-
-1. Use systematic find/replace for all import statements
-2. Update internal imports first (within each package)
-3. Then update external imports (tests, scripts, mgmt)
-4. Use grep to verify all changes are complete
-
-### Independent Development/Deployment
-
-- Each package has its own setup.py/pyproject.toml in `src/`
-- Server: `cd src && pip install -e .` (installs vasttamsserver)
-- Client: `cd src && pip install -e .` with client setup (installs vasttamsclient)
-- Both can be installed together or separately
-- Consider using separate setup files or a unified setup that handles both
-
-## Files to Modify
-
-**Server Package:**
-
-- `src/vasttams/` → `src/vasttamsserver/` (entire directory rename)
-- `src/setup.py` (package name, entry points)
-- `src/pyproject.toml` (package name, configuration)
-- All files in `src/vasttamsserver/` (internal imports)
-
-**Client Package:**
-
-- `tams_client/src/tams_client/` → `src/vasttamsclient/` (move and rename)
-- `tams_client/setup.py` → `src/setup_client.py` (move and update)
-- `tams_client/pyproject.toml` → `src/pyproject_client.toml` (move and update)
-- All files in `src/vasttamsclient/` (internal imports)
-
-**External Files:**
-
-- `run.py` (imports)
-- `run_dev.py` (imports, reload_dirs)
-- `tests/` directory (~98 files with imports)
-- `mgmt/` directory (all Python files with imports)
-- `src/README.md` (documentation)
-
-## Notes
-
-- No backward compatibility needed
-- Both packages remain under `src/` for consistency
-- Use systematic find/replace to minimize errors
-- Test imports after each phase to catch issues early
+- [ ] Research jthaloor-ffmpeg module API for chunking functionality - understand how to use VideoProcessor and chunk outputs
+- [ ] Research TAMS 8.0 specification for handling non-media data files - understand object creation and flow types
+- [ ] Create file_detector.py module with ffprobe-based media detection (video/audio/non-media)
+- [ ] Create media_processor.py module using jthaloor-ffmpeg for 30s chunking
+- [ ] Create folder_ingestor.py main application with CLI, config file support, and TAMS integration
+- [ ] Create requirements.txt with dependencies (vasttamsclient, jthaloor-ffmpeg, etc.)
+- [ ] Create README.md and config.json.example with usage instructions and examples
+- [ ] Update apps/README.md to include folder_ingestor in available applications list

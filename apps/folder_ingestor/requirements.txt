@@ -1,0 +1,14 @@
+# TAMS Client Library (install from local source)
+# Install with: pip install -e ../../src/client
+
+# jthaloor-ffmpeg (install from local source)
+# Install with: pip install -e ~/Developer/gitlab/jthaloor-ffmpeg
+
+# System dependencies (must be installed separately):
+# - ffmpeg (with ffprobe)
+# - Python 3.12+
+
+# Python dependencies (if not already installed by TAMS client)
+aiohttp>=3.9.0
+requests>=2.31.0
+

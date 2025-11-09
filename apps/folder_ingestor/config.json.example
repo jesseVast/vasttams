@@ -1,0 +1,8 @@
+{
+  "server_url": "http://localhost:8000",
+  "username": "admin",
+  "password": "admin",
+  "chunk_duration": 30,
+  "recursive": false
+}
+

@@ -10,6 +10,7 @@ import logging
 import asyncio
 from typing import Dict, Any, List, Optional
 import requests
+import aiohttp
 from pathlib import Path
 from ..exceptions import TAMSAPIError
 

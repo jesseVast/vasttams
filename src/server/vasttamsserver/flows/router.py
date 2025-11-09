@@ -5,7 +5,7 @@ This is a minimal working flows router that can be imported without errors.
 It provides basic endpoint structure that can be expanded later.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, Response
 from typing import List, Optional
 from .models import Flow
 from ..common.filters import FlowFilters, FlowDetailFilters
@@ -26,6 +26,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/flows", tags=["flows"])
+
+
+async def _check_flow_not_read_only(flow_id: str, storage: StorageInterface) -> None:
+    """Helper function to check if flow is read-only and raise 403 if it is."""
+    from ..flows.service import FlowStorageService
+    from ..core.dependencies import get_s3_client, get_vast_db
+    
+    vast_db = get_vast_db()
+    s3_client = get_s3_client()
+    flow_service = FlowStorageService(vast_db, s3_client)
+    
+    is_read_only = await flow_service.check_flow_read_only(flow_id)
+    if is_read_only:
+        raise HTTPException(
+            status_code=403,
+            detail="Flow is read-only and cannot be modified"
+        )
 
 # HEAD endpoints
 @router.head("")
@@ -103,6 +120,9 @@ async def update_flow_by_id(
 ):
     """Update a flow"""
     try:
+        # Check if flow is read-only
+        await _check_flow_not_read_only(flow_id, storage)
+        
         # Get username for metadata
         username = user_session.username if user_session else "system"
         
@@ -168,6 +188,9 @@ async def delete_flow_by_id(
 ):
     """Delete a flow (hard delete only - TAMS compliant)"""
     try:
+        # Check if flow is read-only
+        await _check_flow_not_read_only(flow_id, storage)
+        
         # Get flow before deletion for event emission
         flow = await storage.get_flow(flow_id)
         
@@ -270,14 +293,17 @@ async def head_flow_tag(flow_id: str, name: str):
     """Return flow tag path headers"""
     return {}
 
-@router.get("/{flow_id}/tags/{name}", response_model=str)
+@router.get("/{flow_id}/tags/{name}")
 async def get_flow_tag(
     flow_id: str,
     name: str,
     storage: StorageInterface = Depends(get_storage_service)
 ):
-    """Get flow tag value"""
+    """Get flow tag value (supports both string and array values)"""
     try:
+        import json
+        from fastapi import Response
+        
         tags = await storage.get_flow_tags(flow_id)
         logger.debug("Retrieved tags for flow %s: %s", flow_id, tags)
         logger.debug("Tags type: %s, tags.root: %s", type(tags), tags.root if tags else "None")
@@ -287,7 +313,33 @@ async def get_flow_tag(
             logger.debug("Tag %s not found in tags: %s", name, tags.root if tags else "None")
             raise HTTPException(status_code=404, detail="Tag not found")
         
-        return tags[name]
+        tag_value = tags[name]
+        
+        # If tag value is a list (array), return as JSON
+        if isinstance(tag_value, list):
+            return Response(
+                content=json.dumps(tag_value),
+                media_type="application/json"
+            )
+        # If tag value is a string that looks like JSON array, parse and return as JSON
+        elif isinstance(tag_value, str):
+            try:
+                # Try to parse as JSON - if it's a JSON array string, return as array
+                parsed = json.loads(tag_value)
+                if isinstance(parsed, list):
+                    return Response(
+                        content=json.dumps(parsed),
+                        media_type="application/json"
+                    )
+            except (json.JSONDecodeError, ValueError):
+                # Not JSON, return as plain string
+                pass
+        
+        # Return as plain string (text/plain)
+        return Response(
+            content=str(tag_value),
+            media_type="text/plain"
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -303,6 +355,9 @@ async def update_flow_tag(
 ):
     """Update flow tag value (supports both string and JSON array values)"""
     try:
+        # Check if flow is read-only
+        await _check_flow_not_read_only(flow_id, storage)
+        
         # Read body to support both text/plain and application/json
         body = await request.body()
         content_type = request.headers.get("content-type", "").lower()
@@ -343,6 +398,9 @@ async def delete_flow_tag(
 ):
     """Delete flow tag"""
     try:
+        # Check if flow is read-only
+        await _check_flow_not_read_only(flow_id, storage)
+        
         success = await storage.delete_flow_tag(flow_id, name)
         if not success:
             raise HTTPException(status_code=404, detail="Flow or tag not found")
@@ -383,6 +441,9 @@ async def update_flow_description(
 ):
     """Update flow description"""
     try:
+        # Check if flow is read-only
+        await _check_flow_not_read_only(flow_id, storage)
+        
         success = await storage.update_flow_description(flow_id, description)
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -400,6 +461,9 @@ async def delete_flow_description(
 ):
     """Delete flow description"""
     try:
+        # Check if flow is read-only
+        await _check_flow_not_read_only(flow_id, storage)
+        
         success = await storage.delete_flow_description(flow_id)
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -440,6 +504,9 @@ async def update_flow_label(
 ):
     """Update flow label"""
     try:
+        # Check if flow is read-only
+        await _check_flow_not_read_only(flow_id, storage)
+        
         success = await storage.update_flow_label(flow_id, label)
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -457,6 +524,9 @@ async def delete_flow_label(
 ):
     """Delete flow label"""
     try:
+        # Check if flow is read-only
+        await _check_flow_not_read_only(flow_id, storage)
+        
         success = await storage.delete_flow_label(flow_id)
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")
@@ -517,6 +587,9 @@ async def update_flow_collection(
     ]
     """
     try:
+        # Check if flow is read-only
+        await _check_flow_not_read_only(flow_id, storage)
+        
         from ..common.models import FlowCollection
         import json
         # Validate the collection data

@@ -1671,6 +1671,230 @@
     "client/test_api_tags.py::TestTagsAPI::test_set_tag_list_value": {
       "timestamp": "2025-11-09T14:56:27.356273+00:00",
       "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestServiceEndpoints::test_get_root": {
+      "timestamp": "2025-11-09T17:04:26.617932+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestServiceEndpoints::test_head_root": {
+      "timestamp": "2025-11-09T17:36:29.038784+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestServiceEndpoints::test_head_service": {
+      "timestamp": "2025-11-09T17:36:31.312044+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestServiceEndpoints::test_get_storage_backends": {
+      "timestamp": "2025-11-09T17:36:32.832701+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourcesEndpoints::test_list_sources_empty": {
+      "timestamp": "2025-11-09T17:36:34.376719+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourcesEndpoints::test_get_nonexistent_source": {
+      "timestamp": "2025-11-09T17:36:39.308012+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowsEndpoints::test_list_flows_empty": {
+      "timestamp": "2025-11-09T17:36:55.982901+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowsEndpoints::test_get_nonexistent_flow": {
+      "timestamp": "2025-11-09T17:37:00.784188+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestServiceEndpoints::test_get_service": {
+      "timestamp": "2025-11-09T17:40:19.544548+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourcesEndpoints::test_list_sources_with_filters": {
+      "timestamp": "2025-11-09T17:40:22.234719+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourcesEndpoints::test_create_source": {
+      "timestamp": "2025-11-09T17:40:28.941619+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourcesEndpoints::test_get_source": {
+      "timestamp": "2025-11-09T17:40:31.425795+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourcesEndpoints::test_update_source": {
+      "timestamp": "2025-11-09T17:40:37.841186+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourcesEndpoints::test_delete_source": {
+      "timestamp": "2025-11-09T17:40:44.918314+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourcesEndpoints::test_source_label_operations": {
+      "timestamp": "2025-11-09T17:40:54.121191+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourcesEndpoints::test_source_description_operations": {
+      "timestamp": "2025-11-09T17:41:01.722720+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourceTagsEndpoints::test_list_source_tags": {
+      "timestamp": "2025-11-09T17:41:06.925291+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourceTagsEndpoints::test_set_source_tag_string": {
+      "timestamp": "2025-11-09T17:41:15.030935+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourceTagsEndpoints::test_set_source_tag_array": {
+      "timestamp": "2025-11-09T17:41:22.659189+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourceTagsEndpoints::test_get_source_tag": {
+      "timestamp": "2025-11-09T17:41:30.618871+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourceTagsEndpoints::test_get_nonexistent_source_tag": {
+      "timestamp": "2025-11-09T17:41:35.928115+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourceTagsEndpoints::test_delete_source_tag": {
+      "timestamp": "2025-11-09T17:41:45.413681+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestSourcesEndpoints::test_delete_nonexistent_source": {
+      "timestamp": "2025-11-09T17:45:06.431812+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowsEndpoints::test_list_flows_with_filters": {
+      "timestamp": "2025-11-09T17:45:10.959604+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowsEndpoints::test_create_flow": {
+      "timestamp": "2025-11-09T17:45:21.244044+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowsEndpoints::test_get_flow": {
+      "timestamp": "2025-11-09T17:45:27.675635+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowsEndpoints::test_update_flow": {
+      "timestamp": "2025-11-09T17:45:36.879876+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowsEndpoints::test_delete_flow": {
+      "timestamp": "2025-11-09T17:45:47.745670+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowsEndpoints::test_flow_label_operations": {
+      "timestamp": "2025-11-09T17:45:55.643224+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowsEndpoints::test_flow_description_operations": {
+      "timestamp": "2025-11-09T17:46:05.295558+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowsEndpoints::test_flow_read_only_operations": {
+      "timestamp": "2025-11-09T17:46:15.299218+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowTagsEndpoints::test_list_flow_tags": {
+      "timestamp": "2025-11-09T17:46:24.351896+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowTagsEndpoints::test_get_flow_tag": {
+      "timestamp": "2025-11-09T17:46:54.606399+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowTagsEndpoints::test_delete_flow_tag": {
+      "timestamp": "2025-11-09T17:47:15.901347+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowSegmentsEndpoints::test_list_flow_segments_empty": {
+      "timestamp": "2025-11-09T17:47:24.710963+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowTagsEndpoints::test_set_flow_tag_string": {
+      "timestamp": "2025-11-09T17:48:53.524771+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowTagsEndpoints::test_set_flow_tag_array": {
+      "timestamp": "2025-11-09T17:49:03.740103+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowSegmentsEndpoints::test_allocate_flow_storage": {
+      "timestamp": "2025-11-09T17:49:23.290088+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowSegmentsEndpoints::test_create_flow_segment": {
+      "timestamp": "2025-11-09T17:49:46.238589+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowCollectionEndpoints::test_get_flow_collection": {
+      "timestamp": "2025-11-09T17:50:12.803167+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestObjectsEndpoints::test_list_objects": {
+      "timestamp": "2025-11-09T17:50:27.403479+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestObjectsEndpoints::test_get_object": {
+      "timestamp": "2025-11-09T17:50:28.459324+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestQueryParameters::test_source_tag_filtering": {
+      "timestamp": "2025-11-09T17:50:32.818640+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestQueryParameters::test_flow_tag_filtering": {
+      "timestamp": "2025-11-09T17:50:40.757180+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestQueryParameters::test_pagination": {
+      "timestamp": "2025-11-09T17:50:46.925655+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestErrorHandling::test_invalid_uuid": {
+      "timestamp": "2025-11-09T17:50:54.541888+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestErrorHandling::test_unauthorized_access": {
+      "timestamp": "2025-11-09T17:50:54.556344+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestErrorHandling::test_invalid_credentials": {
+      "timestamp": "2025-11-09T17:50:54.968682+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestMissingEndpoints::test_webhooks_endpoints": {
+      "timestamp": "2025-11-09T17:50:56.073769+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestMissingEndpoints::test_flow_delete_requests": {
+      "timestamp": "2025-11-09T17:50:57.165166+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestMissingEndpoints::test_object_instances": {
+      "timestamp": "2025-11-09T17:50:58.247480+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestErrorHandling::test_missing_required_fields": {
+      "timestamp": "2025-11-09T17:52:48.729602+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestCascadeOperations::test_delete_source_with_flows": {
+      "timestamp": "2025-11-09T17:53:00.119926+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestErrorHandling::test_invalid_json": {
+      "timestamp": "2025-11-09T17:54:34.093420+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestFlowTagsEndpoints::test_get_flow_tag_array": {
+      "timestamp": "2025-11-09T17:58:10.355922+00:00",
+      "source_files": []
+    },
+    "integration/test_server_comprehensive.py::TestReadOnlyFlows::test_read_only_flow_update": {
+      "timestamp": "2025-11-09T18:03:08.878663+00:00",
+      "source_files": []
     }
   },
   "failed_tests": {

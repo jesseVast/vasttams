@@ -126,23 +126,29 @@ async def main():
                     download_url = url_info.get("url") if isinstance(url_info, dict) else str(url_info)
                     if download_url:
                         print(f"\n[7] Downloading from: {download_url}")
-                        import aiohttp
-                        async with aiohttp.ClientSession() as session:
-                            async with session.get(download_url) as response:
-                                if response.status == 200:
-                                    downloaded_data = await response.read()
-                                    print(f"✅ Downloaded {len(downloaded_data)} bytes")
-                                    
-                                    # Verify data matches
-                                    original_data = test_file.read_bytes()
-                                    if downloaded_data == original_data:
-                                        print("✅ Download verification: Data matches original file!")
-                                    else:
-                                        print(f"⚠️  Download verification: Data size differs (original: {len(original_data)}, downloaded: {len(downloaded_data)})")
-                                else:
-                                    error_text = await response.text()
-                                    print(f"❌ Download failed with status: {response.status}")
-                                    print(f"   Error: {error_text}")
+                        import requests
+                        import asyncio
+                        
+                        # Use requests for S3 downloads (run in thread pool for async compatibility)
+                        def _download_file():
+                            response = requests.get(download_url, stream=True)
+                            if response.status_code == 200:
+                                return response.content
+                            else:
+                                raise Exception(f"Download failed with status: {response.status_code}, Error: {response.text}")
+                        
+                        try:
+                            downloaded_data = await asyncio.to_thread(_download_file)
+                            print(f"✅ Downloaded {len(downloaded_data)} bytes")
+                            
+                            # Verify data matches
+                            original_data = test_file.read_bytes()
+                            if downloaded_data == original_data:
+                                print("✅ Download verification: Data matches original file!")
+                            else:
+                                print(f"⚠️  Download verification: Data size differs (original: {len(original_data)}, downloaded: {len(downloaded_data)})")
+                        except Exception as e:
+                            print(f"❌ Download failed: {e}")
                     else:
                         print("⚠️  No URL found in first get_urls entry")
             else:

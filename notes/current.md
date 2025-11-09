@@ -1,9 +1,54 @@
 # TAMS Project - Current Status
 
-**Last Updated**: October 31, 2025  
-**Status**: Test Infrastructure Complete, Content-Type Fixes Complete, Dynamic Video Discovery Complete
+**Last Updated**: November 9, 2025  
+**Status**: Flow Tag Array Fix Complete, Read-Only Flow Protection Complete, Docker Management Scripts Ready
 
-## 🎯 **CURRENT FOCUS: TEST INFRASTRUCTURE & S3 UPLOAD FIXES**
+## 🎯 **CURRENT FOCUS: FLOW TAG ARRAY FIX & READ-ONLY PROTECTION**
+
+### **✅ COMPLETED: FLOW TAG ARRAY RETRIEVAL & READ-ONLY PROTECTION** (November 9, 2025)
+**Status**: ✅ **COMPLETED** - Flow tag array retrieval fixed, read-only flow protection implemented, Docker management scripts ready
+
+#### **🏗️ Key Achievements**
+- **Flow Tag Array Retrieval Fix**: Fixed 500 error when retrieving array tag values
+  - Updated `get_flow_tag` endpoint to detect array values
+  - Returns arrays as JSON with `application/json` content type
+  - Returns strings as plain text with `text/plain` content type
+  - Handles both list objects and JSON-encoded strings
+  - Result: `test_get_flow_tag_array` now passes
+
+- **Read-Only Flow Protection**: Implemented comprehensive protection
+  - Added `_check_flow_not_read_only()` helper function
+  - Added checks to all flow update/delete endpoints (9 endpoints total)
+  - Read-only flows return `403 Forbidden` when modification attempted
+  - `PUT /flows/{flow_id}/read_only` remains unprotected (allows unlocking)
+  - Result: `test_read_only_flow_update` now passes
+
+- **Docker Management Scripts**: Made scripts container-ready
+  - Updated all 7 management scripts for container compatibility
+  - Scripts automatically detect container vs development environment
+  - Added comprehensive documentation for container usage
+  - Scripts available at `/app/mgmt/` in container
+  - Result: All scripts work in both container and development environments
+
+- **Logging Documentation**: Created comprehensive logging guide
+  - Created `docker/LOGGING.md` with full documentation
+  - Covers console logs, file logs, volume persistence, rotation
+  - Production considerations and troubleshooting
+  - Updated `docker/README.md` with logging section
+
+#### **📊 Test Results**
+- **Flow Tag Array**: ✅ `test_get_flow_tag_array` passing
+- **Read-Only Protection**: ✅ `test_read_only_flow_update` passing
+- **Management Scripts**: ✅ All scripts tested in container
+- **Documentation**: ✅ Comprehensive guides created
+
+#### **📝 Files Modified**
+- `src/server/vasttamsserver/flows/router.py` - Tag array fix, read-only protection
+- `docker/Dockerfile` - Made scripts executable
+- `docker/README.md` - Added logging and management script sections
+- `docker/LOGGING.md` - New comprehensive logging guide
+- `mgmt/*.py` (7 files) - Container compatibility updates
+- `mgmt/README.md` - Added container usage examples
 
 ### **✅ COMPLETED: TEST AUTHENTICATION & CONTENT-TYPE FIXES** (October 31, 2025)
 **Status**: ✅ **COMPLETED** - Test infrastructure updated, content-type fixes applied, S3 uploads working

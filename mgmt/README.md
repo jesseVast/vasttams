@@ -237,11 +237,48 @@ Scripts use the same configuration as the TAMS server. Make sure your `config/co
 - `s3_secret_access_key`
 - `s3_bucket_name`
 
+## Running Scripts in Docker Container
+
+All management scripts are available inside the Docker container at `/app/mgmt/`.
+
+### Execute Scripts in Container
+
+```bash
+# List users
+docker exec -it tams-api python /app/mgmt/user_mgmt.py list
+
+# Initialize default users
+docker exec -it tams-api python /app/mgmt/user_mgmt.py init-default-users
+
+# Query tables
+docker exec -it tams-api python /app/mgmt/query_tables.py --list-tables
+
+# Cleanup database
+docker exec -it tams-api python /app/mgmt/cleanup_database.py --yes
+
+# Delete sources by label
+docker exec -it tams-api python /app/mgmt/delete_sources_by_label_filter.py "Test"
+
+# Get database version
+docker exec -it tams-api python /app/mgmt/get_db_version.py
+
+# Generate OpenAPI spec
+docker exec -it tams-api python /app/mgmt/generate_openapi.py
+```
+
+### Container Configuration
+
+- Scripts automatically detect container vs development environment
+- In container: config is at `/etc/tams/config.json` (mounted from host)
+- In development: config is at `config/config.json`
+- The `Settings` class handles path resolution automatically
+
 ## Notes
 
 - All scripts use dependency injection (`get_vast_db()`, `get_s3_client()`) - no manual connection initialization needed
 - Logging is automatically initialized at startup - no need to configure logging in scripts
-- Scripts should be run from the project root directory
+- Scripts should be run from the project root directory (or use full paths in container)
+- Scripts work in both container and development environments
 - Test data generation scripts are located in `tests/` directory
 
 ## Directory Structure

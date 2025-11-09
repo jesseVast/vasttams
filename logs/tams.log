@@ -5050,3 +5050,16 @@ essence_parameters
 2025-11-09 13:03:25 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
 2025-11-09 13:03:25 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
 2025-11-09 13:03:27 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-09 13:05:19 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-09 13:05:19 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-09 13:05:21 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-09 13:05:21 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-09 13:05:21 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-09 13:05:21 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-09 13:05:21 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-09 13:05:21 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-09 13:05:21 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-09 13:05:26 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-09 13:05:26 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-09 13:05:26 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-09 13:05:28 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete

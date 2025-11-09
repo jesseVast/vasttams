@@ -36,8 +36,11 @@ RUN pip install --no-cache-dir --upgrade pip build wheel \
 COPY src/server /app/src/server
 COPY run.py /app/run.py
 
-# Copy management scripts (for OpenAPI generation)
+# Copy management scripts
 COPY mgmt /app/mgmt
+
+# Make management scripts executable
+RUN chmod +x /app/mgmt/*.py /app/mgmt/*.sh 2>/dev/null || true
 
 # Set environment variables for build
 ENV PYTHONPATH=/app/src/server

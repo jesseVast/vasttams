@@ -28,6 +28,8 @@ sys.path.insert(0, os.path.join(root_dir, 'src', 'server'))
 sys.path.insert(0, root_dir)
 
 # Change to root directory so config/config.json is found
+# In container, config is at /etc/tams/config.json, in dev it's at config/config.json
+# The Settings class handles this automatically
 os.chdir(root_dir)
 
 from vasttamsserver.core.dependencies import get_vast_db, get_s3_client

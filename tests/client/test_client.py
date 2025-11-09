@@ -194,94 +194,83 @@ class TestTAMSClientQueryMethods:
     """Tests for TAMSClient query methods."""
     
     @pytest.mark.asyncio
-    async def test_get_source_success(self, client, mock_session):
+    async def test_get_source_success(self, client):
         """Test getting a source successfully."""
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
+        source_data = {
             "id": "source-123",
             "format": "urn:x-nmos:format:video",
             "label": "Test Source"
-        })
+        }
         
-        mock_session.request.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.request.return_value.__aexit__ = AsyncMock(return_value=None)
-        
-        source = await client.get_source("source-123")
-        assert isinstance(source, TAMSSource)
-        assert source.id == "source-123"
-        assert source._data["label"] == "Test Source"
+        with patch('vasttamsclient.api.sources.get_source', new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = source_data
+            source = await client.get_source("source-123")
+            assert isinstance(source, TAMSSource)
+            assert source.id == "source-123"
+            assert source._data["label"] == "Test Source"
     
     @pytest.mark.asyncio
-    async def test_get_source_not_found(self, client, mock_session):
+    async def test_get_source_not_found(self, client):
         """Test getting a non-existent source."""
-        mock_response = AsyncMock()
-        mock_response.status = 404
-        
-        mock_session.request.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.request.return_value.__aexit__ = AsyncMock(return_value=None)
-        
-        source = await client.get_source("nonexistent")
-        assert source is None
+        with patch('vasttamsclient.api.sources.get_source', new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = None
+            source = await client.get_source("nonexistent")
+            assert source is None
     
     @pytest.mark.asyncio
-    async def test_get_flow_success(self, client, mock_session):
+    async def test_get_flow_success(self, client):
         """Test getting a flow successfully."""
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
+        flow_data = {
             "id": "flow-123",
             "source_id": "source-123",
             "format": "urn:x-nmos:format:video",
             "codec": "video/h264",
             "label": "Test Flow"
-        })
+        }
         
-        mock_session.request.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.request.return_value.__aexit__ = AsyncMock(return_value=None)
-        
-        flow = await client.get_flow("flow-123")
-        assert isinstance(flow, TAMSFlow)
-        assert flow.id == "flow-123"
-        assert flow._data["label"] == "Test Flow"
+        with patch('vasttamsclient.api.flows.get_flow', new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = flow_data
+            flow = await client.get_flow("flow-123")
+            assert isinstance(flow, TAMSFlow)
+            assert flow.id == "flow-123"
+            # Flow data should be populated from the API response
+            # When id is provided, flow_data is passed via **flow_data, so all fields should be in _data
+            assert flow._data.get("source_id") == "source-123"
+            assert flow._data.get("format") == "urn:x-nmos:format:video"
+            assert flow._data.get("codec") == "video/h264"
+            assert flow._data.get("label") == "Test Flow"
     
     @pytest.mark.asyncio
-    async def test_list_sources(self, client, mock_session):
+    async def test_list_sources(self, client):
         """Test listing sources."""
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=[
+        sources_data = [
             {"id": "source-1", "format": "urn:x-nmos:format:video", "label": "Source 1"},
             {"id": "source-2", "format": "urn:x-nmos:format:video", "label": "Source 2"}
-        ])
+        ]
         
-        mock_session.request.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.request.return_value.__aexit__ = AsyncMock(return_value=None)
-        
-        sources = await client.list_sources()
-        assert len(sources) == 2
-        assert all(isinstance(s, TAMSSource) for s in sources)
-        assert sources[0].id == "source-1"
-        assert sources[1].id == "source-2"
+        with patch('vasttamsclient.api.sources.list_sources', new_callable=AsyncMock) as mock_list:
+            mock_list.return_value = sources_data
+            sources = await client.list_sources()
+            assert len(sources) == 2
+            assert all(isinstance(s, TAMSSource) for s in sources)
+            assert sources[0].id == "source-1"
+            assert sources[1].id == "source-2"
     
     @pytest.mark.asyncio
-    async def test_list_flows(self, client, mock_session):
+    async def test_list_flows(self, client):
         """Test listing flows."""
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=[
+        flows_data = [
             {"id": "flow-1", "source_id": "source-1", "format": "urn:x-nmos:format:video", "codec": "video/h264"},
             {"id": "flow-2", "source_id": "source-1", "format": "urn:x-nmos:format:video", "codec": "video/h264"}
-        ])
+        ]
         
-        mock_session.request.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.request.return_value.__aexit__ = AsyncMock(return_value=None)
-        
-        flows = await client.list_flows()
-        assert len(flows) == 2
-        assert all(isinstance(f, TAMSFlow) for f in flows)
-        assert flows[0].id == "flow-1"
-        assert flows[1].id == "flow-2"
+        with patch('vasttamsclient.api.flows.list_flows', new_callable=AsyncMock) as mock_list:
+            mock_list.return_value = flows_data
+            flows = await client.list_flows()
+            assert len(flows) == 2
+            assert all(isinstance(f, TAMSFlow) for f in flows)
+            assert flows[0].id == "flow-1"
+            assert flows[1].id == "flow-2"
 
 
 class TestTAMSClientSyncWrappers:

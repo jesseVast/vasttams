@@ -4,12 +4,18 @@ Tags API methods.
 Low-level API calls for tag operations.
 """
 
-from typing import Dict, Any, Optional
+import json
+from typing import Dict, Any, Optional, Union, List
 from ..exceptions import TAMSAPIError
 
 
-async def get_tags(client, entity_type: str, entity_id: str) -> Dict[str, str]:
-    """Get all tags for an entity."""
+async def get_tags(client, entity_type: str, entity_id: str) -> Dict[str, Union[str, List[str]]]:
+    """
+    Get all tags for an entity.
+    
+    Returns:
+        Dict mapping tag names to values (string or list of strings)
+    """
     if entity_type == "source":
         url = f"{client.server_url}/sources/{entity_id}/tags"
     elif entity_type == "flow":
@@ -27,8 +33,13 @@ async def get_tags(client, entity_type: str, entity_id: str) -> Dict[str, str]:
             raise TAMSAPIError(f"Failed to get tags: {error_text}", response.status, error_text)
 
 
-async def get_tag(client, entity_type: str, entity_id: str, tag_name: str) -> Optional[str]:
-    """Get a specific tag value."""
+async def get_tag(client, entity_type: str, entity_id: str, tag_name: str) -> Optional[Union[str, List[str]]]:
+    """
+    Get a specific tag value.
+    
+    Returns:
+        Tag value as string or list of strings, or None if not found
+    """
     if entity_type == "source":
         url = f"{client.server_url}/sources/{entity_id}/tags/{tag_name}"
     elif entity_type == "flow":
@@ -38,15 +49,12 @@ async def get_tag(client, entity_type: str, entity_id: str, tag_name: str) -> Op
     
     async with client._session.get(url, headers=await client._get_headers()) as response:
         if response.status == 200:
-            text = await response.text()
-            # Try to parse as JSON if it looks like JSON (starts with quote)
-            if text.startswith('"') and text.endswith('"'):
-                import json
-                try:
-                    return json.loads(text)
-                except json.JSONDecodeError:
-                    pass
-            return text
+            # Try to parse as JSON (handles both strings and arrays)
+            try:
+                return await response.json()
+            except Exception:
+                # Fallback to text if not valid JSON
+                return await response.text()
         elif response.status == 404:
             return None
         else:
@@ -54,8 +62,18 @@ async def get_tag(client, entity_type: str, entity_id: str, tag_name: str) -> Op
             raise TAMSAPIError(f"Failed to get tag: {error_text}", response.status, error_text)
 
 
-async def set_tag(client, entity_type: str, entity_id: str, tag_name: str, tag_value: str) -> None:
-    """Set or update a tag."""
+async def set_tag(client, entity_type: str, entity_id: str, tag_name: str, 
+                  tag_value: Union[str, List[str]]) -> None:
+    """
+    Set or update a tag.
+    
+    Args:
+        client: TAMSClient instance
+        entity_type: Entity type ("source" or "flow")
+        entity_id: Entity ID
+        tag_name: Tag name
+        tag_value: Tag value (string or list of strings)
+    """
     if entity_type == "source":
         url = f"{client.server_url}/sources/{entity_id}/tags/{tag_name}"
     elif entity_type == "flow":
@@ -64,8 +82,17 @@ async def set_tag(client, entity_type: str, entity_id: str, tag_name: str, tag_v
         raise ValueError(f"Unsupported entity type: {entity_type}")
     
     headers = await client._get_headers()
-    headers["Content-Type"] = "text/plain"
-    async with client._session.put(url, data=tag_value, headers=headers) as response:
+    
+    # Handle list values - send as JSON
+    if isinstance(tag_value, list):
+        headers["Content-Type"] = "application/json"
+        data = json.dumps(tag_value)
+    else:
+        # String value - send as text/plain
+        headers["Content-Type"] = "text/plain"
+        data = tag_value
+    
+    async with client._session.put(url, data=data, headers=headers) as response:
         if response.status not in (200, 204):
             error_text = await response.text()
             raise TAMSAPIError(f"Failed to set tag: {error_text}", response.status, error_text)

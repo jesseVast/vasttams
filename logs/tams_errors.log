@@ -769,3 +769,46 @@ AttributeError: 'str' object has no attribute 'get'
 2025-11-08 17:23:19 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'missing', 'loc': ('body', 'urn:x-nmos:format:video', 'essence_parameters'), 'msg': 'Field required', 'input': {'frame_width': 1920, 'frame_height': 1080, 'frame_rate': {'numerator': 25, 'denominator': 1}, 'source_id': '7bc29f36-683b-45c0-9258-1dfa74dc0a97', 'id': 'dbe326f4-d420-4a59-b3fe-6db1eafcd95a', 'format': 'urn:x-nmos:format:video', 'codec': 'video/h264', 'label': 'Integration Test Flow'}}]
 2025-11-08 17:23:19 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'missing', 'loc': ('body', 'urn:x-nmos:format:video', 'essence_parameters'), 'msg': 'Field required', 'input': {'frame_width': 1920, 'frame_height': 1080, 'frame_rate': {'numerator': 25, 'denominator': 1}, 'source_id': '7bc29f36-683b-45c0-9258-1dfa74dc0a97', 'id': 'dbe326f4-d420-4a59-b3fe-6db1eafcd95a', 'format': 'urn:x-nmos:format:video', 'codec': 'video/h264', 'label': 'Integration Test Flow'}}
 2025-11-08 17:23:19 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-09 10:41:30 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-09 10:41:30 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-09 10:41:30 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-09 10:41:30 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: POST /flows
+2025-11-09 10:41:30 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-09 10:41:30 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-09 10:41:30 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-09 10:41:30 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'body -> urn:x-nmos:format:video -> essence_parameters': Field required (got: {'source_id': '94945812-da1d-4019-a378-25a6164c0abe', 'id': '3ef1b099-4566-4a0c-9afa-498eafdb4f15', 'format': 'urn:x-nmos:format:video', 'codec': 'video/h264', 'label': 'Test'}, type: missing)
+2025-11-09 10:41:30 - vasttamsserver.core.utils:403:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-09 10:41:30 - vasttamsserver.core.utils:404:log_pydantic_validation_error - ERROR - Input Data:
+2025-11-09 10:41:30 - vasttamsserver.core.utils:418:log_pydantic_validation_error - ERROR - {
+  "source_id": "94945812-da1d-4019-a378-25a6164c0abe",
+  "id": "3ef1b099-4566-4a0c-9afa-498eafdb4f15",
+  "format": "urn:x-nmos:format:video",
+  "codec": "video/h264",
+  "label": "Test"
+}
+2025-11-09 10:41:30 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-09 10:41:30 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-09 10:41:30 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-09 10:41:30 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'missing', 'loc': ('body', 'urn:x-nmos:format:video', 'essence_parameters'), 'msg': 'Field required', 'input': {'source_id': '94945812-da1d-4019-a378-25a6164c0abe', 'id': '3ef1b099-4566-4a0c-9afa-498eafdb4f15', 'format': 'urn:x-nmos:format:video', 'codec': 'video/h264', 'label': 'Test'}}]
+2025-11-09 10:41:30 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'missing', 'loc': ('body', 'urn:x-nmos:format:video', 'essence_parameters'), 'msg': 'Field required', 'input': {'source_id': '94945812-da1d-4019-a378-25a6164c0abe', 'id': '3ef1b099-4566-4a0c-9afa-498eafdb4f15', 'format': 'urn:x-nmos:format:video', 'codec': 'video/h264', 'label': 'Test'}}
+2025-11-09 10:41:30 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-09 10:59:07 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-09 10:59:07 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-09 10:59:07 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-09 10:59:07 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: PUT /flows/046c1452-cc00-490f-816a-7d72765ba253/tags/quality
+2025-11-09 10:59:07 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-09 10:59:07 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-09 10:59:07 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-09 10:59:07 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'body': Input should be a valid string (got: ['hd', '4k'], type: string_type)
+2025-11-09 10:59:07 - vasttamsserver.core.utils:403:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-09 10:59:07 - vasttamsserver.core.utils:404:log_pydantic_validation_error - ERROR - Input Data:
+2025-11-09 10:59:07 - vasttamsserver.core.utils:418:log_pydantic_validation_error - ERROR - [
+  "hd",
+  "4k"
+]
+2025-11-09 10:59:07 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-09 10:59:07 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-09 10:59:07 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-09 10:59:07 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'string_type', 'loc': ('body',), 'msg': 'Input should be a valid string', 'input': ['hd', '4k']}]
+2025-11-09 10:59:07 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'string_type', 'loc': ('body',), 'msg': 'Input should be a valid string', 'input': ['hd', '4k']}
+2025-11-09 10:59:07 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================

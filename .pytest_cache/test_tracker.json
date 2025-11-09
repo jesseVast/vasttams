@@ -1595,6 +1595,82 @@
     "client/test_integration.py::TestFlowIntegration::test_get_flow": {
       "timestamp": "2025-11-08T22:28:32.720422+00:00",
       "source_files": []
+    },
+    "client/test_auth.py::TestTokenManager::test_get_token_caches_token": {
+      "timestamp": "2025-11-09T14:35:53.287936+00:00",
+      "source_files": []
+    },
+    "client/test_auth.py::TestTokenManager::test_login_success": {
+      "timestamp": "2025-11-09T14:38:04.657912+00:00",
+      "source_files": []
+    },
+    "client/test_auth.py::TestTokenManager::test_login_401_error": {
+      "timestamp": "2025-11-09T14:38:04.661065+00:00",
+      "source_files": []
+    },
+    "client/test_auth.py::TestTokenManager::test_login_no_token_in_response": {
+      "timestamp": "2025-11-09T14:38:04.664567+00:00",
+      "source_files": []
+    },
+    "client/test_auth.py::TestTokenManager::test_login_connection_error": {
+      "timestamp": "2025-11-09T14:38:04.669020+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientQueryMethods::test_get_flow_success": {
+      "timestamp": "2025-11-09T14:49:15.785068+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_get_tags_source_success": {
+      "timestamp": "2025-11-09T14:55:59.646404+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_get_tags_flow_success": {
+      "timestamp": "2025-11-09T14:55:59.650048+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_get_tags_not_found": {
+      "timestamp": "2025-11-09T14:55:59.653294+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_get_tags_invalid_entity_type": {
+      "timestamp": "2025-11-09T14:55:59.656932+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_get_tag_not_found": {
+      "timestamp": "2025-11-09T14:55:59.713175+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_set_tag_success": {
+      "timestamp": "2025-11-09T14:55:59.716489+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_set_tag_error": {
+      "timestamp": "2025-11-09T14:55:59.720918+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_delete_tag_success": {
+      "timestamp": "2025-11-09T14:55:59.724160+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_delete_tag_error": {
+      "timestamp": "2025-11-09T14:55:59.727569+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_get_tag_success": {
+      "timestamp": "2025-11-09T14:56:27.342725+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_get_tag_json_encoded": {
+      "timestamp": "2025-11-09T14:56:27.347307+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_get_tag_list_value": {
+      "timestamp": "2025-11-09T14:56:27.351179+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_set_tag_list_value": {
+      "timestamp": "2025-11-09T14:56:27.356273+00:00",
+      "source_files": []
     }
   },
   "failed_tests": {
@@ -1603,28 +1679,8 @@
       "last_error": "E   AssertionError: Audio flow should have at least 2 segments, got 0\n    assert 0 >= 2\n     +  where 0 = len([])"
     },
     "client/test_api_sources.py::TestSourceAPI::test_list_sources_success": {
-      "timestamp": "2025-11-08T21:40:23.000368+00:00",
-      "last_error": "tests/client/test_api_sources.py:133: in test_list_sources_success\n    result = await source_api.list_sources(mock_client, {})\nsrc/client/vasttamsclient/api/sources.py:67: in list_sources\n    return data.get(\"data\", [])\nE   AttributeError: 'list' object has no attribute 'get'"
-    },
-    "client/test_auth.py::TestTokenManager::test_login_success": {
-      "timestamp": "2025-11-08T21:40:23.014310+00:00",
-      "last_error": "src/client/vasttamsclient/auth.py:52: in login\n    async with session.post(\nE   TypeError: 'coroutine' object does not support the asynchronous context manager protocol\n\nDuring handling of the above exception, another exception occurred:\ntests/client/test_auth.py:49: in test_login_success\n    token = await token_manager.login()\nsrc/client/vasttamsclient/auth.py:75: in login\n    raise TAMSAuthenticationError(f\"Unexpected error during login: {e}\")\nE   vasttamsclient.exceptions.TAMSAuthenticationEr"
-    },
-    "client/test_auth.py::TestTokenManager::test_login_401_error": {
-      "timestamp": "2025-11-08T21:40:23.021509+00:00",
-      "last_error": "tests/client/test_auth.py:68: in test_login_401_error\n    assert \"Authentication failed\" in str(exc_info.value)\nE   assert 'Authentication failed' in \"Unexpected error during login: 'coroutine' object does not support the asynchronous context manager protocol\"\nE    +  where \"Unexpected error during login: 'coroutine' object does not support the asynchronous context manager protocol\" = str(TAMSAuthenticationError(\"Unexpected error during login: 'coroutine' object does not support the asynchronous"
-    },
-    "client/test_auth.py::TestTokenManager::test_login_no_token_in_response": {
-      "timestamp": "2025-11-08T21:40:23.026903+00:00",
-      "last_error": "tests/client/test_auth.py:85: in test_login_no_token_in_response\n    assert \"No access token\" in str(exc_info.value)\nE   assert 'No access token' in \"Unexpected error during login: 'coroutine' object does not support the asynchronous context manager protocol\"\nE    +  where \"Unexpected error during login: 'coroutine' object does not support the asynchronous context manager protocol\" = str(TAMSAuthenticationError(\"Unexpected error during login: 'coroutine' object does not support the asynchronous "
-    },
-    "client/test_auth.py::TestTokenManager::test_login_connection_error": {
-      "timestamp": "2025-11-08T21:40:23.033928+00:00",
-      "last_error": "src/client/vasttamsclient/auth.py:52: in login\n    async with session.post(\nE   TypeError: 'coroutine' object does not support the asynchronous context manager protocol\n\nDuring handling of the above exception, another exception occurred:\ntests/client/test_auth.py:95: in test_login_connection_error\n    await token_manager.login()\nsrc/client/vasttamsclient/auth.py:75: in login\n    raise TAMSAuthenticationError(f\"Unexpected error during login: {e}\")\nE   vasttamsclient.exceptions.TAMSAuthenticationE"
-    },
-    "client/test_auth.py::TestTokenManager::test_get_token_caches_token": {
-      "timestamp": "2025-11-08T21:40:23.041588+00:00",
-      "last_error": "src/client/vasttamsclient/auth.py:52: in login\n    async with session.post(\nE   TypeError: 'coroutine' object does not support the asynchronous context manager protocol\n\nDuring handling of the above exception, another exception occurred:\ntests/client/test_auth.py:112: in test_get_token_caches_token\n    token1 = await token_manager.get_token()\nsrc/client/vasttamsclient/auth.py:96: in get_token\n    await self.login()\nsrc/client/vasttamsclient/auth.py:75: in login\n    raise TAMSAuthenticationError("
+      "timestamp": "2025-11-09T14:45:19.232605+00:00",
+      "last_error": "tests/client/test_api_sources.py:134: in test_list_sources_success\n    mock_get_context = MagicMock()\nE   NameError: name 'MagicMock' is not defined"
     },
     "client/test_integration.py::TestFlowIntegration::test_update_flow": {
       "timestamp": "2025-11-08T22:28:42.389255+00:00",
@@ -1649,6 +1705,34 @@
     "client/test_integration.py::TestErrorHandling::test_delete_nonexistent_source": {
       "timestamp": "2025-11-08T22:29:23.387508+00:00",
       "last_error": "E   vasttamsclient.exceptions.TAMSAPIError: [422] Failed to delete source: {\"detail\":\"Invalid source ID format: Invalid UUID format. Must be a valid TAMS UUID\",\"status_code\":422}\n    Response: {\"detail\":\"Invalid source ID format: Invalid UUID format. Must be a valid TAMS UUID\",\"status_code\":422}\n\nDuring handling of the above exception, another exception occurred:\nE   assert ('404' in '[422] Failed to delete source: {\"detail\":\"Invalid source ID format: Invalid UUID format. Must be a valid TAMS UU"
+    },
+    "client/test_api_sources.py::TestSourceAPI::test_update_source_label_success": {
+      "timestamp": "2025-11-09T14:45:19.226486+00:00",
+      "last_error": "tests/client/test_api_sources.py:97: in test_update_source_label_success\n    mock_put_context = MagicMock()\nE   NameError: name 'MagicMock' is not defined"
+    },
+    "client/test_client.py::TestTAMSClientQueryMethods::test_get_source_success": {
+      "timestamp": "2025-11-09T14:45:34.468593+00:00",
+      "last_error": "tests/client/test_client.py:205: in test_get_source_success\n    with patch('vasttamsclient.client.source_api.get_source', new_callable=AsyncMock) as mock_get:\n../../../.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/unittest/mock.py:1451: in __enter__\n    self.target = self.getter()\n../../../.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/pkgutil.py:528: in resolve_name\n    result = getattr(result, p)\nE   AttributeError: module 'vasttamsclient.cl"
+    },
+    "client/test_domain_flow.py::TestTAMSFlowSegmentOperations::test_add_segment_with_file_path": {
+      "timestamp": "2025-11-09T14:46:11.491127+00:00",
+      "last_error": "tests/client/test_domain_flow.py:175: in test_add_segment_with_file_path\n    segment = await flow.add_segment(\nsrc/client/vasttamsclient/domain/flow.py:165: in add_segment\n    chunk_size=chunk_size\nE   NameError: name 'chunk_size' is not defined"
+    },
+    "client/test_domain_source.py::TestTAMSSourceInit::test_init_new_source_with_id": {
+      "timestamp": "2025-11-09T14:46:11.499146+00:00",
+      "last_error": "tests/client/test_domain_source.py:37: in test_init_new_source_with_id\n    assert source._created is True\nE   assert False is True\nE    +  where False = <vasttamsclient.domain.source.TAMSSource object at 0x127182db0>._created"
+    },
+    "client/test_domain_source.py::TestTAMSSourceFlowOperations::test_get_flow": {
+      "timestamp": "2025-11-09T14:48:11.358575+00:00",
+      "last_error": "tests/client/test_domain_source.py:160: in test_get_flow\n    flow = await source.get_flow(\"flow-123\")\nsrc/client/vasttamsclient/domain/source.py:91: in get_flow\n    return TAMSFlow(self._client, id=flow_id, **flow_data)\nE   TypeError: vasttamsclient.domain.flow.TAMSFlow() got multiple values for keyword argument 'id'"
+    },
+    "client/test_domain_source.py::TestTAMSSourceFlowOperations::test_list_flows": {
+      "timestamp": "2025-11-09T14:48:11.365309+00:00",
+      "last_error": "tests/client/test_domain_source.py:190: in test_list_flows\n    flows = await source.list_flows()\nsrc/client/vasttamsclient/domain/source.py:99: in list_flows\n    return [TAMSFlow(self._client, id=f[\"id\"], **f) for f in flows_data]\nE   TypeError: vasttamsclient.domain.flow.TAMSFlow() got multiple values for keyword argument 'id'"
+    },
+    "client/test_comprehensive_workflow.py::TestComprehensiveWorkflow::test_comprehensive_workflow": {
+      "timestamp": "2025-11-09T16:00:36.347339+00:00",
+      "last_error": "tests/client/test_comprehensive_workflow.py:334: in test_comprehensive_workflow\n    await f2.set_tag(\"quality\", [\"hd\", \"4k\"])  # List value\nsrc/client/vasttamsclient/domain/flow.py:299: in set_tag\n    await tag_api.set_tag(self._client, \"flow\", self._id, name, value)\nsrc/client/vasttamsclient/api/tags.py:98: in set_tag\n    raise TAMSAPIError(f\"Failed to set tag: {error_text}\", response.status, error_text)\nE   vasttamsclient.exceptions.TAMSAPIError: [422] Failed to set tag: {\"detail\":[{\"msg\":\"Val"
     }
   },
   "source_file_hashes": {}

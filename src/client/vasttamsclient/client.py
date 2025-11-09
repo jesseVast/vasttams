@@ -40,6 +40,12 @@ class TAMSClient:
         self._token_manager = TokenManager(server_url, username, password)
         self._session: Optional[aiohttp.ClientSession] = None
         self._closed = False
+        
+        # Domain object cache: {type: {id: object}}
+        self._cache: Dict[str, Dict[str, Any]] = {
+            "source": {},
+            "flow": {}
+        }
     
     async def __aenter__(self):
         """Async context manager entry."""
@@ -98,10 +104,32 @@ class TAMSClient:
         except aiohttp.ClientError as e:
             raise TAMSConnectionError(f"Connection error: {e}")
     
+    def clear_cache(self, object_type: Optional[str] = None, object_id: Optional[str] = None):
+        """
+        Clear domain object cache.
+        
+        Args:
+            object_type: Type of object to clear ("source", "flow", or None for all)
+            object_id: Specific object ID to clear (or None for all of type)
+        """
+        if object_type is None:
+            # Clear all caches
+            self._cache["source"].clear()
+            self._cache["flow"].clear()
+        elif object_type in self._cache:
+            if object_id is None:
+                # Clear all of this type
+                self._cache[object_type].clear()
+            else:
+                # Clear specific object
+                self._cache[object_type].pop(object_id, None)
+    
     async def close(self):
         """Close HTTP session."""
         if self._session and not self._session.closed:
             await self._session.close()
+        # Clear cache on close
+        self.clear_cache()
         self._closed = True
     
     # Factory methods for creating new objects
@@ -144,33 +172,152 @@ class TAMSClient:
         return TAMSFlow(self, **flow_data)
     
     # Query methods for retrieving existing objects
-    async def get_source(self, source_id: str) -> Optional[TAMSSource]:
-        """Get a source by ID."""
+    async def get_source(self, source_id: str, use_cache: bool = True) -> Optional[TAMSSource]:
+        """
+        Get a source by ID.
+        
+        Args:
+            source_id: Source ID
+            use_cache: If True, return cached object if available
+            
+        Returns:
+            TAMSSource or None if not found
+        """
+        # Check cache first
+        if use_cache and source_id in self._cache["source"]:
+            return self._cache["source"][source_id]
+        
         from .api import sources as source_api
         source_data = await source_api.get_source(self, source_id)
         if source_data:
-            return TAMSSource(self, **source_data)
+            source = TAMSSource(self, **source_data)
+            # Cache the object
+            self._cache["source"][source_id] = source
+            return source
         return None
     
-    async def get_flow(self, flow_id: str) -> Optional[TAMSFlow]:
-        """Get a flow by ID."""
+    async def get_flow(self, flow_id: str, use_cache: bool = True) -> Optional[TAMSFlow]:
+        """
+        Get a flow by ID.
+        
+        Args:
+            flow_id: Flow ID
+            use_cache: If True, return cached object if available
+            
+        Returns:
+            TAMSFlow or None if not found
+        """
+        # Check cache first
+        if use_cache and flow_id in self._cache["flow"]:
+            return self._cache["flow"][flow_id]
+        
         from .api import flows as flow_api
         flow_data = await flow_api.get_flow(self, flow_id)
         if flow_data:
-            return TAMSFlow(self, **flow_data)
+            # Remove id from flow_data since TAMSFlow expects it as a keyword argument when id is provided
+            flow_data_copy = {k: v for k, v in flow_data.items() if k != "id"}
+            flow = TAMSFlow(self, id=flow_id, **flow_data_copy)
+            # Cache the object
+            self._cache["flow"][flow_id] = flow
+            return flow
         return None
     
     async def list_sources(self, **query_params) -> List[TAMSSource]:
-        """List sources."""
+        """
+        List sources.
+        
+        Args:
+            **query_params: Query parameters (e.g., tag.quality="hd", tag_exists.quality=True)
+            
+        Returns:
+            List of TAMSSource objects
+        """
         from .api import sources as source_api
         sources_data = await source_api.list_sources(self, query_params)
-        return [TAMSSource(self, **s) for s in sources_data]
+        result = []
+        for s in sources_data:
+            source_id = s.get("id")
+            if source_id:
+                # Use cached object if available, otherwise create new
+                if source_id in self._cache["source"]:
+                    result.append(self._cache["source"][source_id])
+                else:
+                    source = TAMSSource(self, **s)
+                    self._cache["source"][source_id] = source
+                    result.append(source)
+        return result
     
     async def list_flows(self, **query_params) -> List[TAMSFlow]:
-        """List flows."""
+        """
+        List flows.
+        
+        Args:
+            **query_params: Query parameters (e.g., tag.quality="hd", tag_exists.quality=True)
+            
+        Returns:
+            List of TAMSFlow objects
+        """
         from .api import flows as flow_api
         flows_data = await flow_api.list_flows(self, query_params)
-        return [TAMSFlow(self, **f) for f in flows_data]
+        result = []
+        for f in flows_data:
+            # Remove id from flow_data since TAMSFlow expects it as a keyword argument when id is provided
+            flow_id = f.get("id")
+            if flow_id:
+                # Use cached object if available, otherwise create new
+                if flow_id in self._cache["flow"]:
+                    result.append(self._cache["flow"][flow_id])
+                else:
+                    flow_data_copy = {k: v for k, v in f.items() if k != "id"}
+                    flow = TAMSFlow(self, id=flow_id, **flow_data_copy)
+                    self._cache["flow"][flow_id] = flow
+                    result.append(flow)
+        return result
+    
+    # Tag-based query helpers
+    async def list_sources_by_tag(self, tag_name: str, tag_value: Optional[str] = None, 
+                                  tag_exists: bool = False) -> List[TAMSSource]:
+        """
+        List sources filtered by tag.
+        
+        Args:
+            tag_name: Tag name to filter on
+            tag_value: Tag value(s) to match (comma-separated string for multiple values)
+            tag_exists: If True, only check if tag exists (ignore value)
+            
+        Returns:
+            List of TAMSSource objects matching the tag criteria
+        """
+        query_params = {}
+        if tag_exists:
+            query_params[f"tag_exists.{tag_name}"] = True
+        elif tag_value:
+            query_params[f"tag.{tag_name}"] = tag_value
+        else:
+            query_params[f"tag_exists.{tag_name}"] = True
+        return await self.list_sources(**query_params)
+    
+    async def list_flows_by_tag(self, tag_name: str, tag_value: Optional[str] = None,
+                               tag_exists: bool = False) -> List[TAMSFlow]:
+        """
+        List flows filtered by tag.
+        
+        Args:
+            tag_name: Tag name to filter on
+            tag_value: Tag value(s) to match (comma-separated string for multiple values)
+            tag_exists: If True, only check if tag exists (ignore value)
+            
+        Returns:
+            List of TAMSFlow objects matching the tag criteria
+        """
+        query_params = {}
+        if tag_exists:
+            query_params[f"tag_exists.{tag_name}"] = True
+        elif tag_value:
+            query_params[f"tag.{tag_name}"] = tag_value
+        else:
+            query_params[f"tag_exists.{tag_name}"] = True
+        return await self.list_flows(**query_params)
     
     # Sync wrappers
     def get_source_sync(self, source_id: str) -> Optional[TAMSSource]:

@@ -40,12 +40,17 @@ class TestTokenManager:
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={"access_token": "test-token-123"})
         
-        mock_session = AsyncMock()
-        mock_session.post = AsyncMock()
-        mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
+        # Create async context manager for session.post() return value
+        mock_post_context = MagicMock()
+        mock_post_context.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_post_context.__aexit__ = AsyncMock(return_value=None)
         
-        with patch('aiohttp.ClientSession', return_value=mock_session):
+        mock_session = AsyncMock()
+        mock_session.post = MagicMock(return_value=mock_post_context)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        
+        with patch('vasttamsclient.auth.aiohttp.ClientSession', return_value=mock_session):
             token = await token_manager.login()
             assert token == "test-token-123"
             assert token_manager._token == "test-token-123"
@@ -57,12 +62,17 @@ class TestTokenManager:
         mock_response.status = 401
         mock_response.text = AsyncMock(return_value="Invalid credentials")
         
-        mock_session = AsyncMock()
-        mock_session.post = AsyncMock()
-        mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
+        # Create async context manager for session.post() return value
+        mock_post_context = MagicMock()
+        mock_post_context.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_post_context.__aexit__ = AsyncMock(return_value=None)
         
-        with patch('aiohttp.ClientSession', return_value=mock_session):
+        mock_session = AsyncMock()
+        mock_session.post = MagicMock(return_value=mock_post_context)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        
+        with patch('vasttamsclient.auth.aiohttp.ClientSession', return_value=mock_session):
             with pytest.raises(TAMSAuthenticationError) as exc_info:
                 await token_manager.login()
             assert "Authentication failed" in str(exc_info.value)
@@ -74,12 +84,17 @@ class TestTokenManager:
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={})  # No access_token
         
-        mock_session = AsyncMock()
-        mock_session.post = AsyncMock()
-        mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
+        # Create async context manager for session.post() return value
+        mock_post_context = MagicMock()
+        mock_post_context.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_post_context.__aexit__ = AsyncMock(return_value=None)
         
-        with patch('aiohttp.ClientSession', return_value=mock_session):
+        mock_session = AsyncMock()
+        mock_session.post = MagicMock(return_value=mock_post_context)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        
+        with patch('vasttamsclient.auth.aiohttp.ClientSession', return_value=mock_session):
             with pytest.raises(TAMSAuthenticationError) as exc_info:
                 await token_manager.login()
             assert "No access token" in str(exc_info.value)
@@ -88,9 +103,11 @@ class TestTokenManager:
     async def test_login_connection_error(self, token_manager):
         """Test login with connection error."""
         mock_session = AsyncMock()
-        mock_session.post = AsyncMock(side_effect=aiohttp.ClientError("Connection failed"))
+        mock_session.post = MagicMock(side_effect=aiohttp.ClientError("Connection failed"))
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
         
-        with patch('aiohttp.ClientSession', return_value=mock_session):
+        with patch('vasttamsclient.auth.aiohttp.ClientSession', return_value=mock_session):
             with pytest.raises(TAMSConnectionError) as exc_info:
                 await token_manager.login()
             assert "Connection error" in str(exc_info.value)
@@ -102,12 +119,19 @@ class TestTokenManager:
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={"access_token": "cached-token"})
         
-        mock_session = AsyncMock()
-        mock_session.post = AsyncMock()
-        mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
+        # Create async context manager for session.post() return value
+        mock_post_context = MagicMock()
+        mock_post_context.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_post_context.__aexit__ = AsyncMock(return_value=None)
         
-        with patch('aiohttp.ClientSession', return_value=mock_session):
+        mock_session = AsyncMock()
+        # post() should return a regular mock (not AsyncMock) that supports async context manager
+        mock_session.post = MagicMock(return_value=mock_post_context)
+        # Make ClientSession itself an async context manager
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        
+        with patch('vasttamsclient.auth.aiohttp.ClientSession', return_value=mock_session):
             # First call should login
             token1 = await token_manager.get_token()
             assert token1 == "cached-token"
@@ -128,12 +152,17 @@ class TestTokenManager:
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={"access_token": "new-token"})
         
-        mock_session = AsyncMock()
-        mock_session.post = AsyncMock()
-        mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
+        # Create async context manager for session.post() return value
+        mock_post_context = MagicMock()
+        mock_post_context.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_post_context.__aexit__ = AsyncMock(return_value=None)
         
-        with patch('aiohttp.ClientSession', return_value=mock_session):
+        mock_session = AsyncMock()
+        mock_session.post = MagicMock(return_value=mock_post_context)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        
+        with patch('vasttamsclient.auth.aiohttp.ClientSession', return_value=mock_session):
             token = await token_manager.refresh_token()
             assert token == "new-token"
             assert token_manager._token == "new-token"

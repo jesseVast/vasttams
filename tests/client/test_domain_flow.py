@@ -85,16 +85,19 @@ class TestTAMSFlowProperties:
     def test_format_property(self, client):
         """Test format property."""
         flow = TAMSFlow(client, id="flow-123", format="urn:x-nmos:format:video", codec="video/h264", source_id="source-123")
+        flow._data["format"] = "urn:x-nmos:format:video"  # Set data for existing flow
         assert flow.format == "urn:x-nmos:format:video"
     
     def test_codec_property(self, client):
         """Test codec property."""
         flow = TAMSFlow(client, id="flow-123", codec="video/h264", format="urn:x-nmos:format:video", source_id="source-123")
+        flow._data["codec"] = "video/h264"  # Set data for existing flow
         assert flow.codec == "video/h264"
     
     def test_label_property(self, client):
         """Test label property."""
         flow = TAMSFlow(client, id="flow-123", label="Test Flow", format="urn:x-nmos:format:video", codec="video/h264", source_id="source-123")
+        flow._data["label"] = "Test Flow"  # Set data for existing flow
         assert flow.label == "Test Flow"
     
     def test_essence_parameters_property(self, client):
@@ -182,8 +185,15 @@ class TestTAMSFlowSegmentOperations:
         flow = TAMSFlow(client, id="flow-123", source_id="source-123", format="urn:x-nmos:format:video", codec="video/h264")
         
         with patch.object(flow, '_ensure_created', new_callable=AsyncMock):
-            with pytest.raises(FileNotFoundError):
-                await flow.add_segment(file_path="/nonexistent/file.mp4")
+            with patch('vasttamsclient.api.segments.allocate_storage', new_callable=AsyncMock) as mock_allocate:
+                mock_allocate.return_value = {
+                    "media_objects": [{
+                        "object_id": "object-123",
+                        "put_url": {"url": "https://s3.example.com/upload", "content-type": "video/mp4"}
+                    }]
+                }
+                with pytest.raises(FileNotFoundError):
+                    await flow.add_segment(file_path="/nonexistent/file.mp4")
     
     @pytest.mark.asyncio
     async def test_add_segment_no_file_or_s3(self, client):

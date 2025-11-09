@@ -156,9 +156,14 @@ class TAMSFlow(TAMSDomainObject):
             if not file_path_obj.exists():
                 raise FileNotFoundError(f"File not found: {file_path}")
             
-            with open(file_path, 'rb') as f:
-                file_data = f.read()
-                await segment_api.upload_to_storage(self._client, presigned_url, file_data, content_type)
+            # Use chunked upload for large files (multipart support)
+            await segment_api.upload_to_storage(
+                self._client, 
+                presigned_url, 
+                file_path=str(file_path_obj),
+                content_type=content_type,
+                chunk_size=chunk_size
+            )
         elif s3_object:
             # For S3 objects, we assume the object already exists in S3
             # In a real implementation, you might need to copy from S3 to the presigned URL

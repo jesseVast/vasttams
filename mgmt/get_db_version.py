@@ -10,10 +10,12 @@ from pathlib import Path
 
 # Add the src directory to the path
 root_dir = os.path.abspath(str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(root_dir) / "src"))
+sys.path.insert(0, str(Path(root_dir) / "src" / "server"))
 sys.path.insert(0, root_dir)
 
 # Change to root directory so config/config.json is found
+# In container, config is at /etc/tams/config.json, in dev it's at config/config.json
+# The Settings class handles this automatically
 os.chdir(root_dir)
 
 

@@ -13,9 +13,11 @@ from pathlib import Path
 
 # Add src to path
 root_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(root_dir / "src"))
+sys.path.insert(0, str(root_dir / "src" / "server"))
 
 # Change to root directory to load config correctly
+# In container, config is at /etc/tams/config.json, in dev it's at config/config.json
+# The Settings class handles this automatically, so we just need to be in the right directory
 os.chdir(str(root_dir))
 
 from vasttamsserver.core.dependencies import get_vast_db

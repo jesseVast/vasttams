@@ -4,12 +4,15 @@ Flow API methods.
 Low-level API calls for flow operations.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import TYPE_CHECKING, Dict, Any, List, Optional
 import aiohttp
 from ..exceptions import TAMSAPIError
 
+if TYPE_CHECKING:
+    from ..client import TAMSClient
 
-async def create_flow(client, flow_data: Dict[str, Any]) -> Dict[str, Any]:
+
+async def create_flow(client: "TAMSClient", flow_data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a flow."""
     url = f"{client.server_url}/flows"
     async with client._session.post(url, json=flow_data, headers=await client._get_headers()) as response:
@@ -20,7 +23,7 @@ async def create_flow(client, flow_data: Dict[str, Any]) -> Dict[str, Any]:
             raise TAMSAPIError(f"Failed to create flow: {error_text}", response.status, error_text)
 
 
-async def get_flow(client, flow_id: str) -> Optional[Dict[str, Any]]:
+async def get_flow(client: "TAMSClient", flow_id: str) -> Optional[Dict[str, Any]]:
     """Get a flow by ID."""
     url = f"{client.server_url}/flows/{flow_id}"
     async with client._session.get(url, headers=await client._get_headers()) as response:
@@ -33,7 +36,7 @@ async def get_flow(client, flow_id: str) -> Optional[Dict[str, Any]]:
             raise TAMSAPIError(f"Failed to get flow: {error_text}", response.status, error_text)
 
 
-async def update_flow(client, flow_id: str, flow_data: Dict[str, Any]) -> Dict[str, Any]:
+async def update_flow(client: "TAMSClient", flow_id: str, flow_data: Dict[str, Any]) -> Dict[str, Any]:
     """Update a flow."""
     url = f"{client.server_url}/flows/{flow_id}"
     async with client._session.put(url, json=flow_data, headers=await client._get_headers()) as response:
@@ -44,7 +47,7 @@ async def update_flow(client, flow_id: str, flow_data: Dict[str, Any]) -> Dict[s
             raise TAMSAPIError(f"Failed to update flow: {error_text}", response.status, error_text)
 
 
-async def delete_flow(client, flow_id: str) -> None:
+async def delete_flow(client: "TAMSClient", flow_id: str) -> None:
     """Delete a flow."""
     url = f"{client.server_url}/flows/{flow_id}"
     async with client._session.delete(url, headers=await client._get_headers()) as response:
@@ -53,7 +56,7 @@ async def delete_flow(client, flow_id: str) -> None:
             raise TAMSAPIError(f"Failed to delete flow: {error_text}", response.status, error_text)
 
 
-async def list_flows(client, query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+async def list_flows(client: "TAMSClient", query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """List flows."""
     url = f"{client.server_url}/flows"
     async with client._session.get(url, params=query_params or {}, headers=await client._get_headers()) as response:

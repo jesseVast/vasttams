@@ -392,7 +392,10 @@ class TestErrorHandling:
     
     async def test_delete_nonexistent_source(self, client):
         """Test deleting a non-existent source (should not raise error)."""
-        source = TAMSSource(client, id="00000000-0000-0000-0000-000000000000")
+        # Use a valid TAMS UUID format (v1-v5) for a non-existent source
+        import uuid
+        nonexistent_id = str(uuid.uuid4())  # uuid4 generates v4 UUIDs which are valid TAMS UUIDs
+        source = TAMSSource(client, id=nonexistent_id, format="urn:x-nmos:format:video")
         # Should not raise error (idempotent delete)
         try:
             await source.delete()

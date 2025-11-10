@@ -4,11 +4,14 @@ Storage Backend API methods.
 Low-level API calls for storage backend operations.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import TYPE_CHECKING, Dict, Any, List, Optional
 from ..exceptions import TAMSAPIError
 
+if TYPE_CHECKING:
+    from ..client import TAMSClient
 
-async def list_storage_backends(client) -> List[Dict[str, Any]]:
+
+async def list_storage_backends(client: "TAMSClient") -> List[Dict[str, Any]]:
     """List storage backends."""
     url = f"{client.server_url}/service/storage-backends"
     async with client._session.get(url, headers=await client._get_headers()) as response:
@@ -23,7 +26,7 @@ async def list_storage_backends(client) -> List[Dict[str, Any]]:
             raise TAMSAPIError(f"Failed to list storage backends: {error_text}", response.status, error_text)
 
 
-async def get_storage_backend(client, backend_id: str) -> Optional[Dict[str, Any]]:
+async def get_storage_backend(client: "TAMSClient", backend_id: str) -> Optional[Dict[str, Any]]:
     """Get a storage backend by ID."""
     url = f"{client.server_url}/service/storage-backends/{backend_id}"
     async with client._session.get(url, headers=await client._get_headers()) as response:
@@ -36,7 +39,7 @@ async def get_storage_backend(client, backend_id: str) -> Optional[Dict[str, Any
             raise TAMSAPIError(f"Failed to get storage backend: {error_text}", response.status, error_text)
 
 
-async def create_storage_backend(client, backend_data: Dict[str, Any]) -> Dict[str, Any]:
+async def create_storage_backend(client: "TAMSClient", backend_data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a storage backend."""
     url = f"{client.server_url}/service/storage-backends"
     async with client._session.post(url, json=backend_data, headers=await client._get_headers()) as response:
@@ -47,7 +50,7 @@ async def create_storage_backend(client, backend_data: Dict[str, Any]) -> Dict[s
             raise TAMSAPIError(f"Failed to create storage backend: {error_text}", response.status, error_text)
 
 
-async def update_storage_backend(client, backend_id: str, backend_data: Dict[str, Any]) -> Dict[str, Any]:
+async def update_storage_backend(client: "TAMSClient", backend_id: str, backend_data: Dict[str, Any]) -> Dict[str, Any]:
     """Update a storage backend."""
     url = f"{client.server_url}/service/storage-backends/{backend_id}"
     async with client._session.put(url, json=backend_data, headers=await client._get_headers()) as response:
@@ -58,7 +61,7 @@ async def update_storage_backend(client, backend_id: str, backend_data: Dict[str
             raise TAMSAPIError(f"Failed to update storage backend: {error_text}", response.status, error_text)
 
 
-async def delete_storage_backend(client, backend_id: str) -> None:
+async def delete_storage_backend(client: "TAMSClient", backend_id: str) -> None:
     """Delete a storage backend."""
     url = f"{client.server_url}/service/storage-backends/{backend_id}"
     async with client._session.delete(url, headers=await client._get_headers()) as response:

@@ -1,16 +1,17 @@
 # Folder Ingestor
 
-Ingests all files from a folder into TAMS. Each folder becomes one source and one flow. Media files are chunked into time-based segments, non-media files are stored as data files.
+Ingests all files from a folder into TAMS. Each folder becomes one source with separate flows for each media type (video, audio, data). When multiple media types are detected, a multi-essence flow is created to collect them. Media files are chunked into time-based segments, non-media files are stored as data files.
 
 ## Features
 
 - **Automatic Media Detection**: Uses `ffprobe` to detect video and audio files
+- **Multi-Essence Flow Support**: Automatically creates separate flows for each media type and a multi-essence flow to collect them
 - **Media Chunking**: Chunks video/audio files into 30-second segments using `jthaloor-ffmpeg`
 - **Marker-Based Chunking**: Automatically detects and uses metadata files (FFMETADATA1 or JSON) for intelligent chunking
 - **Metadata File Matching**: Heuristically matches metadata files to media files (e.g., `soccer.mp4` + `soccer_metadata.txt`)
-- **Data File Support**: Uploads non-media files as data objects
+- **Data File Support**: Uploads non-media files as data objects to a dedicated data flow
 - **Resume Support**: Automatically resumes from where it left off if interrupted
-- **Duplicate Detection**: Skips already-processed files and chunks
+- **Duplicate Detection**: Skips already-processed files and chunks across all flows
 - **Progress Tracking**: Tracks ingestion state in source tags
 
 ## Prerequisites
@@ -104,12 +105,18 @@ python folder_ingestor.py \
    - Sets `folder_path` tag with absolute folder path
    - Sets `ingest_state` tag to track progress
 
-2. **Flow Creation**: Creates a single flow for the source
-   - Format matches source format
-   - Codec determined from first media file
-   - Essence parameters extracted from first media file
+2. **Media Type Detection**: Scans all files to detect media types
+   - Detects video, audio, and data files
+   - Groups files by type for routing to appropriate flows
 
-3. **File Processing**:
+3. **Flow Creation**: Creates separate flows for each detected media type
+   - **Video Flow**: For video files (`urn:x-nmos:format:video`)
+   - **Audio Flow**: For audio files (`urn:x-nmos:format:audio`)
+   - **Data Flow**: For non-media files (`urn:x-nmos:format:data`)
+   - Each flow has format-specific codec and essence parameters
+   - If multiple types detected, creates a **Multi-Flow** (`urn:x-nmos:format:multi`) that collects all flows via `flow_collection`
+
+4. **File Processing**:
    - **Media Files**: Chunked using `jthaloor-ffmpeg`
      - **Marker-Based Chunking**: If a matching metadata file is found, uses markers from the file
        - Supports FFMETADATA1 format (`.txt` files with `;FFMETADATA1` header)
@@ -122,7 +129,7 @@ python folder_ingestor.py \
      - Stored as segments with timerange `[0:0_0:0)`
      - Filename stored in flow tags
 
-4. **Resume Support**:
+5. **Resume Support**:
    - On startup, queries TAMS for existing source with matching `folder_path` tag
    - Builds map of already-processed files/chunks from flow tags
    - Skips already-processed files/chunks
@@ -263,9 +270,14 @@ Supported patterns:
 
 ## Notes
 
-- Each folder becomes **one source** and **one flow**
+- Each folder becomes **one source** with **separate flows for each media type**
+- When multiple media types are detected, a **multi-essence flow** is created to collect all flows
 - Media files are chunked into **30-second segments** by default, or **using markers** if metadata files are found
+- Files are routed to the appropriate flow based on their media type:
+  - Video files → Video flow
+  - Audio files → Audio flow
+  - Non-media files → Data flow
 - Filename and file path are stored in **flow tags** (not segment tags, as segments don't support tags in TAMS)
-- The tool automatically handles resume and duplicate detection
+- The tool automatically handles resume and duplicate detection across all flows
 - Progress is tracked in source tags: `ingest_state`, `files_processed`, `files_total`
 

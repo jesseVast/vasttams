@@ -909,10 +909,32 @@ class FlowStorageService:
         """Check if a flow is read-only"""
         try:
             result = self.vast_db.query("flows").select("read_only").where(f"id = '{flow_id}'").execute()
-            if not result or len(result) == 0:
+            
+            # Handle VAST query result format
+            read_only_value = False
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
+                if isinstance(data, dict) and data:
+                    # Columnar format - get first value from read_only column
+                    read_only_col = data.get('read_only', [])
+                    if read_only_col and len(read_only_col) > 0:
+                        read_only_value = read_only_col[0] if read_only_col[0] is not None else False
+                elif isinstance(data, list) and data:
+                    # Row-oriented format
+                    if len(data) > 0:
+                        read_only_value = data[0].get('read_only', False) if isinstance(data[0], dict) else False
+            elif isinstance(result, list) and result:
+                # Direct list of rows
+                if len(result) > 0:
+                    read_only_value = result[0].get('read_only', False) if isinstance(result[0], dict) else False
+            elif isinstance(result, (int, float)):
+                # Query might return a count or 0
+                return False
+            else:
+                # No result or unexpected format
                 return False
             
-            return result[0].get('read_only', False)
+            return bool(read_only_value)
         except Exception as e:
             logger.error("Failed to check flow read-only status for %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")

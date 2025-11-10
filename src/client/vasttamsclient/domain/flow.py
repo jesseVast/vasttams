@@ -336,6 +336,10 @@ class TAMSFlow(TAMSDomainObject):
         return self._data.get("label")
     
     @property
+    def description(self) -> Optional[str]:
+        return self._data.get("description")
+    
+    @property
     def essence_parameters(self) -> Dict[str, Any]:
         return self._data.get("essence_parameters", {})
 

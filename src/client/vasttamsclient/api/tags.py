@@ -5,11 +5,14 @@ Low-level API calls for tag operations.
 """
 
 import json
-from typing import Dict, Any, Optional, Union, List
+from typing import TYPE_CHECKING, Dict, Any, Optional, Union, List
 from ..exceptions import TAMSAPIError
 
+if TYPE_CHECKING:
+    from ..client import TAMSClient
 
-async def get_tags(client, entity_type: str, entity_id: str) -> Dict[str, Union[str, List[str]]]:
+
+async def get_tags(client: "TAMSClient", entity_type: str, entity_id: str) -> Dict[str, Union[str, List[str]]]:
     """
     Get all tags for an entity.
     
@@ -33,7 +36,7 @@ async def get_tags(client, entity_type: str, entity_id: str) -> Dict[str, Union[
             raise TAMSAPIError(f"Failed to get tags: {error_text}", response.status, error_text)
 
 
-async def get_tag(client, entity_type: str, entity_id: str, tag_name: str) -> Optional[Union[str, List[str]]]:
+async def get_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag_name: str) -> Optional[Union[str, List[str]]]:
     """
     Get a specific tag value.
     
@@ -62,7 +65,7 @@ async def get_tag(client, entity_type: str, entity_id: str, tag_name: str) -> Op
             raise TAMSAPIError(f"Failed to get tag: {error_text}", response.status, error_text)
 
 
-async def set_tag(client, entity_type: str, entity_id: str, tag_name: str, 
+async def set_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag_name: str, 
                   tag_value: Union[str, List[str]]) -> None:
     """
     Set or update a tag.
@@ -98,7 +101,7 @@ async def set_tag(client, entity_type: str, entity_id: str, tag_name: str,
             raise TAMSAPIError(f"Failed to set tag: {error_text}", response.status, error_text)
 
 
-async def delete_tag(client, entity_type: str, entity_id: str, tag_name: str) -> None:
+async def delete_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag_name: str) -> None:
     """Delete a tag."""
     if entity_type == "source":
         url = f"{client.server_url}/sources/{entity_id}/tags/{tag_name}"

@@ -37,7 +37,8 @@ class FileProcessor:
         max_parallel_uploads: int,
         no_chunking: bool,
         use_metadata: bool = False,
-        include_originals: bool = False
+        include_originals: bool = False,
+        chunk_format: str = "original"
     ):
         """
         Initialize file processor.
@@ -50,6 +51,7 @@ class FileProcessor:
             no_chunking: If True, upload files as-is without chunking (overrides use_metadata)
             use_metadata: If True, use metadata files for marker-based chunking when available
             include_originals: If True, also upload original files to separate flow when chunking
+            chunk_format: Chunk format - "original" (copy codecs, MP4) or "hls" (HLS-compatible TS) (default: "original")
         """
         self.client = client
         self.chunk_duration = chunk_duration
@@ -58,6 +60,7 @@ class FileProcessor:
         self.no_chunking = no_chunking
         self.use_metadata = use_metadata
         self.include_originals = include_originals
+        self.chunk_format = chunk_format
         self._upload_semaphore = asyncio.Semaphore(max_parallel_uploads)
     
     def detect_media_types(
@@ -222,7 +225,8 @@ class FileProcessor:
             file_path_str,
             chunk_duration=self.chunk_duration,
             metadata_file=str(metadata_file) if metadata_file and chunk_mode == "metadata_file" else None,
-            chunk_mode=chunk_mode
+            chunk_mode=chunk_mode,
+            chunk_format=self.chunk_format
         )
         
         # Calculate total chunks expected

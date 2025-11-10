@@ -104,6 +104,12 @@ async def main():
         action="store_true",
         help="In addition to chunks, also upload original files to a separate flow (default: False). Only applies when chunking is enabled."
     )
+    parser.add_argument(
+        "--chunk-format",
+        choices=["original", "hls"],
+        default="original",
+        help="Chunk format: 'original' (copy codecs, MP4) or 'hls' (HLS-compatible TS with H.264/AAC) (default: original)"
+    )
     
     args = parser.parse_args()
     
@@ -127,6 +133,7 @@ async def main():
     no_chunking = args.no_chunking or config.get("no_chunking", False)
     use_metadata = args.use_metadata or config.get("use_metadata", False)
     include_originals = args.include_originals or config.get("include_originals", False)
+    chunk_format = args.chunk_format or config.get("chunk_format", "original")
     # Format can be None (will be auto-detected)
     source_format = args.format or config.get("format") or None
     
@@ -141,7 +148,8 @@ async def main():
             max_parallel_uploads=max_parallel_uploads,
             no_chunking=no_chunking,
             use_metadata=use_metadata,
-            include_originals=include_originals
+            include_originals=include_originals,
+            chunk_format=chunk_format
         ) as ingestor:
             source_id, flows_dict, multi_flow_id = await ingestor.ingest_folder(
                 folder_path=args.folder,

@@ -130,17 +130,30 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
 
   const timeInfo = parseTimerange(timerange);
 
-  // Autoplay video when component mounts (only for video)
+  // Lazy load video only when it comes into view (using Intersection Observer)
   useEffect(() => {
     if (mediaType === 'video' && videoRef.current && firstUrl?.url) {
       const video = videoRef.current;
-      const playPromise = video.play();
       
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.debug('Video autoplay prevented:', error);
-        });
-      }
+      // Use Intersection Observer to only load video when visible
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              // Video is visible, but don't autoplay - let user control playback
+              // Just ensure video element is ready
+              video.load();
+            }
+          });
+        },
+        { rootMargin: '50px' } // Start loading 50px before it comes into view
+      );
+      
+      observer.observe(video);
+      
+      return () => {
+        observer.disconnect();
+      };
     }
   }, [firstUrl, mediaType]);
 
@@ -170,15 +183,13 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
           <video
             ref={videoRef}
             controls
-            autoPlay
-            muted
             playsInline
             style={{
               width: '100%',
               height: height,
               display: 'block',
             }}
-            preload="auto"
+            preload="metadata"
             crossOrigin="anonymous"
           >
             {(() => {
@@ -206,6 +217,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
             component="img"
             src={firstUrl.url}
             alt="Segment"
+            loading="lazy"
             sx={{
               width: '100%',
               height: height,
@@ -236,7 +248,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                 width: '100%',
                 maxWidth: '100%',
               }}
-              preload="metadata"
+              preload="none"
             >
               {(() => {
                 const mimeType = getAudioMimeType(firstUrl.url);

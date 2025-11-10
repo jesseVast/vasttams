@@ -231,6 +231,10 @@ class FlowStorageService:
                         flow_data['flow_collection'] = None
                         
                         # Get the appropriate flow class based on format
+                        # Safety check: ensure flow_data is a dict
+                        if not isinstance(flow_data, dict):
+                            logger.warning(f"flow_data is not a dict in column array branch: {type(flow_data)}, skipping")
+                            continue
                         flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
                         # Ensure required fields are present before creating flow object
                         flow_data = self._ensure_required_flow_fields(flow_data, flow_class)
@@ -244,8 +248,15 @@ class FlowStorageService:
                         elif hasattr(row, '__iter__') and not isinstance(row, str):
                             flow_data = dict(row)
                         else:
-                            # Skip non-dict rows
+                            # Skip non-dict rows (including strings)
+                            logger.debug(f"Skipping non-dict row in get_flows list branch: {type(row)}")
                             continue
+                        
+                        # Additional safety check: ensure flow_data is still a dict
+                        if not isinstance(flow_data, dict):
+                            logger.warning(f"flow_data is not a dict after conversion in list branch: {type(flow_data)}, skipping")
+                            continue
+                        
                         # Parse JSON fields (skip flow_collection - it's computed on-demand in get_flow() only)
                         for field in ['essence_parameters', 'tags']:
                             if field in flow_data and isinstance(flow_data[field], str):
@@ -273,6 +284,10 @@ class FlowStorageService:
                         flow_data['flow_collection'] = None
                         
                         # Get the appropriate flow class based on format
+                        # Additional safety check before calling .get()
+                        if not isinstance(flow_data, dict):
+                            logger.error(f"flow_data is not a dict before _get_flow_class in list branch: {type(flow_data)}")
+                            continue
                         flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
                         # Ensure required fields are present before creating flow object
                         flow_data = self._ensure_required_flow_fields(flow_data, flow_class)
@@ -286,8 +301,15 @@ class FlowStorageService:
                     elif hasattr(row, '__iter__') and not isinstance(row, str):
                         flow_data = dict(row)
                     else:
-                        # Skip non-dict rows
+                        # Skip non-dict rows (including strings)
+                        logger.debug(f"Skipping non-dict row in get_flows: {type(row)}")
                         continue
+                    
+                    # Additional safety check: ensure flow_data is still a dict
+                    if not isinstance(flow_data, dict):
+                        logger.warning(f"flow_data is not a dict after conversion: {type(flow_data)}, skipping")
+                        continue
+                    
                     # Parse JSON fields (skip flow_collection - it's computed on-demand in get_flow() only)
                     for field in ['essence_parameters', 'tags']:
                         if field in flow_data and isinstance(flow_data[field], str):
@@ -309,6 +331,10 @@ class FlowStorageService:
                     flow_data['flow_collection'] = None
                     
                     # Get the appropriate flow class based on format
+                    # Additional safety check before calling .get()
+                    if not isinstance(flow_data, dict):
+                        logger.error(f"flow_data is not a dict before _get_flow_class: {type(flow_data)}")
+                        continue
                     flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
                     # Ensure required fields are present before creating flow object
                     flow_data = self._ensure_required_flow_fields(flow_data, flow_class)

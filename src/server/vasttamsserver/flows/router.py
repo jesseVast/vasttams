@@ -6,7 +6,7 @@ It provides basic endpoint structure that can be expanded later.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, Response
-from typing import List, Optional
+from typing import List, Optional, Union
 from .models import Flow
 from ..common.filters import FlowFilters, FlowDetailFilters
 from ..common.models import Tags, HttpRequest
@@ -575,23 +575,46 @@ async def get_flow_collection(
 @router.put("/{flow_id}/flow_collection", status_code=201)
 async def update_flow_collection(
     flow_id: str,
-    collection_data: List[dict] = Body(...),  # Accept list of FlowCollectionItem dicts
+    collection_data: Union[List[dict], dict] = Body(...),  # Accept list or single object
     storage: StorageInterface = Depends(get_storage_service)
 ):
     """Update flow collection
     
-    collection_data should be a list of FlowCollectionItem objects:
-    [
-        {"id": "flow-uuid", "role": "video"},
-        {"id": "flow-uuid", "role": "audio"}
-    ]
+    collection_data can be:
+    1. A list of FlowCollectionItem objects (TAMS spec format):
+       [
+           {"id": "flow-uuid", "role": "video"},
+           {"id": "flow-uuid", "role": "audio"}
+       ]
+    2. A single object with collection_id (legacy/simplified format):
+       {"collection_id": "flow-uuid"}
+       This will be converted to [{"id": "flow-uuid", "role": "video"}]
     """
     try:
         # Check if flow is read-only
         await _check_flow_not_read_only(flow_id, storage)
         
-        from ..common.models import FlowCollection
+        from ..common.models import FlowCollection, FlowCollectionItem
         import json
+        
+        # Normalize input: convert single object to list if needed
+        if isinstance(collection_data, dict):
+            # Check if it's a legacy format with collection_id
+            if 'collection_id' in collection_data:
+                # Convert to FlowCollectionItem format
+                collection_data = [{
+                    "id": collection_data['collection_id'],
+                    "role": collection_data.get('role', 'video')  # Default role to video
+                }]
+            else:
+                # Single FlowCollectionItem object - wrap in list
+                collection_data = [collection_data]
+        elif not isinstance(collection_data, list):
+            raise HTTPException(
+                status_code=422,
+                detail="collection_data must be a list or a single object"
+            )
+        
         # Validate the collection data
         collection = FlowCollection.model_validate(collection_data)
         

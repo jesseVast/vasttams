@@ -688,6 +688,9 @@ class FolderIngestor:
                                 if isinstance(timerange, dict) and "value" in timerange:
                                     existing_timeranges.add(timerange["value"])
                             
+                            # Track initial processed count before verification
+                            initial_processed_count = len(processed_chunks)
+                            
                             # Filter out chunks that already exist in TAMS
                             verified_chunks_to_upload = []
                             for chunk_idx, chunk_file in enumerate(chunk_files):

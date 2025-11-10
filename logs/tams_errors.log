@@ -1106,3 +1106,6 @@ essence_parameters
 2025-11-09 21:51:58 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
 2025-11-09 21:53:11 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
 2025-11-09 21:53:11 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-10 12:58:37 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments: Request timeout after 33.75s
+2025-11-10 13:01:04 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /analytics/flows: Request timeout after 36.24s
+2025-11-10 13:03:34 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources/a269190b-1796-4222-9547-e16e057a9e6e: Request timeout after 45.84s

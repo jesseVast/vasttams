@@ -47,10 +47,17 @@ async def update_flow(client: "TAMSClient", flow_id: str, flow_data: Dict[str, A
             raise TAMSAPIError(f"Failed to update flow: {error_text}", response.status, error_text)
 
 
-async def delete_flow(client: "TAMSClient", flow_id: str) -> None:
-    """Delete a flow."""
+async def delete_flow(client: "TAMSClient", flow_id: str, cascade: bool = True) -> None:
+    """Delete a flow.
+    
+    Args:
+        client: TAMSClient instance
+        flow_id: Flow ID to delete
+        cascade: If True, cascade delete to associated segments (default: True)
+    """
     url = f"{client.server_url}/flows/{flow_id}"
-    async with client._session.delete(url, headers=await client._get_headers()) as response:
+    params = {"cascade": str(cascade).lower()}
+    async with client._session.delete(url, params=params, headers=await client._get_headers()) as response:
         if response.status not in (200, 204):
             error_text = await response.text()
             raise TAMSAPIError(f"Failed to delete flow: {error_text}", response.status, error_text)

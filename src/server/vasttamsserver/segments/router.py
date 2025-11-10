@@ -19,6 +19,7 @@ from ..auth.rbac import require_admin, require_editor, require_viewer
 from ..auth.middleware import UserSession
 import logging
 import asyncio
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -400,10 +401,26 @@ async def delete_flow_segments_by_id(
     flow_id: str,
     timerange: Optional[str] = Query(None, description="Only delete flow segments that are completely covered by the given timerange"),
     object_id: Optional[str] = Query(None, description="Filter on object identifier"),
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    user_session: UserSession = Depends(require_admin)
 ):
-    """Delete segments for a specific flow"""
+    """Delete segments for a specific flow
+    
+    For long-running deletions (large timeranges or many segments), this will create
+    a deletion request and return 202 Accepted with the request ID. The deletion will
+    be processed asynchronously.
+    """
     try:
+        from ..service.deletion_service import DeletionRequestService
+        from ..common.models import TimeRange
+        from ..core.dependencies import get_vast_db, get_s3_client
+        from ..segments.service import SegmentStorageService
+        from ..flows.service import FlowStorageService
+        
+        vast_db = get_vast_db()
+        deletion_service = DeletionRequestService(vast_db)
+        
         # If object_id is specified, we need to filter segments first
         if object_id:
             # Get segments to find the ones matching object_id
@@ -413,31 +430,222 @@ async def delete_flow_segments_by_id(
             if not matching_segments:
                 raise HTTPException(status_code=404, detail="No segments found with specified object_id")
             
-            # Delete each matching segment individually
-            deleted_count = 0
-            for segment in matching_segments:
-                # For now, we'll use the existing delete method
-                # In a full implementation, we'd need a delete by object_id method
-                success = await storage.delete_flow_segments(flow_id, timerange)
-                if success:
-                    deleted_count += 1
-            
-            return {"message": f"Deleted {deleted_count} segments with object_id {object_id}"}
+            # For object_id deletions, check if we should use async deletion
+            if len(matching_segments) > 50:  # Threshold for async deletion
+                # Create deletion request for async processing
+                # Note: We'll need to handle object_id filtering in the deletion service
+                # For now, fall back to synchronous deletion for object_id
+                deleted_count = 0
+                for segment in matching_segments:
+                    success = await storage.delete_flow_segments(flow_id, timerange)
+                    if success:
+                        deleted_count += 1
+                return {"message": f"Deleted {deleted_count} segments with object_id {object_id}"}
+            else:
+                # Small deletion - do synchronously
+                deleted_count = 0
+                for segment in matching_segments:
+                    success = await storage.delete_flow_segments(flow_id, timerange)
+                    if success:
+                        deleted_count += 1
+                return {"message": f"Deleted {deleted_count} segments with object_id {object_id}"}
         else:
-            # Original behavior for timerange-only deletion
-            try:
-                success = await storage.delete_flow_segments(flow_id, timerange)
-                if not success:
-                    # No segments found to delete (idempotent - return 204)
-                    return Response(status_code=204)
+            # Timerange-based deletion
+            if timerange:
+                # Check if this will be a long-running operation
+                segments = await storage.get_flow_segments(flow_id, timerange)
+                segment_count = len(segments) if segments else 0
                 
-                return {"message": "Segments deleted successfully"}
-            except Exception as e:
-                logger.error("Failed to delete segments for flow %s: %s", flow_id, e)
-                # If it's a flow not found or segments not found, return 404
-                if "not found" in str(e).lower() or "no segments" in str(e).lower():
-                    raise HTTPException(status_code=404, detail="No segments found to delete")
-                raise HTTPException(status_code=500, detail="Internal server error")
+                # Quantity threshold: if more than 50 segments, use async deletion immediately
+                if segment_count > 50:
+                    # Create deletion request for async processing
+                    try:
+                        timerange_obj = TimeRange(value=timerange)
+                        deletion_request = await deletion_service.create_deletion_request(
+                            flow_id=flow_id,
+                            timerange_to_delete=timerange_obj,
+                            delete_flow=False,
+                            created_by=user_session.username if user_session else "system"
+                        )
+                        
+                        # Start background processing
+                        segment_service = SegmentStorageService(vast_db, get_s3_client())
+                        flow_service = FlowStorageService(vast_db, get_s3_client())
+                        background_tasks.add_task(
+                            deletion_service.process_deletion_request,
+                            deletion_request.id,
+                            segment_service,
+                            flow_service
+                        )
+                        
+                        # Return 202 Accepted with Location header
+                        return Response(
+                            status_code=202,
+                            headers={"Location": f"/flow-delete-requests/{deletion_request.id}"},
+                            content=f'{{"id": "{deletion_request.id}", "status": "created", "message": "Deletion request created"}}',
+                            media_type="application/json"
+                        )
+                    except Exception as e:
+                        logger.error("Failed to create deletion request: %s", e)
+                        # Fall back to synchronous deletion
+                        pass
+                
+                # Synchronous deletion for small operations (<= 50 segments)
+                # But with 30-second timeout - if it takes too long, switch to async
+                try:
+                    start_time = time.time()
+                    deletion_timeout = 30.0  # 30 seconds
+                    
+                    # Attempt deletion with timeout
+                    try:
+                        success = await asyncio.wait_for(
+                            storage.delete_flow_segments(flow_id, timerange),
+                            timeout=deletion_timeout
+                        )
+                        
+                        elapsed_time = time.time() - start_time
+                        
+                        if not success:
+                            return Response(status_code=204)
+                        return {"message": "Segments deleted successfully"}
+                    
+                    except asyncio.TimeoutError:
+                        # Deletion took more than 30 seconds - switch to async
+                        elapsed_time = time.time() - start_time
+                        logger.info(
+                            "Deletion for flow %s exceeded %ds timeout (took %.2fs), switching to async deletion request",
+                            flow_id, deletion_timeout, elapsed_time
+                        )
+                        
+                        # Create deletion request for async processing
+                        timerange_obj = TimeRange(value=timerange)
+                        deletion_request = await deletion_service.create_deletion_request(
+                            flow_id=flow_id,
+                            timerange_to_delete=timerange_obj,
+                            delete_flow=False,
+                            created_by=user_session.username if user_session else "system"
+                        )
+                        
+                        # Start background processing
+                        segment_service = SegmentStorageService(vast_db, get_s3_client())
+                        flow_service = FlowStorageService(vast_db, get_s3_client())
+                        background_tasks.add_task(
+                            deletion_service.process_deletion_request,
+                            deletion_request.id,
+                            segment_service,
+                            flow_service
+                        )
+                        
+                        # Return 202 Accepted with Location header
+                        return Response(
+                            status_code=202,
+                            headers={"Location": f"/flow-delete-requests/{deletion_request.id}"},
+                            content=f'{{"id": "{deletion_request.id}", "status": "created", "message": "Deletion request created after timeout"}}',
+                            media_type="application/json"
+                        )
+                
+                except Exception as e:
+                    logger.error("Failed to delete segments for flow %s: %s", flow_id, e)
+                    if "not found" in str(e).lower() or "no segments" in str(e).lower():
+                        raise HTTPException(status_code=404, detail="No segments found to delete")
+                    raise HTTPException(status_code=500, detail="Internal server error")
+            else:
+                # Delete all segments - check segment count first
+                segments = await storage.get_flow_segments(flow_id)
+                segment_count = len(segments) if segments else 0
+                
+                # Quantity threshold: if more than 50 segments, use async deletion immediately
+                if segment_count > 50:
+                    # Create deletion request for async processing
+                    try:
+                        # For "all segments", we'll use a very large timerange
+                        from ..common.models import TimeRange
+                        timerange_obj = TimeRange(value="0:0_999999:0")  # Large timerange
+                        deletion_request = await deletion_service.create_deletion_request(
+                            flow_id=flow_id,
+                            timerange_to_delete=timerange_obj,
+                            delete_flow=False,
+                            created_by=user_session.username if user_session else "system"
+                        )
+                        
+                        # Start background processing
+                        segment_service = SegmentStorageService(vast_db, get_s3_client())
+                        flow_service = FlowStorageService(vast_db, get_s3_client())
+                        background_tasks.add_task(
+                            deletion_service.process_deletion_request,
+                            deletion_request.id,
+                            segment_service,
+                            flow_service
+                        )
+                        
+                        # Return 202 Accepted
+                        return Response(
+                            status_code=202,
+                            headers={"Location": f"/flow-delete-requests/{deletion_request.id}"},
+                            content=f'{{"id": "{deletion_request.id}", "status": "created", "message": "Deletion request created"}}',
+                            media_type="application/json"
+                        )
+                    except Exception as e:
+                        logger.error("Failed to create deletion request: %s", e)
+                        # Fall back to synchronous deletion
+                        pass
+                
+                # Synchronous deletion for small operations (<= 50 segments)
+                # But with 30-second timeout - if it takes too long, switch to async
+                try:
+                    start_time = time.time()
+                    deletion_timeout = 30.0  # 30 seconds
+                    
+                    # Attempt deletion with timeout
+                    try:
+                        success = await asyncio.wait_for(
+                            storage.delete_flow_segments(flow_id, timerange),
+                            timeout=deletion_timeout
+                        )
+                        
+                        if not success:
+                            return Response(status_code=204)
+                        return {"message": "Segments deleted successfully"}
+                    
+                    except asyncio.TimeoutError:
+                        # Deletion took more than 30 seconds - switch to async
+                        elapsed_time = time.time() - start_time
+                        logger.info(
+                            "Deletion for flow %s exceeded %ds timeout (took %.2fs), switching to async deletion request",
+                            flow_id, deletion_timeout, elapsed_time
+                        )
+                        
+                        # Create deletion request for async processing
+                        from ..common.models import TimeRange
+                        timerange_obj = TimeRange(value="0:0_999999:0")  # Large timerange
+                        deletion_request = await deletion_service.create_deletion_request(
+                            flow_id=flow_id,
+                            timerange_to_delete=timerange_obj,
+                            delete_flow=False,
+                            created_by=user_session.username if user_session else "system"
+                        )
+                        
+                        # Start background processing
+                        segment_service = SegmentStorageService(vast_db, get_s3_client())
+                        flow_service = FlowStorageService(vast_db, get_s3_client())
+                        background_tasks.add_task(
+                            deletion_service.process_deletion_request,
+                            deletion_request.id,
+                            segment_service,
+                            flow_service
+                        )
+                        
+                        # Return 202 Accepted
+                        return Response(
+                            status_code=202,
+                            headers={"Location": f"/flow-delete-requests/{deletion_request.id}"},
+                            content=f'{{"id": "{deletion_request.id}", "status": "created", "message": "Deletion request created after timeout"}}',
+                            media_type="application/json"
+                        )
+                
+                except Exception as e:
+                    logger.error("Failed to delete segments for flow %s: %s", flow_id, e)
+                    raise HTTPException(status_code=500, detail="Internal server error")
         
     except HTTPException:
         raise

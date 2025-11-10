@@ -14,6 +14,7 @@ from .auth import TokenManager
 from .exceptions import TAMSAuthenticationError, TAMSAPIError, TAMSConnectionError
 from .domain.source import TAMSSource
 from .domain.flow import TAMSFlow
+from .domain.deletion_request import TAMSDeletionRequest
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +292,38 @@ class TAMSClient:
                     flow = TAMSFlow(self, id=flow_id, **flow_data_copy)
                     self._cache["flow"][flow_id] = flow
                     result.append(flow)
+        return result
+    
+    async def get_deletion_request(self, request_id: str) -> Optional[TAMSDeletionRequest]:
+        """
+        Get a deletion request by ID.
+        
+        Args:
+            request_id: Deletion request ID
+            
+        Returns:
+            TAMSDeletionRequest or None if not found
+        """
+        from .api import deletion_requests as deletion_request_api
+        deletion_request_data = await deletion_request_api.get_deletion_request(self, request_id)
+        if deletion_request_data:
+            return TAMSDeletionRequest(self, request_id, deletion_request_data)
+        return None
+    
+    async def list_deletion_requests(self) -> List[TAMSDeletionRequest]:
+        """
+        List all active deletion requests.
+        
+        Returns:
+            List of TAMSDeletionRequest objects
+        """
+        from .api import deletion_requests as deletion_request_api
+        deletion_requests_data = await deletion_request_api.get_deletion_requests(self)
+        result = []
+        for dr in deletion_requests_data:
+            request_id = dr.get("id")
+            if request_id:
+                result.append(TAMSDeletionRequest(self, request_id, dr))
         return result
     
     # Tag-based query helpers

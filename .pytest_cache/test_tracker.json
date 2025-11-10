@@ -2299,6 +2299,58 @@
     "client/test_integration.py::TestErrorHandling::test_delete_nonexistent_source": {
       "timestamp": "2025-11-10T02:25:06.906158+00:00",
       "source_files": []
+    },
+    "service/test_deletion_service.py::TestDeletionRequestService::test_create_deletion_request": {
+      "timestamp": "2025-11-10T18:18:08.632422+00:00",
+      "source_files": []
+    },
+    "service/test_deletion_service.py::TestDeletionRequestService::test_get_deletion_request_not_found": {
+      "timestamp": "2025-11-10T18:18:08.679776+00:00",
+      "source_files": []
+    },
+    "service/test_deletion_service.py::TestDeletionRequestService::test_update_deletion_request_status": {
+      "timestamp": "2025-11-10T18:18:08.682996+00:00",
+      "source_files": []
+    },
+    "service/test_deletion_service.py::TestDeletionRequestService::test_process_deletion_request_not_found": {
+      "timestamp": "2025-11-10T18:18:08.687806+00:00",
+      "source_files": []
+    },
+    "service/test_deletion_service.py::TestDeletionRequestService::test_get_deletion_request": {
+      "timestamp": "2025-11-10T18:18:32.648661+00:00",
+      "source_files": []
+    },
+    "service/test_deletion_service.py::TestDeletionRequestService::test_get_deletion_requests": {
+      "timestamp": "2025-11-10T18:18:32.653246+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_delete_segments_async": {
+      "timestamp": "2025-11-10T18:27:36.312574+00:00",
+      "source_files": []
+    },
+    "client/test_deletion_requests.py::TestDeletionRequestAPI::test_get_deletion_requests": {
+      "timestamp": "2025-11-10T18:27:59.421584+00:00",
+      "source_files": []
+    },
+    "client/test_deletion_requests.py::TestDeletionRequestAPI::test_get_deletion_request": {
+      "timestamp": "2025-11-10T18:27:59.455292+00:00",
+      "source_files": []
+    },
+    "client/test_deletion_requests.py::TestDeletionRequestAPI::test_get_deletion_request_not_found": {
+      "timestamp": "2025-11-10T18:27:59.461605+00:00",
+      "source_files": []
+    },
+    "client/test_deletion_requests.py::TestTAMSDeletionRequest::test_deletion_request_properties": {
+      "timestamp": "2025-11-10T18:27:59.466278+00:00",
+      "source_files": []
+    },
+    "client/test_deletion_requests.py::TestTAMSDeletionRequest::test_deletion_request_status_checks": {
+      "timestamp": "2025-11-10T18:27:59.470860+00:00",
+      "source_files": []
+    },
+    "client/test_deletion_requests.py::TestTAMSDeletionRequest::test_deletion_request_refresh": {
+      "timestamp": "2025-11-10T18:27:59.475564+00:00",
+      "source_files": []
     }
   },
   "failed_tests": {

@@ -215,9 +215,18 @@ class TAMSFlow(TAMSDomainObject):
         segments_data = await segment_api.list_segments(self._client, self._id, query_params)
         return [TAMSSegment(self._client, self._id, s) for s in segments_data]
     
-    async def delete_segments(self, **filters):
-        """Delete segments matching filters."""
-        await segment_api.delete_segments(self._client, self._id, filters)
+    async def delete_segments(self, **filters) -> Optional[Dict[str, Any]]:
+        """Delete segments matching filters.
+        
+        Returns:
+            None if deletion completed synchronously
+            Dict with deletion request info if async deletion was created (202 response)
+            The dict contains:
+                - id: Deletion request ID
+                - status: Request status ("created")
+                - location: URL to check deletion request status
+        """
+        return await segment_api.delete_segments(self._client, self._id, filters)
     
     async def refresh(self):
         """Refresh flow data from server."""
@@ -236,9 +245,13 @@ class TAMSFlow(TAMSDomainObject):
         self._data.update(result)
         # Note: Tags cache not cleared here as tags are managed separately
     
-    async def delete(self):
-        """Delete flow."""
-        await flow_api.delete_flow(self._client, self._id)
+    async def delete(self, cascade: bool = True):
+        """Delete flow.
+        
+        Args:
+            cascade: If True, cascade delete to associated segments (default: True)
+        """
+        await flow_api.delete_flow(self._client, self._id, cascade=cascade)
         # Remove from client cache
         if hasattr(self._client, '_cache') and "flow" in self._client._cache:
             self._client._cache["flow"].pop(self._id, None)

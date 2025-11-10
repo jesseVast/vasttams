@@ -5558,3 +5558,366 @@ essence_parameters
 2025-11-09 21:54:19 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /sources/a269190b-1796-4222-9547-e16e057a9e6e/tags/ingest_last_updated - user=admin, duration=5.716s, status=204 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources/a269190b-1796-4222-9547-e16e057a9e6e/tags/ingest_last_updated, method=PUT]
 2025-11-09 21:54:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /sources/a269190b-1796-4222-9547-e16e057a9e6e/tags/ingest_state - user=admin, duration=5.881s, status=204 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources/a269190b-1796-4222-9547-e16e057a9e6e/tags/ingest_state, method=PUT]
 2025-11-09 21:54:31 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /sources/a269190b-1796-4222-9547-e16e057a9e6e/tags/ingest_completed - user=admin, duration=6.056s, status=204 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources/a269190b-1796-4222-9547-e16e057a9e6e/tags/ingest_completed, method=PUT]
+2025-11-10 12:52:17 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 12:52:17 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 12:52:17 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 12:52:17 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 12:52:17 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 12:52:18 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 12:52:18 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 12:52:22 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 12:52:22 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 12:52:22 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 12:52:25 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 12:52:54 - vasttamsserver.auth.providers.jwt:88:authenticate - WARNING - JWT token expired
+2025-11-10 12:52:54 - vasttamsserver.auth.middleware:94:require_authentication - WARNING - Authentication required but no user session found
+2025-11-10 12:52:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:52:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/summary - user=anonymous, duration=1.008s, status=401 [User: ] [API: endpoint=/analytics/summary, method=GET]
+2025-11-10 12:52:54 - vasttamsserver.auth.providers.jwt:88:authenticate - WARNING - JWT token expired
+2025-11-10 12:52:54 - vasttamsserver.auth.middleware:94:require_authentication - WARNING - Authentication required but no user session found
+2025-11-10 12:52:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/summary - user=anonymous, duration=1.004s, status=401 [User: ] [API: endpoint=/analytics/summary, method=GET]
+2025-11-10 12:52:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:53:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=1.127s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-10 12:53:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:53:05 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/summary - user=admin, duration=4.143s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/analytics/summary, method=GET]
+2025-11-10 12:53:06 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:53:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/summary - user=admin, duration=3.055s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/analytics/summary, method=GET]
+2025-11-10 12:53:10 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.959s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-10 12:53:10 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.959s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-10 12:53:11 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.815s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-10 12:53:11 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.815s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-10 12:53:12 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.296s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-10 12:53:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.103s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-10 12:53:50 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=26.221s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=GET]
+2025-11-10 12:53:51 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d - user=admin, duration=27.711s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d, method=GET]
+2025-11-10 12:53:51 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:54:19 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=28.403s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=GET]
+2025-11-10 12:54:19 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d - user=admin, duration=28.406s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d, method=GET]
+2025-11-10 12:54:20 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:54:32 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:55:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:55:32 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:56:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=1.040s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-10 12:56:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:56:28 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=25.378s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=GET]
+2025-11-10 12:56:32 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.004s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:56:46 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=1.110s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-10 12:57:12 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=26.043s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=GET]
+2025-11-10 12:57:13 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.002s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:57:32 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.004s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:58:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=24.933s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=GET]
+2025-11-10 12:58:03 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.003s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:58:37 - vasttamsserver.core.telemetry:516:telemetry_middleware - WARNING - Request timeout after 33.75s for DELETE /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - server may be overloaded
+2025-11-10 12:58:37 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments: Request timeout after 33.75s
+2025-11-10 12:58:38 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.015s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:58:39 - vasttamsserver.main:293:http_exception_handler - WARNING - HTTP Exception: 404 - No segments found with specified object_id
+2025-11-10 12:58:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - DELETE /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=0.479s, status=404 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=DELETE]
+2025-11-10 12:58:53 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - DELETE /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=14.544s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=DELETE]
+2025-11-10 12:59:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=15.465s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-10 12:59:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - DELETE /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=15.466s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=DELETE]
+2025-11-10 12:59:10 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:59:11 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=17.579s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-10 12:59:26 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=17.555s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-10 12:59:26 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - DELETE /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=16.552s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=DELETE]
+2025-11-10 12:59:27 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=1.018s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-10 12:59:48 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - DELETE /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=20.950s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=DELETE]
+2025-11-10 12:59:49 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.015s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 12:59:51 - vasttamsserver.main:293:http_exception_handler - WARNING - HTTP Exception: 404 - No segments found with specified object_id
+2025-11-10 12:59:51 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=2.437s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-10 12:59:51 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=2.438s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-10 12:59:51 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - DELETE /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=1.423s, status=404 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=DELETE]
+2025-11-10 13:00:12 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - DELETE /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=21.081s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=DELETE]
+2025-11-10 13:00:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=2.083s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:00:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=23.164s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-10 13:00:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=23.164s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-10 13:00:27 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=14.453s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=GET]
+2025-11-10 13:00:28 - vasttamsserver.main:293:http_exception_handler - WARNING - HTTP Exception: 404 - No segments found with specified object_id
+2025-11-10 13:00:28 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=16.443s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-10 13:00:28 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d - user=admin, duration=15.437s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d, method=GET]
+2025-11-10 13:00:28 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - DELETE /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=14.364s, status=404 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=DELETE]
+2025-11-10 13:00:40 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=13.402s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=GET]
+2025-11-10 13:00:42 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.531s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:00:43 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d - user=admin, duration=14.978s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d, method=GET]
+2025-11-10 13:01:04 - vasttamsserver.core.telemetry:516:telemetry_middleware - WARNING - Request timeout after 36.24s for GET /analytics/flows - server may be overloaded
+2025-11-10 13:01:04 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /analytics/flows: Request timeout after 36.24s
+2025-11-10 13:01:04 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - DELETE /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=22.824s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=DELETE]
+2025-11-10 13:01:05 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:01:06 - vasttamsserver.main:293:http_exception_handler - WARNING - HTTP Exception: 404 - No segments found with specified object_id
+2025-11-10 13:01:06 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - DELETE /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=0.492s, status=404 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=DELETE]
+2025-11-10 13:01:12 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=1.147s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-10 13:01:22 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=9.313s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=GET]
+2025-11-10 13:01:32 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:01:37 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=1.899s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-10 13:01:37 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=1.900s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-10 13:01:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=1.492s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-10 13:01:40 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=2.792s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-10 13:01:40 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=2.794s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-10 13:01:41 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d - user=admin, duration=1.234s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d, method=GET]
+2025-11-10 13:01:50 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments - user=admin, duration=9.021s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments, method=GET]
+2025-11-10 13:02:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:02:32 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:02:47 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=1.097s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-10 13:02:49 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=1.131s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-10 13:03:33 - vasttamsserver.sources.service:479:_cascade_delete_flows - INFO - Cleaned up 10 unreferenced objects after cascade deleting source a269190b-1796-4222-9547-e16e057a9e6e
+2025-11-10 13:03:34 - vasttamsserver.core.telemetry:516:telemetry_middleware - WARNING - Request timeout after 45.84s for DELETE /sources/a269190b-1796-4222-9547-e16e057a9e6e - server may be overloaded
+2025-11-10 13:03:34 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources/a269190b-1796-4222-9547-e16e057a9e6e: Request timeout after 45.84s
+2025-11-10 13:03:35 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.004s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:03:37 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=1.093s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-10 13:03:37 - vasttamsserver.main:293:http_exception_handler - WARNING - HTTP Exception: 404 - Source not found
+2025-11-10 13:03:37 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources/a269190b-1796-4222-9547-e16e057a9e6e - user=admin, duration=0.396s, status=404 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources/a269190b-1796-4222-9547-e16e057a9e6e, method=GET]
+2025-11-10 13:03:38 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=1.092s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-10 13:03:38 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources/a269190b-1796-4222-9547-e16e057a9e6e/flows - user=admin, duration=0.001s, status=404 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources/a269190b-1796-4222-9547-e16e057a9e6e/flows, method=GET]
+2025-11-10 13:03:40 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=1.066s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-10 13:03:42 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - DELETE /sources/a269190b-1796-4222-9547-e16e057a9e6e - user=admin, duration=1.998s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources/a269190b-1796-4222-9547-e16e057a9e6e, method=DELETE]
+2025-11-10 13:04:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:04:32 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:05:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:05:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:05:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /sources - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/sources, method=OPTIONS]
+2025-11-10 13:05:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /sources - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/sources, method=OPTIONS]
+2025-11-10 13:05:26 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=2.053s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-10 13:05:27 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:05:27 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=1.383s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-10 13:05:28 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=1.488s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-10 13:05:29 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.392s, status=200 [User: username=admin, user_id=32fcfc4c-c733-409a-8d82-1df5c67895c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-10 13:05:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:06:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:06:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:07:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:07:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:08:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.003s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:08:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:09:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.004s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:09:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:10:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:10:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:11:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:11:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:12:23 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:12:23 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:12:25 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:12:25 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:12:25 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:12:25 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:12:25 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:12:25 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:12:26 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:12:30 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:12:30 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:12:30 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:12:32 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:12:33 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:12:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:12:55 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:12:55 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:12:57 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:12:57 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:12:57 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:12:57 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:12:57 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:12:57 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:12:57 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:13:02 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:13:02 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:13:02 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:13:04 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:13:18 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:13:18 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:13:19 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:13:19 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:13:19 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:13:19 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:13:19 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:13:19 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:13:19 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:13:24 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:13:24 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:13:24 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:13:26 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:13:27 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:13:54 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:13:54 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:13:55 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:13:55 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:13:55 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:13:55 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:13:55 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:13:56 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:13:56 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:14:00 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:14:00 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:14:00 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:14:02 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:14:19 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:14:19 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:14:20 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:14:20 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:14:20 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:14:20 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:14:20 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:14:20 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:14:20 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:14:25 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:14:25 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:14:25 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:14:27 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:14:28 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:14:40 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:14:40 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:14:41 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:14:41 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:14:41 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:14:41 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:14:41 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:14:41 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:14:41 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:14:46 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:14:46 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:14:46 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:14:48 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:14:52 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:14:52 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:14:53 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:14:53 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:14:53 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:14:53 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:14:53 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:14:53 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:14:53 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:14:58 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:14:58 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:14:58 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:15:00 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:15:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:15:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:15:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:16:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.003s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:16:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:17:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:17:27 - vasttamsserver.auth.middleware:94:require_authentication - WARNING - Authentication required but no user session found
+2025-11-10 13:17:27 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /service - user=anonymous, duration=0.001s, status=401 [User: ] [API: endpoint=/service, method=GET]
+2025-11-10 13:17:47 - vasttamsserver.auth.middleware:94:require_authentication - WARNING - Authentication required but no user session found
+2025-11-10 13:17:47 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /service - user=anonymous, duration=0.001s, status=401 [User: ] [API: endpoint=/service, method=GET]
+2025-11-10 13:17:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:18:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:18:44 - vasttamsserver.auth.middleware:94:require_authentication - WARNING - Authentication required but no user session found
+2025-11-10 13:18:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /service - user=anonymous, duration=0.002s, status=401 [User: ] [API: endpoint=/service, method=GET]
+2025-11-10 13:18:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:18:59 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:18:59 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:19:00 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:19:00 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:19:00 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:19:00 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:19:01 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:19:01 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:19:01 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:19:06 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:19:06 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:19:06 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:19:08 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:19:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:19:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:20:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:20:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:21:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:21:52 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:21:52 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:21:53 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:21:53 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:21:53 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:21:53 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:21:54 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:21:54 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:21:54 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:21:59 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:21:59 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:21:59 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:22:01 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:22:02 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:22:02 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:22:02 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:22:02 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:22:02 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:22:02 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:22:02 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:22:07 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:22:07 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:22:07 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:22:09 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:22:10 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.003s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:22:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:22:28 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:22:28 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:22:29 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:22:29 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:22:29 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:22:29 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:22:30 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:22:30 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:22:30 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:22:34 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:22:34 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:22:34 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:22:37 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:22:37 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:22:37 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:22:38 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:22:38 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:22:38 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:22:38 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:22:38 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:22:39 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:22:39 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:22:43 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:22:43 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:22:43 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:22:45 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:22:46 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:22:46 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:22:46 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:22:46 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:22:47 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:22:47 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:22:47 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:22:51 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:22:51 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:22:52 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:22:54 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:22:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.004s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:23:26 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:23:53 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:23:53 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:23:54 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:23:54 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:23:54 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:23:54 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:23:54 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:23:55 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:23:55 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:23:59 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:23:59 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:23:59 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:24:01 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:24:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:25:11 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:26:11 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:27:11 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:28:11 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:29:11 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:30:11 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:31:11 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-10 13:31:16 - vasttamsserver.main:207:lifespan - INFO - Shutting down TAMS API...
+2025-11-10 13:31:16 - vasttamsserver.main:216:lifespan - INFO - TAMS API shutdown complete
+2025-11-10 13:31:18 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-10 13:31:18 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-10 13:31:18 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-10 13:31:18 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-10 13:31:18 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-10 13:31:18 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-10 13:31:18 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-10 13:31:23 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-10 13:31:23 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-10 13:31:23 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-10 13:31:25 - vasttamsserver.main:199:lifespan - INFO - TAMS API startup complete
+2025-11-10 13:32:11 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]

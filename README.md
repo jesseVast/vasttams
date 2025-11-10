@@ -222,6 +222,9 @@ bbctams/
 - `GET /flows/{id}/segments` - Get flow segments with time range filtering
 - `POST /flows/{id}/segments` - Create flow segment (upload media data)
 - `DELETE /flows/{id}/segments` - Delete flow segments
+  - Returns `200/204` for synchronous deletions (≤50 segments, <30s)
+  - Returns `202 Accepted` with Location header for async deletions (>50 segments or >30s)
+  - Location header points to `/flow-delete-requests/{id}` for status tracking
 - `POST /flows/{id}/storage` - Allocate storage for flow segments
 
 ### Media Objects (`/objects`)
@@ -236,9 +239,56 @@ bbctams/
 ### Management Endpoints
 - `GET /service/webhooks` - List webhooks
 - `POST /service/webhooks` - Create webhook
-- `GET /flow-delete-requests` - List deletion requests
-- `POST /flow-delete-requests` - Create deletion request
-- `GET /flow-delete-requests/{id}` - Get deletion request by ID
+- `GET /flow-delete-requests` - List active deletion requests
+- `GET /flow-delete-requests/{id}` - Get deletion request by ID and status
+
+## ⚡ Non-Blocking Deletion Requests
+
+This implementation follows the TAMS 8.0 specification for deletion requests, providing non-blocking deletion for long-running operations.
+
+### Deletion Request Behavior
+
+When deleting segments, the server automatically determines whether to process synchronously or asynchronously:
+
+- **Synchronous Deletion** (200/204): For small deletions (≤50 segments) that complete within 30 seconds
+- **Asynchronous Deletion** (202 Accepted): For large deletions (>50 segments) or deletions that exceed 30 seconds
+
+### Deletion Request Status
+
+Deletion requests progress through these statuses:
+- `created` - Request created, waiting to start
+- `started` - Deletion in progress
+- `done` - Deletion completed successfully
+- `error` - Deletion failed (error details in `error` field)
+
+### Client Usage
+
+```python
+# Delete segments - may return deletion request if async
+result = await flow.delete_segments(timerange={"value": "[0:0_100:0)"})
+
+if result is None:
+    # Synchronous deletion completed
+    print("Segments deleted successfully")
+else:
+    # Async deletion request created
+    request_id = result["id"]
+    deletion_request = await client.get_deletion_request(request_id)
+    
+    # Poll for completion
+    while deletion_request.is_in_progress():
+        await asyncio.sleep(1)
+        await deletion_request.refresh()
+    
+    if deletion_request.is_done():
+        print("Deletion completed")
+```
+
+### Configuration
+
+- **Quantity Threshold**: 50 segments (configurable in router)
+- **Time Threshold**: 30 seconds (configurable in router)
+- **Batch Size**: 50 segments per batch (configurable in deletion service)
 
 ## 🔒 Soft Delete Extension
 

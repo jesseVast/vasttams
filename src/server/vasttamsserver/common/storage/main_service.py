@@ -530,8 +530,15 @@ class TAMSStorageService(StorageInterface):
     async def get_deletion_requests(self) -> List[Dict[str, Any]]:
         """Get all deletion requests"""
         try:
-            # For now, return empty list as deletion requests are not fully implemented
-            return []
+            from ..service.deletion_service import DeletionRequestService
+            from ..core.dependencies import get_vast_db
+            
+            vast_db = get_vast_db()
+            deletion_service = DeletionRequestService(vast_db)
+            requests = await deletion_service.get_deletion_requests()
+            
+            # Convert to dict format
+            return [req.model_dump() for req in requests]
         except Exception as e:
             logger.error("Failed to get deletion requests: %s", e)
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -539,8 +546,17 @@ class TAMSStorageService(StorageInterface):
     async def get_deletion_request(self, request_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific deletion request by ID"""
         try:
-            # For now, return None as deletion requests are not fully implemented
-            return None
+            from ..service.deletion_service import DeletionRequestService
+            from ..core.dependencies import get_vast_db
+            
+            vast_db = get_vast_db()
+            deletion_service = DeletionRequestService(vast_db)
+            request = await deletion_service.get_deletion_request(request_id)
+            
+            if not request:
+                return None
+            
+            return request.model_dump()
         except Exception as e:
             logger.error("Failed to get deletion request %s: %s", request_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")

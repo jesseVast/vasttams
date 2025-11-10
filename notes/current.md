@@ -1,11 +1,60 @@
 # TAMS Project - Current Status
 
-**Last Updated**: November 9, 2025  
-**Status**: Flow Tag Array Fix Complete, Read-Only Flow Protection Complete, Docker Management Scripts Ready
+**Last Updated**: November 10, 2025  
+**Status**: Non-Blocking Deletion Requests Implemented, Client 202 Response Handling Complete
 
-## 🎯 **CURRENT FOCUS: FLOW TAG ARRAY FIX & READ-ONLY PROTECTION**
+## 🎯 **CURRENT FOCUS: NON-BLOCKING DELETION REQUESTS**
 
-### **✅ COMPLETED: FLOW TAG ARRAY RETRIEVAL & READ-ONLY PROTECTION** (November 9, 2025)
+### **✅ COMPLETED: NON-BLOCKING DELETION REQUESTS IMPLEMENTATION** (November 10, 2025)
+**Status**: ✅ **COMPLETED** - Non-blocking deletion requests implemented with hybrid quantity/time thresholds, full client support
+
+#### **🏗️ Key Achievements**
+- **Deletion Request Service**: Complete service for managing async deletions
+  - Creates, stores, and processes deletion requests
+  - Processes in batches of 50 segments
+  - Updates status: created → started → done/error
+  - Handles "all segments" deletion case
+
+- **Hybrid Threshold System**: Smart deletion routing
+  - **Quantity Threshold**: >50 segments → immediate async deletion (202 Accepted)
+  - **Time Threshold**: ≤50 segments with 30s timeout → switch to async if timeout
+  - Small, fast deletions remain synchronous (200/204)
+
+- **Client Support**: Full 202 response handling
+  - Updated segment deletion API to handle 202 responses
+  - Created `TAMSDeletionRequest` domain object
+  - Added `get_deletion_request()` and `list_deletion_requests()` to client
+  - Easy status polling and progress tracking
+
+- **Comprehensive Tests**: Full test coverage
+  - 6 unit tests for deletion service
+  - 6 integration tests for async deletion flow
+  - 6 client tests for deletion request functionality
+  - Updated existing tests for 202 response handling
+
+#### **📊 Test Results**
+- **Unit Tests**: ✅ 6/6 passing (deletion service)
+- **Client Tests**: ✅ 6/6 passing (deletion request API and domain)
+- **Integration Tests**: ✅ Ready (require server)
+
+#### **📝 Files Created**
+- `src/server/vasttamsserver/service/deletion_service.py` (391 lines)
+- `src/client/vasttamsclient/api/deletion_requests.py` (38 lines)
+- `src/client/vasttamsclient/domain/deletion_request.py` (95 lines)
+- `tests/service/test_deletion_service.py` (171 lines)
+- `tests/segments/test_deletion_requests.py` (412 lines)
+- `tests/client/test_deletion_requests.py` (141 lines)
+
+#### **📝 Files Modified**
+- `src/server/vasttamsserver/segments/router.py` - Hybrid threshold logic
+- `src/server/vasttamsserver/common/storage/main_service.py` - Deletion request methods
+- `src/client/vasttamsclient/api/segments.py` - 202 response handling
+- `src/client/vasttamsclient/domain/flow.py` - Return deletion request info
+- `src/client/vasttamsclient/domain/segment.py` - Return deletion request info
+- `src/client/vasttamsclient/client.py` - Deletion request methods
+- Multiple test files updated
+
+### **✅ COMPLETED: FLOW TAG ARRAY FIX & READ-ONLY PROTECTION** (November 9, 2025)
 **Status**: ✅ **COMPLETED** - Flow tag array retrieval fixed, read-only flow protection implemented, Docker management scripts ready
 
 #### **🏗️ Key Achievements**

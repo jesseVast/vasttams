@@ -8,6 +8,7 @@ from .client import TAMSClient
 from .domain.source import TAMSSource
 from .domain.flow import TAMSFlow
 from .domain.segment import TAMSSegment
+from .domain.deletion_request import TAMSDeletionRequest
 from .exceptions import (
     TAMSClientError,
     TAMSAuthenticationError,
@@ -22,6 +23,7 @@ __all__ = [
     "TAMSSource",
     "TAMSFlow",
     "TAMSSegment",
+    "TAMSDeletionRequest",
     "TAMSClientError",
     "TAMSAuthenticationError",
     "TAMSAPIError",

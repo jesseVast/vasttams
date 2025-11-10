@@ -677,12 +677,47 @@ class FolderIngestor:
                         total_chunks = len(chunk_files)
                         logger.info(f"✅ Created {total_chunks} chunks")
                         
-                        # Upload each chunk as a segment to the appropriate flow (in parallel)
-                        chunks_to_upload = [(i, c) for i, c in enumerate(chunk_files) if i not in processed_chunks]
+                        # Check which chunks actually exist in TAMS (verify against segments, not just tags)
+                        if target_flow and not self.dry_run:
+                            logger.debug(f"🔍 Verifying chunk presence in TAMS for {len(chunk_files)} chunks...")
+                            existing_segments = await target_flow.list_segments()
+                            # Build a set of existing timeranges
+                            existing_timeranges = set()
+                            for seg in existing_segments:
+                                timerange = seg.timerange
+                                if isinstance(timerange, dict) and "value" in timerange:
+                                    existing_timeranges.add(timerange["value"])
+                            
+                            # Filter out chunks that already exist in TAMS
+                            verified_chunks_to_upload = []
+                            for chunk_idx, chunk_file in enumerate(chunk_files):
+                                if chunk_idx in processed_chunks:
+                                    continue  # Already marked as processed
+                                
+                                # Calculate expected timerange
+                                start_seconds = chunk_idx * self.chunk_duration
+                                end_seconds = min(start_seconds + self.chunk_duration, start_seconds + self.chunk_duration)
+                                expected_timerange = f"[{start_seconds}:0_{end_seconds}:0)"
+                                
+                                if expected_timerange in existing_timeranges:
+                                    logger.debug(f"   ✓ Chunk {chunk_idx + 1}/{total_chunks} already exists in TAMS (timerange: {expected_timerange})")
+                                    processed_chunks.add(chunk_idx)  # Mark as processed
+                                else:
+                                    verified_chunks_to_upload.append((chunk_idx, chunk_file))
+                            
+                            chunks_to_upload = verified_chunks_to_upload
+                            # Calculate how many chunks were newly found to already exist
+                            newly_found_count = len(processed_chunks) - initial_processed_count
+                            if newly_found_count > 0:
+                                logger.info(f"✅ Verified: {newly_found_count} chunks already exist in TAMS, {len(verified_chunks_to_upload)} need upload")
+                        else:
+                            # Fallback to tag-based check if flow not available or dry-run
+                            chunks_to_upload = [(i, c) for i, c in enumerate(chunk_files) if i not in processed_chunks]
+                        
                         if chunks_to_upload:
                             logger.info(f"📤 Uploading {len(chunks_to_upload)} chunks to {media_type} flow (max {self.max_parallel_uploads} parallel)...")
                         else:
-                            logger.info(f"⏭️  All chunks already processed")
+                            logger.info(f"⏭️  All chunks already processed and verified in TAMS")
                         
                         async def upload_chunk(chunk_idx: int, chunk_file: Path) -> None:
                             """Upload a single chunk with semaphore limiting."""

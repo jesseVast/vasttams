@@ -240,20 +240,18 @@ class TestSegmentAPI:
         presigned_url = "https://s3.example.com/upload"
         data = b"test data"
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = MagicMock()
+        mock_response.status_code = 200
         
-        mock_put_context = MagicMock()
-        mock_put_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_put_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.put = MagicMock(return_value=mock_put_context)
-        
-        from vasttamsclient.api.segments import upload_to_storage
-        result = await upload_to_storage(client, presigned_url, data=data)
-        
-        assert result is True
-        client._session.put.assert_called_once()
+        with patch('vasttamsclient.api.segments.requests.put', return_value=mock_response) as mock_put:
+            from vasttamsclient.api.segments import upload_to_storage
+            result = await upload_to_storage(client, presigned_url, data=data)
+            
+            assert result is True
+            mock_put.assert_called_once()
+            # Verify headers were passed
+            call_kwargs = mock_put.call_args[1]
+            assert 'headers' in call_kwargs
     
     @pytest.mark.asyncio
     async def test_upload_to_storage_with_file(self, client, tmp_path):
@@ -262,19 +260,18 @@ class TestSegmentAPI:
         test_file = tmp_path / "test.txt"
         test_file.write_bytes(b"test file content")
         
-        mock_response = AsyncMock()
-        mock_response.status = 201
+        mock_response = MagicMock()
+        mock_response.status_code = 201
         
-        mock_put_context = MagicMock()
-        mock_put_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_put_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.put = MagicMock(return_value=mock_put_context)
-        
-        from vasttamsclient.api.segments import upload_to_storage
-        result = await upload_to_storage(client, presigned_url, file_path=str(test_file))
-        
-        assert result is True
+        with patch('vasttamsclient.api.segments.requests.put', return_value=mock_response) as mock_put:
+            from vasttamsclient.api.segments import upload_to_storage
+            result = await upload_to_storage(client, presigned_url, file_path=str(test_file))
+            
+            assert result is True
+            mock_put.assert_called_once()
+            # Verify file was opened and passed
+            call_args = mock_put.call_args
+            assert call_args[0][0] == presigned_url
     
     @pytest.mark.asyncio
     async def test_upload_to_storage_file_not_found(self, client):
@@ -304,19 +301,14 @@ class TestSegmentAPI:
         presigned_url = "https://s3.example.com/upload"
         data = b"test data"
         
-        mock_response = AsyncMock()
-        mock_response.status = 500
-        mock_response.text = AsyncMock(return_value="Upload failed")
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Upload failed"
         
-        mock_put_context = MagicMock()
-        mock_put_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_put_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.put = MagicMock(return_value=mock_put_context)
-        
-        from vasttamsclient.api.segments import upload_to_storage
-        with pytest.raises(TAMSAPIError) as exc_info:
-            await upload_to_storage(client, presigned_url, data=data)
-        
-        assert "Failed to upload to storage" in str(exc_info.value)
+        with patch('vasttamsclient.api.segments.requests.put', return_value=mock_response):
+            from vasttamsclient.api.segments import upload_to_storage
+            with pytest.raises(TAMSAPIError) as exc_info:
+                await upload_to_storage(client, presigned_url, data=data)
+            
+            assert "Failed to upload to storage" in str(exc_info.value)
 

@@ -4,12 +4,15 @@ Source API methods.
 Low-level API calls for source operations.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import TYPE_CHECKING, Dict, Any, List, Optional
 import aiohttp
 from ..exceptions import TAMSAPIError, TAMSConnectionError
 
+if TYPE_CHECKING:
+    from ..client import TAMSClient
 
-async def create_source(client, source_data: Dict[str, Any]) -> Dict[str, Any]:
+
+async def create_source(client: "TAMSClient", source_data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a source."""
     url = f"{client.server_url}/sources"
     headers = await client._get_headers()
@@ -21,7 +24,7 @@ async def create_source(client, source_data: Dict[str, Any]) -> Dict[str, Any]:
             raise TAMSAPIError(f"Failed to create source: {error_text}", response.status, error_text)
 
 
-async def get_source(client, source_id: str) -> Optional[Dict[str, Any]]:
+async def get_source(client: "TAMSClient", source_id: str) -> Optional[Dict[str, Any]]:
     """Get a source by ID."""
     url = f"{client.server_url}/sources/{source_id}"
     headers = await client._get_headers()
@@ -35,7 +38,7 @@ async def get_source(client, source_id: str) -> Optional[Dict[str, Any]]:
             raise TAMSAPIError(f"Failed to get source: {error_text}", response.status, error_text)
 
 
-async def update_source_label(client, source_id: str, label: str) -> None:
+async def update_source_label(client: "TAMSClient", source_id: str, label: str) -> None:
     """Update a source label."""
     url = f"{client.server_url}/sources/{source_id}/label"
     headers = await client._get_headers()
@@ -46,7 +49,7 @@ async def update_source_label(client, source_id: str, label: str) -> None:
             raise TAMSAPIError(f"Failed to update source label: {error_text}", response.status, error_text)
 
 
-async def update_source_description(client, source_id: str, description: str) -> None:
+async def update_source_description(client: "TAMSClient", source_id: str, description: str) -> None:
     """Update a source description."""
     url = f"{client.server_url}/sources/{source_id}/description"
     headers = await client._get_headers()
@@ -57,7 +60,7 @@ async def update_source_description(client, source_id: str, description: str) ->
             raise TAMSAPIError(f"Failed to update source description: {error_text}", response.status, error_text)
 
 
-async def delete_source(client, source_id: str) -> None:
+async def delete_source(client: "TAMSClient", source_id: str) -> None:
     """Delete a source."""
     url = f"{client.server_url}/sources/{source_id}"
     headers = await client._get_headers()
@@ -67,7 +70,7 @@ async def delete_source(client, source_id: str) -> None:
             raise TAMSAPIError(f"Failed to delete source: {error_text}", response.status, error_text)
 
 
-async def list_sources(client, query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+async def list_sources(client: "TAMSClient", query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """List sources."""
     url = f"{client.server_url}/sources"
     headers = await client._get_headers()

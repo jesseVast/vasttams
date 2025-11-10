@@ -15,7 +15,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 import uuid
 
 # Add parent directory to path for imports
@@ -94,15 +94,16 @@ class FolderIngestor:
         if self.client:
             await self.client.__aexit__(exc_type, exc_val, exc_tb)
     
-    async def find_existing_source(self, folder_path: str) -> Optional[Tuple[str, str]]:
+    async def find_existing_source(self, folder_path: str) -> Optional[Tuple[str, Dict[str, str], Optional[str]]]:
         """
-        Find existing source for the folder path.
+        Find existing source for the folder path and all its flows.
         
         Args:
             folder_path: Absolute folder path
             
         Returns:
-            Tuple of (source_id, flow_id) if found, None otherwise
+            Tuple of (source_id, flows_dict, multi_flow_id) if found, None otherwise
+            flows_dict maps media_type -> flow_id
         """
         if self.dry_run:
             logger.info(f"🔍 DRY RUN: Would check for existing source with folder_path={folder_path}")
@@ -111,21 +112,56 @@ class FolderIngestor:
         try:
             logger.debug(f"🔍 Searching for existing source with folder_path tag: {folder_path}")
             # Query sources by folder_path tag
+            if self.client is None:
+                return None
             sources = await self.client.list_sources_by_tag("folder_path", folder_path)
             
             if sources:
                 source = sources[0]  # Use first matching source
                 logger.info(f"✅ Found existing source: {source.id} for folder: {folder_path}")
                 
-                # Get flows for this source
+                # Get all flows for this source
                 flows = await source.list_flows()
                 if flows:
-                    flow = flows[0]  # Use first flow
-                    logger.info(f"✅ Found existing flow: {flow.id}")
-                    return (source.id, flow.id)
+                    flows_dict: Dict[str, str] = {}
+                    multi_flow_id: Optional[str] = None
+                    
+                    # Categorize flows by format
+                    for flow in flows:
+                        flow_format = flow._data.get("format", "")
+                        if flow_format == "urn:x-nmos:format:multi":
+                            multi_flow_id = flow.id
+                            logger.info(f"✅ Found existing multi-flow: {flow.id}")
+                        elif flow_format == "urn:x-nmos:format:video":
+                            flows_dict["video"] = flow.id
+                            logger.info(f"✅ Found existing video flow: {flow.id}")
+                        elif flow_format == "urn:x-nmos:format:audio":
+                            flows_dict["audio"] = flow.id
+                            logger.info(f"✅ Found existing audio flow: {flow.id}")
+                        elif flow_format == "urn:x-nmos:format:data":
+                            flows_dict["data"] = flow.id
+                            logger.info(f"✅ Found existing data flow: {flow.id}")
+                    
+                    if flows_dict or multi_flow_id:
+                        return (source.id, flows_dict, multi_flow_id)
+                    else:
+                        # Legacy: single flow (not multi-essence)
+                        flow = flows[0]
+                        logger.info(f"✅ Found existing flow (legacy): {flow.id}")
+                        # Determine type from format
+                        flow_format = flow._data.get("format", "")
+                        if "video" in flow_format:
+                            flows_dict["video"] = flow.id
+                        elif "audio" in flow_format:
+                            flows_dict["audio"] = flow.id
+                        elif "data" in flow_format:
+                            flows_dict["data"] = flow.id
+                        else:
+                            flows_dict["video"] = flow.id  # Default
+                        return (source.id, flows_dict, None)
                 else:
                     logger.warning(f"⚠️  Source {source.id} exists but has no flows")
-                    return (source.id, None)
+                    return (source.id, {}, None)
             
             logger.debug("No existing source found")
             return None
@@ -133,12 +169,12 @@ class FolderIngestor:
             logger.warning(f"⚠️  Error finding existing source: {e}")
             return None
     
-    async def build_processed_files_map(self, flow_id: str) -> Dict[str, Set[int]]:
+    async def build_processed_files_map(self, flows_dict: Dict[str, str]) -> Dict[str, Set[int]]:
         """
-        Build a map of already-processed files and their chunks.
+        Build a map of already-processed files and their chunks from all flows.
         
         Args:
-            flow_id: Flow ID to check
+            flows_dict: Dict mapping media_type -> flow_id
             
         Returns:
             Dict mapping file_path to set of chunk indices already processed
@@ -147,36 +183,42 @@ class FolderIngestor:
         
         try:
             from vasttamsclient.api import flows as flow_api
-            flow_data = await flow_api.get_flow(self.client, flow_id)
-            if not flow_data:
+            
+            if self.client is None:
                 return processed_map
             
-            flow_obj = self.client.TAMSFlow(id=flow_id, **{k: v for k, v in flow_data.items() if k != "id"})
-            flow_tags = await flow_obj.get_tags()
-            for tag_name, tag_value in flow_tags.items():
-                if tag_name.startswith("file_mapping_"):
-                    # Parse mapping: filename|file_path|chunk_index|total_chunks
-                    try:
-                        parts = str(tag_value).split("|")
-                        if len(parts) >= 2:
-                            file_path = parts[1]
-                            if file_path not in processed_map:
-                                processed_map[file_path] = set()
-                            
-                            if len(parts) >= 3:
-                                chunk_index_str = parts[2]
-                                if chunk_index_str and chunk_index_str != "-1":
-                                    try:
-                                        chunk_index = int(chunk_index_str)
-                                        processed_map[file_path].add(chunk_index)
-                                    except (ValueError, TypeError):
-                                        pass
-                                elif chunk_index_str == "-1":
-                                    # Data file - mark as fully processed
-                                    processed_map[file_path].add(-1)
-                    except Exception as e:
-                        logger.debug(f"Failed to parse file mapping tag {tag_name}: {e}")
-                        continue
+            # Check all flows
+            for media_type, flow_id in flows_dict.items():
+                flow_data = await flow_api.get_flow(self.client, flow_id)
+                if not flow_data:
+                    continue
+                
+                flow_obj = self.client.TAMSFlow(id=flow_id, **{k: v for k, v in flow_data.items() if k != "id"})
+                flow_tags = await flow_obj.get_tags()
+                for tag_name, tag_value in flow_tags.items():
+                    if tag_name.startswith("file_mapping_"):
+                        # Parse mapping: filename|file_path|chunk_index|total_chunks
+                        try:
+                            parts = str(tag_value).split("|")
+                            if len(parts) >= 2:
+                                file_path = parts[1]
+                                if file_path not in processed_map:
+                                    processed_map[file_path] = set()
+                                
+                                if len(parts) >= 3:
+                                    chunk_index_str = parts[2]
+                                    if chunk_index_str and chunk_index_str != "-1":
+                                        try:
+                                            chunk_index = int(chunk_index_str)
+                                            processed_map[file_path].add(chunk_index)
+                                        except (ValueError, TypeError):
+                                            pass
+                                    elif chunk_index_str == "-1":
+                                        # Data file - mark as fully processed
+                                        processed_map[file_path].add(-1)
+                        except Exception as e:
+                            logger.debug(f"Failed to parse file mapping tag {tag_name}: {e}")
+                            continue
             
             logger.info(f"Found {len(processed_map)} processed files with {sum(len(chunks) for chunks in processed_map.values())} chunks")
             return processed_map
@@ -191,7 +233,7 @@ class FolderIngestor:
         source_format: str,
         source_label: Optional[str] = None,
         source_description: Optional[str] = None
-    ) -> Tuple[str, str]:
+    ) -> Tuple[str, Dict[str, str], Optional[str]]:
         """
         Ingest all files from a folder into TAMS.
         
@@ -202,7 +244,8 @@ class FolderIngestor:
             source_description: Optional source description
             
         Returns:
-            Tuple of (source_id, flow_id)
+            Tuple of (source_id, flows_dict, multi_flow_id)
+            flows_dict maps media_type -> flow_id
         """
         folder = Path(folder_path).resolve()
         if not folder.exists() or not folder.is_dir():
@@ -211,21 +254,23 @@ class FolderIngestor:
         folder_path_str = str(folder)
         logger.info(f"📁 Processing folder: {folder_path_str}")
         
-        # Check for existing source/flow
+        # Check for existing source/flows
         existing = await self.find_existing_source(folder_path_str)
         if existing:
-            source_id, flow_id = existing
-            if flow_id:
-                # Build processed files map
+            source_id, flows_dict, multi_flow_id = existing
+            if flows_dict:
+                # Build processed files map from all flows
                 logger.info("📊 Building processed files map...")
-                processed_map = await self.build_processed_files_map(flow_id)
+                processed_map = await self.build_processed_files_map(flows_dict)
                 logger.info(f"✅ Resuming ingestion - found {len(processed_map)} already processed files")
             else:
+                flows_dict = {}
                 processed_map = {}
-                logger.info("ℹ️  Found existing source but no flow - will create flow")
+                logger.info("ℹ️  Found existing source but no flows - will create flows")
         else:
             source_id = None
-            flow_id = None
+            flows_dict = {}
+            multi_flow_id = None
             processed_map = {}
             logger.info("🆕 Starting new ingestion")
         
@@ -251,6 +296,28 @@ class FolderIngestor:
         else:
             logger.info("📎 No metadata files found - will use duration-based chunking")
         
+        # Detect all media types in folder
+        logger.info("🔍 Analyzing files to detect media types...")
+        media_types_detected: Set[str] = set()
+        file_media_types: Dict[Path, str] = {}  # Map file -> media_type
+        
+        for file_path in files:
+            media_type = detect_media_type(str(file_path))
+            if media_type in ("video", "audio"):
+                media_types_detected.add(media_type)
+                file_media_types[file_path] = media_type
+            elif media_type is None:
+                # Non-media file
+                media_types_detected.add("data")
+                file_media_types[file_path] = "data"
+        
+        logger.info(f"📊 Detected media types: {sorted(media_types_detected)}")
+        if len(media_types_detected) > 1:
+            logger.info("🔗 Will create multi-essence flow to collect all types")
+        elif len(media_types_detected) == 1:
+            media_type = list(media_types_detected)[0]
+            logger.info(f"📝 Single media type detected: {media_type}")
+        
         # Create or get source
         if self.dry_run:
             logger.info(f"🔍 DRY RUN: Would {'use existing' if source_id else 'create new'} source")
@@ -262,9 +329,11 @@ class FolderIngestor:
                 source_id = f"dry-run-source-{uuid.uuid4()}"
             source = None
         else:
+            if self.client is None:
+                raise RuntimeError("Client not initialized")
             if source_id:
                 logger.info(f"📝 Using existing source: {source_id}")
-                source = self.client.TAMSSource(id=source_id)
+                source = self.client.TAMSSource(id=source_id, format=source_format)
                 await source.refresh()
             else:
                 logger.info(f"➕ Creating new source...")
@@ -288,91 +357,179 @@ class FolderIngestor:
         if not self.dry_run and source:
             await source.set_tag("ingest_last_updated", datetime.now().isoformat())
         
-        # Determine flow format and codec from first media file
-        flow_format = source_format
-        flow_codec = "video/mp2t"  # Default
-        essence_params = None
-        first_media_file = None
+        # Determine codec and essence params for each media type
+        type_codecs: Dict[str, str] = {}
+        type_essence_params: Dict[str, Dict[str, Any]] = {}
         
-        # Find first media file to determine flow parameters
-        for file_path in files:
-            media_type = detect_media_type(str(file_path))
-            if media_type in ("video", "audio"):
-                first_media_file = file_path
-                try:
-                    essence_params = probe_and_extract_essence_parameters(
-                        str(file_path),
-                        source_format
-                    )
-                    # Determine codec from probe
-                    import subprocess
-                    import json
-                    probe_cmd = [
-                        "ffprobe", "-v", "error", "-show_streams",
-                        "-of", "json", str(file_path)
-                    ]
-                    probe_result = subprocess.run(
-                        probe_cmd, capture_output=True, text=True, check=True
-                    )
-                    probe_data = json.loads(probe_result.stdout)
-                    for stream in probe_data.get("streams", []):
-                        if stream.get("codec_type") == media_type:
-                            codec_name = stream.get("codec_name", "")
-                            if media_type == "video":
-                                codec_map = {
-                                    "h264": "video/h264",
-                                    "hevc": "video/hevc",
-                                    "vp8": "video/vp8",
-                                    "vp9": "video/vp9"
-                                }
-                                flow_codec = codec_map.get(codec_name, "video/mp2t")
-                            elif media_type == "audio":
-                                codec_map = {
-                                    "aac": "audio/aac",
-                                    "mp3": "audio/mpeg",
-                                    "opus": "audio/opus"
-                                }
-                                flow_codec = codec_map.get(codec_name, "audio/mpeg")
-                            break
-                except Exception as e:
-                    logger.warning(f"Failed to probe first media file {file_path}: {e}")
-                break
+        for media_type in media_types_detected:
+            if media_type == "data":
+                type_codecs["data"] = "application/octet-stream"
+                type_essence_params["data"] = {"data_type": "urn:x-tams:data:file"}
+                continue
+            
+            # Find first file of this type to determine codec
+            for file_path in files:
+                if file_media_types.get(file_path) == media_type:
+                    try:
+                        format_urn = f"urn:x-nmos:format:{media_type}"
+                        essence_params = probe_and_extract_essence_parameters(
+                            str(file_path),
+                            format_urn
+                        )
+                        type_essence_params[media_type] = essence_params
+                        
+                        # Determine codec from probe
+                        import subprocess
+                        import json
+                        probe_cmd = [
+                            "ffprobe", "-v", "error", "-show_streams",
+                            "-of", "json", str(file_path)
+                        ]
+                        probe_result = subprocess.run(
+                            probe_cmd, capture_output=True, text=True, check=True
+                        )
+                        probe_data = json.loads(probe_result.stdout)
+                        for stream in probe_data.get("streams", []):
+                            if stream.get("codec_type") == media_type:
+                                codec_name = stream.get("codec_name", "")
+                                if media_type == "video":
+                                    codec_map = {
+                                        "h264": "video/h264",
+                                        "hevc": "video/hevc",
+                                        "vp8": "video/vp8",
+                                        "vp9": "video/vp9"
+                                    }
+                                    type_codecs[media_type] = codec_map.get(codec_name, "video/mp2t")
+                                elif media_type == "audio":
+                                    codec_map = {
+                                        "aac": "audio/aac",
+                                        "mp3": "audio/mpeg",
+                                        "opus": "audio/opus"
+                                    }
+                                    type_codecs[media_type] = codec_map.get(codec_name, "audio/mpeg")
+                                break
+                    except Exception as e:
+                        logger.warning(f"Failed to probe {media_type} file {file_path}: {e}")
+                        # Set defaults
+                        if media_type == "video":
+                            type_codecs[media_type] = "video/mp2t"
+                        elif media_type == "audio":
+                            type_codecs[media_type] = "audio/mpeg"
+                    break
         
-        # Create or get flow
+        # Create or get flows for each media type
+        flows: Dict[str, Any] = {}  # Map media_type -> TAMSFlow object
+        
         if self.dry_run:
-            logger.info(f"🔍 DRY RUN: Would {'use existing' if flow_id else 'create new'} flow")
-            logger.info(f"   Format: {flow_format}")
-            logger.info(f"   Codec: {flow_codec}")
-            if flow_id:
-                flow_id = f"dry-run-flow-{uuid.uuid4()}"
-            else:
-                flow_id = f"dry-run-flow-{uuid.uuid4()}"
-            flow = None
+            logger.info(f"🔍 DRY RUN: Would create flows for types: {sorted(media_types_detected)}")
+            for media_type in media_types_detected:
+                flows_dict[media_type] = f"dry-run-flow-{media_type}-{uuid.uuid4()}"
+            if len(media_types_detected) > 1:
+                multi_flow_id = f"dry-run-multi-flow-{uuid.uuid4()}"
         else:
-            if flow_id:
-                logger.info(f"📝 Using existing flow: {flow_id}")
-                from vasttamsclient.api import flows as flow_api
-                flow_data = await flow_api.get_flow(self.client, flow_id)
-                if flow_data:
-                    flow = self.client.TAMSFlow(id=flow_id, **{k: v for k, v in flow_data.items() if k != "id"})
+            # Create or get flows for each detected type
+            for media_type in media_types_detected:
+                if self.client is None:
+                    raise RuntimeError("Client not initialized")
+                if source is None:
+                    raise RuntimeError("Source not initialized")
+                    
+                if media_type in flows_dict:
+                    # Use existing flow
+                    logger.info(f"📝 Using existing {media_type} flow: {flows_dict[media_type]}")
+                    from vasttamsclient.api import flows as flow_api
+                    flow_data = await flow_api.get_flow(self.client, flows_dict[media_type])
+                    if flow_data:
+                        flows[media_type] = self.client.TAMSFlow(
+                            id=flows_dict[media_type],
+                            **{k: v for k, v in flow_data.items() if k != "id"}
+                        )
+                    else:
+                        raise ValueError(f"Flow {flows_dict[media_type]} not found")
                 else:
-                    raise ValueError(f"Flow {flow_id} not found")
+                    # Create new flow for this type
+                    logger.info(f"➕ Creating new {media_type} flow...")
+                    format_urn = f"urn:x-nmos:format:{media_type}"
+                    codec = type_codecs.get(media_type, "video/mp2t")
+                    
+                    flow = source.TAMSFlow(
+                        format=format_urn,
+                        codec=codec,
+                        label=f"{source_label or folder.name} ({media_type})"
+                    )
+                    
+                    # Add essence parameters if available
+                    if media_type in type_essence_params:
+                        flow._data["essence_parameters"] = type_essence_params[media_type]
+                    
+                    await flow._ensure_created()
+                    flows_dict[media_type] = flow.id
+                    flows[media_type] = flow
+                    logger.info(f"✅ Created {media_type} flow: {flow.id}")
+                    
+                    # Set flow tags
+                    logger.debug(f"🏷️  Setting {media_type} flow tags...")
+                    await flow.set_tag("ingest_folder", folder_path_str)
+                    await flow.set_tag("media_type", media_type)
+            
+            # Create multi-flow if multiple types detected
+            if len(media_types_detected) > 1:
+                if self.client is None:
+                    raise RuntimeError("Client not initialized")
+                if source is None:
+                    raise RuntimeError("Source not initialized")
+                    
+                if multi_flow_id:
+                    logger.info(f"📝 Using existing multi-flow: {multi_flow_id}")
+                    from vasttamsclient.api import flows as flow_api
+                    flow_data = await flow_api.get_flow(self.client, multi_flow_id)
+                    if flow_data:
+                        multi_flow = self.client.TAMSFlow(
+                            id=multi_flow_id,
+                            **{k: v for k, v in flow_data.items() if k != "id"}
+                        )
+                    else:
+                        raise ValueError(f"Multi-flow {multi_flow_id} not found")
+                else:
+                    logger.info(f"➕ Creating new multi-flow...")
+                    multi_flow = source.TAMSFlow(
+                        format="urn:x-nmos:format:multi",
+                        codec="video/mp2t",  # Container codec for multi-essence
+                        label=source_label or folder.name
+                    )
+                    await multi_flow._ensure_created()
+                    multi_flow_id = multi_flow.id
+                    logger.info(f"✅ Created multi-flow: {multi_flow_id}")
+                    
+                    # Set flow tags
+                    logger.debug("🏷️  Setting multi-flow tags...")
+                    await multi_flow.set_tag("ingest_folder", folder_path_str)
+                    
+                    # Set flow_collection
+                    collection_items = []
+                    for media_type in sorted(media_types_detected):
+                        if media_type in flows_dict:
+                            role = media_type if media_type != "data" else "data"
+                            collection_items.append({
+                                "id": flows_dict[media_type],
+                                "role": role
+                            })
+                    
+                    # Update flow_collection via API
+                    if self.client is None:
+                        raise RuntimeError("Client not initialized")
+                    if self.client._session is None:
+                        raise RuntimeError("Client session not initialized")
+                    url = f"{self.client.server_url}/flows/{multi_flow_id}/flow_collection"
+                    headers = await self.client._get_headers()
+                    async with self.client._session.put(url, json=collection_items, headers=headers) as response:
+                        if response.status not in (200, 201):
+                            error_text = await response.text()
+                            logger.warning(f"Failed to set flow_collection: {error_text}")
+                        else:
+                            logger.info(f"✅ Set flow_collection on multi-flow with {len(collection_items)} items")
             else:
-                logger.info(f"➕ Creating new flow...")
-                flow = source.TAMSFlow(
-                    format=flow_format,
-                    codec=flow_codec,
-                    label=source_label or folder.name
-                )
-                if essence_params:
-                    flow._data["essence_parameters"] = essence_params
-                await flow._ensure_created()
-                flow_id = flow.id
-                logger.info(f"✅ Created flow: {flow_id}")
-                
-                # Set flow tags
-                logger.debug("🏷️  Setting flow tags...")
-                await flow.set_tag("ingest_folder", folder_path_str)
+                multi_flow_id = None
         
         # Process files
         files_processed = 0
@@ -401,8 +558,30 @@ class FolderIngestor:
                 processed_chunks = set()
             
             try:
-                # Detect media type
-                media_type = detect_media_type(file_path_str)
+                # Get media type from pre-detected map
+                media_type = file_media_types.get(file_path, "data")
+                
+                # Get the appropriate flow for this media type
+                if media_type not in flows_dict:
+                    logger.warning(f"⚠️  No flow found for media type {media_type}, skipping {relative_path}")
+                    files_failed += 1
+                    continue
+                
+                target_flow_id = flows_dict[media_type]
+                target_flow = flows.get(media_type)
+                
+                if not target_flow and not self.dry_run:
+                    # Load flow if not already loaded
+                    if self.client is None:
+                        raise RuntimeError("Client not initialized")
+                    from vasttamsclient.api import flows as flow_api
+                    flow_data = await flow_api.get_flow(self.client, target_flow_id)
+                    if flow_data:
+                        target_flow = self.client.TAMSFlow(
+                            id=target_flow_id,
+                            **{k: v for k, v in flow_data.items() if k != "id"}
+                        )
+                        flows[media_type] = target_flow
                 
                 if media_type in ("video", "audio"):
                     # Chunk and upload media file
@@ -423,7 +602,7 @@ class FolderIngestor:
                             logger.warning(f"⚠️  Metadata file {metadata_file.name} format not recognized, using duration-based chunking")
                     
                     if self.dry_run:
-                        if chunk_mode == "metadata_file":
+                        if chunk_mode == "metadata_file" and metadata_file is not None:
                             logger.info(f"🔍 DRY RUN: Would chunk {relative_path} using markers from {metadata_file.name}")
                             # Try to count segments in metadata file
                             try:
@@ -472,7 +651,7 @@ class FolderIngestor:
                         files_processed += 1
                     else:
                         # Chunk the file
-                        if chunk_mode == "metadata_file":
+                        if chunk_mode == "metadata_file" and metadata_file is not None:
                             logger.info(f"✂️  Chunking file using markers from {metadata_file.name}...")
                         else:
                             logger.info(f"✂️  Chunking file into {self.chunk_duration}s segments...")
@@ -488,10 +667,10 @@ class FolderIngestor:
                         total_chunks = len(chunk_files)
                         logger.info(f"✅ Created {total_chunks} chunks")
                         
-                        # Upload each chunk as a segment
+                        # Upload each chunk as a segment to the appropriate flow
                         chunks_to_upload = [c for i, c in enumerate(chunk_files) if i not in processed_chunks]
                         if chunks_to_upload:
-                            logger.info(f"📤 Uploading {len(chunks_to_upload)} chunks...")
+                            logger.info(f"📤 Uploading {len(chunks_to_upload)} chunks to {media_type} flow...")
                         else:
                             logger.info(f"⏭️  All chunks already processed")
                         
@@ -509,9 +688,11 @@ class FolderIngestor:
                                 "value": f"[{start_seconds}:0_{end_seconds}:0)"
                             }
                             
-                            # Upload chunk
-                            logger.debug(f"   📤 Uploading chunk {chunk_idx + 1}/{total_chunks}...")
-                            segment = await flow.add_segment(
+                            # Upload chunk to the appropriate flow
+                            if target_flow is None:
+                                raise RuntimeError(f"Target flow for {media_type} not initialized")
+                            logger.debug(f"   📤 Uploading chunk {chunk_idx + 1}/{total_chunks} to {media_type} flow...")
+                            segment = await target_flow.add_segment(
                                 file_path=str(chunk_file),
                                 timerange=timerange,
                                 auto_probe=False  # Don't probe chunks
@@ -521,7 +702,7 @@ class FolderIngestor:
                             # Use pattern: file_mapping_{object_id} = {filename}|{file_path}|{chunk_index}|{total_chunks}
                             object_id = segment.object_id
                             mapping_value = f"{relative_path.name}|{file_path_str}|{chunk_idx}|{total_chunks}"
-                            await flow.set_tag(f"file_mapping_{object_id}", mapping_value)
+                            await target_flow.set_tag(f"file_mapping_{object_id}", mapping_value)
                             
                             logger.debug(f"   ✅ Uploaded chunk {chunk_idx + 1}/{total_chunks}")
                         
@@ -551,15 +732,9 @@ class FolderIngestor:
                         logger.info(f"🔍 DRY RUN: Would upload data file ({file_size} bytes) to TAMS")
                         files_processed += 1
                     else:
-                        # For data files, we need to create a data flow
-                        # Since we're using a single flow per folder, we'll upload data files
-                        # as segments with a special timerange
-                        # Note: This is a simplified approach - in practice, you might want
-                        # separate data flows or objects
-                        
-                        # Read file content
+                        # Upload data file to data flow
                         file_size = file_path.stat().st_size
-                        logger.info(f"📤 Uploading data file ({file_size} bytes)...")
+                        logger.info(f"📤 Uploading data file ({file_size} bytes) to data flow...")
                         file_data = file_path.read_bytes()
                         
                         # Create a temporary file for upload
@@ -570,8 +745,10 @@ class FolderIngestor:
                         
                         try:
                             # Upload as segment with timerange [0:0_0:0) for data files
+                            if target_flow is None:
+                                raise RuntimeError(f"Target flow for {media_type} not initialized")
                             timerange = {"value": "[0:0_0:0)"}
-                            segment = await flow.add_segment(
+                            segment = await target_flow.add_segment(
                                 file_path=tmp_path,
                                 timerange=timerange,
                                 auto_probe=False
@@ -580,7 +757,7 @@ class FolderIngestor:
                             # Store filename mapping in flow tags (segments don't have tags in TAMS)
                             object_id = segment.object_id
                             mapping_value = f"{relative_path.name}|{file_path_str}|-1|-1"  # -1 indicates data file
-                            await flow.set_tag(f"file_mapping_{object_id}", mapping_value)
+                            await target_flow.set_tag(f"file_mapping_{object_id}", mapping_value)
                             
                             files_processed += 1
                             logger.info(f"✅ Completed: {relative_path}")
@@ -613,11 +790,16 @@ class FolderIngestor:
         logger.info(f"   ⏭️  Files skipped: {files_skipped}")
         if files_failed > 0:
             logger.info(f"   ❌ Files failed: {files_failed}")
+        logger.info(f"   🔗 Flows created: {len(flows_dict)}")
+        for media_type, flow_id in flows_dict.items():
+            logger.info(f"      - {media_type}: {flow_id}")
+        if multi_flow_id:
+            logger.info(f"   🔗 Multi-flow: {multi_flow_id}")
         if self.dry_run:
             logger.info(f"   🔍 DRY RUN: No changes were made to TAMS")
         logger.info("=" * 60)
         
-        return (source_id, flow_id)
+        return (source_id, flows_dict, multi_flow_id)
 
 
 async def main():
@@ -711,7 +893,7 @@ async def main():
             recursive=recursive,
             dry_run=dry_run
         ) as ingestor:
-            source_id, flow_id = await ingestor.ingest_folder(
+            source_id, flows_dict, multi_flow_id = await ingestor.ingest_folder(
                 folder_path=args.folder,
                 source_format=args.format,
                 source_label=args.label,
@@ -719,8 +901,12 @@ async def main():
             )
             print(f"✅ Ingestion completed successfully!")
             print(f"   Source ID: {source_id}")
-            print(f"   Flow ID: {flow_id}")
-            
+            print(f"   Flows: {len(flows_dict)}")
+            for media_type, flow_id in flows_dict.items():
+                print(f"      - {media_type}: {flow_id}")
+            if multi_flow_id:
+                print(f"   Multi-flow ID: {multi_flow_id}")
+        
     except KeyboardInterrupt:
         logger.info("Ingestion interrupted by user")
         sys.exit(1)

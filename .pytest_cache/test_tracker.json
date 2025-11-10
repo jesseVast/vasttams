@@ -1895,68 +1895,416 @@
     "integration/test_server_comprehensive.py::TestReadOnlyFlows::test_read_only_flow_update": {
       "timestamp": "2025-11-09T18:03:08.878663+00:00",
       "source_files": []
+    },
+    "client/test_api_objects.py::TestObjectAPI::test_get_object_success": {
+      "timestamp": "2025-11-10T02:10:52.574891+00:00",
+      "source_files": []
+    },
+    "client/test_api_objects.py::TestObjectAPI::test_get_object_not_found": {
+      "timestamp": "2025-11-10T02:10:52.580560+00:00",
+      "source_files": []
+    },
+    "client/test_api_objects.py::TestObjectAPI::test_get_object_error": {
+      "timestamp": "2025-11-10T02:10:52.586133+00:00",
+      "source_files": []
+    },
+    "client/test_api_objects.py::TestObjectAPI::test_list_objects_success": {
+      "timestamp": "2025-11-10T02:10:52.592462+00:00",
+      "source_files": []
+    },
+    "client/test_api_objects.py::TestObjectAPI::test_list_objects_with_params": {
+      "timestamp": "2025-11-10T02:10:52.628658+00:00",
+      "source_files": []
+    },
+    "client/test_api_objects.py::TestObjectAPI::test_list_objects_error": {
+      "timestamp": "2025-11-10T02:10:52.634885+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_create_segment_json_only": {
+      "timestamp": "2025-11-10T02:10:52.641091+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_create_segment_with_file": {
+      "timestamp": "2025-11-10T02:10:52.648949+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_create_segment_file_not_found": {
+      "timestamp": "2025-11-10T02:10:52.653344+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_create_segment_error": {
+      "timestamp": "2025-11-10T02:10:52.659687+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_list_segments_success": {
+      "timestamp": "2025-11-10T02:10:52.665252+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_list_segments_with_params": {
+      "timestamp": "2025-11-10T02:10:52.670544+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_delete_segments_success": {
+      "timestamp": "2025-11-10T02:10:52.675600+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_delete_segments_error": {
+      "timestamp": "2025-11-10T02:10:52.681092+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_allocate_storage_success": {
+      "timestamp": "2025-11-10T02:10:52.686549+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_allocate_storage_with_params": {
+      "timestamp": "2025-11-10T02:10:52.693318+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_upload_to_storage_file_not_found": {
+      "timestamp": "2025-11-10T02:10:52.949311+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_upload_to_storage_no_data_or_file": {
+      "timestamp": "2025-11-10T02:10:52.953941+00:00",
+      "source_files": []
+    },
+    "client/test_api_sources.py::TestSourceAPI::test_update_source_label_success": {
+      "timestamp": "2025-11-10T02:10:53.019556+00:00",
+      "source_files": []
+    },
+    "client/test_api_sources.py::TestSourceAPI::test_list_sources_success": {
+      "timestamp": "2025-11-10T02:10:53.025485+00:00",
+      "source_files": []
+    },
+    "client/test_api_tags.py::TestTagsAPI::test_get_tags_with_list_values": {
+      "timestamp": "2025-11-10T02:10:53.031299+00:00",
+      "source_files": []
+    },
+    "client/test_auth.py::TestTokenManager::test_refresh_token": {
+      "timestamp": "2025-11-10T02:10:53.044839+00:00",
+      "source_files": []
+    },
+    "client/test_auth.py::TestTokenManager::test_clear_token": {
+      "timestamp": "2025-11-10T02:10:53.047739+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientInit::test_init": {
+      "timestamp": "2025-11-10T02:10:53.052049+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientInit::test_init_strips_trailing_slash": {
+      "timestamp": "2025-11-10T02:10:53.054695+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientInit::test_init_custom_timeout": {
+      "timestamp": "2025-11-10T02:10:53.057628+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientInit::test_init_custom_verify_ssl": {
+      "timestamp": "2025-11-10T02:10:53.060063+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientContextManager::test_context_manager_enter": {
+      "timestamp": "2025-11-10T02:10:53.064783+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientContextManager::test_context_manager_exit": {
+      "timestamp": "2025-11-10T02:10:53.069392+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientSession::test_ensure_session_creates_session": {
+      "timestamp": "2025-11-10T02:10:53.073982+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientSession::test_ensure_session_recreates_closed_session": {
+      "timestamp": "2025-11-10T02:10:53.078496+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientSession::test_get_headers": {
+      "timestamp": "2025-11-10T02:10:53.083307+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientSession::test_close": {
+      "timestamp": "2025-11-10T02:10:53.088043+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientRequest::test_request_success": {
+      "timestamp": "2025-11-10T02:10:53.095392+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientRequest::test_request_401_refreshes_token": {
+      "timestamp": "2025-11-10T02:10:53.101272+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientRequest::test_request_401_after_refresh_raises_error": {
+      "timestamp": "2025-11-10T02:10:53.106754+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientRequest::test_request_connection_error": {
+      "timestamp": "2025-11-10T02:10:53.110963+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientFactoryMethods::test_tams_source_factory": {
+      "timestamp": "2025-11-10T02:10:53.115252+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientFactoryMethods::test_tams_flow_factory": {
+      "timestamp": "2025-11-10T02:10:53.119157+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientQueryMethods::test_get_source_success": {
+      "timestamp": "2025-11-10T02:10:53.123593+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientQueryMethods::test_get_source_not_found": {
+      "timestamp": "2025-11-10T02:10:53.129244+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientQueryMethods::test_list_sources": {
+      "timestamp": "2025-11-10T02:10:53.134249+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientQueryMethods::test_list_flows": {
+      "timestamp": "2025-11-10T02:10:53.139222+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientSyncWrappers::test_get_source_sync": {
+      "timestamp": "2025-11-10T02:10:53.143904+00:00",
+      "source_files": []
+    },
+    "client/test_client.py::TestTAMSClientSyncWrappers::test_list_sources_sync": {
+      "timestamp": "2025-11-10T02:10:53.148070+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowInit::test_init_new_flow_with_source_id": {
+      "timestamp": "2025-11-10T02:10:53.154549+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowInit::test_init_new_flow_with_source_object": {
+      "timestamp": "2025-11-10T02:10:53.158562+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowInit::test_init_existing_flow": {
+      "timestamp": "2025-11-10T02:10:53.162726+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowInit::test_init_missing_format": {
+      "timestamp": "2025-11-10T02:10:53.167549+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowInit::test_init_missing_codec": {
+      "timestamp": "2025-11-10T02:10:53.171732+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowInit::test_init_missing_source": {
+      "timestamp": "2025-11-10T02:10:53.175782+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowProperties::test_source_id_property": {
+      "timestamp": "2025-11-10T02:10:53.179749+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowProperties::test_format_property": {
+      "timestamp": "2025-11-10T02:10:53.183688+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowProperties::test_codec_property": {
+      "timestamp": "2025-11-10T02:10:53.187709+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowProperties::test_label_property": {
+      "timestamp": "2025-11-10T02:10:53.191984+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowProperties::test_essence_parameters_property": {
+      "timestamp": "2025-11-10T02:10:53.196286+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowCreation::test_ensure_created": {
+      "timestamp": "2025-11-10T02:10:53.200635+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowSegmentOperations::test_add_segment_with_file_path": {
+      "timestamp": "2025-11-10T02:10:53.811890+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowSegmentOperations::test_add_segment_file_not_found": {
+      "timestamp": "2025-11-10T02:10:53.817820+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowSegmentOperations::test_add_segment_no_file_or_s3": {
+      "timestamp": "2025-11-10T02:10:53.823203+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowSegmentOperations::test_get_segment": {
+      "timestamp": "2025-11-10T02:10:58.975899+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowSegmentOperations::test_list_segments": {
+      "timestamp": "2025-11-10T02:10:58.981312+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowSegmentOperations::test_delete_segments": {
+      "timestamp": "2025-11-10T02:10:58.986870+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowCRUD::test_refresh": {
+      "timestamp": "2025-11-10T02:10:58.991358+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowCRUD::test_update": {
+      "timestamp": "2025-11-10T02:10:58.997415+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowCRUD::test_delete": {
+      "timestamp": "2025-11-10T02:10:59.002305+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowTags::test_get_tags": {
+      "timestamp": "2025-11-10T02:10:59.007328+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowTags::test_set_tag": {
+      "timestamp": "2025-11-10T02:10:59.012433+00:00",
+      "source_files": []
+    },
+    "client/test_domain_flow.py::TestTAMSFlowTags::test_delete_tag": {
+      "timestamp": "2025-11-10T02:10:59.017430+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceInit::test_init_new_source": {
+      "timestamp": "2025-11-10T02:10:59.022080+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceInit::test_init_new_source_with_id": {
+      "timestamp": "2025-11-10T02:10:59.026257+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceInit::test_init_existing_source": {
+      "timestamp": "2025-11-10T02:10:59.030714+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceInit::test_init_missing_format": {
+      "timestamp": "2025-11-10T02:10:59.034997+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceProperties::test_format_property": {
+      "timestamp": "2025-11-10T02:10:59.040062+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceProperties::test_label_property": {
+      "timestamp": "2025-11-10T02:10:59.044694+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceProperties::test_description_property": {
+      "timestamp": "2025-11-10T02:10:59.049087+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceCreation::test_ensure_created": {
+      "timestamp": "2025-11-10T02:10:59.054087+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceCreation::test_ensure_created_already_created": {
+      "timestamp": "2025-11-10T02:10:59.058775+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceFlowOperations::test_tams_flow_factory": {
+      "timestamp": "2025-11-10T02:10:59.063104+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceFlowOperations::test_add_flow": {
+      "timestamp": "2025-11-10T02:10:59.068708+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceFlowOperations::test_get_flow": {
+      "timestamp": "2025-11-10T02:10:59.073766+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceFlowOperations::test_get_flow_not_found": {
+      "timestamp": "2025-11-10T02:10:59.078718+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceFlowOperations::test_list_flows": {
+      "timestamp": "2025-11-10T02:10:59.084340+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceCRUD::test_refresh": {
+      "timestamp": "2025-11-10T02:10:59.089149+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceCRUD::test_refresh_not_found": {
+      "timestamp": "2025-11-10T02:10:59.094130+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceCRUD::test_update": {
+      "timestamp": "2025-11-10T02:10:59.099730+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceCRUD::test_delete": {
+      "timestamp": "2025-11-10T02:10:59.105438+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceTags::test_get_tags": {
+      "timestamp": "2025-11-10T02:10:59.110215+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceTags::test_get_tag": {
+      "timestamp": "2025-11-10T02:10:59.115272+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceTags::test_set_tag": {
+      "timestamp": "2025-11-10T02:10:59.121084+00:00",
+      "source_files": []
+    },
+    "client/test_domain_source.py::TestTAMSSourceTags::test_delete_tag": {
+      "timestamp": "2025-11-10T02:10:59.126251+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_upload_to_storage_with_data": {
+      "timestamp": "2025-11-10T02:12:04.601688+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_upload_to_storage_with_file": {
+      "timestamp": "2025-11-10T02:12:04.637900+00:00",
+      "source_files": []
+    },
+    "client/test_api_segments.py::TestSegmentAPI::test_upload_to_storage_error": {
+      "timestamp": "2025-11-10T02:12:04.643286+00:00",
+      "source_files": []
+    },
+    "client/test_integration.py::TestFlowIntegration::test_list_flows_for_source": {
+      "timestamp": "2025-11-10T02:15:51.798844+00:00",
+      "source_files": []
+    },
+    "client/test_integration.py::TestFlowIntegration::test_flow_tags": {
+      "timestamp": "2025-11-10T02:18:23.753217+00:00",
+      "source_files": []
+    },
+    "client/test_integration.py::TestFlowIntegration::test_update_flow": {
+      "timestamp": "2025-11-10T02:19:28.770560+00:00",
+      "source_files": []
+    },
+    "client/test_integration.py::TestFlowIntegration::test_flow_refresh": {
+      "timestamp": "2025-11-10T02:19:39.713314+00:00",
+      "source_files": []
+    },
+    "client/test_integration.py::TestSourceFlowWorkflow::test_list_sources_with_flows": {
+      "timestamp": "2025-11-10T02:20:06.501033+00:00",
+      "source_files": []
+    },
+    "client/test_comprehensive_workflow.py::TestComprehensiveWorkflow::test_comprehensive_workflow": {
+      "timestamp": "2025-11-10T02:24:11.153439+00:00",
+      "source_files": []
+    },
+    "client/test_integration.py::TestErrorHandling::test_delete_nonexistent_source": {
+      "timestamp": "2025-11-10T02:25:06.906158+00:00",
+      "source_files": []
     }
   },
   "failed_tests": {
     "test_s3_upload_workflow.py::TestS3UploadWorkflow::test_audio_flow_segments": {
       "timestamp": "2025-11-08T19:35:35.120678+00:00",
       "last_error": "E   AssertionError: Audio flow should have at least 2 segments, got 0\n    assert 0 >= 2\n     +  where 0 = len([])"
-    },
-    "client/test_api_sources.py::TestSourceAPI::test_list_sources_success": {
-      "timestamp": "2025-11-09T14:45:19.232605+00:00",
-      "last_error": "tests/client/test_api_sources.py:134: in test_list_sources_success\n    mock_get_context = MagicMock()\nE   NameError: name 'MagicMock' is not defined"
-    },
-    "client/test_integration.py::TestFlowIntegration::test_update_flow": {
-      "timestamp": "2025-11-08T22:28:42.389255+00:00",
-      "last_error": "E   AssertionError: assert None == 'Updated Flow Label'\n     +  where None = <vasttamsclient.domain.flow.TAMSFlow object at 0x11bcc1fa0>.label"
-    },
-    "client/test_integration.py::TestFlowIntegration::test_flow_tags": {
-      "timestamp": "2025-11-08T22:28:52.677535+00:00",
-      "last_error": "E   AssertionError: assert 'quality' in {}"
-    },
-    "client/test_integration.py::TestFlowIntegration::test_list_flows_for_source": {
-      "timestamp": "2025-11-08T22:29:01.747888+00:00",
-      "last_error": "E   TypeError: vasttamsclient.domain.flow.TAMSFlow() got multiple values for keyword argument 'id'"
-    },
-    "client/test_integration.py::TestFlowIntegration::test_flow_refresh": {
-      "timestamp": "2025-11-08T22:29:11.243407+00:00",
-      "last_error": "E   AttributeError: 'TAMSFlow' object has no attribute 'description'"
-    },
-    "client/test_integration.py::TestSourceFlowWorkflow::test_list_sources_with_flows": {
-      "timestamp": "2025-11-08T22:29:22.320192+00:00",
-      "last_error": "E   TypeError: vasttamsclient.domain.flow.TAMSFlow() got multiple values for keyword argument 'id'"
-    },
-    "client/test_integration.py::TestErrorHandling::test_delete_nonexistent_source": {
-      "timestamp": "2025-11-08T22:29:23.387508+00:00",
-      "last_error": "E   vasttamsclient.exceptions.TAMSAPIError: [422] Failed to delete source: {\"detail\":\"Invalid source ID format: Invalid UUID format. Must be a valid TAMS UUID\",\"status_code\":422}\n    Response: {\"detail\":\"Invalid source ID format: Invalid UUID format. Must be a valid TAMS UUID\",\"status_code\":422}\n\nDuring handling of the above exception, another exception occurred:\nE   assert ('404' in '[422] Failed to delete source: {\"detail\":\"Invalid source ID format: Invalid UUID format. Must be a valid TAMS UU"
-    },
-    "client/test_api_sources.py::TestSourceAPI::test_update_source_label_success": {
-      "timestamp": "2025-11-09T14:45:19.226486+00:00",
-      "last_error": "tests/client/test_api_sources.py:97: in test_update_source_label_success\n    mock_put_context = MagicMock()\nE   NameError: name 'MagicMock' is not defined"
-    },
-    "client/test_client.py::TestTAMSClientQueryMethods::test_get_source_success": {
-      "timestamp": "2025-11-09T14:45:34.468593+00:00",
-      "last_error": "tests/client/test_client.py:205: in test_get_source_success\n    with patch('vasttamsclient.client.source_api.get_source', new_callable=AsyncMock) as mock_get:\n../../../.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/unittest/mock.py:1451: in __enter__\n    self.target = self.getter()\n../../../.local/share/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/pkgutil.py:528: in resolve_name\n    result = getattr(result, p)\nE   AttributeError: module 'vasttamsclient.cl"
-    },
-    "client/test_domain_flow.py::TestTAMSFlowSegmentOperations::test_add_segment_with_file_path": {
-      "timestamp": "2025-11-09T14:46:11.491127+00:00",
-      "last_error": "tests/client/test_domain_flow.py:175: in test_add_segment_with_file_path\n    segment = await flow.add_segment(\nsrc/client/vasttamsclient/domain/flow.py:165: in add_segment\n    chunk_size=chunk_size\nE   NameError: name 'chunk_size' is not defined"
-    },
-    "client/test_domain_source.py::TestTAMSSourceInit::test_init_new_source_with_id": {
-      "timestamp": "2025-11-09T14:46:11.499146+00:00",
-      "last_error": "tests/client/test_domain_source.py:37: in test_init_new_source_with_id\n    assert source._created is True\nE   assert False is True\nE    +  where False = <vasttamsclient.domain.source.TAMSSource object at 0x127182db0>._created"
-    },
-    "client/test_domain_source.py::TestTAMSSourceFlowOperations::test_get_flow": {
-      "timestamp": "2025-11-09T14:48:11.358575+00:00",
-      "last_error": "tests/client/test_domain_source.py:160: in test_get_flow\n    flow = await source.get_flow(\"flow-123\")\nsrc/client/vasttamsclient/domain/source.py:91: in get_flow\n    return TAMSFlow(self._client, id=flow_id, **flow_data)\nE   TypeError: vasttamsclient.domain.flow.TAMSFlow() got multiple values for keyword argument 'id'"
-    },
-    "client/test_domain_source.py::TestTAMSSourceFlowOperations::test_list_flows": {
-      "timestamp": "2025-11-09T14:48:11.365309+00:00",
-      "last_error": "tests/client/test_domain_source.py:190: in test_list_flows\n    flows = await source.list_flows()\nsrc/client/vasttamsclient/domain/source.py:99: in list_flows\n    return [TAMSFlow(self._client, id=f[\"id\"], **f) for f in flows_data]\nE   TypeError: vasttamsclient.domain.flow.TAMSFlow() got multiple values for keyword argument 'id'"
-    },
-    "client/test_comprehensive_workflow.py::TestComprehensiveWorkflow::test_comprehensive_workflow": {
-      "timestamp": "2025-11-09T16:00:36.347339+00:00",
-      "last_error": "tests/client/test_comprehensive_workflow.py:334: in test_comprehensive_workflow\n    await f2.set_tag(\"quality\", [\"hd\", \"4k\"])  # List value\nsrc/client/vasttamsclient/domain/flow.py:299: in set_tag\n    await tag_api.set_tag(self._client, \"flow\", self._id, name, value)\nsrc/client/vasttamsclient/api/tags.py:98: in set_tag\n    raise TAMSAPIError(f\"Failed to set tag: {error_text}\", response.status, error_text)\nE   vasttamsclient.exceptions.TAMSAPIError: [422] Failed to set tag: {\"detail\":[{\"msg\":\"Val"
     }
   },
   "source_file_hashes": {}

@@ -8,11 +8,14 @@ import json
 import os
 import logging
 import asyncio
-from typing import Dict, Any, List, Optional
+from typing import TYPE_CHECKING, Dict, Any, List, Optional
 import requests
 import aiohttp
 from pathlib import Path
 from ..exceptions import TAMSAPIError
+
+if TYPE_CHECKING:
+    from ..client import TAMSClient
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +23,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024  # 8MB
 
 
-async def create_segment(client, flow_id: str, segment_data: Dict[str, Any], file_path: Optional[str] = None, chunk_size: int = DEFAULT_CHUNK_SIZE) -> Dict[str, Any]:
+async def create_segment(client: "TAMSClient", flow_id: str, segment_data: Dict[str, Any], file_path: Optional[str] = None, chunk_size: int = DEFAULT_CHUNK_SIZE) -> Dict[str, Any]:
     """
     Create a segment with optional file upload.
     
@@ -72,7 +75,7 @@ async def create_segment(client, flow_id: str, segment_data: Dict[str, Any], fil
                 raise TAMSAPIError(f"Failed to create segment: {error_text}", response.status, error_text)
 
 
-async def list_segments(client, flow_id: str, query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+async def list_segments(client: "TAMSClient", flow_id: str, query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """List segments for a flow."""
     url = f"{client.server_url}/flows/{flow_id}/segments"
     async with client._session.get(url, params=query_params or {}, headers=await client._get_headers()) as response:
@@ -88,7 +91,7 @@ async def list_segments(client, flow_id: str, query_params: Optional[Dict[str, A
             raise TAMSAPIError(f"Failed to list segments: {error_text}", response.status, error_text)
 
 
-async def delete_segments(client, flow_id: str, query_params: Optional[Dict[str, Any]] = None) -> None:
+async def delete_segments(client: "TAMSClient", flow_id: str, query_params: Optional[Dict[str, Any]] = None) -> None:
     """Delete segments."""
     url = f"{client.server_url}/flows/{flow_id}/segments"
     async with client._session.delete(url, params=query_params or {}, headers=await client._get_headers()) as response:
@@ -97,7 +100,7 @@ async def delete_segments(client, flow_id: str, query_params: Optional[Dict[str,
             raise TAMSAPIError(f"Failed to delete segments: {error_text}", response.status, error_text)
 
 
-async def allocate_storage(client, flow_id: str, label: Optional[str] = None, limit: int = 1, storage_id: Optional[str] = None) -> Dict[str, Any]:
+async def allocate_storage(client: "TAMSClient", flow_id: str, label: Optional[str] = None, limit: int = 1, storage_id: Optional[str] = None) -> Dict[str, Any]:
     """Allocate storage for flow segments."""
     url = f"{client.server_url}/flows/{flow_id}/storage"
     data = {"limit": limit}
@@ -114,7 +117,7 @@ async def allocate_storage(client, flow_id: str, label: Optional[str] = None, li
             raise TAMSAPIError(f"Failed to allocate storage: {error_text}", response.status, error_text)
 
 
-async def upload_to_storage(client, presigned_url: str, data: bytes = None, file_path: Optional[str] = None, 
+async def upload_to_storage(client: "TAMSClient", presigned_url: str, data: bytes = None, file_path: Optional[str] = None, 
                            content_type: str = "application/octet-stream", chunk_size: int = DEFAULT_CHUNK_SIZE) -> bool:
     """
     Upload data to storage using presigned URL.

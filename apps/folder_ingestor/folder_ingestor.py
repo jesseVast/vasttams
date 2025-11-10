@@ -81,14 +81,20 @@ class FolderIngestor:
         """Async context manager entry."""
         if not self.dry_run:
             logger.info(f"🔌 Connecting to TAMS server: {self.server_url}")
+            # Configure connection pooling for parallel uploads
+            # Set limit_per_host to at least max_parallel_uploads + some overhead
+            limit_per_host = max(self.max_parallel_uploads * 2, 30)
             self.client = TAMSClient(
                 server_url=self.server_url,
                 username=self.username,
                 password=self.password,
-                timeout=300
+                timeout=300,
+                limit=100,  # Total connection pool size
+                limit_per_host=limit_per_host,  # Max connections per host (scaled for parallel uploads)
+                keepalive_timeout=60  # Keep connections alive for reuse
             )
             await self.client.__aenter__()
-            logger.info("✅ Connected to TAMS server")
+            logger.info(f"✅ Connected to TAMS server (connection pool: {limit_per_host} per host)")
         else:
             logger.info("🔍 DRY RUN: Skipping TAMS connection")
         return self

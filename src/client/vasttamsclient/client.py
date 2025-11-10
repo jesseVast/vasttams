@@ -22,7 +22,9 @@ class TAMSClient:
     """Main TAMS client class."""
     
     def __init__(self, server_url: str, username: str, password: str, 
-                 timeout: int = 30, verify_ssl: bool = True):
+                 timeout: int = 30, verify_ssl: bool = True,
+                 limit: int = 100, limit_per_host: int = 30,
+                 keepalive_timeout: int = 30):
         """
         Initialize TAMS client.
         
@@ -32,12 +34,18 @@ class TAMSClient:
             password: Password for authentication
             timeout: Request timeout in seconds
             verify_ssl: Verify SSL certificates
+            limit: Total connection pool size (default: 100)
+            limit_per_host: Max connections per host (default: 30)
+            keepalive_timeout: Keep-alive timeout in seconds (default: 30)
         """
         self.server_url = server_url.rstrip('/')
         self.username = username
         self.password = password
         self.timeout = timeout
         self.verify_ssl = verify_ssl
+        self.limit = limit
+        self.limit_per_host = limit_per_host
+        self.keepalive_timeout = keepalive_timeout
         
         self._token_manager = TokenManager(server_url, username, password)
         self._session: Optional[aiohttp.ClientSession] = None
@@ -59,10 +67,19 @@ class TAMSClient:
         await self.close()
     
     async def _ensure_session(self):
-        """Ensure HTTP session is created."""
+        """Ensure HTTP session is created with connection pooling."""
         if self._session is None or self._session.closed:
             timeout = aiohttp.ClientTimeout(total=self.timeout)
-            connector = aiohttp.TCPConnector(ssl=self.verify_ssl)
+            # Configure connection pooling for parallel uploads
+            connector = aiohttp.TCPConnector(
+                ssl=self.verify_ssl,
+                limit=self.limit,  # Total connection pool size
+                limit_per_host=self.limit_per_host,  # Max connections per host
+                keepalive_timeout=self.keepalive_timeout,  # Keep connections alive
+                ttl_dns_cache=300,  # DNS cache TTL (5 minutes)
+                use_dns_cache=True,  # Enable DNS caching
+                force_close=False  # Reuse connections
+            )
             self._session = aiohttp.ClientSession(timeout=timeout, connector=connector)
     
     async def _get_headers(self) -> Dict[str, str]:

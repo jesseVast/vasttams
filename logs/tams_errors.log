@@ -1064,3 +1064,45 @@ essence_parameters
 2025-11-09 21:22:41 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
 2025-11-09 21:22:42 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
 2025-11-09 21:22:42 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-09 21:35:42 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-09 21:35:42 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-09 21:35:42 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-09 21:35:42 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: POST /sources
+2025-11-09 21:35:42 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-09 21:35:42 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-09 21:35:42 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-09 21:35:42 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'body -> format': Value error, Invalid content format. Must be one of: ['urn:x-nmos:format:video', 'urn:x-tam:format:image', 'urn:x-nmos:format:audio', 'urn:x-nmos:format:data', 'urn:x-nmos:format:multi'] (got: video/mp4, type: value_error)
+2025-11-09 21:35:42 - vasttamsserver.core.utils:403:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-09 21:35:42 - vasttamsserver.core.utils:404:log_pydantic_validation_error - ERROR - Input Data:
+2025-11-09 21:35:42 - vasttamsserver.core.utils:418:log_pydantic_validation_error - ERROR - {
+  "description": "Folder ingest: /Users/jesse.thaloor/Developer/data/video/1",
+  "format": "video/mp4",
+  "label": "1",
+  "id": "5ea0bda3-1a6d-4125-b419-40b8d296a0a4"
+}
+2025-11-09 21:35:42 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-09 21:35:42 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-09 21:35:42 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-09 21:35:42 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'value_error', 'loc': ('body', 'format'), 'msg': "Value error, Invalid content format. Must be one of: ['urn:x-nmos:format:video', 'urn:x-tam:format:image', 'urn:x-nmos:format:audio', 'urn:x-nmos:format:data', 'urn:x-nmos:format:multi']", 'input': 'video/mp4', 'ctx': {'error': ValueError("Invalid content format. Must be one of: ['urn:x-nmos:format:video', 'urn:x-tam:format:image', 'urn:x-nmos:format:audio', 'urn:x-nmos:format:data', 'urn:x-nmos:format:multi']")}}]
+2025-11-09 21:35:42 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'value_error', 'loc': ('body', 'format'), 'msg': "Value error, Invalid content format. Must be one of: ['urn:x-nmos:format:video', 'urn:x-tam:format:image', 'urn:x-nmos:format:audio', 'urn:x-nmos:format:data', 'urn:x-nmos:format:multi']", 'input': 'video/mp4', 'ctx': {'error': ValueError("Invalid content format. Must be one of: ['urn:x-nmos:format:video', 'urn:x-tam:format:image', 'urn:x-nmos:format:audio', 'urn:x-nmos:format:data', 'urn:x-nmos:format:multi']")}}
+2025-11-09 21:35:42 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-09 21:36:32 - vasttamsserver.flows.service:690:create_flow - ERROR - VFR validation error creating flow: If vfr=True, frame_rate MUST NOT be set
+2025-11-09 21:38:58 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-09 21:38:58 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-09 21:43:57 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-09 21:43:57 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-09 21:47:21 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/tags/file_mapping_0aa80405-1ca8-4b2f-9213-890b3a62c405: Request timeout after 31.00s
+2025-11-09 21:47:21 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/tags/file_mapping_d3945899-e2c2-4d5c-82bf-7e283ee8a8b8: Request timeout after 31.00s
+2025-11-09 21:48:36 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/tags/file_mapping_7b88976c-cb33-4ba6-a2cb-6981f1bb94fd: Request timeout after 40.76s
+2025-11-09 21:48:36 - vasttamsserver.flows.router:390:update_flow_tag - ERROR - Failed to update flow tag file_mapping_9cc92ad4-067e-446e-ac65-5cafde493e12 for 4f1b834c-5b2f-4e22-be28-301962ba3d8d: 
+2025-11-09 21:48:36 - vasttamsserver.main:295:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error
+2025-11-09 21:48:46 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-09 21:48:46 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-09 21:51:21 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-09 21:51:21 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-09 21:51:53 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-09 21:51:53 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-09 21:51:58 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-09 21:51:58 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-09 21:53:11 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-09 21:53:11 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error

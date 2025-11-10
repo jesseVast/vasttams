@@ -5,9 +5,11 @@ Main client class for interacting with TAMS servers.
 """
 
 import asyncio
+import json
 import logging
 import aiohttp
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
+from pathlib import Path
 from .auth import TokenManager
 from .exceptions import TAMSAuthenticationError, TAMSAPIError, TAMSConnectionError
 from .domain.source import TAMSSource
@@ -335,4 +337,119 @@ class TAMSClient:
     def list_flows_sync(self, **query_params) -> List[TAMSFlow]:
         """Synchronous wrapper for list_flows."""
         return asyncio.run(self.list_flows(**query_params))
+    
+    async def export_source_tree(self, source: Union[str, TAMSSource], 
+                                 output_file: Optional[str] = None,
+                                 indent: int = 2) -> Dict[str, Any]:
+        """
+        Export the complete tree structure of a source to JSON.
+        
+        Creates a JSON representation of:
+        - Source and its properties (including tags)
+        - All flows under the source (with properties and tags)
+        - All segments under each flow
+        - All objects referenced by each segment
+        
+        Args:
+            source: Source ID string or TAMSSource instance
+            output_file: Optional file path to save JSON. If None, prints to stdout.
+            indent: JSON indentation level (default: 2)
+            
+        Returns:
+            Dict containing the complete tree structure
+            
+        Example:
+            # Save to file
+            tree = await client.export_source_tree("source-id", "output.json")
+            
+            # Print to stdout
+            tree = await client.export_source_tree("source-id")
+        """
+        from .api import objects as object_api
+        
+        # Get source if source_id provided
+        if isinstance(source, str):
+            source_obj = await self.get_source(source)
+            if source_obj is None:
+                raise ValueError(f"Source not found: {source}")
+        else:
+            source_obj = source
+        
+        # Build source data with tags
+        source_data = source_obj._data.copy()
+        try:
+            source_tags = await source_obj.get_tags()
+            if source_tags:
+                source_data["tags"] = source_tags
+        except Exception as e:
+            logger.warning(f"Failed to get tags for source {source_obj.id}: {e}")
+            source_data["tags"] = {}
+        
+        # Get all flows for this source
+        flows = await source_obj.list_flows()
+        flows_data = []
+        
+        for flow in flows:
+            # Build flow data with tags
+            flow_data = flow._data.copy()
+            try:
+                flow_tags = await flow.get_tags()
+                if flow_tags:
+                    flow_data["tags"] = flow_tags
+            except Exception as e:
+                logger.warning(f"Failed to get tags for flow {flow.id}: {e}")
+                flow_data["tags"] = {}
+            
+            # Get all segments for this flow
+            segments = await flow.list_segments()
+            segments_data = []
+            
+            for segment in segments:
+                # Build segment data
+                segment_data = segment._data.copy()
+                
+                # Get object for this segment
+                object_id = segment.object_id
+                try:
+                    object_data = await object_api.get_object(self, object_id)
+                    if object_data:
+                        segment_data["object"] = object_data
+                    else:
+                        segment_data["object"] = None
+                        logger.warning(f"Object not found: {object_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to get object {object_id}: {e}")
+                    segment_data["object"] = None
+                
+                segments_data.append(segment_data)
+            
+            flow_data["segments"] = segments_data
+            flows_data.append(flow_data)
+        
+        # Build complete tree structure
+        tree = {
+            "source": source_data,
+            "flows": flows_data
+        }
+        
+        # Output JSON
+        json_str = json.dumps(tree, indent=indent, default=str)
+        
+        if output_file:
+            # Save to file
+            output_path = Path(output_file)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json_str, encoding='utf-8')
+            logger.info(f"Source tree exported to {output_file}")
+        else:
+            # Print to stdout
+            print(json_str)
+        
+        return tree
+    
+    def export_source_tree_sync(self, source: Union[str, TAMSSource],
+                                output_file: Optional[str] = None,
+                                indent: int = 2) -> Dict[str, Any]:
+        """Synchronous wrapper for export_source_tree."""
+        return asyncio.run(self.export_source_tree(source, output_file, indent))
 

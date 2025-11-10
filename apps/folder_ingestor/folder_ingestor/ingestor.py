@@ -40,7 +40,8 @@ class FolderIngestor:
         max_parallel_uploads: int = 4,
         no_chunking: bool = False,
         use_metadata: bool = False,
-        include_originals: bool = False
+        include_originals: bool = False,
+        chunk_format: str = "original"
     ):
         """
         Initialize folder ingestor.
@@ -56,6 +57,7 @@ class FolderIngestor:
             no_chunking: If True, upload files as-is without chunking (default: False). Overrides use_metadata.
             use_metadata: If True, use metadata files for marker-based chunking when available (default: False)
             include_originals: If True, also upload original files to separate flow when chunking (default: False)
+            chunk_format: Chunk format - "original" (copy codecs, MP4) or "hls" (HLS-compatible TS) (default: "original")
         """
         self.server_url = server_url
         self.username = username
@@ -67,6 +69,7 @@ class FolderIngestor:
         self.no_chunking = no_chunking
         self.use_metadata = use_metadata
         self.include_originals = include_originals
+        self.chunk_format = chunk_format
         self.client: Optional[TAMSClient] = None
         self.flow_manager: Optional[FlowManager] = None
         self.file_processor: Optional[FileProcessor] = None
@@ -104,7 +107,8 @@ class FolderIngestor:
             self.max_parallel_uploads,
             self.no_chunking,
             self.use_metadata,
-            self.include_originals
+            self.include_originals,
+            self.chunk_format
         )
         
         return self
@@ -283,6 +287,14 @@ class FolderIngestor:
             file_media_types,
             files
         )
+        
+        # Ensure data codec is always set correctly
+        if "data" in media_types_detected:
+            if "data" not in type_codecs or not type_codecs["data"] or "/" not in str(type_codecs["data"]):
+                logger.warning("Data codec not properly set, forcing to 'application/octet-stream'")
+                type_codecs["data"] = "application/octet-stream"
+            if "data" not in type_essence_params:
+                type_essence_params["data"] = {"data_type": "urn:x-tams:data:file"}
         
         # Create or get flows for each media type
         flows, multi_flow_id = await self.flow_manager.create_or_get_flows(

@@ -153,13 +153,35 @@ export const flowService = {
 };
 
 export const segmentService = {
-  listByFlow: async (flowId: string, timerange?: string): Promise<Segment[]> => {
+  listByFlow: async (flowId: string, timerange?: string, limit?: number, offset?: number): Promise<Segment[]> => {
     const params: any = {};
     if (timerange) {
       params.timerange = timerange;
     }
+    if (limit !== undefined) {
+      params.limit = limit;
+    }
+    if (offset !== undefined) {
+      params.offset = offset;
+    }
     const response = await api.get(`/flows/${flowId}/segments`, { params });
     return response.data?.data || response.data || [];
+  },
+};
+
+export const hlsService = {
+  getStatus: async (flowId: string): Promise<{ hls_ready: boolean; segment_count?: number; reason?: string; playlist_url?: string }> => {
+    const response = await api.get(`/hls/flows/${flowId}/status`);
+    return response.data;
+  },
+  getPlaylistUrl: (flowId: string): string => {
+    const baseUrl = API_BASE_URL.replace(/\/$/, ''); // Remove trailing slash
+    const token = localStorage.getItem('token');
+    // Add token as query parameter for HLS players that can't send headers
+    if (token) {
+      return `${baseUrl}/hls/flows/${flowId}/playlist.m3u8?access_token=${encodeURIComponent(token)}`;
+    }
+    return `${baseUrl}/hls/flows/${flowId}/playlist.m3u8`;
   },
 };
 

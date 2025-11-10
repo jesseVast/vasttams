@@ -32,7 +32,8 @@ async def chunk_media_file(
     chunk_duration: int = 30,
     output_dir: Optional[str] = None,
     metadata_file: Optional[str] = None,
-    chunk_mode: str = "duration"
+    chunk_mode: str = "duration",
+    chunk_format: str = "original"
 ) -> List[Path]:
     """
     Chunk a media file into time-based segments using jthaloor-ffmpeg.
@@ -43,6 +44,7 @@ async def chunk_media_file(
         output_dir: Optional output directory (default: temp directory)
         metadata_file: Optional path to metadata file for marker-based chunking
         chunk_mode: Chunking mode - "duration", "metadata_file", or "mp4_markers" (default: "duration")
+        chunk_format: Output format - "original" (copy codecs, MP4) or "hls" (HLS-compatible TS) (default: "original")
         
     Returns:
         List of Path objects for the created chunk files
@@ -67,9 +69,25 @@ async def chunk_media_file(
     
     output_path = Path(output_dir)
     
+    # Determine output format and codecs based on chunk_format
+    if chunk_format == "hls":
+        # HLS format: MPEG-TS container with H.264/AAC
+        file_ext = ".ts"
+        output_format = "mpegts"
+        vcodec = "libx264"  # H.264 for HLS compatibility
+        acodec = "aac"  # AAC for HLS compatibility
+        logger.info(f"Chunking to HLS format (MPEG-TS with H.264/AAC)")
+    else:
+        # Original format: copy codecs, MP4 container
+        file_ext = ".mp4"
+        output_format = "mp4"
+        vcodec = "copy"  # Copy codec for speed
+        acodec = "copy"  # Copy codec for speed
+        logger.info(f"Chunking to original format (copy codecs, MP4)")
+    
     # Generate chunk filename template
     file_stem = file_path_obj.stem
-    chunk_template = f"{file_stem}_chunk_{{chunk_id}}.mp4"
+    chunk_template = f"{file_stem}_chunk_{{chunk_id}}{file_ext}"
     
     try:
         # Create VideoProcessor with minimal config
@@ -86,9 +104,9 @@ async def chunk_media_file(
                 filename_template=chunk_template,
                 output_path=str(output_path),
                 duration=chunk_duration,
-                format="mp4",
-                vcodec="copy",  # Copy codec for speed
-                acodec="copy",  # Copy codec for speed
+                format=output_format,
+                vcodec=vcodec,
+                acodec=acodec,
                 include_timestamps=True,
                 chunk_mode=chunk_mode,
                 metadata_file=metadata_file if chunk_mode == "metadata_file" else None,

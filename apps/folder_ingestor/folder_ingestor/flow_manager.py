@@ -220,8 +220,10 @@ class FlowManager:
         
         for media_type in media_types_detected:
             if media_type == "data":
+                # Always use valid MIME type for data flows
                 type_codecs["data"] = "application/octet-stream"
                 type_essence_params["data"] = {"data_type": "urn:x-tams:data:file"}
+                logger.debug(f"Set codec for data flow: {type_codecs['data']}")
                 continue
             
             # Get base media type (remove _unchunked suffix)
@@ -365,12 +367,35 @@ class FlowManager:
                     # For data flows, use base_media_type to get codec (which is "data")
                     # For other flows, try media_type first, then base_media_type
                     if base_media_type == "data":
-                        codec = type_codecs.get("data", "application/octet-stream")
+                        # Ensure data flows always have a valid MIME type codec
+                        codec = type_codecs.get("data")
+                        if not codec or not isinstance(codec, str) or "/" not in codec:
+                            codec = "application/octet-stream"
+                        logger.debug(f"Using codec for data flow: {codec}")
                     else:
                         codec = type_codecs.get(media_type) or type_codecs.get(base_media_type, "video/mp2t")
                     label_suffix = f"{media_type}"
                 
                 logger.info(f"➕ Creating new {label_suffix} flow...")
+                
+                # Final validation: ensure codec is always a valid MIME type
+                if not codec or not isinstance(codec, str) or "/" not in codec:
+                    logger.warning(f"Invalid codec '{codec}' for {label_suffix} flow, using default")
+                    if base_media_type == "data":
+                        codec = "application/octet-stream"
+                    elif base_media_type == "video":
+                        codec = "video/mp2t"
+                    elif base_media_type == "audio":
+                        codec = "audio/mpeg"
+                    else:
+                        codec = "application/octet-stream"
+                
+                logger.debug(f"Creating flow with format={format_urn}, codec={codec} (type: {type(codec)})")
+                
+                # Double-check codec is valid before creating flow
+                if base_media_type == "data" and codec != "application/octet-stream":
+                    logger.warning(f"Data flow codec is '{codec}', forcing to 'application/octet-stream'")
+                    codec = "application/octet-stream"
                 
                 flow = source.TAMSFlow(
                     format=format_urn,
@@ -378,9 +403,25 @@ class FlowManager:
                     label=f"{source_label or folder_name} ({label_suffix})"
                 )
                 
+                # Verify codec in flow data before creation
+                if flow._data.get("codec") != codec:
+                    logger.warning(f"Codec mismatch: expected '{codec}', got '{flow._data.get('codec')}'")
+                    flow._data["codec"] = codec
+                
                 # Add essence parameters if available (use base media type)
                 if base_media_type in type_essence_params:
                     flow._data["essence_parameters"] = type_essence_params[base_media_type]
+                
+                # Final check: ensure codec is still valid before creation
+                final_codec = flow._data.get("codec")
+                if not final_codec or not isinstance(final_codec, str) or "/" not in final_codec:
+                    logger.error(f"Invalid codec '{final_codec}' in flow._data before creation! Fixing...")
+                    flow._data["codec"] = "application/octet-stream" if base_media_type == "data" else "video/mp2t"
+                elif base_media_type == "data" and final_codec != "application/octet-stream":
+                    logger.warning(f"Data flow has codec '{final_codec}', forcing to 'application/octet-stream'")
+                    flow._data["codec"] = "application/octet-stream"
+                
+                logger.debug(f"Final flow data before creation: format={flow._data.get('format')}, codec={flow._data.get('codec')}, essence_params={flow._data.get('essence_parameters')}")
                 
                 await flow._ensure_created()
                 flows_dict[media_type] = flow.id

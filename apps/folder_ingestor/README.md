@@ -7,6 +7,7 @@ Ingests all files from a folder into TAMS. Each folder becomes one source with s
 - **Automatic Media Detection**: Uses `ffprobe` to detect video and audio files
 - **Multi-Essence Flow Support**: Automatically creates separate flows for each media type and a multi-essence flow to collect them
 - **Media Chunking**: Chunks video/audio files into 30-second segments using `jthaloor-ffmpeg`
+- **Chunk Format Options**: Supports original format (copy codecs, MP4) or HLS format (HLS-compatible TS with H.264/AAC)
 - **Marker-Based Chunking**: Automatically detects and uses metadata files (FFMETADATA1 or JSON) for intelligent chunking
 - **Metadata File Matching**: Heuristically matches metadata files to media files (e.g., `soccer.mp4` + `soccer_metadata.txt`)
 - **Data File Support**: Uploads non-media files as data objects to a dedicated data flow
@@ -84,6 +85,7 @@ python folder_ingestor.py \
 - `--username` (optional): TAMS username (default: `admin`)
 - `--password` (optional): TAMS password (default: `admin`)
 - `--chunk-duration` (optional): Chunk duration in seconds (default: 30)
+- `--chunk-format` (optional): Chunk format - "original" (copy codecs, MP4) or "hls" (HLS-compatible TS with H.264/AAC) (default: original)
 - `--recursive` (optional): Process subdirectories recursively
 - `--verbose` (optional): Enable verbose logging
 
@@ -118,6 +120,9 @@ python folder_ingestor.py \
 
 4. **File Processing**:
    - **Media Files**: Chunked using `jthaloor-ffmpeg`
+     - **Format Options**:
+       - `original`: Copies original codecs to MP4 container (fast, preserves quality)
+       - `hls`: Transcodes to HLS-compatible format (MPEG-TS with H.264/AAC) for streaming
      - **Marker-Based Chunking**: If a matching metadata file is found, uses markers from the file
        - Supports FFMETADATA1 format (`.txt` files with `;FFMETADATA1` header)
        - Supports JSON format (`.json` files with chapter/segment data)
@@ -161,6 +166,18 @@ python folder_ingestor.py \
   --format urn:x-nmos:format:audio \
   --label "Audio Collection"
 ```
+
+### Ingest with HLS Format Chunking
+
+```bash
+python folder_ingestor.py \
+  --folder /media/videos \
+  --format urn:x-nmos:format:video \
+  --chunk-format hls \
+  --chunk-duration 30
+```
+
+This will chunk files into HLS-compatible MPEG-TS segments with H.264 video and AAC audio codecs, suitable for streaming.
 
 ### Ingest Recursively
 

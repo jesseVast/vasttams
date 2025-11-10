@@ -49,9 +49,14 @@ class TAMSSegment(TAMSDomainObject):
         else:
             raise TAMSClientError(f"Segment {self._id} not found")
     
-    async def delete(self):
-        """Delete segment."""
-        await segment_api.delete_segments(self._client, self._flow_id, {"object_id": self._id})
+    async def delete(self) -> Optional[Dict[str, Any]]:
+        """Delete segment.
+        
+        Returns:
+            None if deletion completed synchronously
+            Dict with deletion request info if async deletion was created (202 response)
+        """
+        return await segment_api.delete_segments(self._client, self._flow_id, {"object_id": self._id})
     
     async def update(self, **updates):
         """Update segment metadata."""

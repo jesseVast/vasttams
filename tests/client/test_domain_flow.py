@@ -243,7 +243,28 @@ class TestTAMSFlowSegmentOperations:
         flow = TAMSFlow(client, id="flow-123", source_id="source-123", format="urn:x-nmos:format:video", codec="video/h264")
         
         with patch('vasttamsclient.api.segments.delete_segments', new_callable=AsyncMock) as mock_delete:
-            await flow.delete_segments(timerange={"value": "[0:0_10:0)"})
+            mock_delete.return_value = None  # Synchronous deletion
+            result = await flow.delete_segments(timerange={"value": "[0:0_10:0)"})
+            
+            assert result is None
+            mock_delete.assert_called_once_with(client, "flow-123", {"timerange": {"value": "[0:0_10:0)"}})
+    
+    @pytest.mark.asyncio
+    async def test_delete_segments_async(self, client):
+        """Test deleting segments with async deletion request."""
+        flow = TAMSFlow(client, id="flow-123", source_id="source-123", format="urn:x-nmos:format:video", codec="video/h264")
+        
+        with patch('vasttamsclient.api.segments.delete_segments', new_callable=AsyncMock) as mock_delete:
+            mock_delete.return_value = {
+                "id": "deletion-request-123",
+                "status": "created",
+                "location": "/flow-delete-requests/deletion-request-123"
+            }
+            result = await flow.delete_segments(timerange={"value": "[0:0_10:0)"})
+            
+            assert result is not None
+            assert result["id"] == "deletion-request-123"
+            assert result["status"] == "created"
             mock_delete.assert_called_once_with(client, "flow-123", {"timerange": {"value": "[0:0_10:0)"}})
 
 

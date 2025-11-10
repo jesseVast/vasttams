@@ -60,11 +60,18 @@ async def update_source_description(client: "TAMSClient", source_id: str, descri
             raise TAMSAPIError(f"Failed to update source description: {error_text}", response.status, error_text)
 
 
-async def delete_source(client: "TAMSClient", source_id: str) -> None:
-    """Delete a source."""
+async def delete_source(client: "TAMSClient", source_id: str, cascade: bool = True) -> None:
+    """Delete a source.
+    
+    Args:
+        client: TAMSClient instance
+        source_id: Source ID to delete
+        cascade: If True, cascade delete to associated flows and segments (default: True)
+    """
     url = f"{client.server_url}/sources/{source_id}"
+    params = {"cascade": str(cascade).lower()}
     headers = await client._get_headers()
-    async with client._session.delete(url, headers=headers) as response:
+    async with client._session.delete(url, params=params, headers=headers) as response:
         if response.status not in (200, 204):
             error_text = await response.text()
             raise TAMSAPIError(f"Failed to delete source: {error_text}", response.status, error_text)

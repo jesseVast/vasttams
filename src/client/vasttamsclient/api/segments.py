@@ -91,11 +91,39 @@ async def list_segments(client: "TAMSClient", flow_id: str, query_params: Option
             raise TAMSAPIError(f"Failed to list segments: {error_text}", response.status, error_text)
 
 
-async def delete_segments(client: "TAMSClient", flow_id: str, query_params: Optional[Dict[str, Any]] = None) -> None:
-    """Delete segments."""
+async def delete_segments(client: "TAMSClient", flow_id: str, query_params: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    """Delete segments.
+    
+    Returns:
+        None if deletion completed synchronously (200/204)
+        Dict with deletion request info if async deletion was created (202)
+        The dict contains:
+            - id: Deletion request ID
+            - status: Request status ("created")
+            - location: URL to check deletion request status
+    """
     url = f"{client.server_url}/flows/{flow_id}/segments"
     async with client._session.delete(url, params=query_params or {}, headers=await client._get_headers()) as response:
-        if response.status not in (200, 204):
+        if response.status == 202:
+            # Async deletion request created
+            location = response.headers.get("Location", "")
+            try:
+                response_data = await response.json()
+                response_data["location"] = location
+                return response_data
+            except:
+                # If JSON parsing fails, extract ID from Location header
+                request_id = location.split("/")[-1] if "/" in location else None
+                return {
+                    "id": request_id,
+                    "status": "created",
+                    "location": location,
+                    "message": "Deletion request created"
+                }
+        elif response.status in (200, 204):
+            # Synchronous deletion completed
+            return None
+        else:
             error_text = await response.text()
             raise TAMSAPIError(f"Failed to delete segments: {error_text}", response.status, error_text)
 

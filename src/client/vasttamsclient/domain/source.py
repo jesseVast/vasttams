@@ -132,9 +132,13 @@ class TAMSSource(TAMSDomainObject):
         await self.refresh()
         # Note: Tags cache cleared in refresh()
     
-    async def delete(self):
-        """Delete source."""
-        await source_api.delete_source(self._client, self._id)
+    async def delete(self, cascade: bool = True):
+        """Delete source.
+        
+        Args:
+            cascade: If True, cascade delete to associated flows and segments (default: True)
+        """
+        await source_api.delete_source(self._client, self._id, cascade=cascade)
         # Remove from client cache
         if hasattr(self._client, '_cache') and "source" in self._client._cache:
             self._client._cache["source"].pop(self._id, None)

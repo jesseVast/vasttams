@@ -144,7 +144,7 @@ class TestSegmentAPI:
     
     @pytest.mark.asyncio
     async def test_delete_segments_success(self, client):
-        """Test deleting segments successfully."""
+        """Test deleting segments successfully (synchronous)."""
         flow_id = "flow-123"
         
         mock_response = AsyncMock()
@@ -157,8 +157,39 @@ class TestSegmentAPI:
         client._session.delete = MagicMock(return_value=mock_delete_context)
         
         from vasttamsclient.api.segments import delete_segments
-        await delete_segments(client, flow_id)
+        result = await delete_segments(client, flow_id)
         
+        assert result is None  # Synchronous deletion returns None
+        client._session.delete.assert_called_once()
+    
+    @pytest.mark.asyncio
+    async def test_delete_segments_async(self, client):
+        """Test deleting segments with async deletion request (202)."""
+        flow_id = "flow-123"
+        request_id = "deletion-request-123"
+        
+        mock_response = AsyncMock()
+        mock_response.status = 202
+        mock_response.headers = {"Location": f"/flow-delete-requests/{request_id}"}
+        mock_response.json = AsyncMock(return_value={
+            "id": request_id,
+            "status": "created",
+            "message": "Deletion request created"
+        })
+        
+        mock_delete_context = MagicMock()
+        mock_delete_context.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_delete_context.__aexit__ = AsyncMock(return_value=None)
+        
+        client._session.delete = MagicMock(return_value=mock_delete_context)
+        
+        from vasttamsclient.api.segments import delete_segments
+        result = await delete_segments(client, flow_id)
+        
+        assert result is not None
+        assert result["id"] == request_id
+        assert result["status"] == "created"
+        assert "location" in result
         client._session.delete.assert_called_once()
     
     @pytest.mark.asyncio

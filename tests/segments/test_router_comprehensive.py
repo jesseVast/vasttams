@@ -771,8 +771,14 @@ class TestSegmentsRouterErrorPaths:
             f"{BASE_URL}/flows/{flow_id}/segments?timerange=[0:0_10:0)",
             headers=auth_headers
         )
-        # May return 200, 204, or 404 depending on whether segments exist
-        assert response.status_code in [200, 204, 404]
+        # May return 200, 204, 404 (synchronous) or 202 (async deletion request created)
+        assert response.status_code in [200, 204, 404, 202]
+        
+        # If 202, verify Location header points to deletion request
+        if response.status_code == 202:
+            location = response.headers.get("Location")
+            assert location is not None, "Missing Location header for 202 response"
+            assert "/flow-delete-requests/" in location
     
     def test_delete_segments_with_object_id(self, api_available, test_flow_and_source, auth_headers):
         """Test DELETE /flows/{flow_id}/segments with object_id filter"""

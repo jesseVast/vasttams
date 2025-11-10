@@ -82,6 +82,8 @@ class TAMSClient:
                 force_close=False  # Reuse connections
             )
             self._session = aiohttp.ClientSession(timeout=timeout, connector=connector)
+            # Update token manager to use shared session for connection reuse
+            self._token_manager.set_session(self._session)
     
     async def _get_headers(self) -> Dict[str, str]:
         """Get request headers with authentication token."""
@@ -147,7 +149,13 @@ class TAMSClient:
     async def close(self):
         """Close HTTP session."""
         if self._session and not self._session.closed:
+            # Wait a brief moment to ensure any pending operations complete
+            # This helps avoid "Unclosed client session" warnings
+            await asyncio.sleep(0.1)
             await self._session.close()
+            # Wait for connector to close all connections
+            if self._session.connector:
+                await self._session.connector.close()
         # Clear cache on close
         self.clear_cache()
         self._closed = True

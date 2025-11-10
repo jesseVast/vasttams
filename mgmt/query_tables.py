@@ -33,6 +33,7 @@ os.chdir(root_dir)
 from vastdbmanager import VastDBManager
 
 from vasttamsserver.core.config import get_settings
+from vasttamsserver.core.dependencies import get_vast_db
 
 
 class TAMSTableQuery:

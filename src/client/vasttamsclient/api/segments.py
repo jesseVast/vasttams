@@ -8,6 +8,7 @@ import json
 import os
 import logging
 import asyncio
+import threading
 from typing import TYPE_CHECKING, Dict, Any, List, Optional
 import requests
 import aiohttp
@@ -21,6 +22,24 @@ logger = logging.getLogger(__name__)
 
 # Default chunk size for multipart uploads (8MB)
 DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024  # 8MB
+
+# Shared requests session pool for presigned URL uploads
+# Using thread-local storage to ensure thread safety
+_thread_local = threading.local()
+
+def _get_requests_session():
+    """Get or create a thread-local requests session for connection pooling."""
+    if not hasattr(_thread_local, 'session'):
+        _thread_local.session = requests.Session()
+        # Configure connection pooling
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=10,  # Number of connection pools to cache
+            pool_maxsize=20,  # Maximum number of connections to save in the pool
+            max_retries=3
+        )
+        _thread_local.session.mount('http://', adapter)
+        _thread_local.session.mount('https://', adapter)
+    return _thread_local.session
 
 
 async def create_segment(client: "TAMSClient", flow_id: str, segment_data: Dict[str, Any], file_path: Optional[str] = None, chunk_size: int = DEFAULT_CHUNK_SIZE) -> Dict[str, Any]:
@@ -197,13 +216,15 @@ async def upload_to_storage(client: "TAMSClient", presigned_url: str, data: byte
         
         # Use requests library (synchronous) to match server's ingest_test_data_real.py implementation
         # Run in thread pool to avoid blocking the event loop
+        # Use thread-local session for connection pooling
         def _upload_file():
+            session = _get_requests_session()
             if file_size < chunk_size:
                 # Small file: read into memory (matches server script behavior)
                 with open(file_path, 'rb') as f:
                     file_data = f.read()
                 logger.debug(f"Uploading {len(file_data)} bytes as data (small file)")
-                response = requests.put(presigned_url, data=file_data, headers=headers)
+                response = session.put(presigned_url, data=file_data, headers=headers, timeout=300)
                 logger.debug(f"Response status: {response.status_code}")
                 if response.status_code in (200, 201, 204):
                     return True
@@ -215,7 +236,7 @@ async def upload_to_storage(client: "TAMSClient", presigned_url: str, data: byte
                 # Large file: use file handle for streaming (matches server script behavior)
                 logger.debug(f"Uploading as file handle (large file, streaming)")
                 with open(file_path, 'rb') as f:
-                    response = requests.put(presigned_url, data=f, headers=headers)
+                    response = session.put(presigned_url, data=f, headers=headers, timeout=300)
                     logger.debug(f"Response status: {response.status_code}")
                     if response.status_code in (200, 201, 204):
                         return True
@@ -224,8 +245,9 @@ async def upload_to_storage(client: "TAMSClient", presigned_url: str, data: byte
                         logger.error(f"Upload failed. Response body: {error_text}")
                         raise TAMSAPIError(f"Failed to upload to storage: {error_text}", response.status_code, error_text)
         
-        # Run synchronous requests.put in thread pool
-        return await asyncio.to_thread(_upload_file)
+        # Run synchronous requests.put in thread pool and ensure it completes
+        result = await asyncio.to_thread(_upload_file)
+        return result
     elif data:
         # Presigned URLs should be used with a plain session (no auth headers)
         logger.debug(f"Uploading {len(data)} bytes of data to presigned URL")
@@ -233,11 +255,13 @@ async def upload_to_storage(client: "TAMSClient", presigned_url: str, data: byte
         
         # Use requests library (synchronous) to match server's ingest_test_data_real.py implementation
         # Run in thread pool to avoid blocking the event loop
+        # Use thread-local session for connection pooling
         def _upload_data():
+            session = _get_requests_session()
             if len(data) < chunk_size:
                 # Small data: upload directly
                 logger.debug(f"Uploading {len(data)} bytes directly (small data)")
-                response = requests.put(presigned_url, data=data, headers=headers)
+                response = session.put(presigned_url, data=data, headers=headers, timeout=300)
                 logger.debug(f"Response status: {response.status_code}")
                 if response.status_code in (200, 201, 204):
                     return True
@@ -251,7 +275,7 @@ async def upload_to_storage(client: "TAMSClient", presigned_url: str, data: byte
                 # Create a file-like object from bytes for streaming
                 import io
                 data_stream = io.BytesIO(data)
-                response = requests.put(presigned_url, data=data_stream, headers=headers)
+                response = session.put(presigned_url, data=data_stream, headers=headers, timeout=300)
                 logger.debug(f"Response status: {response.status_code}")
                 if response.status_code in (200, 201, 204):
                     return True
@@ -260,8 +284,9 @@ async def upload_to_storage(client: "TAMSClient", presigned_url: str, data: byte
                     logger.error(f"Upload failed. Response body: {error_text}")
                     raise TAMSAPIError(f"Failed to upload to storage: {error_text}", response.status_code, error_text)
         
-        # Run synchronous requests.put in thread pool
-        return await asyncio.to_thread(_upload_data)
+        # Run synchronous requests.put in thread pool and ensure it completes
+        result = await asyncio.to_thread(_upload_data)
+        return result
     else:
         raise ValueError("Either data or file_path must be provided")
 

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class TokenManager:
     """Manages authentication tokens with automatic renewal."""
     
-    def __init__(self, server_url: str, username: str, password: str):
+    def __init__(self, server_url: str, username: str, password: str, session: Optional[aiohttp.ClientSession] = None):
         """
         Initialize token manager.
         
@@ -24,12 +24,14 @@ class TokenManager:
             server_url: TAMS server base URL
             username: Username for authentication
             password: Password for authentication
+            session: Optional shared aiohttp session to reuse connections
         """
         self.server_url = server_url.rstrip('/')
         self.username = username
         self.password = password
         self._token: Optional[str] = None
         self._lock = asyncio.Lock()
+        self._session = session  # Use shared session if provided
         
     async def _do_login(self) -> str:
         """
@@ -44,11 +46,12 @@ class TokenManager:
         """
         try:
             url = f"{self.server_url}/auth/login"
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
+            # Use shared session if available, otherwise create temporary one
+            if self._session and not self._session.closed:
+                # Use shared session to reuse connections
+                async with self._session.post(
                     url,
-                    json={"username": self.username, "password": self.password},
-                    timeout=aiohttp.ClientTimeout(total=30)
+                    json={"username": self.username, "password": self.password}
                 ) as response:
                     if response.status == 200:
                         data = await response.json()
@@ -63,12 +66,37 @@ class TokenManager:
                     else:
                         error_text = await response.text()
                         raise TAMSAuthenticationError(f"Login failed with status {response.status}: {error_text}")
+            else:
+                # Fallback: create temporary session only if shared session not available
+                timeout = aiohttp.ClientTimeout(total=30)
+                async with aiohttp.ClientSession(timeout=timeout) as temp_session:
+                    async with temp_session.post(
+                        url,
+                        json={"username": self.username, "password": self.password}
+                    ) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            self._token = data.get("access_token")
+                            if not self._token:
+                                raise TAMSAuthenticationError("No access token in login response")
+                            logger.debug("Successfully authenticated")
+                            return self._token
+                        elif response.status == 401:
+                            error_text = await response.text()
+                            raise TAMSAuthenticationError(f"Authentication failed: {error_text}")
+                        else:
+                            error_text = await response.text()
+                            raise TAMSAuthenticationError(f"Login failed with status {response.status}: {error_text}")
         except aiohttp.ClientError as e:
             raise TAMSConnectionError(f"Connection error during login: {e}")
         except Exception as e:
             if isinstance(e, (TAMSAuthenticationError, TAMSConnectionError)):
                 raise
             raise TAMSAuthenticationError(f"Unexpected error during login: {e}")
+    
+    def set_session(self, session: aiohttp.ClientSession):
+        """Update the shared session (called after client session is created)."""
+        self._session = session
     
     async def login(self) -> str:
         """

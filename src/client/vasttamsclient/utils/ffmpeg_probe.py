@@ -86,22 +86,40 @@ def extract_video_essence_parameters(probe_data: Dict[str, Any]) -> Dict[str, An
     
     # Extract frame rate
     frame_rate_str = video_stream.get("r_frame_rate", "0/1")
-    if "/" in frame_rate_str:
-        num, den = map(int, frame_rate_str.split("/"))
-        frame_rate = {"numerator": num, "denominator": den}
-    else:
-        frame_rate_val = float(frame_rate_str)
-        frame_rate = {"numerator": int(frame_rate_val * 1000), "denominator": 1000}
+    avg_frame_rate_str = video_stream.get("avg_frame_rate", "0/1")
     
     # Check for variable frame rate
-    vfr = video_stream.get("field_order", "") == "progressive" and video_stream.get("has_b_frames", 0) > 0
+    # VFR is indicated when r_frame_rate (reported) differs from avg_frame_rate (average)
+    # or when avg_frame_rate is 0/0 (unknown/undefined)
+    vfr = False
+    if avg_frame_rate_str:
+        if avg_frame_rate_str == "0/0":
+            # Unknown/undefined frame rate indicates VFR
+            vfr = True
+        elif frame_rate_str != avg_frame_rate_str:
+            # Reported frame rate differs from average, indicating VFR
+            vfr = True
     
     essence_params = {
         "frame_width": width,
         "frame_height": height,
-        "frame_rate": frame_rate,
         "vfr": vfr
     }
+    
+    # Only set frame_rate if vfr is False (fixed frame rate)
+    # TAMS 8.0: If vfr=True, frame_rate MUST NOT be set
+    if not vfr:
+        if "/" in frame_rate_str:
+            num, den = map(int, frame_rate_str.split("/"))
+            if den > 0:  # Avoid division by zero
+                essence_params["frame_rate"] = {"numerator": num, "denominator": den}
+        else:
+            try:
+                frame_rate_val = float(frame_rate_str)
+                if frame_rate_val > 0:
+                    essence_params["frame_rate"] = {"numerator": int(frame_rate_val * 1000), "denominator": 1000}
+            except (ValueError, TypeError):
+                pass  # Skip invalid frame rate
     
     # Optional fields
     if "bit_depth" in video_stream:

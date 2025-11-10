@@ -49,7 +49,8 @@ class FolderIngestor:
         password: str,
         chunk_duration: int = 30,
         recursive: bool = False,
-        dry_run: bool = False
+        dry_run: bool = False,
+        max_parallel_uploads: int = 4
     ):
         """
         Initialize folder ingestor.
@@ -61,6 +62,7 @@ class FolderIngestor:
             chunk_duration: Duration of each chunk in seconds (default: 30)
             recursive: Whether to process subdirectories recursively
             dry_run: If True, don't create anything in TAMS (default: False)
+            max_parallel_uploads: Maximum number of parallel uploads (default: 4)
         """
         self.server_url = server_url
         self.username = username
@@ -68,6 +70,8 @@ class FolderIngestor:
         self.chunk_duration = chunk_duration
         self.recursive = recursive
         self.dry_run = dry_run
+        self.max_parallel_uploads = max_parallel_uploads
+        self._upload_semaphore = asyncio.Semaphore(max_parallel_uploads)
         self.client: Optional[TAMSClient] = None
         
         if dry_run:
@@ -667,44 +671,50 @@ class FolderIngestor:
                         total_chunks = len(chunk_files)
                         logger.info(f"✅ Created {total_chunks} chunks")
                         
-                        # Upload each chunk as a segment to the appropriate flow
-                        chunks_to_upload = [c for i, c in enumerate(chunk_files) if i not in processed_chunks]
+                        # Upload each chunk as a segment to the appropriate flow (in parallel)
+                        chunks_to_upload = [(i, c) for i, c in enumerate(chunk_files) if i not in processed_chunks]
                         if chunks_to_upload:
-                            logger.info(f"📤 Uploading {len(chunks_to_upload)} chunks to {media_type} flow...")
+                            logger.info(f"📤 Uploading {len(chunks_to_upload)} chunks to {media_type} flow (max {self.max_parallel_uploads} parallel)...")
                         else:
                             logger.info(f"⏭️  All chunks already processed")
                         
-                        for chunk_idx, chunk_file in enumerate(chunk_files):
-                            # Check if chunk already processed
-                            if chunk_idx in processed_chunks:
-                                logger.debug(f"   ⏭️  Skipping already processed chunk {chunk_idx + 1}/{total_chunks}")
-                                continue
-                            
-                            # Calculate timerange for chunk
-                            start_seconds = chunk_idx * self.chunk_duration
-                            end_seconds = min(start_seconds + self.chunk_duration, start_seconds + self.chunk_duration)
-                            
-                            timerange = {
-                                "value": f"[{start_seconds}:0_{end_seconds}:0)"
-                            }
-                            
-                            # Upload chunk to the appropriate flow
-                            if target_flow is None:
-                                raise RuntimeError(f"Target flow for {media_type} not initialized")
-                            logger.debug(f"   📤 Uploading chunk {chunk_idx + 1}/{total_chunks} to {media_type} flow...")
-                            segment = await target_flow.add_segment(
-                                file_path=str(chunk_file),
-                                timerange=timerange,
-                                auto_probe=False  # Don't probe chunks
-                            )
-                            
-                            # Store filename mapping in flow tags (segments don't have tags in TAMS)
-                            # Use pattern: file_mapping_{object_id} = {filename}|{file_path}|{chunk_index}|{total_chunks}
-                            object_id = segment.object_id
-                            mapping_value = f"{relative_path.name}|{file_path_str}|{chunk_idx}|{total_chunks}"
-                            await target_flow.set_tag(f"file_mapping_{object_id}", mapping_value)
-                            
-                            logger.debug(f"   ✅ Uploaded chunk {chunk_idx + 1}/{total_chunks}")
+                        async def upload_chunk(chunk_idx: int, chunk_file: Path) -> None:
+                            """Upload a single chunk with semaphore limiting."""
+                            async with self._upload_semaphore:
+                                # Calculate timerange for chunk
+                                start_seconds = chunk_idx * self.chunk_duration
+                                end_seconds = min(start_seconds + self.chunk_duration, start_seconds + self.chunk_duration)
+                                
+                                timerange = {
+                                    "value": f"[{start_seconds}:0_{end_seconds}:0)"
+                                }
+                                
+                                # Upload chunk to the appropriate flow
+                                if target_flow is None:
+                                    raise RuntimeError(f"Target flow for {media_type} not initialized")
+                                logger.debug(f"   📤 Uploading chunk {chunk_idx + 1}/{total_chunks} to {media_type} flow...")
+                                segment = await target_flow.add_segment(
+                                    file_path=str(chunk_file),
+                                    timerange=timerange,
+                                    auto_probe=False  # Don't probe chunks
+                                )
+                                
+                                # Store filename mapping in flow tags (segments don't have tags in TAMS)
+                                # Use pattern: file_mapping_{object_id} = {filename}|{file_path}|{chunk_index}|{total_chunks}
+                                object_id = segment.object_id
+                                mapping_value = f"{relative_path.name}|{file_path_str}|{chunk_idx}|{total_chunks}"
+                                await target_flow.set_tag(f"file_mapping_{object_id}", mapping_value)
+                                
+                                logger.debug(f"   ✅ Uploaded chunk {chunk_idx + 1}/{total_chunks}")
+                        
+                        # Upload chunks in parallel
+                        upload_tasks = [
+                            upload_chunk(chunk_idx, chunk_file)
+                            for chunk_idx, chunk_file in chunks_to_upload
+                        ]
+                        if upload_tasks:
+                            await asyncio.gather(*upload_tasks)
+                            logger.info(f"✅ Uploaded {len(chunks_to_upload)} chunks in parallel")
                         
                         # Cleanup chunk files
                         logger.debug("🧹 Cleaning up temporary chunk files...")
@@ -864,6 +874,12 @@ async def main():
         action="store_true",
         help="Run through the process without creating anything in TAMS"
     )
+    parser.add_argument(
+        "--max-parallel-uploads",
+        type=int,
+        default=4,
+        help="Maximum number of parallel uploads (default: 4)"
+    )
     
     args = parser.parse_args()
     
@@ -883,6 +899,7 @@ async def main():
     chunk_duration = args.chunk_duration or config.get("chunk_duration", 30)
     recursive = args.recursive or config.get("recursive", False)
     dry_run = args.dry_run or config.get("dry_run", False)
+    max_parallel_uploads = args.max_parallel_uploads or config.get("max_parallel_uploads", 4)
     
     try:
         async with FolderIngestor(
@@ -891,7 +908,8 @@ async def main():
             password=password,
             chunk_duration=chunk_duration,
             recursive=recursive,
-            dry_run=dry_run
+            dry_run=dry_run,
+            max_parallel_uploads=max_parallel_uploads
         ) as ingestor:
             source_id, flows_dict, multi_flow_id = await ingestor.ingest_folder(
                 folder_path=args.folder,

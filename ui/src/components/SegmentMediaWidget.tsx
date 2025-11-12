@@ -49,7 +49,29 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
 
   // Determine media type from flow format and URL
   const getMediaType = (): MediaType => {
-    // Check flow format first
+    // Always check URL extension first - it's more reliable than format
+    const firstUrl = getFirstPresignedUrl(segment);
+    if (firstUrl?.url) {
+      const urlLower = firstUrl.url.toLowerCase();
+      if (urlLower.includes('.mp4') || urlLower.includes('.ts') || urlLower.includes('.webm') ||
+          urlLower.includes('.mkv') || urlLower.includes('.avi') || urlLower.includes('.mov') ||
+          urlLower.includes('.m3u8') || urlLower.includes('.ogv') || urlLower.includes('.flv') ||
+          urlLower.includes('.m4v') || urlLower.includes('.3gp')) {
+        return 'video';
+      }
+      if (urlLower.includes('.jpg') || urlLower.includes('.jpeg') || urlLower.includes('.png') ||
+          urlLower.includes('.gif') || urlLower.includes('.webp') || urlLower.includes('.bmp') ||
+          urlLower.includes('.tiff') || urlLower.includes('.svg') || urlLower.includes('.ico')) {
+        return 'image';
+      }
+      if (urlLower.includes('.mp3') || urlLower.includes('.aac') || urlLower.includes('.wav') ||
+          urlLower.includes('.flac') || urlLower.includes('.ogg') || urlLower.includes('.opus') ||
+          urlLower.includes('.m4a') || urlLower.includes('.wma')) {
+        return 'audio';
+      }
+    }
+
+    // Fall back to flow format if URL doesn't help
     if (flow?.format) {
       const formatLower = flow.format.toLowerCase();
       if (formatLower.includes('video') || formatLower.includes('mpeg') || formatLower.includes('mp4') || 
@@ -71,24 +93,12 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
       }
     }
 
-    // Fall back to URL extension
-    const firstUrl = getFirstPresignedUrl(segment);
+    // If we have a URL but can't determine type, try to render as video (most common case)
     if (firstUrl?.url) {
+      // Check if URL looks like it could be media (has common media query params or paths)
       const urlLower = firstUrl.url.toLowerCase();
-      if (urlLower.includes('.mp4') || urlLower.includes('.ts') || urlLower.includes('.webm') ||
-          urlLower.includes('.mkv') || urlLower.includes('.avi') || urlLower.includes('.mov') ||
-          urlLower.includes('.m3u8') || urlLower.includes('.ogv')) {
+      if (urlLower.includes('video') || urlLower.includes('media') || urlLower.includes('stream')) {
         return 'video';
-      }
-      if (urlLower.includes('.jpg') || urlLower.includes('.jpeg') || urlLower.includes('.png') ||
-          urlLower.includes('.gif') || urlLower.includes('.webp') || urlLower.includes('.bmp') ||
-          urlLower.includes('.tiff') || urlLower.includes('.svg')) {
-        return 'image';
-      }
-      if (urlLower.includes('.mp3') || urlLower.includes('.aac') || urlLower.includes('.wav') ||
-          urlLower.includes('.flac') || urlLower.includes('.ogg') || urlLower.includes('.opus') ||
-          urlLower.includes('.m4a')) {
-        return 'audio';
       }
     }
 

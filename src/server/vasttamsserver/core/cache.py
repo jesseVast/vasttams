@@ -174,10 +174,10 @@ class CacheService:
                     await self._connect()
                     if self._available:
                         self._health_check_success_count += 1
-                        logger.info(f"✅ Redis health check #{self._health_check_count}: Reconnection successful")
+                        logger.info(f"Redis health check #{self._health_check_count}: Reconnection successful")
                     else:
                         self._health_check_failure_count += 1
-                        logger.warning(f"❌ Redis health check #{self._health_check_count}: Reconnection failed (consecutive failures: {self._consecutive_failures})")
+                        logger.warning(f"Redis health check #{self._health_check_count}: Reconnection failed (consecutive failures: {self._consecutive_failures})")
                 else:
                     # Check if still connected
                     try:
@@ -187,13 +187,13 @@ class CacheService:
                         
                         self._consecutive_failures = 0
                         self._health_check_success_count += 1
-                        logger.info(f"✅ Redis health check #{self._health_check_count}: Ping successful ({elapsed_ms:.1f}ms) - "
+                        logger.info(f"Redis health check #{self._health_check_count}: Ping successful ({elapsed_ms:.1f}ms) - "
                                    f"Stats: {self._health_check_success_count} success, {self._health_check_failure_count} failures")
                     except Exception as e:
                         self._available = False
                         self._consecutive_failures += 1
                         self._health_check_failure_count += 1
-                        logger.warning(f"❌ Redis health check #{self._health_check_count}: Ping failed - {type(e).__name__}: {e} "
+                        logger.warning(f"Redis health check #{self._health_check_count}: Ping failed - {type(e).__name__}: {e} "
                                      f"(consecutive failures: {self._consecutive_failures})")
                         
             except asyncio.CancelledError:

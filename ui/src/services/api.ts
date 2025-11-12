@@ -231,8 +231,9 @@ export const storageBackendService = {
 };
 
 export const analyticsService = {
-  getSummary: async (): Promise<AnalyticsSummary> => {
-    const response = await api.get('/analytics/summary');
+  getSummary: async (refresh: boolean = false): Promise<AnalyticsSummary> => {
+    const params = refresh ? { refresh: 'true' } : {};
+    const response = await api.get('/analytics/summary', { params });
     return response.data;
   },
 

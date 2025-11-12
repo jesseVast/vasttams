@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Typography, Box, CircularProgress } from '@mui/material';
+import { Container, Typography, Box, CircularProgress, IconButton, Tooltip } from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import FolderIcon from '@mui/icons-material/Folder';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
@@ -18,22 +19,32 @@ const Dashboard: React.FC = () => {
   const user = authService.getCurrentUser();
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadStatistics = async (forceRefresh: boolean = false) => {
+    try {
+      if (forceRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      const summary = await analyticsService.getSummary(forceRefresh).catch(() => null);
+      setAnalytics(summary);
+    } catch (error) {
+      console.error('Failed to load statistics:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const loadStatistics = async () => {
-      try {
-        setLoading(true);
-        const summary = await analyticsService.getSummary().catch(() => null);
-        setAnalytics(summary);
-      } catch (error) {
-        console.error('Failed to load statistics:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadStatistics();
+    loadStatistics(false);
   }, []);
+
+  const handleRefresh = () => {
+    loadStatistics(true);
+  };
 
   const formatStorageSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -45,9 +56,27 @@ const Dashboard: React.FC = () => {
 
   return (
     <Container>
-      <Typography variant="h4" gutterBottom>
-        Dashboard
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4">
+          Dashboard
+        </Typography>
+        <Tooltip title="Refresh dashboard data">
+          <IconButton 
+            onClick={handleRefresh} 
+            disabled={loading || refreshing}
+            color="primary"
+            aria-label="refresh dashboard"
+          >
+            <RefreshIcon sx={{ 
+              animation: refreshing ? 'spin 1s linear infinite' : 'none',
+              '@keyframes spin': {
+                '0%': { transform: 'rotate(0deg)' },
+                '100%': { transform: 'rotate(360deg)' }
+              }
+            }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>

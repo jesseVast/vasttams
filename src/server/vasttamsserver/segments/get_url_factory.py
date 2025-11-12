@@ -148,7 +148,35 @@ class GetUrlFactory:
     async def _get_object(self, object_id: str) -> Optional[Dict[str, Any]]:
         """Get object from database"""
         try:
-            obj_data = self.vast_db.get_record("objects", {"id": object_id})
+            result = self.vast_db.query("objects").select("*").where(f"id = '{object_id}'").execute()
+            
+            # Handle VAST query result format
+            obj_data = None
+            if isinstance(result, dict) and 'data' in result and isinstance(result['data'], dict):
+                # VAST tabular format: columns dict -> reconstruct first row
+                columns = result['data']
+                if not columns:
+                    return None
+                # Determine row count
+                try:
+                    row_count = len(next(iter(columns.values())))
+                except StopIteration:
+                    row_count = 0
+                if row_count == 0:
+                    return None
+                obj_data = {}
+                for col, values in columns.items():
+                    if col != '$row_id':  # Skip internal row IDs
+                        try:
+                            obj_data[col] = values[0] if isinstance(values, list) and values else values
+                        except Exception:
+                            obj_data[col] = None
+            elif isinstance(result, list) and result:
+                first = result[0]
+                obj_data = dict(first) if isinstance(first, dict) else first
+            else:
+                return None
+            
             if not obj_data:
                 return None
             
@@ -162,7 +190,7 @@ class GetUrlFactory:
             
             return obj_data
         except Exception as e:
-            logger.error("Failed to get object %s: %s", object_id, e)
+            logger.error("Failed to get object %s: %s", object_id, e, exc_info=True)
             return None
     
     def _extract_storage_metadata(self, obj_dict: Optional[Dict[str, Any]], object_id: str) -> tuple[Optional[str], Optional[str], Optional[str]]:

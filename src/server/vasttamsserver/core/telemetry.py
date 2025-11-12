@@ -491,8 +491,12 @@ async def telemetry_middleware(request: Request, call_next):
     # Start timing
     start_time = time.time()
     
-    # Set request timeout (30 seconds default)
-    REQUEST_TIMEOUT = 30.0
+    # Set request timeout - longer for segment endpoints that generate URLs
+    # Segment listing can be slow when generating presigned URLs for many segments
+    if request.url.path.endswith("/segments") and request.method == "GET":
+        REQUEST_TIMEOUT = 120.0  # 2 minutes for segment listing
+    else:
+        REQUEST_TIMEOUT = 30.0  # 30 seconds default for other endpoints
     
     try:
         # Process request with timeout

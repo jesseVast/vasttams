@@ -227,6 +227,11 @@ async def list_flow_segments(
         # Skip expensive get_urls generation only if accept_get_urls is explicitly set to empty string (per TAMS spec ADR-0023)
         # Generate get_urls by default for UI compatibility - only skip if explicitly requested with accept_get_urls=""
         skip_get_urls_generation = accept_get_urls == ""
+        
+        # Log if we're generating URLs (for performance monitoring)
+        if not skip_get_urls_generation:
+            logger.debug(f"Generating get_urls for segments in flow {flow_id} (this may take time for large flows)")
+        
         segments = await storage.get_flow_segments(flow_id, timerange, skip_get_urls_generation=skip_get_urls_generation)
         
         # Apply object_id filtering if specified

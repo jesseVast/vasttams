@@ -177,11 +177,12 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   const timeInfo = parseTimerange(timerange);
 
   // Lazy load and autoplay video when it comes into view (using Intersection Observer)
-  // Limit video loading to 1 second for performance
+  // Limit initial loading to 1 second, but allow smooth playback buffering
   useEffect(() => {
     if (mediaType === 'video' && videoRef.current && firstUrl?.url) {
       const video = videoRef.current;
       let playTimeout: NodeJS.Timeout | null = null;
+      let hasPlayed = false;
       
       // Use Intersection Observer to load and autoplay video when visible
       const observer = new IntersectionObserver(
@@ -193,21 +194,12 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                 video.load();
               }
               
-              // Limit loading to 1 second by seeking to 1 second after metadata loads
-              const limitLoading = () => {
-                if (video.readyState >= 1) { // HAVE_METADATA
-                  // Set currentTime to 1 second to limit buffering range
-                  video.currentTime = 1;
-                }
-              };
-              
-              video.addEventListener('loadedmetadata', limitLoading, { once: true });
-              
               // Autoplay when video can play (muted to avoid browser autoplay restrictions)
               const tryAutoplay = () => {
                 if (video.readyState >= 3) { // HAVE_FUTURE_DATA or higher
                   video.muted = true; // Mute to allow autoplay
                   video.play().then(() => {
+                    hasPlayed = true;
                     // Stop playback after 1 second to limit data usage
                     if (playTimeout) clearTimeout(playTimeout);
                     playTimeout = setTimeout(() => {
@@ -215,6 +207,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                         video.pause();
                         // Reset to start for next play
                         video.currentTime = 0;
+                        hasPlayed = false;
                       }
                     }, 1000); // 1 second
                   }).catch((error) => {
@@ -233,6 +226,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                 clearTimeout(playTimeout);
                 playTimeout = null;
               }
+              hasPlayed = false;
               if (!video.paused) {
                 video.pause();
               }
@@ -305,7 +299,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
               height: height,
               display: 'block',
             }}
-            preload="none"
+            preload="metadata"
             onError={(e) => {
               const video = e.currentTarget;
               console.error('Video playback error:', {
@@ -325,19 +319,15 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
               console.debug('Video can play:', firstUrl.url);
             }}
             onProgress={() => {
-              // Limit buffering to 1 second
+              // Limit initial buffering to ~1 second, but allow smooth playback
+              // Only limit if video hasn't started playing yet
               const video = videoRef.current;
-              if (video && video.buffered.length > 0) {
+              if (video && video.buffered.length > 0 && video.paused) {
                 const bufferedEnd = video.buffered.end(0);
-                if (bufferedEnd > 1.5) {
-                  // If buffered more than 1.5 seconds, pause to stop further loading
-                  if (!video.paused) {
-                    // Only pause if we've played for 1 second
-                    if (video.currentTime >= 1) {
-                      video.pause();
-                      video.currentTime = 0; // Reset to start
-                    }
-                  }
+                // If video is paused and has buffered more than 1.5 seconds, stop loading
+                if (bufferedEnd > 1.5 && video.currentTime === 0) {
+                  // Pause loading by seeking to end of buffer
+                  video.currentTime = Math.min(1.0, bufferedEnd - 0.1);
                 }
               }
             }}

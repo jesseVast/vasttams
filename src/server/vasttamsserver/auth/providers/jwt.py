@@ -52,9 +52,19 @@ class JWTProvider(AuthProvider):
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug("Attempting JWT authentication")
         
+        # Try to get token from Authorization header first
         credentials: HTTPAuthorizationCredentials = await self.security(request)
+        token = None
         
-        if not credentials:
+        if credentials:
+            token = credentials.credentials
+        else:
+            # Fallback to query parameter (for HLS players that can't send headers)
+            token = request.query_params.get("access_token")
+            if token and logger.isEnabledFor(logging.DEBUG):
+                logger.debug("JWT token found in query parameter")
+        
+        if not token:
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug("No Bearer token provided in request")
             return AuthResult(success=False, error="No Bearer token provided")
@@ -64,7 +74,7 @@ class JWTProvider(AuthProvider):
                 logger.debug("Decoding JWT token")
             
             payload = jwt.decode(
-                credentials.credentials,
+                token,
                 self.jwt_secret,
                 algorithms=[self.jwt_algorithm]
             )

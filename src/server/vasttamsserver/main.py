@@ -108,6 +108,20 @@ async def lifespan(app: FastAPI):
             else:
                 logger.debug("✅ All required tables exist")
             
+            # Initialize Redis cache service
+            try:
+                from .core.dependencies import get_cache_service
+                cache_service = get_cache_service()
+                if cache_service._enabled:
+                    logger.info("Initializing Redis cache service on startup...")
+                    await cache_service._ensure_initialized()
+                    if cache_service._available:
+                        logger.info("✅ Redis cache service initialized successfully")
+                    else:
+                        logger.warning("⚠️  Redis cache service initialization failed, continuing without cache")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Redis cache service on startup: {e}. Continuing without cache.")
+            
             # Initialize default users if they don't exist
             try:
                 from .auth.user_service import UserService
@@ -209,6 +223,15 @@ async def lifespan(app: FastAPI):
         if vast_store:
             await vast_store.close()
             logger.debug("VAST store closed")
+        
+        # Close Redis cache service
+        try:
+            from .core.dependencies import get_cache_service
+            cache_service = get_cache_service()
+            await cache_service.close()
+            logger.debug("Redis cache service closed")
+        except Exception as e:
+            logger.debug(f"Error closing Redis cache service: {e}")
         
         # Telemetry cleanup handled automatically
         logger.debug("Telemetry cleanup handled automatically")
@@ -391,7 +414,15 @@ async def head_health():
 @app.get("/health")
 async def health_check():
     """Enhanced health check with storage service status"""
-    return enhanced_health_check()
+    return await enhanced_health_check()
+
+@app.get("/health/cache")
+async def cache_health_check():
+    """Cache service health check"""
+    from .core.dependencies import get_cache_service
+    cache_service = get_cache_service()
+    status = await cache_service.get_status()
+    return status
 
 @app.get("/metrics")
 async def get_metrics():

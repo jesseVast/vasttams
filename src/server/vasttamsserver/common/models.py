@@ -52,7 +52,9 @@ def validate_mime_type(v: str) -> str:
     if not isinstance(v, str):
         raise ValueError('MIME type must be a string')
     
-    pattern = r'^[^\\s\/]+/[^\\s\/]+$'
+    # Pattern: type/subtype where type and subtype can contain letters, digits, dots, hyphens, underscores
+    # Examples: application/octet-stream, video/mp2t, application/json
+    pattern = r'^[a-zA-Z0-9][a-zA-Z0-9._-]*/[a-zA-Z0-9][a-zA-Z0-9._-]*$'
     if not re.match(pattern, v):
         raise ValueError('Invalid MIME type format. Must be in format: type/subtype')
     

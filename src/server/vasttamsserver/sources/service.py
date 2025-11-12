@@ -219,6 +219,20 @@ class SourceStorageService:
     
     async def get_source(self, source_id: str) -> Optional[Source]:
         """Get a specific source by ID"""
+        # Try cache first
+        from ..core.dependencies import get_cache_service
+        cache_service = get_cache_service()
+        
+        cache_key = f"source:{source_id}"
+        cached = await cache_service.get(cache_key)
+        if cached:
+            try:
+                from ..sources.models import Source
+                return Source(**cached)
+            except Exception as e:
+                logger.debug(f"Failed to deserialize cached source {source_id}: {e}")
+                # Fall through to DB query
+        
         try:
             result = self.vast_db.query("sources").select("*").where(f"id = '{source_id}'").execute()
             
@@ -249,7 +263,17 @@ class SourceStorageService:
                     
                     # Compute source_collection from flow collections
                     source_data['source_collection'] = await self._compute_source_collection(source_id)
-                    return Source(**source_data)
+                    source = Source(**source_data)
+                    
+                    # Store in cache
+                    try:
+                        source_dict = source.model_dump() if hasattr(source, 'model_dump') else source.dict() if hasattr(source, 'dict') else source._data if hasattr(source, '_data') else None
+                        if source_dict:
+                            await cache_service.set(cache_key, source_dict)
+                    except Exception as e:
+                        logger.debug(f"Failed to cache source {source_id}: {e}")
+                    
+                    return source
                 elif isinstance(data, list):
                     # If data is a list, get first item
                     if not data:
@@ -257,7 +281,17 @@ class SourceStorageService:
                     source_data = dict(data[0]) if hasattr(data[0], '__iter__') and not isinstance(data[0], str) else data[0]
                     # Compute source_collection from flow collections
                     source_data['source_collection'] = await self._compute_source_collection(source_id)
-                    return Source(**source_data)
+                    source = Source(**source_data)
+                    
+                    # Store in cache
+                    try:
+                        source_dict = source.model_dump() if hasattr(source, 'model_dump') else source.dict() if hasattr(source, 'dict') else source._data if hasattr(source, '_data') else None
+                        if source_dict:
+                            await cache_service.set(cache_key, source_dict)
+                    except Exception as e:
+                        logger.debug(f"Failed to cache source {source_id}: {e}")
+                    
+                    return source
             else:
                 # Fallback for direct list results
                 if not result or len(result) == 0:
@@ -265,7 +299,17 @@ class SourceStorageService:
                 source_data = dict(result[0]) if hasattr(result[0], '__iter__') and not isinstance(result[0], str) else result[0]
                 # Compute source_collection from flow collections
                 source_data['source_collection'] = await self._compute_source_collection(source_id)
-                return Source(**source_data)
+                source = Source(**source_data)
+                
+                # Store in cache
+                try:
+                    source_dict = source.model_dump() if hasattr(source, 'model_dump') else source.dict() if hasattr(source, 'dict') else source._data if hasattr(source, '_data') else None
+                    if source_dict:
+                        await cache_service.set(cache_key, source_dict)
+                except Exception as e:
+                    logger.debug(f"Failed to cache source {source_id}: {e}")
+                
+                return source
             
             return None
         except Exception as e:
@@ -359,6 +403,13 @@ class SourceStorageService:
                 if tags_data is not None:
                     await self.tag_service.update_source_tags(source_id, tags_data)
                 
+                # Invalidate cache
+                from ..core.dependencies import get_cache_service
+                cache_service = get_cache_service()
+                await cache_service.delete(f"source:{source_id}")
+                # Also invalidate all flows for this source
+                await cache_service.clear_pattern(f"flows:source:{source_id}*")
+                
                 return True
                 
             except Exception as update_error:
@@ -387,6 +438,13 @@ class SourceStorageService:
                     # Handle tags separately using tag service
                     if tags_data is not None:
                         await self.tag_service.update_source_tags(source_id, tags_data)
+                    
+                    # Invalidate cache
+                    from ..core.dependencies import get_cache_service
+                    cache_service = get_cache_service()
+                    await cache_service.delete(f"source:{source_id}")
+                    # Also invalidate all flows for this source
+                    await cache_service.clear_pattern(f"flows:source:{source_id}*")
                     
                     return True
                     
@@ -418,6 +476,14 @@ class SourceStorageService:
             
             # Delete source
             self.vast_db.query("sources").delete().where(f"id = '{source_id}'").execute()
+            
+            # Invalidate cache
+            from ..core.dependencies import get_cache_service
+            cache_service = get_cache_service()
+            await cache_service.delete(f"source:{source_id}")
+            # Also invalidate all flows for this source
+            await cache_service.clear_pattern(f"flows:source:{source_id}*")
+            
             return True
         except ValueError as e:
             # Re-raise constraint violations

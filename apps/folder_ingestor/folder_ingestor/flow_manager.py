@@ -368,10 +368,9 @@ class FlowManager:
                     # For other flows, try media_type first, then base_media_type
                     if base_media_type == "data":
                         # Ensure data flows always have a valid MIME type codec
-                        codec = type_codecs.get("data")
-                        if not codec or not isinstance(codec, str) or "/" not in codec:
-                            codec = "application/octet-stream"
-                        logger.debug(f"Using codec for data flow: {codec}")
+                        # Force to application/octet-stream regardless of what's in type_codecs
+                        codec = "application/octet-stream"
+                        logger.debug(f"Data flow: forcing codec to 'application/octet-stream' (type_codecs had: {type_codecs.get('data')})")
                     else:
                         codec = type_codecs.get(media_type) or type_codecs.get(base_media_type, "video/mp2t")
                     label_suffix = f"{media_type}"
@@ -414,14 +413,38 @@ class FlowManager:
                 
                 # Final check: ensure codec is still valid before creation
                 final_codec = flow._data.get("codec")
-                if not final_codec or not isinstance(final_codec, str) or "/" not in final_codec:
-                    logger.error(f"Invalid codec '{final_codec}' in flow._data before creation! Fixing...")
-                    flow._data["codec"] = "application/octet-stream" if base_media_type == "data" else "video/mp2t"
-                elif base_media_type == "data" and final_codec != "application/octet-stream":
-                    logger.warning(f"Data flow has codec '{final_codec}', forcing to 'application/octet-stream'")
-                    flow._data["codec"] = "application/octet-stream"
+                logger.debug(f"Codec before final validation: {final_codec} (type: {type(final_codec)})")
                 
-                logger.debug(f"Final flow data before creation: format={flow._data.get('format')}, codec={flow._data.get('codec')}, essence_params={flow._data.get('essence_parameters')}")
+                # For data flows, ALWAYS force to application/octet-stream
+                if base_media_type == "data":
+                    if final_codec != "application/octet-stream":
+                        logger.warning(f"Data flow codec is '{final_codec}' (type: {type(final_codec)}), forcing to 'application/octet-stream'")
+                    flow._data["codec"] = "application/octet-stream"
+                    final_codec = "application/octet-stream"
+                elif not final_codec or not isinstance(final_codec, str) or "/" not in final_codec:
+                    logger.error(f"Invalid codec '{final_codec}' (type: {type(final_codec)}) in flow._data before creation! Fixing...")
+                    flow._data["codec"] = "video/mp2t"
+                    final_codec = "video/mp2t"
+                
+                # One more absolute check - ensure it's a string and valid MIME type
+                if not isinstance(flow._data.get("codec"), str):
+                    logger.error(f"Codec is not a string! Type: {type(flow._data.get('codec'))}, Value: {flow._data.get('codec')}")
+                    flow._data["codec"] = "application/octet-stream" if base_media_type == "data" else "video/mp2t"
+                elif "/" not in flow._data.get("codec", ""):
+                    logger.error(f"Codec does not contain '/': {flow._data.get('codec')}")
+                    flow._data["codec"] = "application/octet-stream" if base_media_type == "data" else "video/mp2t"
+                
+                logger.info(f"Final flow data before creation: format={flow._data.get('format')}, codec={flow._data.get('codec')}, codec_type={type(flow._data.get('codec'))}")
+                
+                # Log the entire flow data dict for debugging
+                import json
+                try:
+                    flow_data_str = json.dumps(flow._data, indent=2, default=str)
+                    logger.debug(f"Complete flow._data being sent:\n{flow_data_str}")
+                except Exception as e:
+                    logger.debug(f"Could not serialize flow._data: {e}")
+                    logger.debug(f"flow._data keys: {list(flow._data.keys())}")
+                    logger.debug(f"flow._data['codec']: {repr(flow._data.get('codec'))}")
                 
                 await flow._ensure_created()
                 flows_dict[media_type] = flow.id

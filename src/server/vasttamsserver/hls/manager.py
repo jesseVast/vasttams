@@ -56,9 +56,10 @@ class HLSManager:
             HLSPlaylist or None if flow not found
         """
         try:
-            # Get segments
+            # Get segments WITH get_urls generation - HLS playlists need presigned URLs to work
+            # This is expected to be slower for large flows, but necessary for HLS functionality
             segment_service = self._get_segment_service()
-            segments = await segment_service.get_flow_segments(flow_id)
+            segments = await segment_service.get_flow_segments(flow_id, skip_get_urls_generation=False)
             
             if not segments:
                 logger.warning(f"No segments found for flow {flow_id}")
@@ -72,13 +73,19 @@ class HLSManager:
             return None
     
     def _generate_playlist(self, segments: List['FlowSegment']) -> HLSPlaylist:
-        """Generate HLS playlist from segments"""
+        """Generate HLS playlist from segments
+        
+        Only includes segments with HLS-compatible URLs (.ts files).
+        """
         hls_segments = []
+        skipped_count = 0
         
         for i, segment in enumerate(segments):
-            # Get segment URL
+            # Get segment URL (validates .ts extension)
             url = self._get_segment_url(segment)
             if not url:
+                skipped_count += 1
+                logger.debug(f"Skipping segment {segment.object_id} - no HLS-compatible URL (.ts file)")
                 continue
             
             # Calculate duration
@@ -94,7 +101,7 @@ class HLSManager:
             hls_segments.append(hls_segment)
         
         if not hls_segments:
-            logger.warning("No HLS segments generated")
+            logger.warning(f"No HLS segments generated from {len(segments)} segments (skipped {skipped_count} non-.ts segments)")
             return HLSPlaylist(
                 version=3,
                 target_duration=1.0,
@@ -102,6 +109,9 @@ class HLSManager:
                 segments=[],
                 endlist=True
             )
+        
+        if skipped_count > 0:
+            logger.info(f"Generated HLS playlist with {len(hls_segments)} segments (skipped {skipped_count} non-.ts segments)")
         
         # Get target duration (longest segment)
         target_duration = max(
@@ -118,7 +128,11 @@ class HLSManager:
         )
     
     def _get_segment_url(self, segment: 'FlowSegment') -> Optional[str]:
-        """Get HLS-compatible URL from segment"""
+        """Get HLS-compatible URL from segment
+        
+        HLS requires .ts (Transport Stream) files. This method validates that
+        the URL points to a .ts file or has an HLS-compatible label.
+        """
         if not segment.get_urls or len(segment.get_urls) == 0:
             return None
         
@@ -126,10 +140,43 @@ class HLSManager:
         for get_url in segment.get_urls:
             label = getattr(get_url, 'label', '') or ''
             if label and 'hls' in label.lower():
-                return get_url.url
+                url = get_url.url
+                # Validate it's a .ts file
+                if self._is_hls_compatible_url(url):
+                    return url
         
-        # Fallback to first URL
-        return segment.get_urls[0].url
+        # Fallback to first URL, but validate it's .ts
+        for get_url in segment.get_urls:
+            url = get_url.url
+            if self._is_hls_compatible_url(url):
+                return url
+        
+        # No HLS-compatible URL found
+        logger.warning(f"Segment {segment.object_id} has no HLS-compatible URLs (.ts files)")
+        return None
+    
+    def _is_hls_compatible_url(self, url: str) -> bool:
+        """Check if URL points to an HLS-compatible file (.ts extension)
+        
+        HLS requires Transport Stream (.ts) files. This validates the URL
+        has a .ts extension or is explicitly marked as HLS-compatible.
+        """
+        if not url:
+            return False
+        
+        # Check for .ts extension (case-insensitive)
+        url_lower = url.lower()
+        if url_lower.endswith('.ts'):
+            return True
+        
+        # Check for .ts in query parameters (some CDNs use this)
+        if '.ts' in url_lower:
+            return True
+        
+        # If URL doesn't have extension, we can't validate - log warning
+        # In practice, HLS segments should always have .ts extension
+        logger.debug(f"URL {url} does not have .ts extension - may not be HLS-compatible")
+        return False
     
     def _calculate_segment_duration(self, segment: 'FlowSegment') -> float:
         """Calculate segment duration in seconds"""

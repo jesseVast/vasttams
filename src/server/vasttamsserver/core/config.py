@@ -159,6 +159,37 @@ class Settings(BaseSettings):
     tams_cache_ttl: int = Field(default=300,
         description="TAMS cache TTL in seconds")
     
+    # Redis cache settings
+    redis_enabled: bool = Field(default=True,
+        description="Enable Redis caching (required for multi-container deployments)")
+    
+    redis_host: str = Field(default="localhost",
+        description="Redis server host")
+    
+    redis_port: int = Field(default=6379,
+        description="Redis server port")
+    
+    redis_password: Optional[str] = Field(default=None,
+        description="Redis password (if required)")
+    
+    redis_db: int = Field(default=0,
+        description="Redis database number (0-15)")
+    
+    redis_ssl: bool = Field(default=False,
+        description="Enable SSL/TLS for Redis connections")
+    
+    redis_socket_timeout: int = Field(default=5,
+        description="Redis socket timeout in seconds")
+    
+    redis_socket_connect_timeout: int = Field(default=5,
+        description="Redis socket connection timeout in seconds")
+    
+    redis_max_connections: int = Field(default=50,
+        description="Maximum number of Redis connections in the pool")
+    
+    redis_health_check_interval: int = Field(default=30,
+        description="Redis health check interval in seconds")
+    
     # Telemetry settings
     telemetry_enabled: bool = Field(default=True,
         description="Enable telemetry collection")
@@ -357,6 +388,30 @@ class Settings(BaseSettings):
                         self.tams_cache_enabled = compliance['cache_enabled']
                     if 'cache_ttl' in compliance:
                         self.tams_cache_ttl = compliance['cache_ttl']
+                
+                # Load Redis settings
+                if 'redis' in config_data:
+                    redis = config_data['redis']
+                    if 'enabled' in redis:
+                        self.redis_enabled = redis['enabled']
+                    if 'host' in redis:
+                        self.redis_host = redis['host']
+                    if 'port' in redis:
+                        self.redis_port = redis['port']
+                    if 'password' in redis:
+                        self.redis_password = redis['password']
+                    if 'db' in redis:
+                        self.redis_db = redis['db']
+                    if 'ssl' in redis:
+                        self.redis_ssl = redis['ssl']
+                    if 'socket_timeout' in redis:
+                        self.redis_socket_timeout = redis['socket_timeout']
+                    if 'socket_connect_timeout' in redis:
+                        self.redis_socket_connect_timeout = redis['socket_connect_timeout']
+                    if 'max_connections' in redis:
+                        self.redis_max_connections = redis['max_connections']
+                    if 'health_check_interval' in redis:
+                        self.redis_health_check_interval = redis['health_check_interval']
                 
                 # Load telemetry settings
                 if 'telemetry' in config_data:

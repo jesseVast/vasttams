@@ -14,6 +14,16 @@ if TYPE_CHECKING:
 
 async def create_flow(client: "TAMSClient", flow_data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a flow."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Debug logging for codec validation issues
+    if "codec" in flow_data:
+        codec_value = flow_data["codec"]
+        logger.debug(f"Creating flow with codec: {repr(codec_value)} (type: {type(codec_value)})")
+        if not isinstance(codec_value, str) or "/" not in str(codec_value):
+            logger.error(f"INVALID CODEC DETECTED: {repr(codec_value)} (type: {type(codec_value)})")
+    
     url = f"{client.server_url}/flows"
     async with client._session.post(url, json=flow_data, headers=await client._get_headers()) as response:
         if response.status == 201:

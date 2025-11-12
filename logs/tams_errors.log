@@ -1109,3 +1109,357 @@ essence_parameters
 2025-11-10 12:58:37 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/4f1b834c-5b2f-4e22-be28-301962ba3d8d/segments: Request timeout after 33.75s
 2025-11-10 13:01:04 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /analytics/flows: Request timeout after 36.24s
 2025-11-10 13:03:34 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources/a269190b-1796-4222-9547-e16e057a9e6e: Request timeout after 45.84s
+2025-11-10 13:39:58 - vastdbmanager.trino.client:122:execute_sql - ERROR - Error executing Trino SQL: TrinoUserError(type=USER_ERROR, name=TABLE_NOT_FOUND, message="line 1:15: Table 'vast.jthaloor-db/tams8-dev.users' does not exist", query_id=20251110_183957_02286_7tncr)
+2025-11-10 13:39:58 - vastdbmanager.trino.sql_executor:67:execute - ERROR - Error executing SQL: TrinoUserError(type=USER_ERROR, name=TABLE_NOT_FOUND, message="line 1:15: Table 'vast.jthaloor-db/tams8-dev.users' does not exist", query_id=20251110_183957_02286_7tncr)
+2025-11-10 13:39:58 - vasttamsserver.auth.user_service:136:get_user_by_username - ERROR - Error retrieving user admin: TrinoUserError(type=USER_ERROR, name=TABLE_NOT_FOUND, message="line 1:15: Table 'vast.jthaloor-db/tams8-dev.users' does not exist", query_id=20251110_183957_02286_7tncr)
+2025-11-10 13:39:58 - vastdb.transaction:53:__exit__ - ERROR - rolling back txid=035b500000232de2 due to:
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/python/vasttams/lib/python3.12/site-packages/vastdbmanager/data_operations.py", line 68, in insert_single_record
+    vast_table = schema_obj.table(table_name)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jesse.thaloor/Developer/python/vasttams/lib/python3.12/site-packages/vastdb/schema.py", line 106, in table
+    raise errors.MissingTable(self.bucket.name, self.name, name)
+vastdb.errors.MissingTable: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'table': 'users'}
+2025-11-10 13:39:58 - vastdbmanager.data_operations:140:insert_single_record - ERROR - Error inserting data into table users: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'table': 'users'}
+2025-11-10 13:39:58 - vastdbmanager.core:333:insert_record - ERROR - Error inserting record into table users: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'table': 'users'}
+2025-11-10 13:39:59 - vastdbmanager.trino.client:122:execute_sql - ERROR - Error executing Trino SQL: TrinoUserError(type=USER_ERROR, name=TABLE_NOT_FOUND, message="line 1:15: Table 'vast.jthaloor-db/tams8-dev.users' does not exist", query_id=20251110_183958_02287_7tncr)
+2025-11-10 13:39:59 - vastdbmanager.trino.sql_executor:67:execute - ERROR - Error executing SQL: TrinoUserError(type=USER_ERROR, name=TABLE_NOT_FOUND, message="line 1:15: Table 'vast.jthaloor-db/tams8-dev.users' does not exist", query_id=20251110_183958_02287_7tncr)
+2025-11-10 13:39:59 - vasttamsserver.auth.user_service:136:get_user_by_username - ERROR - Error retrieving user editor: TrinoUserError(type=USER_ERROR, name=TABLE_NOT_FOUND, message="line 1:15: Table 'vast.jthaloor-db/tams8-dev.users' does not exist", query_id=20251110_183958_02287_7tncr)
+2025-11-10 13:39:59 - vastdb.transaction:53:__exit__ - ERROR - rolling back txid=0439d000002317b4 due to:
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/python/vasttams/lib/python3.12/site-packages/vastdbmanager/data_operations.py", line 68, in insert_single_record
+    vast_table = schema_obj.table(table_name)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jesse.thaloor/Developer/python/vasttams/lib/python3.12/site-packages/vastdb/schema.py", line 106, in table
+    raise errors.MissingTable(self.bucket.name, self.name, name)
+vastdb.errors.MissingTable: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'table': 'users'}
+2025-11-10 13:39:59 - vastdbmanager.data_operations:140:insert_single_record - ERROR - Error inserting data into table users: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'table': 'users'}
+2025-11-10 13:39:59 - vastdbmanager.core:333:insert_record - ERROR - Error inserting record into table users: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'table': 'users'}
+2025-11-10 13:40:00 - vastdbmanager.trino.client:122:execute_sql - ERROR - Error executing Trino SQL: TrinoUserError(type=USER_ERROR, name=TABLE_NOT_FOUND, message="line 1:15: Table 'vast.jthaloor-db/tams8-dev.users' does not exist", query_id=20251110_183959_02288_7tncr)
+2025-11-10 13:40:00 - vastdbmanager.trino.sql_executor:67:execute - ERROR - Error executing SQL: TrinoUserError(type=USER_ERROR, name=TABLE_NOT_FOUND, message="line 1:15: Table 'vast.jthaloor-db/tams8-dev.users' does not exist", query_id=20251110_183959_02288_7tncr)
+2025-11-10 13:40:00 - vasttamsserver.auth.user_service:136:get_user_by_username - ERROR - Error retrieving user viewer: TrinoUserError(type=USER_ERROR, name=TABLE_NOT_FOUND, message="line 1:15: Table 'vast.jthaloor-db/tams8-dev.users' does not exist", query_id=20251110_183959_02288_7tncr)
+2025-11-10 13:40:00 - vastdb.transaction:53:__exit__ - ERROR - rolling back txid=07f910000023618f due to:
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/python/vasttams/lib/python3.12/site-packages/vastdbmanager/data_operations.py", line 68, in insert_single_record
+    vast_table = schema_obj.table(table_name)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jesse.thaloor/Developer/python/vasttams/lib/python3.12/site-packages/vastdb/schema.py", line 106, in table
+    raise errors.MissingTable(self.bucket.name, self.name, name)
+vastdb.errors.MissingTable: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'table': 'users'}
+2025-11-10 13:40:00 - vastdbmanager.data_operations:140:insert_single_record - ERROR - Error inserting data into table users: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'table': 'users'}
+2025-11-10 13:40:00 - vastdbmanager.core:333:insert_record - ERROR - Error inserting record into table users: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'table': 'users'}
+2025-11-10 13:54:18 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 13:54:18 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-10 13:54:18 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 13:54:18 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: POST /flows
+2025-11-10 13:54:18 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-10 13:54:18 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-10 13:54:18 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 13:54:18 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'body -> urn:x-nmos:format:data -> codec': Value error, Invalid MIME type format. Must be in format: type/subtype (got: application/octet-stream, type: value_error)
+2025-11-10 13:54:18 - vasttamsserver.core.utils:403:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 13:54:18 - vasttamsserver.core.utils:404:log_pydantic_validation_error - ERROR - Input Data:
+2025-11-10 13:54:18 - vasttamsserver.core.utils:418:log_pydantic_validation_error - ERROR - {
+  "source_id": "1a574991-c796-4f72-a049-24d903500023",
+  "id": "f6f0dac9-815b-48c1-8b7c-0b6158816c21",
+  "format": "urn:x-nmos:format:data",
+  "codec": "application/octet-stream",
+  "label": "2 (data)",
+  "essence_parameters": {
+    "data_type": "urn:x-tams:data:file"
+  }
+}
+2025-11-10 13:54:18 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 13:54:18 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-10 13:54:18 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-10 13:54:18 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}]
+2025-11-10 13:54:18 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}
+2025-11-10 13:54:18 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 15:25:46 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-10 15:25:46 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-10 15:25:59 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 15:25:59 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-10 15:25:59 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 15:25:59 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: POST /flows
+2025-11-10 15:25:59 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-10 15:25:59 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-10 15:25:59 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 15:25:59 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'body -> urn:x-nmos:format:data -> codec': Value error, Invalid MIME type format. Must be in format: type/subtype (got: application/octet-stream, type: value_error)
+2025-11-10 15:25:59 - vasttamsserver.core.utils:403:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 15:25:59 - vasttamsserver.core.utils:404:log_pydantic_validation_error - ERROR - Input Data:
+2025-11-10 15:25:59 - vasttamsserver.core.utils:418:log_pydantic_validation_error - ERROR - {
+  "source_id": "1a574991-c796-4f72-a049-24d903500023",
+  "id": "33d4c50b-1c5f-43ef-80dd-b9503af87463",
+  "format": "urn:x-nmos:format:data",
+  "codec": "application/octet-stream",
+  "label": "2 (data)",
+  "essence_parameters": {
+    "data_type": "urn:x-tams:data:file"
+  }
+}
+2025-11-10 15:25:59 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 15:25:59 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-10 15:25:59 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-10 15:25:59 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}]
+2025-11-10 15:25:59 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}
+2025-11-10 15:25:59 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 15:30:57 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-10 15:30:57 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-10 15:34:38 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/tags/file_mapping_643e6d25-f088-4c29-b7c4-9715fed360ae: Request timeout after 35.63s
+2025-11-10 15:34:38 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/tags/file_mapping_ea6e49f8-4aae-44bd-984f-092ceceb210b: Request timeout after 35.64s
+2025-11-10 15:34:38 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/tags/file_mapping_d16063a0-e0ff-45a7-bba9-32ad81549889: Request timeout after 35.64s
+2025-11-10 15:35:17 - vasttamsserver.flows.router:390:update_flow_tag - ERROR - Failed to update flow tag file_mapping_2eeae2f3-d2c9-4e9c-8627-67a58ff5091f for 23d09cf7-0df3-4de8-85ba-59df14cd88de: 
+2025-11-10 15:35:17 - vasttamsserver.main:295:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error
+2025-11-10 15:39:42 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-10 15:39:42 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-10 15:41:26 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/tags/file_mapping_be42eecc-4743-4549-9acc-e7aa0cc4afbb: Request timeout after 47.00s
+2025-11-10 15:41:26 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/storage: Request timeout after 47.00s
+2025-11-10 15:41:26 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/tags/file_mapping_7ae35f27-ea73-46ed-b3c7-0b6cecdd91e2: Request timeout after 47.00s
+2025-11-10 15:41:26 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/tags/file_mapping_d995c2b3-afa5-4578-bf95-236bd07b0847: Request timeout after 47.00s
+2025-11-10 15:41:36 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-10 15:41:36 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-10 15:43:05 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/tags/file_mapping_dc6c6cdb-bb4e-490a-9a3c-7c0f364f340e: Request timeout after 69.03s
+2025-11-10 15:43:05 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/tags/file_mapping_eba9ad3d-1c36-4b5d-b50f-ecb67c735987: Request timeout after 69.03s
+2025-11-10 15:43:05 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/tags/file_mapping_282a62cd-adb2-4279-999d-64f765ab7ad7: Request timeout after 69.03s
+2025-11-10 17:06:25 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 31.95s
+2025-11-10 17:06:33 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 30.39s
+2025-11-10 17:10:29 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 38.79s
+2025-11-10 17:10:34 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/status: Request timeout after 43.21s
+2025-11-10 17:10:48 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 37.86s
+2025-11-10 17:10:53 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/status: Request timeout after 40.08s
+2025-11-10 17:14:28 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 33.04s
+2025-11-10 17:14:28 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 33.05s
+2025-11-10 17:18:31 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 46.89s
+2025-11-10 17:18:31 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 46.89s
+2025-11-10 17:18:31 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 46.89s
+2025-11-10 17:18:31 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/status: Request timeout after 46.89s
+2025-11-10 17:20:31 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:20:31 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-10 17:20:31 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:20:31 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: POST /flows
+2025-11-10 17:20:31 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-10 17:20:31 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-10 17:20:31 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:20:31 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'body -> urn:x-nmos:format:data -> codec': Value error, Invalid MIME type format. Must be in format: type/subtype (got: application/octet-stream, type: value_error)
+2025-11-10 17:20:31 - vasttamsserver.core.utils:403:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:20:31 - vasttamsserver.core.utils:404:log_pydantic_validation_error - ERROR - Input Data:
+2025-11-10 17:20:31 - vasttamsserver.core.utils:418:log_pydantic_validation_error - ERROR - {
+  "source_id": "68cd430c-7b9a-4e4f-a38b-2724bd7f0acd",
+  "id": "8f16ca35-e2ed-4da5-934e-b1373f7c170a",
+  "format": "urn:x-nmos:format:data",
+  "codec": "application/octet-stream",
+  "label": "3 (data)",
+  "essence_parameters": {
+    "data_type": "urn:x-tams:data:file"
+  }
+}
+2025-11-10 17:20:31 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:20:31 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-10 17:20:31 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-10 17:20:31 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}]
+2025-11-10 17:20:31 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}
+2025-11-10 17:20:31 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:22:38 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-10 17:22:38 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-10 17:22:39 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:22:39 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-10 17:22:39 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:22:39 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: POST /flows
+2025-11-10 17:22:39 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-10 17:22:39 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-10 17:22:39 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:22:39 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'body -> urn:x-nmos:format:data -> codec': Value error, Invalid MIME type format. Must be in format: type/subtype (got: application/octet-stream, type: value_error)
+2025-11-10 17:22:39 - vasttamsserver.core.utils:403:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:22:39 - vasttamsserver.core.utils:404:log_pydantic_validation_error - ERROR - Input Data:
+2025-11-10 17:22:39 - vasttamsserver.core.utils:418:log_pydantic_validation_error - ERROR - {
+  "source_id": "68cd430c-7b9a-4e4f-a38b-2724bd7f0acd",
+  "id": "ea2f5970-0758-4a59-84f0-d0660a4dcd02",
+  "format": "urn:x-nmos:format:data",
+  "codec": "application/octet-stream",
+  "label": "3 (data)",
+  "essence_parameters": {
+    "data_type": "urn:x-tams:data:file"
+  }
+}
+2025-11-10 17:22:39 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:22:39 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-10 17:22:39 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-10 17:22:39 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}]
+2025-11-10 17:22:39 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}
+2025-11-10 17:22:39 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:24:53 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /auth/login: Request timeout after 50.60s
+2025-11-10 17:25:17 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 49.63s
+2025-11-10 17:25:18 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/status: Request timeout after 50.64s
+2025-11-10 17:30:42 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-10 17:30:42 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-10 17:30:42 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:30:42 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-10 17:30:42 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:30:42 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: POST /flows
+2025-11-10 17:30:42 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-10 17:30:42 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-10 17:30:42 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:30:42 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'body -> urn:x-nmos:format:data -> codec': Value error, Invalid MIME type format. Must be in format: type/subtype (got: application/octet-stream, type: value_error)
+2025-11-10 17:30:42 - vasttamsserver.core.utils:403:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:30:42 - vasttamsserver.core.utils:404:log_pydantic_validation_error - ERROR - Input Data:
+2025-11-10 17:30:42 - vasttamsserver.core.utils:418:log_pydantic_validation_error - ERROR - {
+  "source_id": "68cd430c-7b9a-4e4f-a38b-2724bd7f0acd",
+  "id": "b89ce84a-c621-437c-b06e-394f744b2bfb",
+  "format": "urn:x-nmos:format:data",
+  "codec": "application/octet-stream",
+  "label": "3 (data)",
+  "essence_parameters": {
+    "data_type": "urn:x-tams:data:file"
+  }
+}
+2025-11-10 17:30:42 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:30:42 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-10 17:30:42 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-10 17:30:42 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}]
+2025-11-10 17:30:42 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}
+2025-11-10 17:30:42 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:31:54 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-10 17:31:54 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-10 17:31:54 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:31:54 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-10 17:31:54 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:31:54 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: POST /flows
+2025-11-10 17:31:54 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-10 17:31:54 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-10 17:31:54 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:31:54 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'body -> urn:x-nmos:format:data -> codec': Value error, Invalid MIME type format. Must be in format: type/subtype (got: application/octet-stream, type: value_error)
+2025-11-10 17:31:54 - vasttamsserver.core.utils:403:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:31:54 - vasttamsserver.core.utils:404:log_pydantic_validation_error - ERROR - Input Data:
+2025-11-10 17:31:54 - vasttamsserver.core.utils:418:log_pydantic_validation_error - ERROR - {
+  "source_id": "68cd430c-7b9a-4e4f-a38b-2724bd7f0acd",
+  "id": "ce1c9f66-99cb-498c-b3e0-4e5d62b37271",
+  "format": "urn:x-nmos:format:data",
+  "codec": "application/octet-stream",
+  "label": "3 (data)",
+  "essence_parameters": {
+    "data_type": "urn:x-tams:data:file"
+  }
+}
+2025-11-10 17:31:54 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:31:54 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-10 17:31:54 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-10 17:31:54 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}]
+2025-11-10 17:31:54 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}
+2025-11-10 17:31:54 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:32:56 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-10 17:32:56 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-10 17:32:56 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:32:56 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-10 17:32:56 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-10 17:32:56 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: POST /flows
+2025-11-10 17:32:56 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-10 17:32:56 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-10 17:32:56 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:32:56 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'body -> urn:x-nmos:format:data -> codec': Value error, Invalid MIME type format. Must be in format: type/subtype (got: application/octet-stream, type: value_error)
+2025-11-10 17:32:56 - vasttamsserver.core.utils:403:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:32:56 - vasttamsserver.core.utils:404:log_pydantic_validation_error - ERROR - Input Data:
+2025-11-10 17:32:56 - vasttamsserver.core.utils:418:log_pydantic_validation_error - ERROR - {
+  "source_id": "68cd430c-7b9a-4e4f-a38b-2724bd7f0acd",
+  "id": "8ab47f71-b492-4e5c-b6a5-6ee8f4b10a13",
+  "format": "urn:x-nmos:format:data",
+  "codec": "application/octet-stream",
+  "label": "3 (data)",
+  "essence_parameters": {
+    "data_type": "urn:x-tams:data:file"
+  }
+}
+2025-11-10 17:32:56 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-10 17:32:56 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-10 17:32:56 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-10 17:32:56 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}]
+2025-11-10 17:32:56 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'value_error', 'loc': ('body', 'urn:x-nmos:format:data', 'codec'), 'msg': 'Value error, Invalid MIME type format. Must be in format: type/subtype', 'input': 'application/octet-stream', 'ctx': {'error': ValueError('Invalid MIME type format. Must be in format: type/subtype')}}
+2025-11-10 17:32:56 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 10:50:35 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 48.30s
+2025-11-12 10:50:35 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 48.30s
+2025-11-12 10:50:56 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 49.37s
+2025-11-12 10:50:59 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/status: Request timeout after 49.75s
+2025-11-12 10:51:46 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/playlist.m3u8: Request timeout after 47.16s
+2025-11-12 10:51:46 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/playlist.m3u8: Request timeout after 46.21s
+2025-11-12 10:53:20 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/playlist.m3u8: Request timeout after 94.14s
+2025-11-12 10:53:20 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/playlist.m3u8: Request timeout after 94.14s
+2025-11-12 11:27:17 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 45.96s
+2025-11-12 11:27:17 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 45.96s
+2025-11-12 11:28:03 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 45.93s
+2025-11-12 11:28:03 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 45.93s
+2025-11-12 11:28:03 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /health: Request timeout after 45.93s
+2025-11-12 11:32:41 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 32.75s
+2025-11-12 11:32:41 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 32.75s
+2025-11-12 11:33:11 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 30.32s
+2025-11-12 11:33:11 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 30.32s
+2025-11-12 11:44:33 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/status: Request timeout after 33.10s
+2025-11-12 11:44:46 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 36.78s
+2025-11-12 11:45:22 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/status: Request timeout after 33.20s
+2025-11-12 11:45:37 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources: Request timeout after 37.62s
+2025-11-12 11:45:37 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources: Request timeout after 37.62s
+2025-11-12 11:45:37 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /analytics/sources: Request timeout after 37.62s
+2025-11-12 11:45:38 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources: Request timeout after 31.64s
+2025-11-12 11:45:38 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /analytics/sources: Request timeout after 31.64s
+2025-11-12 11:48:08 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 11:48:08 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-12 11:48:08 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 11:48:08 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments
+2025-11-12 11:48:08 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-12 11:48:08 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-12 11:48:08 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-12 11:48:08 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'query -> limit': Input should be less than or equal to 100 (got: 10000, type: less_than_equal)
+2025-11-12 11:48:08 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-12 11:48:08 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-12 11:48:08 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-12 11:48:08 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'less_than_equal', 'loc': ('query', 'limit'), 'msg': 'Input should be less than or equal to 100', 'input': '10000', 'ctx': {'le': 100}}]
+2025-11-12 11:48:08 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'less_than_equal', 'loc': ('query', 'limit'), 'msg': 'Input should be less than or equal to 100', 'input': '10000', 'ctx': {'le': 100}}
+2025-11-12 11:48:08 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 11:48:10 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/status: Request timeout after 32.50s
+2025-11-12 11:48:22 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 11:48:22 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-12 11:48:22 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 11:48:22 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments
+2025-11-12 11:48:22 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-12 11:48:22 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-12 11:48:22 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-12 11:48:22 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'query -> limit': Input should be less than or equal to 100 (got: 10000, type: less_than_equal)
+2025-11-12 11:48:22 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-12 11:48:22 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-12 11:48:22 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-12 11:48:22 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'less_than_equal', 'loc': ('query', 'limit'), 'msg': 'Input should be less than or equal to 100', 'input': '10000', 'ctx': {'le': 100}}]
+2025-11-12 11:48:22 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'less_than_equal', 'loc': ('query', 'limit'), 'msg': 'Input should be less than or equal to 100', 'input': '10000', 'ctx': {'le': 100}}
+2025-11-12 11:48:22 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 11:49:10 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/status: Request timeout after 54.26s
+2025-11-12 11:49:10 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/playlist.m3u8: Request timeout after 48.94s
+2025-11-12 11:49:10 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/playlist.m3u8: Request timeout after 48.26s
+2025-11-12 11:50:12 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/playlist.m3u8: Request timeout after 54.68s
+2025-11-12 11:50:30 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /health: Request timeout after 49.38s
+2025-11-12 11:50:30 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/playlist.m3u8: Request timeout after 49.39s
+2025-11-12 11:52:10 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 11:52:10 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-12 11:52:10 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 11:52:10 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments
+2025-11-12 11:52:10 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-12 11:52:10 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-12 11:52:10 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-12 11:52:10 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'query -> limit': Input should be less than or equal to 1000 (got: 10000, type: less_than_equal)
+2025-11-12 11:52:10 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-12 11:52:10 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-12 11:52:10 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-12 11:52:10 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'less_than_equal', 'loc': ('query', 'limit'), 'msg': 'Input should be less than or equal to 1000', 'input': '10000', 'ctx': {'le': 1000}}]
+2025-11-12 11:52:10 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'less_than_equal', 'loc': ('query', 'limit'), 'msg': 'Input should be less than or equal to 1000', 'input': '10000', 'ctx': {'le': 1000}}
+2025-11-12 11:52:10 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 11:52:13 - vasttamsserver.core.utils:390:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 11:52:13 - vasttamsserver.core.utils:391:log_pydantic_validation_error - ERROR - PYDANTIC VALIDATION ERROR
+2025-11-12 11:52:13 - vasttamsserver.core.utils:392:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 11:52:13 - vasttamsserver.core.utils:393:log_pydantic_validation_error - ERROR - Context: GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments
+2025-11-12 11:52:13 - vasttamsserver.core.utils:395:log_pydantic_validation_error - ERROR - Model: Request
+2025-11-12 11:52:13 - vasttamsserver.core.utils:396:log_pydantic_validation_error - ERROR - Error Count: 1
+2025-11-12 11:52:13 - vasttamsserver.core.utils:397:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-12 11:52:13 - vasttamsserver.core.utils:400:log_pydantic_validation_error - ERROR -   • Field 'query -> limit': Input should be less than or equal to 1000 (got: 10000, type: less_than_equal)
+2025-11-12 11:52:13 - vasttamsserver.core.utils:423:log_pydantic_validation_error - ERROR - ----------------------------------------
+2025-11-12 11:52:13 - vasttamsserver.core.utils:424:log_pydantic_validation_error - ERROR - Raw Pydantic Error:
+2025-11-12 11:52:13 - vasttamsserver.core.utils:427:log_pydantic_validation_error - ERROR - Error type: RequestValidationError
+2025-11-12 11:52:13 - vasttamsserver.core.utils:428:log_pydantic_validation_error - ERROR - Error message: [{'type': 'less_than_equal', 'loc': ('query', 'limit'), 'msg': 'Input should be less than or equal to 1000', 'input': '10000', 'ctx': {'le': 1000}}]
+2025-11-12 11:52:13 - vasttamsserver.core.utils:431:log_pydantic_validation_error - ERROR - Error 0: {'type': 'less_than_equal', 'loc': ('query', 'limit'), 'msg': 'Input should be less than or equal to 1000', 'input': '10000', 'ctx': {'le': 1000}}
+2025-11-12 11:52:13 - vasttamsserver.core.utils:435:log_pydantic_validation_error - ERROR - ================================================================================
+2025-11-12 11:52:47 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/status: Request timeout after 34.95s
+2025-11-12 11:53:31 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /hls/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/status: Request timeout after 44.38s

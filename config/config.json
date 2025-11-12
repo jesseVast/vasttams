@@ -9,7 +9,7 @@
     "host": "0.0.0.0",
     "port": 8000,
     "debug": false,
-    "workers": 4
+    "workers": 1
   },
   
   "database": {
@@ -101,5 +101,18 @@
   "webhooks": {
     "timeout": 30,
     "retry_attempts": 3
+  },
+  
+  "redis": {
+    "enabled": true,
+    "host": "localhost",
+    "port": 6379,
+    "password": "redis",
+    "db": 0,
+    "ssl": false,
+    "socket_timeout": 5,
+    "socket_connect_timeout": 5,
+    "max_connections": 50,
+    "health_check_interval": 30
   }
 }

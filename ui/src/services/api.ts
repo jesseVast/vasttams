@@ -164,6 +164,8 @@ export const segmentService = {
     if (offset !== undefined) {
       params.offset = offset;
     }
+    // Request get_urls by not setting accept_get_urls to empty string
+    // The server will generate get_urls by default unless accept_get_urls="" is set
     const response = await api.get(`/flows/${flowId}/segments`, { params });
     return response.data?.data || response.data || [];
   },

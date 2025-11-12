@@ -140,9 +140,10 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
         (entries) => {
           entries.forEach((entry) => {
             if (entry.isIntersecting) {
-              // Video is visible, but don't autoplay - let user control playback
-              // Just ensure video element is ready
-              video.load();
+              // Video is visible, ensure it's loaded
+              if (video.readyState === 0 || video.readyState === 1) {
+                video.load();
+              }
             }
           });
         },
@@ -155,7 +156,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
         observer.disconnect();
       };
     }
-  }, [firstUrl, mediaType]);
+  }, [firstUrl?.url, mediaType]);
 
   const renderMediaContent = () => {
     // Allow non-presigned URLs too - they might still work for video playback
@@ -179,6 +180,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
 
     switch (mediaType) {
       case 'video':
+        const mimeType = getVideoMimeType(firstUrl.url);
         return (
           <video
             ref={videoRef}
@@ -190,23 +192,30 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
               display: 'block',
             }}
             preload="metadata"
-            crossOrigin="anonymous"
+            onError={(e) => {
+              const video = e.currentTarget;
+              console.error('Video playback error:', {
+                error: e,
+                src: video.src,
+                networkState: video.networkState,
+                readyState: video.readyState,
+                errorCode: video.error?.code,
+                errorMessage: video.error?.message,
+                url: firstUrl.url
+              });
+            }}
+            onLoadStart={() => {
+              console.debug('Video load started:', firstUrl.url);
+            }}
+            onCanPlay={() => {
+              console.debug('Video can play:', firstUrl.url);
+            }}
           >
-            {(() => {
-              const mimeType = getVideoMimeType(firstUrl.url);
-              if (mimeType) {
-                return <source src={firstUrl.url} type={mimeType} />;
-              } else {
-                return (
-                  <>
-                    <source src={firstUrl.url} type="video/mp2t" />
-                    <source src={firstUrl.url} type="video/mp4" />
-                    <source src={firstUrl.url} type="video/webm" />
-                    <source src={firstUrl.url} />
-                  </>
-                );
-              }
-            })()}
+            {mimeType ? (
+              <source src={firstUrl.url} type={mimeType} />
+            ) : (
+              <source src={firstUrl.url} />
+            )}
             Your browser does not support the video tag.
           </video>
         );

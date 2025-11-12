@@ -12821,3 +12821,144 @@ UnboundLocalError: cannot access local variable 'asyncio' where it is not associ
 2025-11-12 15:39:53 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
 2025-11-12 15:39:53 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
 2025-11-12 15:39:54 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-12 15:40:03 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-12 15:40:03 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-12 15:40:03 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-12 15:40:03 - vasttamsserver.core.cache:64:__init__ - INFO - Redis cache initialization enabled
+2025-11-12 15:40:03 - vasttamsserver.core.cache:65:__init__ - INFO - Redis configuration: host=localhost, port=6379, db=0, ssl=False, max_connections=50
+2025-11-12 15:40:03 - vasttamsserver.main:116:lifespan - INFO - Initializing Redis cache service on startup...
+2025-11-12 15:40:03 - vasttamsserver.core.cache:86:_initialize - INFO - Initializing Redis cache connection...
+2025-11-12 15:40:03 - vasttamsserver.core.cache:104:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 15:40:03 - vasttamsserver.core.cache:145:_connect - INFO - Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-12 15:40:03 - vasttamsserver.core.cache:92:_initialize - INFO - Redis cache initialization completed successfully
+2025-11-12 15:40:03 - vasttamsserver.main:119:lifespan - INFO - Redis cache service initialized successfully
+2025-11-12 15:40:07 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
+2025-11-12 15:40:07 - vasttamsserver.core.cache:162:_health_check_loop - INFO - Redis health check loop started (interval: 30s)
+2025-11-12 15:40:10 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=3.024s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:40:10 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=3.031s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:40:10 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=3.031s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:40:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:40:19 - vasttamsserver.core.cache:257:get - INFO - Cache miss: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:40:20 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flows:list:all (full key: tams:flows:list:all)
+2025-11-12 15:40:20 - vasttamsserver.flows.service:170:get_flows - INFO - Cache hit: flows:list:all (3 flows)
+2025-11-12 15:40:20 - vasttamsserver.core.cache:298:set - INFO - Cache set: sources:list:all (full key: tams:sources:list:all, TTL: 300s)
+2025-11-12 15:40:20 - vasttamsserver.sources.service:244:get_sources - INFO - Cache set: sources:list:all (2 sources)
+2025-11-12 15:40:20 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.930s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 15:40:20 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.934s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:40:21 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flows:list:all (full key: tams:flows:list:all)
+2025-11-12 15:40:21 - vasttamsserver.flows.service:170:get_flows - INFO - Cache hit: flows:list:all (3 flows)
+2025-11-12 15:40:21 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:40:21 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (2 sources)
+2025-11-12 15:40:21 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.360s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 15:40:21 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=1.362s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 15:40:21 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=1.364s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:40:23 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.405s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 15:40:29 - vasttamsserver.core.cache:257:get - INFO - Cache miss: analytics:summary (full key: tams:analytics:summary)
+2025-11-12 15:40:33 - vasttamsserver.core.cache:298:set - INFO - Cache set: analytics:summary (full key: tams:analytics:summary, TTL: 300s)
+2025-11-12 15:40:33 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/summary - user=admin, duration=4.131s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/summary, method=GET]
+2025-11-12 15:40:33 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:40:33 - vasttamsserver.core.cache:261:get - INFO - Cache hit: analytics:summary (full key: tams:analytics:summary)
+2025-11-12 15:40:37 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=1.395s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 15:40:37 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:40:37 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (2 sources)
+2025-11-12 15:40:37 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=1.398s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:40:38 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=1.322s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 15:40:38 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:40:38 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (2 sources)
+2025-11-12 15:40:38 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #1: Ping successful (4.7ms) - Stats: 1 success, 0 failures
+2025-11-12 15:40:38 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=1.326s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:40:42 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flows:list:all (full key: tams:flows:list:all)
+2025-11-12 15:40:42 - vasttamsserver.flows.service:170:get_flows - INFO - Cache hit: flows:list:all (3 flows)
+2025-11-12 15:40:42 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:40:42 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (2 sources)
+2025-11-12 15:40:42 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.004s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 15:40:42 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.004s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:40:42 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flows:list:all (full key: tams:flows:list:all)
+2025-11-12 15:40:42 - vasttamsserver.flows.service:170:get_flows - INFO - Cache hit: flows:list:all (3 flows)
+2025-11-12 15:40:42 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:40:42 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (2 sources)
+2025-11-12 15:40:42 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.002s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 15:40:42 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.002s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:40:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.545s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 15:40:45 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.529s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 15:40:48 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:40:48 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (2 sources)
+2025-11-12 15:40:48 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=2.540s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 15:40:48 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=2.537s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:40:48 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=2.544s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:40:49 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=1.449s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 15:40:49 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:40:49 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (2 sources)
+2025-11-12 15:40:49 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=1.451s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:40:55 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:40:55 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (2 sources)
+2025-11-12 15:40:55 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flows:list:all (full key: tams:flows:list:all)
+2025-11-12 15:40:55 - vasttamsserver.flows.service:170:get_flows - INFO - Cache hit: flows:list:all (3 flows)
+2025-11-12 15:40:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.037s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:40:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.038s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 15:40:55 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:40:55 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (2 sources)
+2025-11-12 15:40:55 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flows:list:all (full key: tams:flows:list:all)
+2025-11-12 15:40:55 - vasttamsserver.flows.service:170:get_flows - INFO - Cache hit: flows:list:all (3 flows)
+2025-11-12 15:40:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.014s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:40:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.016s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 15:40:57 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.518s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 15:40:58 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.561s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 15:41:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:41:01 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flows:list:all (full key: tams:flows:list:all)
+2025-11-12 15:41:01 - vasttamsserver.flows.service:170:get_flows - INFO - Cache hit: flows:list:all (3 flows)
+2025-11-12 15:41:01 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:41:01 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (2 sources)
+2025-11-12 15:41:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.010s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 15:41:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.010s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:41:02 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flows:list:all (full key: tams:flows:list:all)
+2025-11-12 15:41:02 - vasttamsserver.flows.service:170:get_flows - INFO - Cache hit: flows:list:all (3 flows)
+2025-11-12 15:41:02 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:41:02 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (2 sources)
+2025-11-12 15:41:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.348s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 15:41:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=1.350s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 15:41:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=1.351s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:41:03 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.159s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 15:41:07 - vasttamsserver.core.cache:257:get - INFO - Cache miss: flow:23d09cf7-0df3-4de8-85ba-59df14cd88de (full key: tams:flow:23d09cf7-0df3-4de8-85ba-59df14cd88de)
+2025-11-12 15:41:08 - vasttamsserver.core.cache:257:get - INFO - Cache miss: flow_segments:23d09cf7-0df3-4de8-85ba-59df14cd88de (full key: tams:flow_segments:23d09cf7-0df3-4de8-85ba-59df14cd88de)
+2025-11-12 15:41:08 - vasttamsserver.core.cache:298:set - INFO - Cache set: flow:23d09cf7-0df3-4de8-85ba-59df14cd88de (full key: tams:flow:23d09cf7-0df3-4de8-85ba-59df14cd88de, TTL: 300s)
+2025-11-12 15:41:08 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow:23d09cf7-0df3-4de8-85ba-59df14cd88de (full key: tams:flow:23d09cf7-0df3-4de8-85ba-59df14cd88de)
+2025-11-12 15:41:08 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #2: Ping successful (2.2ms) - Stats: 2 success, 0 failures
+2025-11-12 15:41:12 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:41:12 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:41:12 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:41:12 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:41:12 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:41:29 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.019s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:41:29 - vasttamsserver.core.cache:257:get - INFO - Cache miss: flow_segments:23d09cf7-0df3-4de8-85ba-59df14cd88de (full key: tams:flow_segments:23d09cf7-0df3-4de8-85ba-59df14cd88de)
+2025-11-12 15:41:35 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:41:36 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:41:36 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:41:36 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:41:36 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:41:40 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=10.153s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:41:57 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #3: Ping successful (16380.7ms) - Stats: 3 success, 0 failures
+2025-11-12 15:41:57 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=49.911s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 15:42:07 - vasttamsserver.core.cache:298:set - INFO - Cache set: flow_segments:23d09cf7-0df3-4de8-85ba-59df14cd88de (full key: tams:flow_segments:23d09cf7-0df3-4de8-85ba-59df14cd88de, TTL: 300s)
+2025-11-12 15:42:07 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=37.597s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 15:42:07 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=9.816s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:42:07 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.024s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:42:07 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow_segments:23d09cf7-0df3-4de8-85ba-59df14cd88de (full key: tams:flow_segments:23d09cf7-0df3-4de8-85ba-59df14cd88de)
+2025-11-12 15:42:28 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=10.303s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:42:28 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #4: Ping successful (12.2ms) - Stats: 4 success, 0 failures
+2025-11-12 15:42:28 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow_segments:23d09cf7-0df3-4de8-85ba-59df14cd88de (full key: tams:flow_segments:23d09cf7-0df3-4de8-85ba-59df14cd88de)
+2025-11-12 15:42:30 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:42:31 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:42:31 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:42:31 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:42:32 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 15:42:46 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=39.434s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 15:42:47 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=4.503s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:42:47 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.015s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:42:58 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #5: Ping successful (1.0ms) - Stats: 5 success, 0 failures
+2025-11-12 15:43:07 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=38.595s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 15:43:07 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.750s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:43:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:43:28 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #6: Ping successful (11.8ms) - Stats: 6 success, 0 failures
+2025-11-12 15:43:31 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:43:46 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.020s, status=200 [User: ] [API: endpoint=/health, method=GET]

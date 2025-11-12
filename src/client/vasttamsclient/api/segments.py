@@ -59,7 +59,7 @@ async def create_segment(client: "TAMSClient", flow_id: str, segment_data: Dict[
         file_path: Optional path to file to upload
         chunk_size: Chunk size for multipart uploads (default: 8MB)
     """
-    url = f"{client.server_url}/flows/{flow_id}/segments"
+    url = f"{client.server_url}{client.api_prefix}/flows/{flow_id}/segments"
     
     if file_path:
         # Multipart form data upload with chunked file reading
@@ -102,7 +102,7 @@ async def create_segment(client: "TAMSClient", flow_id: str, segment_data: Dict[
 
 async def list_segments(client: "TAMSClient", flow_id: str, query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """List segments for a flow."""
-    url = f"{client.server_url}/flows/{flow_id}/segments"
+    url = f"{client.server_url}{client.api_prefix}/flows/{flow_id}/segments"
     async with client._session.get(url, params=query_params or {}, headers=await client._get_headers()) as response:
         if response.status == 200:
             data = await response.json()
@@ -127,7 +127,7 @@ async def delete_segments(client: "TAMSClient", flow_id: str, query_params: Opti
             - status: Request status ("created")
             - location: URL to check deletion request status
     """
-    url = f"{client.server_url}/flows/{flow_id}/segments"
+    url = f"{client.server_url}{client.api_prefix}/flows/{flow_id}/segments"
     async with client._session.delete(url, params=query_params or {}, headers=await client._get_headers()) as response:
         if response.status == 202:
             # Async deletion request created
@@ -155,7 +155,7 @@ async def delete_segments(client: "TAMSClient", flow_id: str, query_params: Opti
 
 async def allocate_storage(client: "TAMSClient", flow_id: str, label: Optional[str] = None, limit: int = 1, storage_id: Optional[str] = None) -> Dict[str, Any]:
     """Allocate storage for flow segments."""
-    url = f"{client.server_url}/flows/{flow_id}/storage"
+    url = f"{client.server_url}{client.api_prefix}/flows/{flow_id}/storage"
     data = {"limit": limit}
     if label:
         data["label"] = label

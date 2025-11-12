@@ -14,7 +14,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/service", tags=["service"])
+router = APIRouter(prefix="/api/tams/v8.0/service", tags=["service"])
 
 @router.head("")
 async def head_service():

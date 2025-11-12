@@ -17,7 +17,7 @@ from ..auth.middleware import UserSession
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/api/tams/v8.0/service", tags=["webhooks"])
 
 
 def get_webhook_service(vast_db=Depends(get_vast_db)) -> WebhookService:
@@ -25,19 +25,19 @@ def get_webhook_service(vast_db=Depends(get_vast_db)) -> WebhookService:
     return WebhookService(vast_db)
 
 
-@router.get("/service/webhooks", response_model=List[Webhook])
+@router.get("/webhooks", response_model=List[Webhook])
 async def list_webhooks(service: WebhookService = Depends(get_webhook_service)):
     """List all webhooks"""
     return await service.get_webhooks()
 
 
-@router.head("/service/webhooks")
+@router.head("/webhooks")
 async def head_webhooks():
     """Return webhooks path headers"""
     return Response()
 
 
-@router.post("/service/webhooks", response_model=Webhook, status_code=201)
+@router.post("/webhooks", response_model=Webhook, status_code=201)
 async def create_webhook(
     webhook: WebhookPost = Body(...),
     service: WebhookService = Depends(get_webhook_service)
@@ -52,7 +52,7 @@ async def create_webhook(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/service/webhooks/{webhook_id}", response_model=Webhook)
+@router.get("/webhooks/{webhook_id}", response_model=Webhook)
 async def get_webhook(
     webhook_id: str,
     service: WebhookService = Depends(get_webhook_service),
@@ -65,7 +65,7 @@ async def get_webhook(
     return webhook
 
 
-@router.put("/service/webhooks/{webhook_id}", response_model=Webhook)
+@router.put("/webhooks/{webhook_id}", response_model=Webhook)
 async def update_webhook(
     webhook_id: str,
     webhook_update: WebhookUpdate = Body(...),
@@ -81,7 +81,7 @@ async def update_webhook(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.delete("/service/webhooks/{webhook_id}", status_code=204)
+@router.delete("/webhooks/{webhook_id}", status_code=204)
 async def delete_webhook(
     webhook_id: str,
     service: WebhookService = Depends(get_webhook_service),

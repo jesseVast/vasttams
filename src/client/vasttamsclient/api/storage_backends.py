@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 async def list_storage_backends(client: "TAMSClient") -> List[Dict[str, Any]]:
     """List storage backends."""
-    url = f"{client.server_url}/service/storage-backends"
+    url = f"{client.server_url}{client.api_prefix}/service/storage-backends"
     async with client._session.get(url, headers=await client._get_headers()) as response:
         if response.status == 200:
             data = await response.json()
@@ -28,7 +28,7 @@ async def list_storage_backends(client: "TAMSClient") -> List[Dict[str, Any]]:
 
 async def get_storage_backend(client: "TAMSClient", backend_id: str) -> Optional[Dict[str, Any]]:
     """Get a storage backend by ID."""
-    url = f"{client.server_url}/service/storage-backends/{backend_id}"
+    url = f"{client.server_url}{client.api_prefix}/service/storage-backends/{backend_id}"
     async with client._session.get(url, headers=await client._get_headers()) as response:
         if response.status == 200:
             return await response.json()
@@ -41,7 +41,7 @@ async def get_storage_backend(client: "TAMSClient", backend_id: str) -> Optional
 
 async def create_storage_backend(client: "TAMSClient", backend_data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a storage backend."""
-    url = f"{client.server_url}/service/storage-backends"
+    url = f"{client.server_url}{client.api_prefix}/service/storage-backends"
     async with client._session.post(url, json=backend_data, headers=await client._get_headers()) as response:
         if response.status == 201:
             return await response.json()
@@ -52,7 +52,7 @@ async def create_storage_backend(client: "TAMSClient", backend_data: Dict[str, A
 
 async def update_storage_backend(client: "TAMSClient", backend_id: str, backend_data: Dict[str, Any]) -> Dict[str, Any]:
     """Update a storage backend."""
-    url = f"{client.server_url}/service/storage-backends/{backend_id}"
+    url = f"{client.server_url}{client.api_prefix}/service/storage-backends/{backend_id}"
     async with client._session.put(url, json=backend_data, headers=await client._get_headers()) as response:
         if response.status == 200:
             return await response.json()
@@ -63,7 +63,7 @@ async def update_storage_backend(client: "TAMSClient", backend_id: str, backend_
 
 async def delete_storage_backend(client: "TAMSClient", backend_id: str) -> None:
     """Delete a storage backend."""
-    url = f"{client.server_url}/service/storage-backends/{backend_id}"
+    url = f"{client.server_url}{client.api_prefix}/service/storage-backends/{backend_id}"
     async with client._session.delete(url, headers=await client._get_headers()) as response:
         if response.status not in (200, 204):
             error_text = await response.text()

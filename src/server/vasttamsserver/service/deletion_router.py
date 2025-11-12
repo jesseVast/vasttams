@@ -10,7 +10,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/flow-delete-requests", tags=["deletion-requests"])
+router = APIRouter(prefix="/api/tams/v8.0/flow-delete-requests", tags=["deletion-requests"])
 
 @router.get("")
 async def get_deletion_requests(

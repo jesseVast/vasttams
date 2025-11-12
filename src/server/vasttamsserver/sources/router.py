@@ -18,7 +18,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/sources", tags=["sources"])
+router = APIRouter(prefix="/api/tams/v8.0/sources", tags=["sources"])
 
 # HEAD endpoints
 @router.head("")

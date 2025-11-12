@@ -585,7 +585,7 @@ class FlowManager:
             # Update flow_collection via API
             if self.client._session is None:
                 raise RuntimeError("Client session not initialized")
-            url = f"{self.client.server_url}/flows/{multi_flow_id}/flow_collection"
+            url = f"{self.client.server_url}{self.client.api_prefix}/flows/{multi_flow_id}/flow_collection"
             headers = await self.client._get_headers()
             async with self.client._session.put(url, json=collection_items, headers=headers) as response:
                 if response.status not in (200, 201):

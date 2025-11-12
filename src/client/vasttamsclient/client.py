@@ -25,7 +25,7 @@ class TAMSClient:
     def __init__(self, server_url: str, username: str, password: str, 
                  timeout: int = 30, verify_ssl: bool = True,
                  limit: int = 100, limit_per_host: int = 30,
-                 keepalive_timeout: int = 30):
+                 keepalive_timeout: int = 30, api_version: Optional[str] = None):
         """
         Initialize TAMS client.
         
@@ -38,6 +38,8 @@ class TAMSClient:
             limit: Total connection pool size (default: 100)
             limit_per_host: Max connections per host (default: 30)
             keepalive_timeout: Keep-alive timeout in seconds (default: 30)
+            api_version: API version to use (e.g., "v8.0", "v7.0"). 
+                        If None, uses "/api/tams/latest" (default: None)
         """
         self.server_url = server_url.rstrip('/')
         self.username = username
@@ -48,7 +50,13 @@ class TAMSClient:
         self.limit_per_host = limit_per_host
         self.keepalive_timeout = keepalive_timeout
         
-        self._token_manager = TokenManager(server_url, username, password)
+        # Set API path prefix based on version
+        if api_version:
+            self.api_prefix = f"/api/tams/{api_version}"
+        else:
+            self.api_prefix = "/api/tams/latest"
+        
+        self._token_manager = TokenManager(server_url, username, password, api_prefix=self.api_prefix)
         self._session: Optional[aiohttp.ClientSession] = None
         self._closed = False
         

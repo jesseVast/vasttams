@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/objects", tags=["objects"])
+router = APIRouter(prefix="/api/tams/v8.0/objects", tags=["objects"])
 
 # HEAD endpoint
 @router.head("/{object_id}")

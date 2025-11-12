@@ -23,7 +23,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/flows", tags=["segments"])
+router = APIRouter(prefix="/api/tams/v8.0/flows", tags=["segments"])
 
 
 async def update_object_size_from_s3(object_id: str):

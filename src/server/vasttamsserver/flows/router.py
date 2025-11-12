@@ -25,7 +25,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/flows", tags=["flows"])
+router = APIRouter(prefix="/api/tams/v8.0/flows", tags=["flows"])
 
 
 async def _check_flow_not_read_only(flow_id: str, storage: StorageInterface) -> None:

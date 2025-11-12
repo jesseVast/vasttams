@@ -91,7 +91,8 @@ class FolderIngestor:
                 timeout=300,
                 limit=100,  # Total connection pool size
                 limit_per_host=limit_per_host,  # Max connections per host (scaled for parallel uploads)
-                keepalive_timeout=60  # Keep connections alive for reuse
+                keepalive_timeout=60,  # Keep connections alive for reuse
+                api_version=None  # Use /api/tams/latest (default)
             )
             await self.client.__aenter__()
             logger.info(f"✅ Connected to TAMS server (connection pool: {limit_per_host} per host)")

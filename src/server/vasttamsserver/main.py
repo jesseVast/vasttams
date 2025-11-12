@@ -180,8 +180,8 @@ async def lifespan(app: FastAPI):
                                 default_storage=backend_config.get('default_storage', False)
                             )
                             created = await backend_service.create_storage_backend(backend_post)
-                            logger.debug(f"✅ Created storage backend: {created.id} ({created.label})")
-                        logger.debug("✅ All storage backends initialized from config")
+                            logger.debug(f"Created storage backend: {created.id} ({created.label})")
+                        logger.debug("All storage backends initialized from config")
                     elif settings.s3_endpoint_url and settings.s3_bucket_name:
                         # Fallback to legacy S3 config
                         from .storagebackends.models import StorageBackendPost

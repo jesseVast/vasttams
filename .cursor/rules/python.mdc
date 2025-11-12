@@ -24,4 +24,4 @@ alwaysApply: false
 - always run tests with feedback and verbose output
 - do not run pytest with -q option. For long running tests, use -v option.
 - Keep a tab of tests that succeeded and don't them run again until the code behind them changes. Only run tests that failed.
-- Dont use UTF 
+- Dont use UTF icons in logging

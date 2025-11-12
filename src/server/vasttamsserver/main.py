@@ -101,12 +101,12 @@ async def lifespan(app: FastAPI):
                 total = len(results)
                 
                 if successful == total:
-                    logger.info("✅ All missing tables created successfully")
+                    logger.info("All missing tables created successfully")
                 else:
                     failed = [name for name, success in results.items() if not success]
-                    logger.error(f"❌ Failed to create tables: {failed}")
+                    logger.error(f"Failed to create tables: {failed}")
             else:
-                logger.debug("✅ All required tables exist")
+                logger.debug("All required tables exist")
             
             # Initialize Redis cache service
             try:
@@ -116,9 +116,9 @@ async def lifespan(app: FastAPI):
                     logger.info("Initializing Redis cache service on startup...")
                     await cache_service._ensure_initialized()
                     if cache_service._available:
-                        logger.info("✅ Redis cache service initialized successfully")
+                        logger.info("Redis cache service initialized successfully")
                     else:
-                        logger.warning("⚠️  Redis cache service initialization failed, continuing without cache")
+                        logger.warning("Redis cache service initialization failed, continuing without cache")
             except Exception as e:
                 logger.warning(f"Failed to initialize Redis cache service on startup: {e}. Continuing without cache.")
             
@@ -143,7 +143,7 @@ async def lifespan(app: FastAPI):
                     else:
                         logger.debug(f"Default user {username} already exists")
                 
-                logger.debug("✅ Default users verified")
+                logger.debug("Default users verified")
             except Exception as e:
                 logger.warning(f"Could not initialize default users: {e}")
             
@@ -202,7 +202,7 @@ async def lifespan(app: FastAPI):
                             default_storage=True
                         )
                         await backend_service.create_storage_backend(backend_post)
-                        logger.debug("✅ Default storage backend created from legacy S3 config")
+                        logger.debug("Default storage backend created from legacy S3 config")
                     else:
                         logger.debug("No storage backends configured; skipping initialization")
                 else:

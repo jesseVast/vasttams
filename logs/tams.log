@@ -12962,3 +12962,306 @@ UnboundLocalError: cannot access local variable 'asyncio' where it is not associ
 2025-11-12 15:43:28 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #6: Ping successful (11.8ms) - Stats: 6 success, 0 failures
 2025-11-12 15:43:31 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
 2025-11-12 15:43:46 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.020s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:43:58 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #7: Ping successful (2.2ms) - Stats: 7 success, 0 failures
+2025-11-12 15:44:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:44:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.017s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:44:28 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #8: Ping successful (3.6ms) - Stats: 8 success, 0 failures
+2025-11-12 15:44:31 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:44:46 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.034s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:44:58 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #9: Ping successful (4.4ms) - Stats: 9 success, 0 failures
+2025-11-12 15:45:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:45:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:45:28 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #10: Ping successful (7.5ms) - Stats: 10 success, 0 failures
+2025-11-12 15:45:31 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:45:46 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.014s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:45:58 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #11: Ping successful (3.5ms) - Stats: 11 success, 0 failures
+2025-11-12 15:46:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.023s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:46:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:46:28 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #12: Ping successful (2.4ms) - Stats: 12 success, 0 failures
+2025-11-12 15:46:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.018s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:46:58 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #13: Ping successful (1.6ms) - Stats: 13 success, 0 failures
+2025-11-12 15:47:28 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #14: Ping successful (2.2ms) - Stats: 14 success, 0 failures
+2025-11-12 15:47:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.016s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:47:58 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #15: Ping successful (1.9ms) - Stats: 15 success, 0 failures
+2025-11-12 15:48:28 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #16: Ping successful (5.0ms) - Stats: 16 success, 0 failures
+2025-11-12 15:48:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.019s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:48:58 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #17: Ping successful (2.3ms) - Stats: 17 success, 0 failures
+2025-11-12 15:49:28 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #18: Ping successful (2.4ms) - Stats: 18 success, 0 failures
+2025-11-12 15:49:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.013s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:49:58 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #19: Ping successful (4.0ms) - Stats: 19 success, 0 failures
+2025-11-12 15:50:28 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #20: Ping successful (4.6ms) - Stats: 20 success, 0 failures
+2025-11-12 15:50:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.031s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:50:58 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #21: Ping successful (2.3ms) - Stats: 21 success, 0 failures
+2025-11-12 15:51:28 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #22: Ping successful (1.8ms) - Stats: 22 success, 0 failures
+2025-11-12 15:51:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:51:58 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #23: Ping successful (2.2ms) - Stats: 23 success, 0 failures
+2025-11-12 15:52:30 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=2.061s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-12 15:52:30 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #24: Ping successful (3.3ms) - Stats: 24 success, 0 failures
+2025-11-12 15:52:30 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.731s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:52:35 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /sources - user=admin, duration=3.204s, status=201 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=POST]
+2025-11-12 15:52:35 - vasttamsserver.core.cache:257:get - INFO - Cache miss: source:4b2ac1ac-a71d-477b-af04-4fb06de80134 (full key: tams:source:4b2ac1ac-a71d-477b-af04-4fb06de80134)
+2025-11-12 15:52:37 - vasttamsserver.core.cache:298:set - INFO - Cache set: source:4b2ac1ac-a71d-477b-af04-4fb06de80134 (full key: tams:source:4b2ac1ac-a71d-477b-af04-4fb06de80134, TTL: 300s)
+2025-11-12 15:52:40 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/folder_path - user=admin, duration=4.324s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/folder_path, method=PUT]
+2025-11-12 15:52:40 - vasttamsserver.core.cache:261:get - INFO - Cache hit: source:4b2ac1ac-a71d-477b-af04-4fb06de80134 (full key: tams:source:4b2ac1ac-a71d-477b-af04-4fb06de80134)
+2025-11-12 15:52:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/ingest_state - user=admin, duration=4.163s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/ingest_state, method=PUT]
+2025-11-12 15:52:44 - vasttamsserver.core.cache:261:get - INFO - Cache hit: source:4b2ac1ac-a71d-477b-af04-4fb06de80134 (full key: tams:source:4b2ac1ac-a71d-477b-af04-4fb06de80134)
+2025-11-12 15:52:49 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/ingest_started - user=admin, duration=4.832s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/ingest_started, method=PUT]
+2025-11-12 15:52:49 - vasttamsserver.core.cache:261:get - INFO - Cache hit: source:4b2ac1ac-a71d-477b-af04-4fb06de80134 (full key: tams:source:4b2ac1ac-a71d-477b-af04-4fb06de80134)
+2025-11-12 15:52:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/files_total - user=admin, duration=6.155s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/files_total, method=PUT]
+2025-11-12 15:52:56 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.012s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:52:56 - vasttamsserver.core.cache:261:get - INFO - Cache hit: source:4b2ac1ac-a71d-477b-af04-4fb06de80134 (full key: tams:source:4b2ac1ac-a71d-477b-af04-4fb06de80134)
+2025-11-12 15:53:03 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/ingest_last_updated - user=admin, duration=7.176s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/ingest_last_updated, method=PUT]
+2025-11-12 15:53:03 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #25: Ping successful (4.8ms) - Stats: 25 success, 0 failures
+2025-11-12 15:53:05 - vasttamsserver.core.cache:257:get - INFO - Cache miss: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:53:06 - vasttamsserver.core.cache:298:set - INFO - Cache set: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5, TTL: 300s)
+2025-11-12 15:53:06 - vasttamsserver.core.cache:257:get - INFO - Cache miss: flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:53:07 - vasttamsserver.core.cache:298:set - INFO - Cache set: flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5, TTL: 300s)
+2025-11-12 15:53:07 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /flows - user=admin, duration=3.319s, status=201 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=POST]
+2025-11-12 15:53:10 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/ingest_folder - user=admin, duration=3.516s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/ingest_folder, method=PUT]
+2025-11-12 15:53:15 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/media_type - user=admin, duration=4.692s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/media_type, method=PUT]
+2025-11-12 15:53:21 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/chunking_enabled - user=admin, duration=5.780s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/chunking_enabled, method=PUT]
+2025-11-12 15:53:33 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #26: Ping successful (2.9ms) - Stats: 26 success, 0 failures
+2025-11-12 15:53:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.021s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:53:59 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:53:59 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:54:00 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/storage - user=admin, duration=1.183s, status=201 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/storage, method=POST]
+2025-11-12 15:54:00 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:54:02 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:54:07 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:54:08 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/storage - user=admin, duration=9.426s, status=201 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/storage, method=POST]
+2025-11-12 15:54:08 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/storage - user=admin, duration=9.422s, status=201 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/storage, method=POST]
+2025-11-12 15:54:08 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/storage - user=admin, duration=9.429s, status=201 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/storage, method=POST]
+2025-11-12 15:54:08 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #27: Ping successful (4.6ms) - Stats: 27 success, 0 failures
+2025-11-12 15:54:21 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments - user=admin, duration=13.212s, status=201 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments, method=POST]
+2025-11-12 15:54:24 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:54:26 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments - user=admin, duration=9.493s, status=201 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments, method=POST]
+2025-11-12 15:54:34 - vasttamsserver.core.cache:270:get - INFO - Cache miss (error): flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 - Timeout reading from localhost:6379
+2025-11-12 15:54:36 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/file_mapping_a322b813-b4a2-4f27-87eb-6f46a737f51a - user=admin, duration=12.548s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/file_mapping_a322b813-b4a2-4f27-87eb-6f46a737f51a, method=PUT]
+2025-11-12 15:54:48 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/file_mapping_1f23ab7d-dc9d-4590-a99c-8d623979c145 - user=admin, duration=11.831s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/file_mapping_1f23ab7d-dc9d-4590-a99c-8d623979c145, method=PUT]
+2025-11-12 15:54:48 - vasttamsserver.core.cache:298:set - INFO - Cache set: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5, TTL: 300s)
+2025-11-12 15:54:48 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments - user=admin, duration=24.389s, status=201 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments, method=POST]
+2025-11-12 15:54:48 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments - user=admin, duration=24.390s, status=201 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments, method=POST]
+2025-11-12 15:54:52 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #28: Ping successful (3827.3ms) - Stats: 28 success, 0 failures
+2025-11-12 15:54:52 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:55:03 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=10.900s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:55:13 - vasttamsserver.core.cache:270:get - INFO - Cache miss (error): flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 - Timeout reading from localhost:6379
+2025-11-12 15:55:13 - vasttamsserver.core.cache:270:get - INFO - Cache miss (error): flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 - Timeout reading from localhost:6379
+2025-11-12 15:55:14 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 37.17s for POST /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/storage - server may be overloaded
+2025-11-12 15:55:14 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/storage: Request timeout after 37.17s
+2025-11-12 15:55:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/file_mapping_3907bfee-df05-4549-b693-b2f00ffc6e5b - user=admin, duration=22.600s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/file_mapping_3907bfee-df05-4549-b693-b2f00ffc6e5b, method=PUT]
+2025-11-12 15:55:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/file_mapping_b4674cbf-c14a-4cf0-8427-72ae9cb719b2 - user=admin, duration=22.600s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/tags/file_mapping_b4674cbf-c14a-4cf0-8427-72ae9cb719b2, method=PUT]
+2025-11-12 15:55:15 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /sources - user=anonymous, duration=1.013s, status=200 [User: ] [API: endpoint=/sources, method=OPTIONS]
+2025-11-12 15:55:15 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /analytics/sources - user=anonymous, duration=1.014s, status=200 [User: ] [API: endpoint=/analytics/sources, method=OPTIONS]
+2025-11-12 15:55:15 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /sources - user=anonymous, duration=1.015s, status=200 [User: ] [API: endpoint=/sources, method=OPTIONS]
+2025-11-12 15:55:15 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /analytics/sources - user=anonymous, duration=1.015s, status=200 [User: ] [API: endpoint=/analytics/sources, method=OPTIONS]
+2025-11-12 15:55:16 - vasttamsserver.auth.providers.jwt:98:authenticate - WARNING - JWT token expired
+2025-11-12 15:55:16 - vasttamsserver.auth.providers.jwt:98:authenticate - WARNING - JWT token expired
+2025-11-12 15:55:16 - vasttamsserver.auth.middleware:94:require_authentication - WARNING - Authentication required but no user session found
+2025-11-12 15:55:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=2.029s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:55:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=anonymous, duration=0.008s, status=401 [User: ] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 15:55:16 - vasttamsserver.auth.middleware:94:require_authentication - WARNING - Authentication required but no user session found
+2025-11-12 15:55:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.014s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:55:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=anonymous, duration=0.011s, status=401 [User: ] [API: endpoint=/sources, method=GET]
+2025-11-12 15:55:16 - vasttamsserver.core.cache:298:set - INFO - Cache set: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5, TTL: 300s)
+2025-11-12 15:55:18 - vasttamsserver.core.cache:298:set - INFO - Cache set: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5, TTL: 300s)
+2025-11-12 15:55:18 - vasttamsserver.core.cache:261:get - INFO - Cache hit: source:4b2ac1ac-a71d-477b-af04-4fb06de80134 (full key: tams:source:4b2ac1ac-a71d-477b-af04-4fb06de80134)
+2025-11-12 15:55:25 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-12 15:55:25 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-12 15:55:25 - vasttamsserver.auth.providers.jwt:98:authenticate - WARNING - JWT token expired
+2025-11-12 15:55:25 - vasttamsserver.auth.providers.jwt:98:authenticate - WARNING - JWT token expired
+2025-11-12 15:55:25 - vasttamsserver.auth.middleware:94:require_authentication - WARNING - Authentication required but no user session found
+2025-11-12 15:55:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/ingest_state - user=admin, duration=9.504s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/ingest_state, method=PUT]
+2025-11-12 15:55:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=anonymous, duration=7.376s, status=401 [User: ] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 15:55:25 - vasttamsserver.auth.middleware:94:require_authentication - WARNING - Authentication required but no user session found
+2025-11-12 15:55:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #29: Ping successful (3.6ms) - Stats: 29 success, 0 failures
+2025-11-12 15:55:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=anonymous, duration=7.377s, status=401 [SLOW LIST - UI may be unresponsive] [User: ] [API: endpoint=/sources, method=GET]
+2025-11-12 15:55:25 - vasttamsserver.core.cache:261:get - INFO - Cache hit: source:4b2ac1ac-a71d-477b-af04-4fb06de80134 (full key: tams:source:4b2ac1ac-a71d-477b-af04-4fb06de80134)
+2025-11-12 15:55:33 - vasttamsserver.webhooks.service:77:get_webhooks - ERROR - Failed to get webhooks: 'TAMSStorageService' object has no attribute 'query'
+2025-11-12 15:55:33 - vasttamsserver.events.manager:67:_get_webhooks - ERROR - Failed to fetch webhooks: 500: Internal server error
+2025-11-12 15:55:33 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - PUT /sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/ingest_completed - user=admin, duration=8.161s, status=204 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources/4b2ac1ac-a71d-477b-af04-4fb06de80134/tags/ingest_completed, method=PUT]
+2025-11-12 15:55:35 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=9.923s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-12 15:55:38 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=4.958s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-12 15:55:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /analytics/summary - user=anonymous, duration=1.003s, status=200 [User: ] [API: endpoint=/analytics/summary, method=OPTIONS]
+2025-11-12 15:55:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:55:40 - vasttamsserver.core.cache:257:get - INFO - Cache miss: analytics:summary (full key: tams:analytics:summary)
+2025-11-12 15:55:44 - vasttamsserver.core.cache:298:set - INFO - Cache set: analytics:summary (full key: tams:analytics:summary, TTL: 300s)
+2025-11-12 15:55:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=4.461s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:55:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/summary - user=admin, duration=4.469s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/summary, method=GET]
+2025-11-12 15:55:44 - vasttamsserver.core.cache:261:get - INFO - Cache hit: analytics:summary (full key: tams:analytics:summary)
+2025-11-12 15:55:49 - vasttamsserver.core.cache:257:get - INFO - Cache miss: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:55:50 - vasttamsserver.core.telemetry:405:record_list_performance - WARNING - Slow list operation: sources - query=2.599s, json_parse=0.000s, total=2.599s, records=3, filters=False
+2025-11-12 15:55:50 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=2.603s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 15:55:50 - vasttamsserver.core.cache:298:set - INFO - Cache set: sources:list:all (full key: tams:sources:list:all, TTL: 300s)
+2025-11-12 15:55:50 - vasttamsserver.sources.service:244:get_sources - INFO - Cache set: sources:list:all (3 sources)
+2025-11-12 15:55:50 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=2.609s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:55:51 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=1.469s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 15:55:51 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:55:51 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (3 sources)
+2025-11-12 15:55:51 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.009s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:55:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:55:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #30: Ping successful (2.5ms) - Stats: 30 success, 0 failures
+2025-11-12 15:55:56 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:55:56 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (3 sources)
+2025-11-12 15:55:56 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.005s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:55:56 - vasttamsserver.core.cache:257:get - INFO - Cache miss: flows:list:all (full key: tams:flows:list:all)
+2025-11-12 15:55:57 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:55:57 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (3 sources)
+2025-11-12 15:55:57 - vasttamsserver.core.cache:298:set - INFO - Cache set: flows:list:all (full key: tams:flows:list:all, TTL: 300s)
+2025-11-12 15:55:57 - vasttamsserver.flows.service:397:get_flows - INFO - Cache set: flows:list:all (4 flows)
+2025-11-12 15:55:57 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.750s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:55:57 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.754s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 15:55:57 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flows:list:all (full key: tams:flows:list:all)
+2025-11-12 15:55:57 - vasttamsserver.flows.service:170:get_flows - INFO - Cache hit: flows:list:all (4 flows)
+2025-11-12 15:55:57 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.005s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 15:55:59 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.617s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 15:56:00 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.296s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 15:56:00 - vasttamsserver.core.cache:257:get - INFO - Cache miss: flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:56:00 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:56:00 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:56:05 - vasttamsserver.core.cache:298:set - INFO - Cache set: flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5, TTL: 300s)
+2025-11-12 15:56:05 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments - user=admin, duration=5.274s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments, method=GET]
+2025-11-12 15:56:05 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:56:05 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:56:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments - user=admin, duration=10.600s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments, method=GET]
+2025-11-12 15:56:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments - user=admin, duration=10.595s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments, method=GET]
+2025-11-12 15:56:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=7.519s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:56:16 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:56:21 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments - user=admin, duration=4.984s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments, method=GET]
+2025-11-12 15:56:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.004s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:56:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #31: Ping successful (2.0ms) - Stats: 31 success, 0 failures
+2025-11-12 15:56:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:56:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:56:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #32: Ping successful (2.5ms) - Stats: 32 success, 0 failures
+2025-11-12 15:57:00 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:57:00 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (3 sources)
+2025-11-12 15:57:00 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flows:list:all (full key: tams:flows:list:all)
+2025-11-12 15:57:00 - vasttamsserver.flows.service:170:get_flows - INFO - Cache hit: flows:list:all (4 flows)
+2025-11-12 15:57:00 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.004s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:57:00 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.004s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 15:57:00 - vasttamsserver.core.cache:261:get - INFO - Cache hit: sources:list:all (full key: tams:sources:list:all)
+2025-11-12 15:57:00 - vasttamsserver.sources.service:70:get_sources - INFO - Cache hit: sources:list:all (3 sources)
+2025-11-12 15:57:00 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flows:list:all (full key: tams:flows:list:all)
+2025-11-12 15:57:00 - vasttamsserver.flows.service:170:get_flows - INFO - Cache hit: flows:list:all (4 flows)
+2025-11-12 15:57:00 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.003s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 15:57:00 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.003s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 15:57:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.341s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 15:57:03 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.559s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 15:57:04 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:57:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:57:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:57:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #33: Ping successful (2.1ms) - Stats: 33 success, 0 failures
+2025-11-12 15:57:30 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:57:30 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:57:30 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:57:34 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments - user=admin, duration=3.916s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments, method=GET]
+2025-11-12 15:57:34 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:57:34 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:57:42 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments - user=admin, duration=7.968s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments, method=GET]
+2025-11-12 15:57:42 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments - user=admin, duration=7.966s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments, method=GET]
+2025-11-12 15:57:43 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.017s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:57:43 - vasttamsserver.core.cache:261:get - INFO - Cache hit: flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5 (full key: tams:flow_segments:3e2ad9b0-c3c6-4164-827c-5928386d43b5)
+2025-11-12 15:57:47 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments - user=admin, duration=3.945s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5/segments, method=GET]
+2025-11-12 15:57:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:57:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #34: Ping successful (2.1ms) - Stats: 34 success, 0 failures
+2025-11-12 15:58:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:58:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:58:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #35: Ping successful (2.0ms) - Stats: 35 success, 0 failures
+2025-11-12 15:58:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:58:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:58:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #36: Ping successful (4.1ms) - Stats: 36 success, 0 failures
+2025-11-12 15:59:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:59:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.004s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:59:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #37: Ping successful (2.2ms) - Stats: 37 success, 0 failures
+2025-11-12 15:59:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:59:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:59:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #38: Ping successful (1.9ms) - Stats: 38 success, 0 failures
+2025-11-12 16:00:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:00:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:00:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #39: Ping successful (2.1ms) - Stats: 39 success, 0 failures
+2025-11-12 16:00:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:00:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:00:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #40: Ping successful (1.6ms) - Stats: 40 success, 0 failures
+2025-11-12 16:01:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.012s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:01:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:01:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #41: Ping successful (2.0ms) - Stats: 41 success, 0 failures
+2025-11-12 16:01:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:01:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:01:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #42: Ping successful (2.2ms) - Stats: 42 success, 0 failures
+2025-11-12 16:02:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:02:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:02:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #43: Ping successful (2.0ms) - Stats: 43 success, 0 failures
+2025-11-12 16:02:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:02:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:02:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #44: Ping successful (2.3ms) - Stats: 44 success, 0 failures
+2025-11-12 16:03:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:03:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:03:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #45: Ping successful (2.1ms) - Stats: 45 success, 0 failures
+2025-11-12 16:03:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:03:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:03:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #46: Ping successful (2.1ms) - Stats: 46 success, 0 failures
+2025-11-12 16:04:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:04:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:04:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #47: Ping successful (1.8ms) - Stats: 47 success, 0 failures
+2025-11-12 16:04:26 - vasttamsserver.auth.middleware:94:require_authentication - WARNING - Authentication required but no user session found
+2025-11-12 16:04:26 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5 - user=anonymous, duration=0.001s, status=401 [User: ] [API: endpoint=/flows/3e2ad9b0-c3c6-4164-827c-5928386d43b5, method=GET]
+2025-11-12 16:04:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:04:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.004s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:04:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #48: Ping successful (2.3ms) - Stats: 48 success, 0 failures
+2025-11-12 16:05:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:05:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:05:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #49: Ping successful (2.0ms) - Stats: 49 success, 0 failures
+2025-11-12 16:05:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:05:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:05:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #50: Ping successful (2.0ms) - Stats: 50 success, 0 failures
+2025-11-12 16:06:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:06:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.004s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:06:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #51: Ping successful (0.8ms) - Stats: 51 success, 0 failures
+2025-11-12 16:06:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:06:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:06:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #52: Ping successful (1.3ms) - Stats: 52 success, 0 failures
+2025-11-12 16:07:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:07:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:07:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #53: Ping successful (1.7ms) - Stats: 53 success, 0 failures
+2025-11-12 16:07:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:07:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.003s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:07:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #54: Ping successful (1.0ms) - Stats: 54 success, 0 failures
+2025-11-12 16:08:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:08:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:08:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #55: Ping successful (1.3ms) - Stats: 55 success, 0 failures
+2025-11-12 16:08:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:08:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:08:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #56: Ping successful (1.6ms) - Stats: 56 success, 0 failures
+2025-11-12 16:09:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:09:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:09:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #57: Ping successful (2.6ms) - Stats: 57 success, 0 failures
+2025-11-12 16:09:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:09:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.013s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:09:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #58: Ping successful (3.2ms) - Stats: 58 success, 0 failures
+2025-11-12 16:10:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:10:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.046s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:10:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #59: Ping successful (1.3ms) - Stats: 59 success, 0 failures
+2025-11-12 16:10:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:10:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.016s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:10:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #60: Ping successful (1.2ms) - Stats: 60 success, 0 failures
+2025-11-12 16:11:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:11:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:11:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #61: Ping successful (2.3ms) - Stats: 61 success, 0 failures
+2025-11-12 16:11:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:11:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:11:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #62: Ping successful (2.0ms) - Stats: 62 success, 0 failures
+2025-11-12 16:12:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:12:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:12:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #63: Ping successful (2.1ms) - Stats: 63 success, 0 failures
+2025-11-12 16:12:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:12:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:12:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #64: Ping successful (1.1ms) - Stats: 64 success, 0 failures
+2025-11-12 16:13:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:13:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:13:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #65: Ping successful (2.1ms) - Stats: 65 success, 0 failures
+2025-11-12 16:13:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:13:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:13:55 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #66: Ping successful (2.3ms) - Stats: 66 success, 0 failures
+2025-11-12 16:14:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:14:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 16:14:25 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #67: Ping successful (2.1ms) - Stats: 67 success, 0 failures
+2025-11-12 16:14:39 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]

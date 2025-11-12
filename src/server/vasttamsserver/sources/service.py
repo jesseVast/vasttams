@@ -364,6 +364,12 @@ class SourceStorageService:
             source_data = prepare_data_for_pyarrow(source_data)
             
             self.vast_db.insert_record("sources", source_data)
+            
+            # Invalidate sources list cache when new source is created
+            from ..core.dependencies import get_cache_service
+            cache_service = get_cache_service()
+            await cache_service.delete("sources:list:all")
+            
             return True
         except Exception as e:
             logger.error("Failed to create source: %s", e)
@@ -441,7 +447,8 @@ class SourceStorageService:
                 from ..core.dependencies import get_cache_service
                 cache_service = get_cache_service()
                 await cache_service.delete(f"source:{source_id}")
-                # Also invalidate all flows for this source
+                # Also invalidate list caches
+                await cache_service.delete("sources:list:all")  # Invalidate sources list cache
                 await cache_service.clear_pattern(f"flows:source:{source_id}*")
                 
                 return True
@@ -477,7 +484,8 @@ class SourceStorageService:
                     from ..core.dependencies import get_cache_service
                     cache_service = get_cache_service()
                     await cache_service.delete(f"source:{source_id}")
-                    # Also invalidate all flows for this source
+                    # Also invalidate list caches
+                    await cache_service.delete("sources:list:all")  # Invalidate sources list cache
                     await cache_service.clear_pattern(f"flows:source:{source_id}*")
                     
                     return True
@@ -515,7 +523,8 @@ class SourceStorageService:
             from ..core.dependencies import get_cache_service
             cache_service = get_cache_service()
             await cache_service.delete(f"source:{source_id}")
-            # Also invalidate all flows for this source
+            # Also invalidate list caches
+            await cache_service.delete("sources:list:all")  # Invalidate sources list cache
             await cache_service.clear_pattern(f"flows:source:{source_id}*")
             
             return True

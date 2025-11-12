@@ -40,16 +40,40 @@ class SourceStorageService:
         json_parse_start = 0
         json_parse_duration = 0
         
+        # Try cache first (only for simple queries without complex filters)
+        from ..core.dependencies import get_cache_service
+        cache_service = get_cache_service()
+        
+        # Check if filters are being used
+        has_filters = bool(filters.label or filters.format)
+        
+        # Check if we need tag filtering - if so, use SQL JOIN query
+        has_tag_filters = (filters.tag_filters and len(filters.tag_filters) > 0) or \
+                        (filters.tag_exists_filters and len(filters.tag_exists_filters) > 0)
+        
+        if has_tag_filters:
+            has_filters = True
+        
+        # Only cache simple queries (no filters at all)
+        # Tag filters and other filters bypass cache due to complexity
+        use_cache = not has_filters
+        
+        if use_cache:
+            cache_key = "sources:list:all"
+            cached = await cache_service.get(cache_key)
+            if cached:
+                try:
+                    # Reconstruct Source objects from cached data
+                    sources = []
+                    for source_data in cached:
+                        sources.append(Source(**source_data))
+                    logger.info(f"Cache hit: {cache_key} ({len(sources)} sources)")
+                    return sources
+                except Exception as e:
+                    logger.debug(f"Failed to deserialize cached sources for {cache_key}: {e}")
+                    # Fall through to DB query
+        
         try:
-            # Check if filters are being used
-            has_filters = bool(filters.label or filters.format)
-            
-            # Check if we need tag filtering - if so, use SQL JOIN query
-            has_tag_filters = (filters.tag_filters and len(filters.tag_filters) > 0) or \
-                            (filters.tag_exists_filters and len(filters.tag_exists_filters) > 0)
-            
-            if has_tag_filters:
-                has_filters = True
             
             if has_tag_filters:
                 # Use SQL JOIN query for tag filtering
@@ -210,6 +234,16 @@ class SourceStorageService:
                 record_count=len(sources),
                 has_filters=has_filters
             )
+            
+            # Cache the result (only for simple queries)
+            if use_cache:
+                try:
+                    # Convert sources to dict for caching
+                    sources_dict = [source.model_dump() for source in sources]
+                    await cache_service.set(cache_key, sources_dict, ttl=300)  # 5 minutes TTL
+                    logger.info(f"Cache set: {cache_key} ({len(sources)} sources)")
+                except Exception as e:
+                    logger.debug(f"Failed to cache sources for {cache_key}: {e}")
             
             return sources
         except Exception as e:

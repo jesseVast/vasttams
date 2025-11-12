@@ -65,15 +65,17 @@ class SegmentStorageService:
                         # If get_urls are needed, generate them now (even for cached segments)
                         if not skip_get_urls_generation:
                             # Generate get_urls for cached segments that need them
+                            # Check both None and empty list cases
                             segments_needing_urls = [
                                 segment for segment in segments 
-                                if not segment.get_urls or len(segment.get_urls) == 0
+                                if segment.get_urls is None or (isinstance(segment.get_urls, list) and len(segment.get_urls) == 0)
                             ]
                             if segments_needing_urls:
-                                logger.debug(f"Generating get_urls for {len(segments_needing_urls)} cached segments")
+                                logger.debug(f"Generating get_urls for {len(segments_needing_urls)} cached segments (skip_get_urls_generation=False)")
                                 import asyncio
                                 valid_segments = [s for s in segments_needing_urls if s.object_id]
                                 if valid_segments:
+                                    logger.debug(f"Found {len(valid_segments)} segments with object_id out of {len(segments_needing_urls)} needing URLs")
                                     # Use factory's batch processing for better multi-threaded performance
                                     object_ids = [segment.object_id for segment in valid_segments]
                                     batch_results = await self._get_url_factory.create_get_urls_batch(
@@ -82,10 +84,19 @@ class SegmentStorageService:
                                     )
                                     
                                     # Map results back to segments
+                                    urls_generated = 0
                                     for segment in valid_segments:
                                         get_urls = batch_results.get(segment.object_id)
                                         if get_urls:
                                             segment.get_urls = get_urls
+                                            urls_generated += 1
+                                    logger.debug(f"Generated get_urls for {urls_generated} out of {len(valid_segments)} segments")
+                                else:
+                                    logger.warning(f"No segments with object_id found for URL generation (out of {len(segments_needing_urls)} segments)")
+                            else:
+                                logger.debug(f"All {len(segments)} cached segments already have get_urls")
+                        else:
+                            logger.debug(f"Skipping get_urls generation for cached segments (skip_get_urls_generation=True)")
                         return segments
                     except Exception as e:
                         logger.debug(f"Failed to deserialize cached segments for flow {flow_id}: {e}")

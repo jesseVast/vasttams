@@ -478,7 +478,7 @@ class SegmentStorageService:
                             AND timerange_start = '{timerange_start}' 
                             AND timerange_end = '{timerange_end}'
                         """
-                        self.vast_db.execute_sql(delete_sql)
+                        await asyncio.to_thread(lambda: self.vast_db.execute_sql(delete_sql))
                         deleted_count += 1
                     except Exception as e:
                         logger.warning("Failed to delete segment (flow_id=%s, object_id=%s): %s", 
@@ -498,7 +498,7 @@ class SegmentStorageService:
             else:
                 # Delete all segments for the flow (no timerange filter)
                 query = self.vast_db.query("segments").delete().where(f"flow_id = '{flow_id}'")
-                query.execute()
+                await asyncio.to_thread(lambda: query.execute())
                 logger.debug("Deleted all segments for flow %s", flow_id)
                 # Invalidate segments cache for this flow
                 try:
@@ -708,7 +708,11 @@ class SegmentStorageService:
     async def _get_object(self, object_id: str):
         """Get an object by ID"""
         try:
-            result = self.vast_db.query("objects").select("*").where(f"id = '{object_id}'").execute()
+            # Run blocking database query in thread pool to avoid blocking event loop
+            # This is especially important in dev mode with single worker
+            result = await asyncio.to_thread(
+                lambda: self.vast_db.query("objects").select("*").where(f"id = '{object_id}'").execute()
+            )
             
             # Handle VAST query result format
             rows = []
@@ -886,7 +890,7 @@ class SegmentStorageService:
                 ORDER BY seg.timerange_start
             """
             
-            result = self.vast_db.execute_sql(sql)
+            result = await asyncio.to_thread(lambda: self.vast_db.execute_sql(sql))
             if result and 'data' in result:
                 segments = []
                 for row in result['data']:
@@ -946,7 +950,7 @@ class SegmentStorageService:
                 {where_clause}
             """
             
-            result = self.vast_db.execute_sql(sql)
+            result = await asyncio.to_thread(lambda: self.vast_db.execute_sql(sql))
             if result and 'data' in result and len(result['data']) > 0:
                 row = result['data'][0]
                 return {

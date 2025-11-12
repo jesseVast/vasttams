@@ -142,7 +142,7 @@ class CacheService:
             
             self._available = True
             self._consecutive_failures = 0
-            logger.info(f"✅ Redis cache connected successfully to {self.settings.redis_host}:{self.settings.redis_port} (db={self.settings.redis_db})")
+            logger.info(f"Redis cache connected successfully to {self.settings.redis_host}:{self.settings.redis_port} (db={self.settings.redis_db})")
             
         except Exception as e:
             # Check if it's a Redis-specific exception

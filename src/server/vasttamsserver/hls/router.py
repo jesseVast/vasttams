@@ -15,7 +15,7 @@ from ..auth.middleware import UserSession
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/hls", tags=["hls"])
+router = APIRouter(prefix="/api/tams/v8.0/hls", tags=["hls"])
 
 
 @router.get("/flows/{flow_id}/playlist.m3u8")

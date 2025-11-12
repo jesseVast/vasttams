@@ -241,8 +241,8 @@ async def lifespan(app: FastAPI):
 # Create FastAPI application
 app = FastAPI(
     title="TAMS API",
-    description="Time-addressable Media Store API - BBC TAMS 7.0 Implementation",
-    version="1.0.0",
+    description="Time-addressable Media Store API - BBC TAMS 8.0 Implementation",
+    version="8.0.0",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -283,8 +283,8 @@ def custom_openapi():
     
     openapi_schema = get_openapi(
         title="TAMS API",
-        version="1.0.0",
-        description="Time-addressable Media Store API - BBC TAMS 7.0 Implementation",
+        version="8.0.0",
+        description="Time-addressable Media Store API - BBC TAMS 8.0 Implementation",
         routes=app.routes,
     )
     
@@ -365,7 +365,7 @@ async def connection_exception_handler(request: Request, exc: ConnectionError):
         }
     )
 
-# Register modular routers
+# Register modular routers with versioned paths
 app.include_router(flows_router)
 app.include_router(segments_router)
 app.include_router(sources_router)
@@ -378,6 +378,85 @@ app.include_router(users_router)
 app.include_router(webhooks_router)
 app.include_router(hls_router)
 app.include_router(analytics_router)
+
+# Create latest alias by including routers again with /api/tams/latest prefix
+# Get API version from settings
+from .core.config import get_settings
+settings = get_settings()
+versioned_prefix = settings.api_path_prefix
+latest_alias = settings.api_latest_alias
+
+# Helper function to create latest alias router
+def create_latest_alias_router(router, versioned_prefix: str, latest_alias: str):
+    """Create a router with latest alias prefix that includes all routes from the versioned router."""
+    # Extract the relative path from the router's current prefix
+    # e.g., if prefix is "/api/tams/v8.0/flows", relative is "/flows"
+    current_prefix = router.prefix
+    if current_prefix.startswith(versioned_prefix):
+        relative_path = current_prefix[len(versioned_prefix):]
+    else:
+        # If prefix doesn't match, use as-is (shouldn't happen, but safe fallback)
+        relative_path = current_prefix
+    
+    # Create new router with latest prefix
+    from fastapi import APIRouter
+    from fastapi.routing import APIRoute
+    latest_router = APIRouter(prefix=latest_alias + relative_path, tags=router.tags)
+    
+    # Copy all routes from original router
+    for route in router.routes:
+        if isinstance(route, APIRoute):
+            # Recreate the route with the new prefix (which is already set in latest_router)
+            latest_router.add_api_route(
+                path=route.path,
+                endpoint=route.endpoint,
+                methods=list(route.methods),
+                name=route.name,
+                include_in_schema=route.include_in_schema,
+                response_model=route.response_model,
+                dependencies=route.dependencies,
+                status_code=route.status_code,
+                tags=route.tags or router.tags,
+                summary=route.summary,
+                description=route.description,
+                response_description=route.response_description,
+                responses=route.responses,
+                deprecated=route.deprecated,
+                operation_id=route.operation_id,
+            )
+        else:
+            # For non-APIRoute items (like sub-routers), just add them
+            latest_router.routes.append(route)
+    
+    return latest_router
+
+# Register latest alias routers
+latest_flows_router = create_latest_alias_router(flows_router, versioned_prefix, latest_alias)
+latest_segments_router = create_latest_alias_router(segments_router, versioned_prefix, latest_alias)
+latest_sources_router = create_latest_alias_router(sources_router, versioned_prefix, latest_alias)
+latest_objects_router = create_latest_alias_router(objects_router, versioned_prefix, latest_alias)
+latest_service_router = create_latest_alias_router(service_router, versioned_prefix, latest_alias)
+latest_storage_backends_router = create_latest_alias_router(storage_backends_router, versioned_prefix, latest_alias)
+latest_auth_router = create_latest_alias_router(auth_router, versioned_prefix, latest_alias)
+latest_login_router = create_latest_alias_router(login_router, versioned_prefix, latest_alias)
+latest_users_router = create_latest_alias_router(users_router, versioned_prefix, latest_alias)
+latest_webhooks_router = create_latest_alias_router(webhooks_router, versioned_prefix, latest_alias)
+latest_hls_router = create_latest_alias_router(hls_router, versioned_prefix, latest_alias)
+latest_analytics_router = create_latest_alias_router(analytics_router, versioned_prefix, latest_alias)
+
+# Include latest alias routers
+app.include_router(latest_flows_router)
+app.include_router(latest_segments_router)
+app.include_router(latest_sources_router)
+app.include_router(latest_objects_router)
+app.include_router(latest_service_router)
+app.include_router(latest_storage_backends_router)
+app.include_router(latest_auth_router)
+app.include_router(latest_login_router)
+app.include_router(latest_users_router)
+app.include_router(latest_webhooks_router)
+app.include_router(latest_hls_router)
+app.include_router(latest_analytics_router)
 
 # OpenAPI JSON endpoint
 @app.get("/openapi.json")
@@ -395,11 +474,15 @@ async def head_root():
 async def get_root():
     """List of paths available from this API"""
     return [
-        "service", 
-        "flows", 
-        "sources", 
-        "objects",
-        "flow-delete-requests", 
+        "api/tams/v8.0/service", 
+        "api/tams/v8.0/flows", 
+        "api/tams/v8.0/sources", 
+        "api/tams/v8.0/objects",
+        "api/tams/v8.0/flow-delete-requests",
+        "api/tams/v8.0/analytics",
+        "api/tams/v8.0/hls",
+        "api/tams/v8.0/auth",
+        "api/tams/v8.0/users",
         "openapi.json",
         "docs",
         "redoc"

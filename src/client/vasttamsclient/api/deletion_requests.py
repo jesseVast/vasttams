@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 async def get_deletion_requests(client: "TAMSClient") -> List[Dict[str, Any]]:
     """Get all deletion requests."""
-    url = f"{client.server_url}/flow-delete-requests"
+    url = f"{client.server_url}{client.api_prefix}/flow-delete-requests"
     async with client._session.get(url, headers=await client._get_headers()) as response:
         if response.status == 200:
             return await response.json()

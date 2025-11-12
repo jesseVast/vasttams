@@ -20,9 +20,9 @@ async def get_tags(client: "TAMSClient", entity_type: str, entity_id: str) -> Di
         Dict mapping tag names to values (string or list of strings)
     """
     if entity_type == "source":
-        url = f"{client.server_url}/sources/{entity_id}/tags"
+        url = f"{client.server_url}{client.api_prefix}/sources/{entity_id}/tags"
     elif entity_type == "flow":
-        url = f"{client.server_url}/flows/{entity_id}/tags"
+        url = f"{client.server_url}{client.api_prefix}/flows/{entity_id}/tags"
     else:
         raise ValueError(f"Unsupported entity type: {entity_type}")
     
@@ -44,9 +44,9 @@ async def get_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag_na
         Tag value as string or list of strings, or None if not found
     """
     if entity_type == "source":
-        url = f"{client.server_url}/sources/{entity_id}/tags/{tag_name}"
+        url = f"{client.server_url}{client.api_prefix}/sources/{entity_id}/tags/{tag_name}"
     elif entity_type == "flow":
-        url = f"{client.server_url}/flows/{entity_id}/tags/{tag_name}"
+        url = f"{client.server_url}{client.api_prefix}/flows/{entity_id}/tags/{tag_name}"
     else:
         raise ValueError(f"Unsupported entity type: {entity_type}")
     
@@ -78,9 +78,9 @@ async def set_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag_na
         tag_value: Tag value (string or list of strings)
     """
     if entity_type == "source":
-        url = f"{client.server_url}/sources/{entity_id}/tags/{tag_name}"
+        url = f"{client.server_url}{client.api_prefix}/sources/{entity_id}/tags/{tag_name}"
     elif entity_type == "flow":
-        url = f"{client.server_url}/flows/{entity_id}/tags/{tag_name}"
+        url = f"{client.server_url}{client.api_prefix}/flows/{entity_id}/tags/{tag_name}"
     else:
         raise ValueError(f"Unsupported entity type: {entity_type}")
     
@@ -104,9 +104,9 @@ async def set_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag_na
 async def delete_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag_name: str) -> None:
     """Delete a tag."""
     if entity_type == "source":
-        url = f"{client.server_url}/sources/{entity_id}/tags/{tag_name}"
+        url = f"{client.server_url}{client.api_prefix}/sources/{entity_id}/tags/{tag_name}"
     elif entity_type == "flow":
-        url = f"{client.server_url}/flows/{entity_id}/tags/{tag_name}"
+        url = f"{client.server_url}{client.api_prefix}/flows/{entity_id}/tags/{tag_name}"
     else:
         raise ValueError(f"Unsupported entity type: {entity_type}")
     

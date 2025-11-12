@@ -19,8 +19,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/auth/providers", tags=["auth"])
-users_router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/api/tams/v8.0/auth/providers", tags=["auth"])
+users_router = APIRouter(prefix="/api/tams/v8.0/users", tags=["users"])
 
 # Global instances
 _auth_manager: Optional[AuthManager] = None
@@ -152,7 +152,7 @@ class LoginResponse(BaseModel):
 
 
 # New login router
-login_router = APIRouter(prefix="/auth", tags=["auth"])
+login_router = APIRouter(prefix="/api/tams/v8.0/auth", tags=["auth"])
 
 
 @login_router.post("/login", response_model=LoginResponse)

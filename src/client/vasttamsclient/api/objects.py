@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 async def get_object(client: "TAMSClient", object_id: str) -> Optional[Dict[str, Any]]:
     """Get an object by ID."""
-    url = f"{client.server_url}/objects/{object_id}"
+    url = f"{client.server_url}{client.api_prefix}/objects/{object_id}"
     async with client._session.get(url, headers=await client._get_headers()) as response:
         if response.status == 200:
             return await response.json()
@@ -26,7 +26,7 @@ async def get_object(client: "TAMSClient", object_id: str) -> Optional[Dict[str,
 
 async def list_objects(client: "TAMSClient", query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """List objects."""
-    url = f"{client.server_url}/objects"
+    url = f"{client.server_url}{client.api_prefix}/objects"
     async with client._session.get(url, params=query_params or {}, headers=await client._get_headers()) as response:
         if response.status == 200:
             data = await response.json()

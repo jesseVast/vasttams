@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 class TokenManager:
     """Manages authentication tokens with automatic renewal."""
     
-    def __init__(self, server_url: str, username: str, password: str, session: Optional[aiohttp.ClientSession] = None):
+    def __init__(self, server_url: str, username: str, password: str, 
+                 api_prefix: str = "/api/tams/latest", session: Optional[aiohttp.ClientSession] = None):
         """
         Initialize token manager.
         
@@ -24,11 +25,13 @@ class TokenManager:
             server_url: TAMS server base URL
             username: Username for authentication
             password: Password for authentication
+            api_prefix: API path prefix (default: "/api/tams/latest")
             session: Optional shared aiohttp session to reuse connections
         """
         self.server_url = server_url.rstrip('/')
         self.username = username
         self.password = password
+        self.api_prefix = api_prefix
         self._token: Optional[str] = None
         self._lock = asyncio.Lock()
         self._session = session  # Use shared session if provided
@@ -45,7 +48,7 @@ class TokenManager:
             TAMSConnectionError: If connection fails
         """
         try:
-            url = f"{self.server_url}/auth/login"
+            url = f"{self.server_url}{self.api_prefix}/auth/login"
             # Use shared session if available, otherwise create temporary one
             if self._session and not self._session.closed:
                 # Use shared session to reuse connections

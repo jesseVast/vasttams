@@ -16,7 +16,7 @@ from ..core.dependencies import get_vast_db, get_cache_service
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/analytics", tags=["analytics"])
+router = APIRouter(prefix="/api/tams/v8.0/analytics", tags=["analytics"])
 
 # Cache key for analytics summary
 ANALYTICS_SUMMARY_CACHE_KEY = "analytics:summary"

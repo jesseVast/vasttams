@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 async def create_source(client: "TAMSClient", source_data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a source."""
-    url = f"{client.server_url}/sources"
+    url = f"{client.server_url}{client.api_prefix}/sources"
     headers = await client._get_headers()
     async with client._session.post(url, json=source_data, headers=headers) as response:
         if response.status == 201:
@@ -26,7 +26,7 @@ async def create_source(client: "TAMSClient", source_data: Dict[str, Any]) -> Di
 
 async def get_source(client: "TAMSClient", source_id: str) -> Optional[Dict[str, Any]]:
     """Get a source by ID."""
-    url = f"{client.server_url}/sources/{source_id}"
+    url = f"{client.server_url}{client.api_prefix}/sources/{source_id}"
     headers = await client._get_headers()
     async with client._session.get(url, headers=headers) as response:
         if response.status == 200:
@@ -40,7 +40,7 @@ async def get_source(client: "TAMSClient", source_id: str) -> Optional[Dict[str,
 
 async def update_source_label(client: "TAMSClient", source_id: str, label: str) -> None:
     """Update a source label."""
-    url = f"{client.server_url}/sources/{source_id}/label"
+    url = f"{client.server_url}{client.api_prefix}/sources/{source_id}/label"
     headers = await client._get_headers()
     headers["Content-Type"] = "text/plain"
     async with client._session.put(url, data=label, headers=headers) as response:
@@ -51,7 +51,7 @@ async def update_source_label(client: "TAMSClient", source_id: str, label: str) 
 
 async def update_source_description(client: "TAMSClient", source_id: str, description: str) -> None:
     """Update a source description."""
-    url = f"{client.server_url}/sources/{source_id}/description"
+    url = f"{client.server_url}{client.api_prefix}/sources/{source_id}/description"
     headers = await client._get_headers()
     headers["Content-Type"] = "text/plain"
     async with client._session.put(url, data=description, headers=headers) as response:
@@ -68,7 +68,7 @@ async def delete_source(client: "TAMSClient", source_id: str, cascade: bool = Tr
         source_id: Source ID to delete
         cascade: If True, cascade delete to associated flows and segments (default: True)
     """
-    url = f"{client.server_url}/sources/{source_id}"
+    url = f"{client.server_url}{client.api_prefix}/sources/{source_id}"
     params = {"cascade": str(cascade).lower()}
     headers = await client._get_headers()
     async with client._session.delete(url, params=params, headers=headers) as response:
@@ -79,7 +79,7 @@ async def delete_source(client: "TAMSClient", source_id: str, cascade: bool = Tr
 
 async def list_sources(client: "TAMSClient", query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """List sources."""
-    url = f"{client.server_url}/sources"
+    url = f"{client.server_url}{client.api_prefix}/sources"
     headers = await client._get_headers()
     async with client._session.get(url, params=query_params or {}, headers=headers) as response:
         if response.status == 200:

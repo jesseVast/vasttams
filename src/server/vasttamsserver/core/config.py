@@ -26,8 +26,10 @@ class Settings(BaseSettings):
     
     # API settings
     api_title: str = "TAMS API"
-    api_version: str = "7.0"
+    api_version: str = "8.0"
     api_description: str = "Time-addressable Media Store API"
+    api_path_prefix: str = Field(default="/api/tams/v8.0", description="API path prefix for versioned endpoints")
+    api_latest_alias: str = Field(default="/api/tams/latest", description="API path alias for latest version")
     
     # Server settings
     host: str = "0.0.0.0"

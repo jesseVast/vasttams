@@ -14,7 +14,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/service/storage-backends", tags=["storage-backends"])
+router = APIRouter(prefix="/api/tams/v8.0/service/storage-backends", tags=["storage-backends"])
 
 
 def get_storage_backend_service() -> StorageBackendService:

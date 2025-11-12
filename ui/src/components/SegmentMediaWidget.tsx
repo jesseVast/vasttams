@@ -278,7 +278,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
               height: height,
               display: 'block',
             }}
-            preload="metadata"
+            preload="none"
             onError={(e) => {
               const video = e.currentTarget;
               console.error('Video playback error:', {
@@ -296,6 +296,23 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
             }}
             onCanPlay={() => {
               console.debug('Video can play:', firstUrl.url);
+            }}
+            onProgress={() => {
+              // Limit buffering to 1 second
+              const video = videoRef.current;
+              if (video && video.buffered.length > 0) {
+                const bufferedEnd = video.buffered.end(0);
+                if (bufferedEnd > 1.5) {
+                  // If buffered more than 1.5 seconds, pause to stop further loading
+                  if (!video.paused) {
+                    // Only pause if we've played for 1 second
+                    if (video.currentTime >= 1) {
+                      video.pause();
+                      video.currentTime = 0; // Reset to start
+                    }
+                  }
+                }
+              }
             }}
           >
             {mimeType && <source src={firstUrl.url} type={mimeType} />}

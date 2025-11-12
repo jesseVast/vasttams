@@ -6,6 +6,7 @@ CRUD operations, filtering, and segment management.
 """
 
 import logging
+import asyncio
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 
@@ -411,9 +412,11 @@ class SegmentStorageService:
                 import json as _json
                 import uuid as _uuid
                 # 1) Insert into flow_object_references if not already present
-                existing = self.vast_db.query("flow_object_references").select("id").where(
-                    f"flow_id = '{flow_id}' AND object_id = '{segment_data.get('object_id')}'"
-                ).execute()
+                existing = await asyncio.to_thread(
+                    lambda: self.vast_db.query("flow_object_references").select("id").where(
+                        f"flow_id = '{flow_id}' AND object_id = '{segment_data.get('object_id')}'"
+                    ).execute()
+                )
                 already_exists = False
                 if isinstance(existing, dict) and 'data' in existing:
                     data = existing['data']

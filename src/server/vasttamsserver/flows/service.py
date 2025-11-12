@@ -132,13 +132,48 @@ class FlowStorageService:
         json_parse_start = 0
         json_parse_duration = 0
         
+        # Try cache first (only for simple queries without complex filters)
+        from ..core.dependencies import get_cache_service
+        cache_service = get_cache_service()
+        
+        # Check if filters are being used
+        has_filters = bool(
+            filters.source_id or filters.label or filters.format or filters.codec or
+            filters.frame_width or filters.frame_height or filters.tag_filters or
+            filters.tag_exists_filters
+        )
+        
+        # Only cache simple queries (no filters or just source_id filter)
+        # Complex filters (tag filters, frame dimensions, etc.) are not cached
+        use_cache = not has_filters or (filters.source_id and not (
+            filters.label or filters.format or filters.codec or
+            filters.frame_width or filters.frame_height or filters.tag_filters or
+            filters.tag_exists_filters
+        ))
+        
+        if use_cache:
+            # Build cache key based on filters
+            if filters.source_id:
+                cache_key = f"flows:source:{filters.source_id}"
+            else:
+                cache_key = "flows:list:all"
+            
+            cached = await cache_service.get(cache_key)
+            if cached:
+                try:
+                    # Reconstruct Flow objects from cached data
+                    flows = []
+                    for flow_data in cached:
+                        flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
+                        flow_data = self._ensure_required_flow_fields(flow_data, flow_class)
+                        flows.append(flow_class(**flow_data))
+                    logger.info(f"Cache hit: {cache_key} ({len(flows)} flows)")
+                    return flows
+                except Exception as e:
+                    logger.debug(f"Failed to deserialize cached flows for {cache_key}: {e}")
+                    # Fall through to DB query
+        
         try:
-            # Check if filters are being used
-            has_filters = bool(
-                filters.source_id or filters.label or filters.format or filters.codec or
-                filters.frame_width or filters.frame_height or filters.tag_filters or
-                filters.tag_exists_filters
-            )
             
             # Build query using vaststore
             query = self.vast_db.query("flows").select("*")

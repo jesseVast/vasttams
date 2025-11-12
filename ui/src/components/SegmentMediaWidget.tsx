@@ -495,46 +495,45 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     >
       <Box sx={{ position: 'relative', width: '100%', backgroundColor: '#000' }}>
         {renderMediaContent()}
-        <IconButton
-          size="small"
-          onClick={() => setInfoModalOpen(true)}
-          sx={{
-            position: 'absolute',
-            top: 4,
-            right: 4,
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-            color: 'white',
-            '&:hover': {
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            },
-            zIndex: 10,
-          }}
-        >
-          <InfoIcon fontSize="small" />
-        </IconButton>
       </Box>
       <CardContent sx={{ flexGrow: 1, p: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Tooltip title={timerange} arrow>
-          <Typography 
-            variant="caption" 
-            sx={{ 
-              display: 'block',
-              fontFamily: 'monospace',
-              fontSize: '0.7rem',
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+          <Tooltip title={timerange} arrow>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                display: 'block',
+                fontFamily: 'monospace',
+                fontSize: '0.7rem',
+                color: 'text.secondary',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flex: 1
+              }}
+            >
+              {timeInfo.start && timeInfo.end 
+                ? `${timeInfo.start} - ${timeInfo.end}`
+                : timeInfo.start 
+                ? `Start: ${timeInfo.start}`
+                : timerange}
+            </Typography>
+          </Tooltip>
+          <IconButton
+            size="small"
+            onClick={() => setInfoModalOpen(true)}
+            sx={{
+              ml: 1,
               color: 'text.secondary',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              mb: 0.5
+              '&:hover': {
+                color: 'primary.main',
+                backgroundColor: 'action.hover',
+              },
             }}
           >
-            {timeInfo.start && timeInfo.end 
-              ? `${timeInfo.start} - ${timeInfo.end}`
-              : timeInfo.start 
-              ? `Start: ${timeInfo.start}`
-              : timerange}
-          </Typography>
-        </Tooltip>
+            <InfoIcon fontSize="small" />
+          </IconButton>
+        </Box>
         <Typography 
           variant="caption" 
           sx={{ 

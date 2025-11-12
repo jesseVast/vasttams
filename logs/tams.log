@@ -11701,3 +11701,25 @@ vastdb.errors.MissingTable: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'ta
 2025-11-12 14:42:37 - vasttamsserver.core.cache:147:_connect - WARNING - Redis connection failed: Timeout connecting to server. Continuing without cache.
 2025-11-12 14:42:37 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
 2025-11-12 14:42:37 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError
+2025-11-12 14:42:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=61.751s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:42:44 - vasttamsserver.main:221:lifespan - INFO - Shutting down TAMS API...
+2025-11-12 14:42:44 - vasttamsserver.core.cache:438:close - INFO - Redis cache service closed
+2025-11-12 14:42:44 - vasttamsserver.main:239:lifespan - INFO - TAMS API shutdown complete
+2025-11-12 14:42:45 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-12 14:42:46 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-12 14:42:46 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-12 14:42:46 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-12 14:42:46 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-12 14:42:46 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-12 14:42:47 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-12 14:42:55 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-12 14:42:55 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-12 14:42:55 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-12 14:42:55 - vasttamsserver.core.cache:61:__init__ - INFO - Redis cache initialization enabled
+2025-11-12 14:42:55 - vasttamsserver.core.cache:62:__init__ - INFO - Redis configuration: host=localhost, port=6379, db=0, ssl=False, max_connections=50
+2025-11-12 14:42:55 - vasttamsserver.main:116:lifespan - INFO - Initializing Redis cache service on startup...
+2025-11-12 14:42:55 - vasttamsserver.core.cache:83:_initialize - INFO - Initializing Redis cache connection...
+2025-11-12 14:42:55 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:42:55 - vasttamsserver.core.cache:142:_connect - INFO - ✅ Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-12 14:42:55 - vasttamsserver.core.cache:89:_initialize - INFO - Redis cache initialization completed successfully
+2025-11-12 14:42:55 - vasttamsserver.main:119:lifespan - INFO - ✅ Redis cache service initialized successfully

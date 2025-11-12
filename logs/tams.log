@@ -11944,3 +11944,5 @@ UnboundLocalError: cannot access local variable 'asyncio' where it is not associ
 2025-11-12 14:51:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.004s, status=200 [User: ] [API: endpoint=/health, method=GET]
 2025-11-12 14:51:46 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.015s, status=200 [User: ] [API: endpoint=/health, method=GET]
 2025-11-12 14:51:47 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.004s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:52:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:52:17 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]

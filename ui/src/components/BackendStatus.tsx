@@ -103,7 +103,9 @@ const BackendStatus: React.FC<BackendStatusProps> = ({ size = 'small' }) => {
 
   const getTooltipText = () => {
     const timeStr = lastChecked.toLocaleTimeString();
-    return `API Status: ${getStatusText()}\nLast checked: ${timeStr}`;
+    const timeAgo = Math.floor((Date.now() - lastChecked.getTime()) / 1000);
+    const timeAgoStr = timeAgo < 60 ? `${timeAgo}s ago` : `${Math.floor(timeAgo / 60)}m ago`;
+    return `API Status: ${getStatusText()}\nLast checked: ${timeStr} (${timeAgoStr})`;
   };
 
   const handleClick = () => {

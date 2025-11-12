@@ -137,6 +137,19 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   const timerange = segment.timerange?.value || '-';
   const mediaType = getMediaType();
   
+  // Debug logging for video playback issues
+  useEffect(() => {
+    if (mediaType === 'video') {
+      console.debug('Segment video debug:', {
+        hasGetUrls: !!segment.get_urls,
+        getUrlsLength: segment.get_urls?.length || 0,
+        firstUrl: firstUrl,
+        objectId: segment.object_id,
+        timerange: timerange
+      });
+    }
+  }, [segment, mediaType, firstUrl, timerange]);
+  
   // Parse timerange to extract time information for display
   const parseTimerange = (tr: string): { start?: string; end?: string; duration?: string } => {
     if (!tr || tr === '-') return {};
@@ -202,6 +215,25 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   }, [firstUrl?.url, mediaType]);
 
   const renderMediaContent = () => {
+    // Check if we have URLs available
+    if (!segment.get_urls || segment.get_urls.length === 0) {
+      return (
+        <Box 
+          sx={{ 
+            width: '100%', 
+            height: height, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            backgroundColor: '#1a1a1a',
+            color: '#666'
+          }}
+        >
+          <Typography variant="caption">No URLs available</Typography>
+        </Box>
+      );
+    }
+    
     // Allow non-presigned URLs too - they might still work for video playback
     if (!firstUrl?.url) {
       return (
@@ -216,7 +248,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
             color: '#666'
           }}
         >
-          <Typography variant="caption">No media</Typography>
+          <Typography variant="caption">No valid URL</Typography>
         </Box>
       );
     }

@@ -203,9 +203,9 @@ class FlowManager:
         media_types_detected: Set[str],
         file_media_types: Dict,
         files: List
-    ) -> Tuple[Dict[str, str], Dict[str, Dict[str, Any]]]:
+    ) -> Tuple[Dict[str, str], Dict[str, str], Dict[str, Dict[str, Any]]]:
         """
-        Determine codec and essence parameters for each media type.
+        Determine codec, container, and essence parameters for each media type.
         
         Args:
             media_types_detected: Set of detected media types
@@ -213,15 +213,17 @@ class FlowManager:
             files: List of file paths
             
         Returns:
-            Tuple of (type_codecs, type_essence_params)
+            Tuple of (type_codecs, type_containers, type_essence_params)
         """
         type_codecs: Dict[str, str] = {}
+        type_containers: Dict[str, str] = {}
         type_essence_params: Dict[str, Dict[str, Any]] = {}
         
         for media_type in media_types_detected:
             if media_type == "data":
                 # Always use valid MIME type for data flows
                 type_codecs["data"] = "application/octet-stream"
+                type_containers["data"] = "application/octet-stream"
                 type_essence_params["data"] = {"data_type": "urn:x-tams:data:file"}
                 logger.debug(f"Set codec for data flow: {type_codecs['data']}")
                 continue
@@ -229,7 +231,7 @@ class FlowManager:
             # Get base media type (remove _unchunked suffix)
             base_media_type = media_type.replace("_unchunked", "")
             
-            # Find first file of this type to determine codec
+            # Find first file of this type to determine codec and container
             for file_path in files:
                 if file_media_types.get(file_path) == media_type:
                     try:
@@ -241,17 +243,66 @@ class FlowManager:
                         # Store essence params for base media type (shared between chunked/unchunked)
                         type_essence_params[base_media_type] = essence_params
                         
-                        # Determine codec from probe
+                        # Determine codec and container from probe
                         import subprocess
                         import json
+                        from pathlib import Path
+                        
+                        # First, check file extension for container hint
+                        file_ext = Path(file_path).suffix.lower()
+                        container_from_ext = None
+                        if file_ext == ".ts":
+                            container_from_ext = "video/mp2t"
+                        elif file_ext in [".mp4", ".m4v"]:
+                            container_from_ext = "video/mp4"
+                        elif file_ext == ".mkv":
+                            container_from_ext = "video/x-matroska"
+                        elif file_ext == ".webm":
+                            container_from_ext = "video/webm"
+                        elif file_ext == ".avi":
+                            container_from_ext = "video/x-msvideo"
+                        elif file_ext == ".mov":
+                            container_from_ext = "video/quicktime"
+                        elif file_ext in [".mp3", ".m4a"]:
+                            container_from_ext = "audio/mpeg" if file_ext == ".mp3" else "audio/mp4"
+                        elif file_ext == ".aac":
+                            container_from_ext = "audio/aac"
+                        elif file_ext == ".wav":
+                            container_from_ext = "audio/wav"
+                        elif file_ext == ".ogg":
+                            container_from_ext = "audio/ogg"
+                        
+                        # Probe for format information
                         probe_cmd = [
-                            "ffprobe", "-v", "error", "-show_streams",
+                            "ffprobe", "-v", "error", "-show_format", "-show_streams",
                             "-of", "json", str(file_path)
                         ]
                         probe_result = subprocess.run(
                             probe_cmd, capture_output=True, text=True, check=True
                         )
                         probe_data = json.loads(probe_result.stdout)
+                        
+                        # Get container from format_name if available
+                        format_info = probe_data.get("format", {})
+                        format_name = format_info.get("format_name", "").lower()
+                        container_from_probe = None
+                        
+                        if "mpegts" in format_name or "ts" in format_name:
+                            container_from_probe = "video/mp2t"
+                        elif "mp4" in format_name or "mov" in format_name or "isom" in format_name:
+                            container_from_probe = "video/mp4"
+                        elif "matroska" in format_name or "mkv" in format_name:
+                            container_from_probe = "video/x-matroska"
+                        elif "webm" in format_name:
+                            container_from_probe = "video/webm"
+                        elif "avi" in format_name:
+                            container_from_probe = "video/x-msvideo"
+                        elif "wav" in format_name:
+                            container_from_probe = "audio/wav"
+                        elif "ogg" in format_name:
+                            container_from_probe = "audio/ogg"
+                        
+                        # Determine codec from streams
                         for stream in probe_data.get("streams", []):
                             if stream.get("codec_type") == base_media_type:
                                 codec_name = stream.get("codec_name", "")
@@ -263,7 +314,7 @@ class FlowManager:
                                         "vp9": "video/vp9"
                                     }
                                     # Store codec for base media type (shared between chunked/unchunked)
-                                    type_codecs[base_media_type] = codec_map.get(codec_name, "video/mp2t")
+                                    type_codecs[base_media_type] = codec_map.get(codec_name, "video/h264")
                                 elif base_media_type == "audio":
                                     codec_map = {
                                         "aac": "audio/aac",
@@ -273,16 +324,34 @@ class FlowManager:
                                     # Store codec for base media type (shared between chunked/unchunked)
                                     type_codecs[base_media_type] = codec_map.get(codec_name, "audio/mpeg")
                                 break
+                        
+                        # Determine container: prefer probe result, then extension, then default
+                        if container_from_probe:
+                            type_containers[base_media_type] = container_from_probe
+                            logger.debug(f"Detected container from probe: {container_from_probe} for {file_path}")
+                        elif container_from_ext:
+                            type_containers[base_media_type] = container_from_ext
+                            logger.debug(f"Detected container from extension: {container_from_ext} for {file_path}")
+                        else:
+                            # Default based on media type
+                            if base_media_type == "video":
+                                type_containers[base_media_type] = "video/mp4"  # Default to MP4 for video
+                            elif base_media_type == "audio":
+                                type_containers[base_media_type] = "audio/mpeg"  # Default to MPEG for audio
+                            logger.debug(f"Using default container for {base_media_type}: {type_containers[base_media_type]}")
+                        
                     except Exception as e:
                         logger.warning(f"Failed to probe {base_media_type} file {file_path}: {e}")
                         # Set defaults for base media type
                         if base_media_type == "video":
-                            type_codecs[base_media_type] = "video/mp2t"
+                            type_codecs[base_media_type] = "video/h264"
+                            type_containers[base_media_type] = "video/mp4"
                         elif base_media_type == "audio":
                             type_codecs[base_media_type] = "audio/mpeg"
+                            type_containers[base_media_type] = "audio/mpeg"
                     break
         
-        return type_codecs, type_essence_params
+        return type_codecs, type_containers, type_essence_params
     
     async def create_or_get_flows(
         self,
@@ -290,6 +359,7 @@ class FlowManager:
         media_types_detected: Set[str],
         flows_dict: Dict[str, str],
         type_codecs: Dict[str, str],
+        type_containers: Dict[str, str],
         type_essence_params: Dict[str, Dict[str, Any]],
         source_label: Optional[str],
         folder_path_str: str,
@@ -351,6 +421,7 @@ class FlowManager:
                     is_original = True
                     format_urn = f"urn:x-nmos:format:{base_media_type}"
                     codec = type_codecs.get(base_media_type, "video/mp2t")
+                    container = type_containers.get(base_media_type)
                     label_suffix = f"{base_media_type} (original)"
                 elif media_type.endswith("_unchunked"):
                     base_media_type = media_type.replace("_unchunked", "")
@@ -358,6 +429,7 @@ class FlowManager:
                     is_original = False
                     format_urn = f"urn:x-nmos:format:{base_media_type}"
                     codec = type_codecs.get(base_media_type, "video/mp2t")
+                    container = type_containers.get(base_media_type)
                     label_suffix = f"{base_media_type} (unchunked)"
                 else:
                     base_media_type = media_type
@@ -370,9 +442,11 @@ class FlowManager:
                         # Ensure data flows always have a valid MIME type codec
                         # Force to application/octet-stream regardless of what's in type_codecs
                         codec = "application/octet-stream"
+                        container = type_containers.get(base_media_type, "application/octet-stream")
                         logger.debug(f"Data flow: forcing codec to 'application/octet-stream' (type_codecs had: {type_codecs.get('data')})")
                     else:
                         codec = type_codecs.get(media_type) or type_codecs.get(base_media_type, "video/mp2t")
+                        container = type_containers.get(base_media_type)
                     label_suffix = f"{media_type}"
                 
                 logger.info(f"➕ Creating new {label_suffix} flow...")
@@ -401,6 +475,11 @@ class FlowManager:
                     codec=codec,
                     label=f"{source_label or folder_name} ({label_suffix})"
                 )
+                
+                # Set container if detected
+                if container:
+                    flow._data["container"] = container
+                    logger.debug(f"Setting container for {label_suffix} flow: {container}")
                 
                 # Verify codec in flow data before creation
                 if flow._data.get("codec") != codec:

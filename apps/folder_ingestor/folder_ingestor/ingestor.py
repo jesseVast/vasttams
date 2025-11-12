@@ -281,18 +281,20 @@ class FolderIngestor:
         if not self.dry_run and source:
             await source.set_tag("ingest_last_updated", datetime.now().isoformat())
         
-        # Determine codec and essence params for each media type
-        type_codecs, type_essence_params = await self.flow_manager.determine_codecs_and_essence_params(
+        # Determine codec, container, and essence params for each media type
+        type_codecs, type_containers, type_essence_params = await self.flow_manager.determine_codecs_and_essence_params(
             media_types_detected,
             file_media_types,
             files
         )
         
-        # Ensure data codec is always set correctly
+        # Ensure data codec and container are always set correctly
         if "data" in media_types_detected:
             if "data" not in type_codecs or not type_codecs["data"] or "/" not in str(type_codecs["data"]):
                 logger.warning("Data codec not properly set, forcing to 'application/octet-stream'")
                 type_codecs["data"] = "application/octet-stream"
+            if "data" not in type_containers or not type_containers["data"] or "/" not in str(type_containers["data"]):
+                type_containers["data"] = "application/octet-stream"
             if "data" not in type_essence_params:
                 type_essence_params["data"] = {"data_type": "urn:x-tams:data:file"}
         
@@ -302,6 +304,7 @@ class FolderIngestor:
             media_types_detected,
             flows_dict,
             type_codecs,
+            type_containers,
             type_essence_params,
             source_label,
             folder_path_str,

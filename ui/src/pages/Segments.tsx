@@ -17,9 +17,8 @@ import {
 import ClearIcon from '@mui/icons-material/Clear';
 import SearchIcon from '@mui/icons-material/Search';
 import { Segment, Flow } from '../types';
-import { segmentService, flowService, hlsService } from '../services/api';
+import { segmentService, flowService } from '../services/api';
 import SegmentMediaWidget from '../components/SegmentMediaWidget';
-import HLSPlayer from '../components/HLSPlayer';
 
 const Segments: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -30,9 +29,6 @@ const Segments: React.FC = () => {
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
-  const [hlsReady, setHlsReady] = useState<boolean>(false);
-  const [hlsStatus, setHlsStatus] = useState<{ hls_ready: boolean; segment_count?: number; reason?: string } | null>(null);
-  const [showIndividualSegments, setShowIndividualSegments] = useState<boolean>(false);
 
   useEffect(() => {
     // Read initial flow_id from URL
@@ -53,73 +49,14 @@ const Segments: React.FC = () => {
     }
   }, [filterFlowId, setSearchParams]);
 
-  // Check if flow is HLS-compatible based on flow parameters
-  const isFlowHLSCompatible = (flow: Flow | null): boolean => {
-    if (!flow) return false;
-    
-    // Check codec - HLS typically uses H.264/AAC
-    const codec = flow.codec?.toLowerCase() || '';
-    const isHLSCompatibleCodec = 
-      codec.includes('h264') || 
-      codec.includes('h.264') || 
-      codec.includes('avc') ||
-      codec.includes('aac') ||
-      codec.includes('mpegts') ||
-      codec.includes('mpeg-ts');
-    
-    // Check container - HLS uses MPEG-TS
-    const container = flow.container?.toLowerCase() || '';
-    const isHLSCompatibleContainer = 
-      container.includes('mpegts') ||
-      container.includes('mpeg-ts') ||
-      container.includes('video/mp2t');
-    
-    // Check format - video/audio flows can be HLS-compatible
-    const format = flow.format?.toLowerCase() || '';
-    const isVideoOrAudio = 
-      format.includes('video') || 
-      format.includes('audio');
-    
-    // Check tags for HLS indicator
-    const tags = flow.tags || {};
-    const hasHLSTag = 
-      tags.chunk_format === 'hls' ||
-      tags.hls_compatible === 'true' ||
-      tags.hls_ready === 'true';
-    
-    // Flow is HLS-compatible if:
-    // 1. Has HLS tag, OR
-    // 2. (Video/audio format AND (HLS-compatible codec OR HLS-compatible container))
-    return hasHLSTag || (isVideoOrAudio && (isHLSCompatibleCodec || isHLSCompatibleContainer));
-  };
-
   const loadFlowDetails = async () => {
     if (!filterFlowId) return;
     try {
       const flow = await flowService.get(filterFlowId);
       setFilteredFlow(flow);
-      
-      // First check flow parameters for HLS compatibility
-      const isCompatible = isFlowHLSCompatible(flow);
-      
-      // Also check HLS status endpoint as additional verification
-      let hlsStatusCheck = false;
-      try {
-        const status = await hlsService.getStatus(filterFlowId);
-        setHlsStatus(status);
-        hlsStatusCheck = status.hls_ready;
-      } catch (error) {
-        console.debug('HLS status check failed:', error);
-        setHlsStatus(null);
-      }
-      
-      // Use HLS if flow parameters indicate compatibility OR status endpoint confirms it
-      setHlsReady(isCompatible || hlsStatusCheck);
     } catch (error) {
       console.error('Failed to load flow details:', error);
       setFilteredFlow(null);
-      setHlsReady(false);
-      setHlsStatus(null);
     }
   };
 
@@ -313,7 +250,6 @@ const Segments: React.FC = () => {
   // Initial load when filterFlowId is set
   useEffect(() => {
     if (filterFlowId) {
-      setShowIndividualSegments(false); // Reset to HLS view if available
       loadFlowDetails();
       loadSegments();
     }
@@ -456,7 +392,7 @@ const Segments: React.FC = () => {
           <CircularProgress />
           <Typography sx={{ ml: 2 }}>Loading segments...</Typography>
         </Box>
-      ) : segments.length === 0 && !hlsReady ? (
+      ) : segments.length === 0 ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300, p: 4 }}>
           <Typography variant="h6" color="text.secondary" gutterBottom>
             No segments found
@@ -469,54 +405,9 @@ const Segments: React.FC = () => {
         </Box>
       ) : (
         <Box>
-          {/* HLS Player Section */}
-          {hlsReady && filterFlowId && !showIndividualSegments && (
-            <Box sx={{ mb: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">
-                  HLS Stream Playback
-                </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => setShowIndividualSegments(true)}
-                >
-                  View Individual Segments
-                </Button>
-              </Box>
-              {hlsStatus && (
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                  {hlsStatus.segment_count ? `${hlsStatus.segment_count} segments available` : 'Stream ready'}
-                </Typography>
-              )}
-              <Paper sx={{ p: 2, backgroundColor: '#000' }}>
-                <HLSPlayer
-                  playlistUrl={hlsService.getPlaylistUrl(filterFlowId)}
-                  width="100%"
-                  height="auto"
-                  autoPlay={false}
-                />
-              </Paper>
-            </Box>
-          )}
-
-          {/* Individual Segments Section */}
-          {(showIndividualSegments || !hlsReady) && segments.length > 0 && (
+          {/* Segments Section */}
+          {segments.length > 0 && (
             <Box>
-              {hlsReady && (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6">
-                    Individual Segments
-                  </Typography>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={() => setShowIndividualSegments(false)}
-                  >
-                    View HLS Stream
-                  </Button>
-                </Box>
-              )}
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
                 <Typography variant="subtitle1" color="text.secondary">
                   {segments.length} segment{segments.length !== 1 ? 's' : ''} 
@@ -562,14 +453,6 @@ const Segments: React.FC = () => {
             </Box>
           )}
 
-          {/* Show message if HLS is not ready and no segments */}
-          {!hlsReady && segments.length === 0 && filterFlowId && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, p: 4 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-                {hlsStatus?.reason || 'HLS streaming is not available for this flow. Individual segments will be shown when available.'}
-              </Typography>
-            </Box>
-          )}
         </Box>
       )}
     </Container>

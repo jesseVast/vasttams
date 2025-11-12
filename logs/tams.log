@@ -11515,3 +11515,98 @@ vastdb.errors.MissingTable: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'ta
 2025-11-12 14:17:43 - vasttamsserver.core.telemetry:516:telemetry_middleware - WARNING - Request timeout after 49.77s for GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - server may be overloaded
 2025-11-12 14:17:43 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 49.77s
 2025-11-12 14:17:51 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:18:05 - vasttamsserver.core.cache:147:_connect - WARNING - Redis connection failed: Timeout connecting to server. Continuing without cache.
+2025-11-12 14:18:05 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
+2025-11-12 14:18:05 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError
+2025-11-12 14:18:20 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=29.402s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:18:34 - vasttamsserver.main:221:lifespan - INFO - Shutting down TAMS API...
+2025-11-12 14:18:34 - vasttamsserver.core.cache:438:close - INFO - Redis cache service closed
+2025-11-12 14:18:34 - vasttamsserver.main:239:lifespan - INFO - TAMS API shutdown complete
+2025-11-12 14:18:35 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-12 14:18:35 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-12 14:18:35 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-12 14:18:35 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-12 14:18:36 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-12 14:18:36 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-12 14:18:36 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-12 14:18:45 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-12 14:18:45 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-12 14:18:45 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-12 14:18:45 - vasttamsserver.core.cache:61:__init__ - INFO - Redis cache initialization enabled
+2025-11-12 14:18:45 - vasttamsserver.core.cache:62:__init__ - INFO - Redis configuration: host=localhost, port=6379, db=0, ssl=False, max_connections=50
+2025-11-12 14:18:45 - vasttamsserver.main:116:lifespan - INFO - Initializing Redis cache service on startup...
+2025-11-12 14:18:45 - vasttamsserver.core.cache:83:_initialize - INFO - Initializing Redis cache connection...
+2025-11-12 14:18:45 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:18:45 - vasttamsserver.core.cache:142:_connect - INFO - ✅ Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-12 14:18:45 - vasttamsserver.core.cache:89:_initialize - INFO - Redis cache initialization completed successfully
+2025-11-12 14:18:45 - vasttamsserver.main:119:lifespan - INFO - ✅ Redis cache service initialized successfully
+2025-11-12 14:18:49 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
+2025-11-12 14:18:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /sources - user=anonymous, duration=3.014s, status=200 [User: ] [API: endpoint=/sources, method=OPTIONS]
+2025-11-12 14:18:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /flows - user=anonymous, duration=3.017s, status=200 [User: ] [API: endpoint=/flows, method=OPTIONS]
+2025-11-12 14:18:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /sources - user=anonymous, duration=3.018s, status=200 [User: ] [API: endpoint=/sources, method=OPTIONS]
+2025-11-12 14:18:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /flows - user=anonymous, duration=3.019s, status=200 [User: ] [API: endpoint=/flows, method=OPTIONS]
+2025-11-12 14:18:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=3.023s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:18:53 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.693s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:18:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=1.545s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 14:18:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.752s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:18:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=5.323s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:18:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=5.323s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:18:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.916s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 14:18:57 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=2.137s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 14:18:59 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=2.037s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 14:19:07 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de - user=admin, duration=7.942s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de, method=GET]
+2025-11-12 14:19:44 - vasttamsserver.core.cache:173:_health_check_loop - WARNING - Redis health check failed: Timeout reading from localhost:6379
+2025-11-12 14:19:45 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=22.372s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:19:46 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=47.065s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:20:12 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 49.21s for GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de - server may be overloaded
+2025-11-12 14:20:12 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 49.21s
+2025-11-12 14:20:29 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:20:29 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 43.33s for GET /health - server may be overloaded
+2025-11-12 14:20:29 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /health: Request timeout after 43.33s
+2025-11-12 14:20:42 - vasttamsserver.core.cache:147:_connect - WARNING - Redis connection failed: Timeout connecting to server. Continuing without cache.
+2025-11-12 14:20:42 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
+2025-11-12 14:20:42 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError
+2025-11-12 14:20:42 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=anonymous, duration=13.242s, status=200 [User: ] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=OPTIONS]
+2025-11-12 14:20:42 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=13.243s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:20:42 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=64.679s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:21:15 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:21:22 - vasttamsserver.core.cache:147:_connect - WARNING - Redis connection failed: Timeout connecting to server. Continuing without cache.
+2025-11-12 14:21:22 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
+2025-11-12 14:21:22 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError
+2025-11-12 14:21:28 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=29.231s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:21:29 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=47.108s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:21:29 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.018s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:22:02 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:22:08 - vasttamsserver.core.cache:147:_connect - WARNING - Redis connection failed: Timeout connecting to server. Continuing without cache.
+2025-11-12 14:22:08 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
+2025-11-12 14:22:08 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError
+2025-11-12 14:22:15 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=6.904s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:22:15 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=46.556s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:22:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:22:38 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:22:38 - vasttamsserver.core.cache:142:_connect - INFO - ✅ Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-12 14:22:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:23:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:23:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:24:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:24:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:25:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:25:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:26:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:26:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:27:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.014s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:27:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:28:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:28:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:29:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:29:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.005s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:30:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.013s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:30:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:31:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.017s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:31:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:32:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:32:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:33:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:33:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:34:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:34:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.250s, status=200 [User: ] [API: endpoint=/health, method=GET]

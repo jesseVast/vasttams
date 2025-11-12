@@ -386,6 +386,36 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
         );
 
       default:
+        // For unknown types, try to render as video if we have a URL (browsers can often handle it)
+        if (firstUrl?.url) {
+          return (
+            <video
+              ref={videoRef}
+              controls
+              playsInline
+              muted
+              src={firstUrl.url}
+              style={{
+                width: '100%',
+                height: height,
+                display: 'block',
+              }}
+              preload="metadata"
+              onError={(e) => {
+                const video = e.currentTarget;
+                console.debug('Video playback error (unknown format):', {
+                  error: e,
+                  src: video.src,
+                  url: firstUrl.url,
+                  format: flow?.format
+                });
+              }}
+            >
+              <source src={firstUrl.url} />
+              Your browser does not support the video tag.
+            </video>
+          );
+        }
         return (
           <Box 
             sx={{ 
@@ -405,6 +435,11 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
             <Typography variant="caption" sx={{ textAlign: 'center' }}>
               {flow?.format || 'Unknown Format'}
             </Typography>
+            {!firstUrl?.url && (
+              <Typography variant="caption" sx={{ textAlign: 'center', fontSize: '0.6rem', color: '#666' }}>
+                No URL available
+              </Typography>
+            )}
           </Box>
         );
     }

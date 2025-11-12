@@ -103,9 +103,11 @@ class SegmentStorageService:
                         # Fall through to DB query
             
             # Query segments using vaststore
+            # Run blocking database query in thread pool to avoid blocking event loop
+            # This is especially important in dev mode with single worker
             query = self.vast_db.query("segments").select("*").where(f"flow_id = '{flow_id}'")
             
-            result = query.execute()
+            result = await asyncio.to_thread(lambda: query.execute())
             
             # Convert to FlowSegment objects
             segments = []

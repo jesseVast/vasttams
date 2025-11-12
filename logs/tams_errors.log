@@ -3518,3 +3518,55 @@ vastdb.errors.MissingTable: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'ta
 2025-11-12 14:41:35 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows: Request timeout after 47.85s
 2025-11-12 14:41:35 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources: Request timeout after 41.54s
 2025-11-12 14:42:31 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows: Request timeout after 48.42s
+2025-11-12 14:43:02 - vasttamsserver.segments.service:329:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 110, in get_flow_segments
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:43:02 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:43:02 - vasttamsserver.segments.service:329:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 110, in get_flow_segments
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:43:02 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:33 - vasttamsserver.segments.service:330:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 111, in get_flow_segments
+    result = await asyncio.to_thread(lambda: query.execute())
+                   ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:33 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:33 - vasttamsserver.segments.service:330:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 111, in get_flow_segments
+    result = await asyncio.to_thread(lambda: query.execute())
+                   ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:33 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:45 - vasttamsserver.segments.service:330:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 111, in get_flow_segments
+    result = await asyncio.to_thread(lambda: query.execute())
+                   ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:45 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:46 - vasttamsserver.segments.service:330:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 111, in get_flow_segments
+    result = await asyncio.to_thread(lambda: query.execute())
+                   ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:46 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:58 - vasttamsserver.segments.service:330:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 111, in get_flow_segments
+    result = await asyncio.to_thread(lambda: query.execute())
+                   ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:58 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:58 - vasttamsserver.segments.service:330:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 111, in get_flow_segments
+    result = await asyncio.to_thread(lambda: query.execute())
+                   ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:58 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value

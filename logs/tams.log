@@ -11695,3 +11695,9 @@ vastdb.errors.MissingTable: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'ta
 2025-11-12 14:41:42 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
 2025-11-12 14:41:42 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError
 2025-11-12 14:41:56 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=69.133s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:42:31 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 48.42s for GET /flows - server may be overloaded
+2025-11-12 14:42:31 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows: Request timeout after 48.42s
+2025-11-12 14:42:31 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:42:37 - vasttamsserver.core.cache:147:_connect - WARNING - Redis connection failed: Timeout connecting to server. Continuing without cache.
+2025-11-12 14:42:37 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
+2025-11-12 14:42:37 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError

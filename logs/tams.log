@@ -12787,3 +12787,37 @@ UnboundLocalError: cannot access local variable 'asyncio' where it is not associ
 2025-11-12 15:39:04 - vasttamsserver.main:119:lifespan - INFO - Redis cache service initialized successfully
 2025-11-12 15:39:08 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
 2025-11-12 15:39:08 - vasttamsserver.core.cache:162:_health_check_loop - INFO - Redis health check loop started (interval: 30s)
+2025-11-12 15:39:10 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=2.015s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:39:10 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=2.018s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:39:16 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:39:25 - vasttamsserver.main:221:lifespan - INFO - Shutting down TAMS API...
+2025-11-12 15:39:25 - vasttamsserver.core.cache:200:_health_check_loop - INFO - Redis health check loop cancelled
+2025-11-12 15:39:25 - vasttamsserver.core.cache:473:close - INFO - Redis cache service closed
+2025-11-12 15:39:25 - vasttamsserver.main:239:lifespan - INFO - TAMS API shutdown complete
+2025-11-12 15:39:27 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-12 15:39:27 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-12 15:39:27 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-12 15:39:27 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-12 15:39:29 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-12 15:39:32 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-12 15:39:33 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-12 15:39:47 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-12 15:39:47 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-12 15:39:47 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-12 15:39:47 - vasttamsserver.core.cache:64:__init__ - INFO - Redis cache initialization enabled
+2025-11-12 15:39:47 - vasttamsserver.core.cache:65:__init__ - INFO - Redis configuration: host=localhost, port=6379, db=0, ssl=False, max_connections=50
+2025-11-12 15:39:47 - vasttamsserver.main:116:lifespan - INFO - Initializing Redis cache service on startup...
+2025-11-12 15:39:47 - vasttamsserver.core.cache:86:_initialize - INFO - Initializing Redis cache connection...
+2025-11-12 15:39:47 - vasttamsserver.core.cache:104:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 15:39:47 - vasttamsserver.core.cache:145:_connect - INFO - Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-12 15:39:47 - vasttamsserver.core.cache:92:_initialize - INFO - Redis cache initialization completed successfully
+2025-11-12 15:39:47 - vasttamsserver.main:119:lifespan - INFO - Redis cache service initialized successfully
+2025-11-12 15:39:50 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
+2025-11-12 15:39:50 - vasttamsserver.core.cache:162:_health_check_loop - INFO - Redis health check loop started (interval: 30s)
+2025-11-12 15:39:53 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-12 15:39:53 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-12 15:39:53 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-12 15:39:53 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-12 15:39:53 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-12 15:39:53 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-12 15:39:54 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001

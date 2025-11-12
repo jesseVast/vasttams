@@ -169,21 +169,22 @@ export const segmentService = {
   },
 };
 
-export const hlsService = {
-  getStatus: async (flowId: string): Promise<{ hls_ready: boolean; segment_count?: number; reason?: string; playlist_url?: string }> => {
-    const response = await api.get(`/hls/flows/${flowId}/status`);
-    return response.data;
-  },
-  getPlaylistUrl: (flowId: string): string => {
-    const baseUrl = API_BASE_URL.replace(/\/$/, ''); // Remove trailing slash
-    const token = localStorage.getItem('token');
-    // Add token as query parameter for HLS players that can't send headers
-    if (token) {
-      return `${baseUrl}/hls/flows/${flowId}/playlist.m3u8?access_token=${encodeURIComponent(token)}`;
-    }
-    return `${baseUrl}/hls/flows/${flowId}/playlist.m3u8`;
-  },
-};
+// HLS service removed - UI no longer uses HLS endpoints
+// export const hlsService = {
+//   getStatus: async (flowId: string): Promise<{ hls_ready: boolean; segment_count?: number; reason?: string; playlist_url?: string }> => {
+//     const response = await api.get(`/hls/flows/${flowId}/status`);
+//     return response.data;
+//   },
+//   getPlaylistUrl: (flowId: string): string => {
+//     const baseUrl = API_BASE_URL.replace(/\/$/, ''); // Remove trailing slash
+//     const token = localStorage.getItem('token');
+//     // Add token as query parameter for HLS players that can't send headers
+//     if (token) {
+//       return `${baseUrl}/hls/flows/${flowId}/playlist.m3u8?access_token=${encodeURIComponent(token)}`;
+//     }
+//     return `${baseUrl}/hls/flows/${flowId}/playlist.m3u8`;
+//   },
+// };
 
 export const webhookService = {
   list: async (): Promise<any[]> => {

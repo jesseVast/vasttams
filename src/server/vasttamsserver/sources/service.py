@@ -227,7 +227,7 @@ class SourceStorageService:
         cached = await cache_service.get(cache_key)
         if cached:
             try:
-                from ..sources.models import Source
+                # Source is already imported at module level
                 return Source(**cached)
             except Exception as e:
                 logger.debug(f"Failed to deserialize cached source {source_id}: {e}")

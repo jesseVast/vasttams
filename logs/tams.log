@@ -11723,3 +11723,136 @@ vastdb.errors.MissingTable: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'ta
 2025-11-12 14:42:55 - vasttamsserver.core.cache:142:_connect - INFO - ✅ Redis cache connected successfully to localhost:6379 (db=0)
 2025-11-12 14:42:55 - vasttamsserver.core.cache:89:_initialize - INFO - Redis cache initialization completed successfully
 2025-11-12 14:42:55 - vasttamsserver.main:119:lifespan - INFO - ✅ Redis cache service initialized successfully
+2025-11-12 14:42:59 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
+2025-11-12 14:43:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=3.021s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:43:02 - vasttamsserver.segments.service:329:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 110, in get_flow_segments
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:43:02 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:43:02 - vasttamsserver.segments.service:329:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 110, in get_flow_segments
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:43:02 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:43:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=3.041s, status=500 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:43:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=3.042s, status=500 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:43:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=3.042s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:43:02 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=3.042s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:43:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.012s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:43:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:44:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.013s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:44:28 - vasttamsserver.main:221:lifespan - INFO - Shutting down TAMS API...
+2025-11-12 14:44:28 - vasttamsserver.core.cache:438:close - INFO - Redis cache service closed
+2025-11-12 14:44:28 - vasttamsserver.main:239:lifespan - INFO - TAMS API shutdown complete
+2025-11-12 14:44:32 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-12 14:44:32 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-12 14:44:32 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-12 14:44:32 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-12 14:44:32 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-12 14:44:33 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-12 14:44:33 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-12 14:44:42 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-12 14:44:42 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-12 14:44:42 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-12 14:44:42 - vasttamsserver.core.cache:61:__init__ - INFO - Redis cache initialization enabled
+2025-11-12 14:44:42 - vasttamsserver.core.cache:62:__init__ - INFO - Redis configuration: host=localhost, port=6379, db=0, ssl=False, max_connections=50
+2025-11-12 14:44:42 - vasttamsserver.main:116:lifespan - INFO - Initializing Redis cache service on startup...
+2025-11-12 14:44:42 - vasttamsserver.core.cache:83:_initialize - INFO - Initializing Redis cache connection...
+2025-11-12 14:44:42 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:44:42 - vasttamsserver.core.cache:142:_connect - INFO - ✅ Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-12 14:44:42 - vasttamsserver.core.cache:89:_initialize - INFO - Redis cache initialization completed successfully
+2025-11-12 14:44:42 - vasttamsserver.main:119:lifespan - INFO - ✅ Redis cache service initialized successfully
+2025-11-12 14:44:46 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
+2025-11-12 14:44:48 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=0.933s, status=401 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-12 14:44:49 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=1.680s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-12 14:44:50 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - OPTIONS /analytics/summary - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/analytics/summary, method=OPTIONS]
+2025-11-12 14:44:50 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.018s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:44:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/summary - user=admin, duration=3.175s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/summary, method=GET]
+2025-11-12 14:44:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.015s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:44:58 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/summary - user=admin, duration=3.431s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/summary, method=GET]
+2025-11-12 14:45:20 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.013s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:45:21 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.874s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:45:23 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=2.696s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 14:45:24 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.777s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:45:25 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=2.277s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 14:45:27 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.722s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:45:28 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.731s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 14:45:29 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=1.456s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:45:30 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=1.464s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 14:45:31 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.580s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 14:45:32 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.200s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 14:45:33 - vasttamsserver.segments.service:330:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 111, in get_flow_segments
+    result = await asyncio.to_thread(lambda: query.execute())
+                   ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:33 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:33 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=0.023s, status=500 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:45:33 - vasttamsserver.segments.service:330:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 111, in get_flow_segments
+    result = await asyncio.to_thread(lambda: query.execute())
+                   ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:33 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:33 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=0.002s, status=500 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:45:45 - vasttamsserver.segments.service:330:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 111, in get_flow_segments
+    result = await asyncio.to_thread(lambda: query.execute())
+                   ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:45 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:45 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:45:45 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=1.011s, status=500 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:45:45 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de - user=admin, duration=1.012s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de, method=GET]
+2025-11-12 14:45:46 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:45:46 - vasttamsserver.segments.service:330:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 111, in get_flow_segments
+    result = await asyncio.to_thread(lambda: query.execute())
+                   ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:46 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:46 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=0.005s, status=500 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:45:47 - vasttamsserver.core.telemetry:405:record_list_performance - WARNING - Slow list operation: sources - query=1.030s, json_parse=0.000s, total=1.031s, records=2, filters=False
+2025-11-12 14:45:49 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=2.447s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:45:49 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=2.448s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 14:45:51 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=2.349s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:45:51 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=2.351s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 14:45:53 - vasttamsserver.core.telemetry:405:record_list_performance - WARNING - Slow list operation: sources - query=1.003s, json_parse=0.000s, total=1.003s, records=2, filters=False
+2025-11-12 14:45:53 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=1.942s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 14:45:53 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=1.939s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:45:56 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=2.896s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 14:45:56 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=2.896s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 14:45:56 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=2.896s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:45:58 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.533s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 14:45:58 - vasttamsserver.segments.service:330:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 111, in get_flow_segments
+    result = await asyncio.to_thread(lambda: query.execute())
+                   ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:58 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:58 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=0.008s, status=500 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:45:58 - vasttamsserver.segments.service:330:get_flow_segments - ERROR - Failed to get flow segments for 23d09cf7-0df3-4de8-85ba-59df14cd88de: cannot access local variable 'asyncio' where it is not associated with a value
+Traceback (most recent call last):
+  File "/Users/jesse.thaloor/Developer/github/bbctams/src/server/vasttamsserver/segments/service.py", line 111, in get_flow_segments
+    result = await asyncio.to_thread(lambda: query.execute())
+                   ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:58 - vasttamsserver.main:318:http_exception_handler - ERROR - HTTP Exception: 500 - Internal server error: cannot access local variable 'asyncio' where it is not associated with a value
+2025-11-12 14:45:58 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=0.003s, status=500 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:46:15 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.020s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:46:31 - vasttamsserver.main:221:lifespan - INFO - Shutting down TAMS API...
+2025-11-12 14:46:31 - vasttamsserver.core.cache:438:close - INFO - Redis cache service closed
+2025-11-12 14:46:31 - vasttamsserver.main:239:lifespan - INFO - TAMS API shutdown complete
+2025-11-12 14:46:33 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-12 14:46:33 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-12 14:46:33 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-12 14:46:33 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-12 14:46:33 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-12 14:46:34 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-12 14:46:34 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001

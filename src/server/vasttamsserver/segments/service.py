@@ -73,7 +73,6 @@ class SegmentStorageService:
                             ]
                             if segments_needing_urls:
                                 logger.debug(f"Generating get_urls for {len(segments_needing_urls)} cached segments (skip_get_urls_generation=False)")
-                                import asyncio
                                 valid_segments = [s for s in segments_needing_urls if s.object_id]
                                 if valid_segments:
                                     logger.debug(f"Found {len(valid_segments)} segments with object_id out of {len(segments_needing_urls)} needing URLs")
@@ -266,7 +265,6 @@ class SegmentStorageService:
                 if segments_needing_urls:
                     logger.debug(f"Auto-populating get_urls for {len(segments_needing_urls)} segments")
                     # Generate get_urls in parallel for better performance
-                    import asyncio
                     # Filter out segments without object_id (shouldn't happen per TAMS spec, but be defensive)
                     valid_segments = [s for s in segments_needing_urls if s.object_id]
                     invalid_segments = [s for s in segments_needing_urls if not s.object_id]

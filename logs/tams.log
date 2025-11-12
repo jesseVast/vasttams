@@ -11967,3 +11967,27 @@ UnboundLocalError: cannot access local variable 'asyncio' where it is not associ
 2025-11-12 14:53:37 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
 2025-11-12 14:53:41 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=3.311s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
 2025-11-12 14:53:46 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:54:06 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 30.12s for GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de - server may be overloaded
+2025-11-12 14:54:06 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 30.12s
+2025-11-12 14:54:12 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=5.694s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:54:12 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=5.694s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:54:28 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:54:28 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de - user=admin, duration=21.448s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de, method=GET]
+2025-11-12 14:54:31 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 8
+2025-11-12 14:54:31 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 8
+2025-11-12 14:54:31 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 7
+2025-11-12 14:54:34 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:54:34 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:54:34 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 9
+2025-11-12 14:54:35 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:54:35 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:54:51 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=74.714s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:55:05 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=14.466s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:55:13 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=7.504s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-12 14:55:15 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=9.905s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-12 14:55:15 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - POST /auth/login - user=anonymous, duration=9.905s, status=200 [User: ] [API: endpoint=/auth/login, method=POST]
+2025-11-12 14:55:17 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:55:17 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:55:17 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:55:17 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:55:18 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10

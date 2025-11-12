@@ -177,9 +177,11 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   const timeInfo = parseTimerange(timerange);
 
   // Lazy load and autoplay video when it comes into view (using Intersection Observer)
+  // Limit video loading to 1 second for performance
   useEffect(() => {
     if (mediaType === 'video' && videoRef.current && firstUrl?.url) {
       const video = videoRef.current;
+      let playTimeout: NodeJS.Timeout | null = null;
       
       // Use Intersection Observer to load and autoplay video when visible
       const observer = new IntersectionObserver(
@@ -191,11 +193,31 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                 video.load();
               }
               
+              // Limit loading to 1 second by seeking to 1 second after metadata loads
+              const limitLoading = () => {
+                if (video.readyState >= 1) { // HAVE_METADATA
+                  // Set currentTime to 1 second to limit buffering range
+                  video.currentTime = 1;
+                }
+              };
+              
+              video.addEventListener('loadedmetadata', limitLoading, { once: true });
+              
               // Autoplay when video can play (muted to avoid browser autoplay restrictions)
               const tryAutoplay = () => {
                 if (video.readyState >= 3) { // HAVE_FUTURE_DATA or higher
                   video.muted = true; // Mute to allow autoplay
-                  video.play().catch((error) => {
+                  video.play().then(() => {
+                    // Stop playback after 1 second to limit data usage
+                    if (playTimeout) clearTimeout(playTimeout);
+                    playTimeout = setTimeout(() => {
+                      if (!video.paused) {
+                        video.pause();
+                        // Reset to start for next play
+                        video.currentTime = 0;
+                      }
+                    }, 1000); // 1 second
+                  }).catch((error) => {
                     console.debug('Autoplay prevented:', error);
                   });
                 } else {
@@ -206,7 +228,11 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
               
               tryAutoplay();
             } else {
-              // Video is not visible, pause it
+              // Video is not visible, pause it and clear timeout
+              if (playTimeout) {
+                clearTimeout(playTimeout);
+                playTimeout = null;
+              }
               if (!video.paused) {
                 video.pause();
               }
@@ -219,6 +245,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
       observer.observe(video);
       
       return () => {
+        if (playTimeout) clearTimeout(playTimeout);
         observer.disconnect();
       };
     }

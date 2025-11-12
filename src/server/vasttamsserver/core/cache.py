@@ -54,6 +54,9 @@ class CacheService:
         self._consecutive_failures = 0
         self._last_health_check: Optional[datetime] = None
         self._health_check_task: Optional[asyncio.Task] = None
+        self._health_check_count = 0
+        self._health_check_success_count = 0
+        self._health_check_failure_count = 0
         self._key_prefix = "tams"
         
         if REDIS_AVAILABLE and self.settings.redis_enabled:
@@ -156,28 +159,49 @@ class CacheService:
     
     async def _health_check_loop(self):
         """Periodic health check and reconnection."""
+        logger.info(f"Redis health check loop started (interval: {self.settings.redis_health_check_interval}s)")
+        
         while self._enabled:
             try:
                 await asyncio.sleep(self.settings.redis_health_check_interval)
                 
+                self._health_check_count += 1
+                self._last_health_check = datetime.now()
+                
                 if not self._available:
                     # Try to reconnect
-                    logger.debug("Attempting to reconnect to Redis...")
+                    logger.info(f"Redis health check #{self._health_check_count}: Not available, attempting to reconnect...")
                     await self._connect()
+                    if self._available:
+                        self._health_check_success_count += 1
+                        logger.info(f"✅ Redis health check #{self._health_check_count}: Reconnection successful")
+                    else:
+                        self._health_check_failure_count += 1
+                        logger.warning(f"❌ Redis health check #{self._health_check_count}: Reconnection failed (consecutive failures: {self._consecutive_failures})")
                 else:
                     # Check if still connected
                     try:
+                        start_time = datetime.now()
                         await self._redis.ping()
+                        elapsed_ms = (datetime.now() - start_time).total_seconds() * 1000
+                        
                         self._consecutive_failures = 0
+                        self._health_check_success_count += 1
+                        logger.info(f"✅ Redis health check #{self._health_check_count}: Ping successful ({elapsed_ms:.1f}ms) - "
+                                   f"Stats: {self._health_check_success_count} success, {self._health_check_failure_count} failures")
                     except Exception as e:
-                        logger.warning(f"Redis health check failed: {e}")
                         self._available = False
                         self._consecutive_failures += 1
+                        self._health_check_failure_count += 1
+                        logger.warning(f"❌ Redis health check #{self._health_check_count}: Ping failed - {type(e).__name__}: {e} "
+                                     f"(consecutive failures: {self._consecutive_failures})")
                         
             except asyncio.CancelledError:
+                logger.info("Redis health check loop cancelled")
                 break
             except Exception as e:
-                logger.error(f"Error in Redis health check loop: {e}")
+                self._health_check_failure_count += 1
+                logger.error(f"Error in Redis health check loop: {e}", exc_info=True)
     
     def _make_key(self, key: str) -> str:
         """Add prefix to cache key."""
@@ -395,21 +419,31 @@ class CacheService:
             "enabled": self._enabled,
             "available": self._available,
             "redis_connected": False,
-            "consecutive_failures": self._consecutive_failures
+            "consecutive_failures": self._consecutive_failures,
+            "health_check_interval_seconds": self.settings.redis_health_check_interval,
+            "health_check_count": self._health_check_count,
+            "health_check_success_count": self._health_check_success_count,
+            "health_check_failure_count": self._health_check_failure_count,
+            "last_health_check": self._last_health_check.isoformat() if self._last_health_check else None
         }
         
         if self._available and self._redis:
             try:
+                start_time = datetime.now()
                 await self._redis.ping()
+                elapsed_ms = (datetime.now() - start_time).total_seconds() * 1000
                 status["redis_connected"] = True
+                status["ping_latency_ms"] = round(elapsed_ms, 2)
             except Exception as e:
                 logger.debug(f"Redis ping failed during status check: {e}")
                 status["redis_connected"] = False
                 status["available"] = False
+                status["last_error"] = str(e)
         elif self._enabled and not self._available:
             # Redis is enabled but not available - log why
             logger.debug(f"Redis is enabled but not available. Redis client exists: {self._redis is not None}, "
                         f"consecutive failures: {self._consecutive_failures}")
+            status["last_error"] = f"Not connected (consecutive failures: {self._consecutive_failures})"
         
         return status
     

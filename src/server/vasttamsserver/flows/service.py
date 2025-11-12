@@ -388,6 +388,16 @@ class FlowStorageService:
                 has_filters=has_filters
             )
             
+            # Cache the result (only for simple queries)
+            if use_cache:
+                try:
+                    # Convert flows to dict for caching
+                    flows_dict = [flow.model_dump() for flow in flows]
+                    await cache_service.set(cache_key, flows_dict, ttl=300)  # 5 minutes TTL
+                    logger.info(f"Cache set: {cache_key} ({len(flows)} flows)")
+                except Exception as e:
+                    logger.debug(f"Failed to cache flows for {cache_key}: {e}")
+            
             return flows
         except Exception as e:
             import traceback

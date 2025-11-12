@@ -3484,3 +3484,15 @@ vastdb.errors.MissingTable: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'ta
 2025-11-12 14:09:24 - vasttamsserver.segments.get_url_factory:104:create_get_urls - ERROR - Object c6cfbd8d-4996-4af5-ad85-ecf648cfe3c3 not found in database when generating get_urls. This indicates orphaned segment references. Returning None for get_urls.
 2025-11-12 14:09:24 - vasttamsserver.segments.get_url_factory:165:_get_object - ERROR - Failed to get object dc6c6cdb-bb4e-490a-9a3c-7c0f364f340e: 'VastDBManager' object has no attribute 'get_record'
 2025-11-12 14:09:24 - vasttamsserver.segments.get_url_factory:104:create_get_urls - ERROR - Object dc6c6cdb-bb4e-490a-9a3c-7c0f364f340e not found in database when generating get_urls. This indicates orphaned segment references. Returning None for get_urls.
+2025-11-12 14:11:30 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 39.29s
+2025-11-12 14:11:30 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 39.29s
+2025-11-12 14:12:13 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 36.64s
+2025-11-12 14:12:21 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 44.69s
+2025-11-12 14:15:36 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 34.02s
+2025-11-12 14:15:36 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 34.03s
+2025-11-12 14:16:46 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 40.30s
+2025-11-12 14:17:19 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 41.90s
+2025-11-12 14:17:19 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 41.91s
+2025-11-12 14:17:27 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /analytics/flows: Request timeout after 40.15s
+2025-11-12 14:17:43 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 49.77s
+2025-11-12 14:17:43 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 49.77s

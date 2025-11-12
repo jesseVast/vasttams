@@ -273,10 +273,12 @@ class SegmentStorageService:
                     
                     if valid_segments:
                         # Use factory's batch processing for better multi-threaded performance
+                        # Increase batch size for better throughput when processing many segments
                         object_ids = [segment.object_id for segment in valid_segments]
+                        # Use larger batch size (20) for better parallelization
                         batch_results = await self._get_url_factory.create_get_urls_batch(
                             object_ids, 
-                            batch_size=10
+                            batch_size=20
                         )
                         
                         # Map results back to segments

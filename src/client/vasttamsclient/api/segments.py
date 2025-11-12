@@ -35,13 +35,16 @@ def _get_requests_session():
         # Increased pool sizes to handle concurrent parallel uploads and URL generation
         # pool_connections: number of connection pools (one per host)
         # pool_maxsize: max connections per pool (increased for parallel operations)
+        # Note: urllib3 default is pool_connections=10, pool_maxsize=10
+        # We increase significantly to handle high concurrency
         adapter = requests.adapters.HTTPAdapter(
-            pool_connections=50,  # Number of connection pools to cache (increased from 10)
-            pool_maxsize=100,  # Maximum number of connections to save in the pool (increased from 20)
+            pool_connections=100,  # Number of connection pools to cache (increased from 50)
+            pool_maxsize=200,  # Maximum number of connections to save in the pool (increased from 100)
             max_retries=3
         )
         _thread_local.session.mount('http://', adapter)
         _thread_local.session.mount('https://', adapter)
+        logger.debug(f"Created requests session with pool_connections=100, pool_maxsize=200")
     return _thread_local.session
 
 

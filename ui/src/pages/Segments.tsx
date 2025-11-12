@@ -264,9 +264,28 @@ const Segments: React.FC = () => {
       // If we got 4 segments, there might be more - load them in background
       if (initialData.length === 4) {
         setLoadingMore(true);
-        // Load all remaining segments (use a large limit to get everything)
-        const allData = await segmentService.listByFlow(filterFlowId, timerange, 10000, 0);
-        const sortedAll = sortSegments(allData);
+        // Load all remaining segments using pagination (max 1000 per request)
+        // Fetch in batches of 1000 until we get fewer than requested
+        let allSegments = [...initialData];
+        let offset = 4;
+        const batchSize = 1000;
+        let hasMore = true;
+        
+        while (hasMore) {
+          const batch = await segmentService.listByFlow(filterFlowId, timerange, batchSize, offset);
+          if (batch.length === 0) {
+            hasMore = false;
+          } else {
+            allSegments = [...allSegments, ...batch];
+            offset += batch.length;
+            // If we got fewer than requested, we've reached the end
+            if (batch.length < batchSize) {
+              hasMore = false;
+            }
+          }
+        }
+        
+        const sortedAll = sortSegments(allSegments);
         setSegments(sortedAll);
         setLoadingMore(false);
       }

@@ -201,7 +201,7 @@ async def head_flow_segments(
     accept_get_urls: Optional[str] = Query(None, description="Comma-separated list of labels of flow segment get_urls to include"),
     accept_storage_ids: Optional[str] = Query(None, description="Comma-separated list of storage_id UUIDs to include"),
     presigned: Optional[bool] = Query(None, description="Filter presigned vs non-presigned URLs"),
-    limit: Optional[int] = Query(None, description="Limit number of results"),
+    limit: Optional[int] = Query(100, ge=1, le=1000, description="Limit number of results (max 1000)"),
     offset: Optional[int] = Query(None, description="Offset for pagination")
 ):
     """Return flow segments path headers"""
@@ -218,14 +218,15 @@ async def list_flow_segments(
     accept_get_urls: Optional[str] = Query(None, description="Comma-separated list of labels of flow segment get_urls to include"),
     accept_storage_ids: Optional[str] = Query(None, description="Comma-separated list of storage_id UUIDs to include"),
     presigned: Optional[bool] = Query(None, description="Filter presigned vs non-presigned URLs"),
-    limit: Optional[int] = Query(None, description="Limit number of results"),
+    limit: Optional[int] = Query(100, ge=1, le=1000, description="Limit number of results (max 1000)"),
     offset: Optional[int] = Query(None, description="Offset for pagination"),
     storage: StorageInterface = Depends(get_storage_service)
 ):
     """List segments for a specific flow"""
     try:
         # Skip expensive get_urls generation if accept_get_urls is empty string (per TAMS spec ADR-0023)
-        skip_get_urls_generation = accept_get_urls == ""
+        # Also skip by default for better performance - only generate if explicitly requested
+        skip_get_urls_generation = accept_get_urls == "" or accept_get_urls is None
         segments = await storage.get_flow_segments(flow_id, timerange, skip_get_urls_generation=skip_get_urls_generation)
         
         # Apply object_id filtering if specified
@@ -342,13 +343,17 @@ async def list_flow_segments(
         if offset is not None:
             segments = segments[offset:]
         
+        # Enforce maximum limit of 1000 (safety check even though Query validation should catch it)
         if limit is not None:
+            limit = min(limit, 1000)  # Cap at 1000
             segments = segments[:limit]
         
         return segments
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error("Failed to list segments for flow %s: %s", flow_id, e)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error("Failed to list segments for flow %s: %s", flow_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 # POST endpoint for creating flow segments
 @router.post("/{flow_id}/segments", response_model=FlowSegment, status_code=201)

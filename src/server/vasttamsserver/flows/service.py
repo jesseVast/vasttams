@@ -362,6 +362,40 @@ class FlowStorageService:
     
     async def get_flow(self, flow_id: str, filters: Optional[FlowDetailFilters] = None) -> Optional[Flow]:
         """Get a specific flow by ID with optional timerange handling per TAMS 8.0 spec"""
+        # Try cache first (if no filters that require DB calculation)
+        from ..core.dependencies import get_cache_service
+        cache_service = get_cache_service()
+        
+        # Only use cache if no complex filters that require DB calculation
+        use_cache = filters is None or (not filters.include_timerange and not filters.timerange)
+        
+        if use_cache:
+            cache_key = f"flow:{flow_id}"
+            cached = await cache_service.get(cache_key)
+            if cached:
+                try:
+                    # Reconstruct Flow object from cached data
+                    from ..flows.models import Flow
+                    # Determine flow class from format
+                    format_urn = cached.get('format', '')
+                    if 'video' in format_urn.lower():
+                        from ..flows.models import VideoFlow
+                        return VideoFlow(**cached)
+                    elif 'audio' in format_urn.lower():
+                        from ..flows.models import AudioFlow
+                        return AudioFlow(**cached)
+                    elif 'image' in format_urn.lower():
+                        from ..flows.models import ImageFlow
+                        return ImageFlow(**cached)
+                    elif 'data' in format_urn.lower():
+                        from ..flows.models import DataFlow
+                        return DataFlow(**cached)
+                    else:
+                        return Flow(**cached)
+                except Exception as e:
+                    logger.debug(f"Failed to deserialize cached flow {flow_id}: {e}")
+                    # Fall through to DB query
+        
         try:
             result = self.vast_db.query("flows").select("*").where(f"id = '{flow_id}'").execute()
             
@@ -494,7 +528,20 @@ class FlowStorageService:
             flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
             # Ensure required fields are present before creating flow object
             flow_data = self._ensure_required_flow_fields(flow_data, flow_class)
-            return flow_class(**flow_data)
+            flow = flow_class(**flow_data)
+            
+            # Store in cache (only if we didn't use cache and no complex filters)
+            if use_cache:
+                cache_key = f"flow:{flow_id}"
+                try:
+                    # Convert flow to dict for caching
+                    flow_dict = flow.model_dump() if hasattr(flow, 'model_dump') else flow.dict() if hasattr(flow, 'dict') else flow._data if hasattr(flow, '_data') else None
+                    if flow_dict:
+                        await cache_service.set(cache_key, flow_dict)
+                except Exception as e:
+                    logger.debug(f"Failed to cache flow {flow_id}: {e}")
+            
+            return flow
         except Exception as e:
             logger.error("Failed to get flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -711,6 +758,12 @@ class FlowStorageService:
                 except Exception as e:
                     logger.warning("Failed to auto-calculate bit rates: %s", e)
             
+            # Invalidate list caches for this flow's source (new flow created)
+            from ..core.dependencies import get_cache_service
+            cache_service = get_cache_service()
+            if flow.source_id:
+                await cache_service.clear_pattern(f"flows:source:{flow.source_id}*")
+            
             return True
         except ValueError as ve:
             logger.error("VFR validation error creating flow: %s", ve)
@@ -802,6 +855,14 @@ class FlowStorageService:
                 if tags_data is not None:
                     await self.tag_service.update_flow_tags(flow_id, tags_data)
                 
+                # Invalidate cache
+                from ..core.dependencies import get_cache_service
+                cache_service = get_cache_service()
+                await cache_service.delete(f"flow:{flow_id}")
+                # Also invalidate list caches for this flow's source
+                if flow.source_id:
+                    await cache_service.clear_pattern(f"flows:source:{flow.source_id}*")
+                
                 return True
                 
             except Exception as update_error:
@@ -830,6 +891,14 @@ class FlowStorageService:
                     if tags_data is not None:
                         await self.tag_service.update_flow_tags(flow_id, tags_data)
                     
+                    # Invalidate cache
+                    from ..core.dependencies import get_cache_service
+                    cache_service = get_cache_service()
+                    await cache_service.delete(f"flow:{flow_id}")
+                    # Also invalidate list caches for this flow's source
+                    if flow.source_id:
+                        await cache_service.clear_pattern(f"flows:source:{flow.source_id}*")
+                    
                     return True
                     
                 except Exception as upsert_error:
@@ -850,6 +919,10 @@ class FlowStorageService:
             flows_table = self.vast_db.get_qualified_table_name("flows")
             sql = f"UPDATE {flows_table} SET description = '{escaped_description}' WHERE id = '{flow_id}'"
             self.vast_db.execute_sql(sql)
+            # Invalidate cache
+            from ..core.dependencies import get_cache_service
+            cache_service = get_cache_service()
+            await cache_service.delete(f"flow:{flow_id}")
             return True
         except Exception as e:
             logger.error("Failed to update flow description %s: %s", flow_id, e)
@@ -873,6 +946,10 @@ class FlowStorageService:
             flows_table = self.vast_db.get_qualified_table_name("flows")
             sql = f"UPDATE {flows_table} SET label = '{escaped_label}' WHERE id = '{flow_id}'"
             self.vast_db.execute_sql(sql)
+            # Invalidate cache
+            from ..core.dependencies import get_cache_service
+            cache_service = get_cache_service()
+            await cache_service.delete(f"flow:{flow_id}")
             return True
         except Exception as e:
             logger.error("Failed to update flow label %s: %s", flow_id, e)
@@ -895,6 +972,10 @@ class FlowStorageService:
             flows_table = self.vast_db.get_qualified_table_name("flows")
             sql = f"UPDATE {flows_table} SET read_only = {str(read_only).lower()} WHERE id = '{flow_id}'"
             self.vast_db.execute_sql(sql)
+            # Invalidate cache
+            from ..core.dependencies import get_cache_service
+            cache_service = get_cache_service()
+            await cache_service.delete(f"flow:{flow_id}")
             return True
         except Exception as e:
             logger.error("Failed to update flow read_only %s: %s", flow_id, e)
@@ -924,8 +1005,26 @@ class FlowStorageService:
                         logger.warning("Failed to cleanup unreferenced objects after flow deletion: %s", e)
                         # Don't fail the deletion if cleanup fails
             
+            # Get source_id before deletion for cache invalidation
+            source_id = None
+            try:
+                flow = await self.get_flow(flow_id)
+                if flow and flow.source_id:
+                    source_id = flow.source_id
+            except Exception:
+                # If we can't get the flow, just invalidate the flow cache
+                pass
+            
             # Delete flow
             self.vast_db.query("flows").delete().where(f"id = '{flow_id}'").execute()
+            
+            # Invalidate cache
+            from ..core.dependencies import get_cache_service
+            cache_service = get_cache_service()
+            await cache_service.delete(f"flow:{flow_id}")
+            if source_id:
+                await cache_service.clear_pattern(f"flows:source:{source_id}*")
+            
             return True
         except Exception as e:
             logger.error("Failed to delete flow %s: %s", flow_id, e)

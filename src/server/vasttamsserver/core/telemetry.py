@@ -541,8 +541,8 @@ def metrics_endpoint():
     )
 
 # Enhanced health check
-def enhanced_health_check():
-    """Enhanced health check with metrics"""
+async def enhanced_health_check():
+    """Enhanced health check with metrics and Redis status"""
     import psutil
     
     # Get system metrics
@@ -552,10 +552,25 @@ def enhanced_health_check():
     # Update system metrics
     metrics.memory_usage_bytes.set(memory_info.used)
     
+    # Get Redis cache status
+    redis_status = None
+    try:
+        from .dependencies import get_cache_service
+        cache_service = get_cache_service()
+        redis_status = await cache_service.get_status()
+    except Exception as e:
+        logger.warning(f"Failed to get Redis status for health check: {e}")
+        redis_status = {
+            "enabled": False,
+            "available": False,
+            "redis_connected": False,
+            "error": str(e)
+        }
+    
     health_status = {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "version": "8.0.0",
+        "version": "8.0.0",
         "system": {
             "memory_usage_bytes": memory_info.used,
             "memory_total_bytes": memory_info.total,
@@ -565,7 +580,8 @@ def enhanced_health_check():
         "telemetry": {
             "tracing_enabled": telemetry_manager.is_initialized,
             "metrics_enabled": True
-        }
+        },
+        "redis": redis_status
     }
     
     return health_status 

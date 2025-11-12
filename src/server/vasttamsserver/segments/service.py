@@ -16,6 +16,7 @@ from ..common.storage.timestamp_utils import (
     prepare_data_for_pyarrow
 )
 from .models import FlowSegment
+from .get_url_factory import GetUrlFactory
 from ..service.storage_models import FlowStorage, FlowStoragePost, MediaObject
 from ..common.models import HttpRequest
 
@@ -29,10 +30,67 @@ class SegmentStorageService:
         self.vast_db = vast_db
         self.s3_client = s3_client
         self.settings = settings
+        self._get_url_factory = GetUrlFactory(vast_db, s3_client, settings)
     
     async def get_flow_segments(self, flow_id: str, timerange: Optional[str] = None, skip_get_urls_generation: bool = False) -> List[FlowSegment]:
         """Get flow segments with optional timerange filtering"""
         try:
+            # Try cache first (only if no timerange filter)
+            # Timerange filtering requires DB calculation, so skip cache in that case
+            # Note: We cache segments without get_urls, then generate get_urls on-demand if needed
+            use_cache = timerange is None
+            
+            if use_cache:
+                from ..core.dependencies import get_cache_service
+                cache_service = get_cache_service()
+                cache_key = f"flow_segments:{flow_id}"
+                cached = await cache_service.get(cache_key)
+                if cached:
+                    try:
+                        import json
+                        # Reconstruct FlowSegment objects from cached data
+                        segments_data = json.loads(cached) if isinstance(cached, str) else cached
+                        segments = []
+                        for seg_data in segments_data:
+                            # get_urls are excluded from cache (set to None) to avoid expired presigned URLs
+                            # They will be generated on-demand if skip_get_urls_generation=False
+                            if 'get_urls' in seg_data:
+                                seg_data['get_urls'] = None
+                            # Reconstruct timerange
+                            if 'timerange' in seg_data and isinstance(seg_data['timerange'], dict):
+                                from ..common.models import TimeRange
+                                seg_data['timerange'] = TimeRange(**seg_data['timerange'])
+                            segments.append(FlowSegment(**seg_data))
+                        logger.debug(f"Cache hit for flow segments: {flow_id} ({len(segments)} segments, get_urls excluded from cache)")
+                        # If get_urls are needed, generate them now (even for cached segments)
+                        if not skip_get_urls_generation:
+                            # Generate get_urls for cached segments that need them
+                            segments_needing_urls = [
+                                segment for segment in segments 
+                                if not segment.get_urls or len(segment.get_urls) == 0
+                            ]
+                            if segments_needing_urls:
+                                logger.debug(f"Generating get_urls for {len(segments_needing_urls)} cached segments")
+                                import asyncio
+                                valid_segments = [s for s in segments_needing_urls if s.object_id]
+                                if valid_segments:
+                                    # Use factory's batch processing for better multi-threaded performance
+                                    object_ids = [segment.object_id for segment in valid_segments]
+                                    batch_results = await self._get_url_factory.create_get_urls_batch(
+                                        object_ids, 
+                                        batch_size=10
+                                    )
+                                    
+                                    # Map results back to segments
+                                    for segment in valid_segments:
+                                        get_urls = batch_results.get(segment.object_id)
+                                        if get_urls:
+                                            segment.get_urls = get_urls
+                        return segments
+                    except Exception as e:
+                        logger.debug(f"Failed to deserialize cached segments for flow {flow_id}: {e}")
+                        # Fall through to DB query
+            
             # Query segments using vaststore
             query = self.vast_db.query("segments").select("*").where(f"flow_id = '{flow_id}'")
             
@@ -185,21 +243,76 @@ class SegmentStorageService:
             # Populate get_urls if missing (per TAMS spec - service should auto-populate controlled URLs)
             # Skip if skip_get_urls_generation is True (e.g., when accept_get_urls="" to avoid expensive operations)
             if not skip_get_urls_generation:
-                for segment in segments:
-                    if not segment.get_urls or len(segment.get_urls) == 0:
-                        logger.debug(f"Auto-populating get_urls for segment with object_id: {segment.object_id}")
-                        # Generate get_urls for the object_id
-                        get_urls = await self._generate_get_urls(segment.object_id)
-                        if get_urls:
-                            logger.debug(f"Generated {len(get_urls)} get_urls for object_id: {segment.object_id}")
-                            segment.get_urls = get_urls
-                        else:
-                            logger.warning(f"Failed to generate get_urls for object_id: {segment.object_id}")
+                # Collect segments that need get_urls generation
+                segments_needing_urls = [
+                    segment for segment in segments 
+                    if not segment.get_urls or len(segment.get_urls) == 0
+                ]
+                
+                if segments_needing_urls:
+                    logger.debug(f"Auto-populating get_urls for {len(segments_needing_urls)} segments")
+                    # Generate get_urls in parallel for better performance
+                    import asyncio
+                    # Filter out segments without object_id (shouldn't happen per TAMS spec, but be defensive)
+                    valid_segments = [s for s in segments_needing_urls if s.object_id]
+                    invalid_segments = [s for s in segments_needing_urls if not s.object_id]
+                    
+                    if invalid_segments:
+                        logger.warning(f"Skipping {len(invalid_segments)} segments without object_id (data integrity issue)")
+                    
+                    if valid_segments:
+                        # Use factory's batch processing for better multi-threaded performance
+                        object_ids = [segment.object_id for segment in valid_segments]
+                        batch_results = await self._get_url_factory.create_get_urls_batch(
+                            object_ids, 
+                            batch_size=10
+                        )
+                        
+                        # Map results back to segments
+                        for segment in valid_segments:
+                            get_urls = batch_results.get(segment.object_id)
+                            if get_urls:
+                                logger.debug(f"Generated {len(get_urls)} get_urls for object_id: {segment.object_id}")
+                                segment.get_urls = get_urls
+                            else:
+                                logger.warning(f"Failed to generate get_urls for object_id: {segment.object_id} (returned None)")
+            
+            # Cache the result if appropriate (no timerange filter)
+            # IMPORTANT: We exclude get_urls from cache to avoid caching expired presigned URLs
+            # get_urls will be generated on-demand when needed
+            if use_cache:
+                try:
+                    from ..core.dependencies import get_cache_service
+                    cache_service = get_cache_service()
+                    cache_key = f"flow_segments:{flow_id}"
+                    # Serialize segments for caching (convert to dict, handling nested objects)
+                    # CRITICAL: Exclude get_urls from cache since presigned URLs expire
+                    segments_data = []
+                    for seg in segments:
+                        seg_dict = seg.model_dump()
+                        # Convert timerange to dict
+                        if 'timerange' in seg_dict and hasattr(seg_dict['timerange'], 'model_dump'):
+                            seg_dict['timerange'] = seg_dict['timerange'].model_dump()
+                        # Remove get_urls from cached data - they contain presigned URLs that expire
+                        # get_urls will be generated on-demand when needed (and only when skip_get_urls_generation=False)
+                        seg_dict['get_urls'] = None
+                        segments_data.append(seg_dict)
+                    
+                    import json
+                    cache_value = json.dumps(segments_data)
+                    # Cache for 5 minutes (300 seconds) - segments don't change often
+                    await cache_service.set(cache_key, cache_value, ttl=300)
+                    logger.debug(f"Cached flow segments: {flow_id} ({len(segments)} segments, get_urls excluded)")
+                except Exception as e:
+                    logger.debug(f"Failed to cache segments for flow {flow_id}: {e}")
+                    # Don't fail the request if caching fails
             
             return segments
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error("Failed to get flow segments for %s: %s", flow_id, e)
-            raise HTTPException(status_code=500, detail="Internal server error")
+            logger.error("Failed to get flow segments for %s: %s", flow_id, e, exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     
     async def create_flow_segment(self, flow_id: str, segment: FlowSegment) -> bool:
         """Create a new flow segment"""
@@ -268,6 +381,15 @@ class SegmentStorageService:
             
             logger.debug("Creating segment with processed data: %s", segment_data)
             self.vast_db.insert_record("segments", segment_data)
+            
+            # Invalidate segments cache for this flow
+            try:
+                from ..core.dependencies import get_cache_service
+                cache_service = get_cache_service()
+                await cache_service.delete(f"flow_segments:{flow_id}")
+                logger.debug(f"Invalidated segments cache for flow: {flow_id}")
+            except Exception as e:
+                logger.debug(f"Failed to invalidate segments cache for flow {flow_id}: {e}")
             
             # Maintain normalized relationship and object reference tracking
             try:
@@ -349,12 +471,29 @@ class SegmentStorageService:
                         # Continue with other segments
                 
                 logger.debug("Deleted %d segments for flow %s with timerange %s", deleted_count, flow_id, timerange)
+                # Invalidate segments cache for this flow
+                try:
+                    from ..core.dependencies import get_cache_service
+                    cache_service = get_cache_service()
+                    await cache_service.delete(f"flow_segments:{flow_id}")
+                    logger.debug(f"Invalidated segments cache for flow: {flow_id}")
+                except Exception as e:
+                    logger.debug(f"Failed to invalidate segments cache for flow {flow_id}: {e}")
                 return deleted_count > 0
             else:
                 # Delete all segments for the flow (no timerange filter)
                 query = self.vast_db.query("segments").delete().where(f"flow_id = '{flow_id}'")
-            query.execute()
-            return True
+                query.execute()
+                logger.debug("Deleted all segments for flow %s", flow_id)
+                # Invalidate segments cache for this flow
+                try:
+                    from ..core.dependencies import get_cache_service
+                    cache_service = get_cache_service()
+                    await cache_service.delete(f"flow_segments:{flow_id}")
+                    logger.debug(f"Invalidated segments cache for flow: {flow_id}")
+                except Exception as e:
+                    logger.debug(f"Failed to invalidate segments cache for flow {flow_id}: {e}")
+                return True
         except Exception as e:
             logger.error("Failed to delete flow segments for %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -625,6 +764,7 @@ class SegmentStorageService:
         """
         try:
             import inspect
+            import asyncio
             http_method = 'GET' if operation.lower() in ('get', 'get_object') else 'PUT'
             # Use provided content_type or fallback (TAMS 8.0 requires content-type for PUT)
             final_content_type = content_type or 'application/octet-stream'
@@ -673,7 +813,8 @@ class SegmentStorageService:
                 # Remove None values
                 candidate_kwargs = {k: v for k, v in candidate_kwargs.items() if v is not None}
                 kwargs = {k: v for k, v in candidate_kwargs.items() if k in supported}
-                return tmp_client.generate_presigned_url(**kwargs)
+                # Run synchronous generate_presigned_url in thread pool to avoid blocking
+                return await asyncio.to_thread(tmp_client.generate_presigned_url, **kwargs)
             sig = inspect.signature(self.s3_client.generate_presigned_url)
             supported = set(sig.parameters.keys())
             candidate_kwargs = {
@@ -690,172 +831,12 @@ class SegmentStorageService:
             # Remove None values
             candidate_kwargs = {k: v for k, v in candidate_kwargs.items() if v is not None}
             kwargs = {k: v for k, v in candidate_kwargs.items() if k in supported}
-            return self.s3_client.generate_presigned_url(**kwargs)
+            # Run synchronous generate_presigned_url in thread pool to avoid blocking
+            return await asyncio.to_thread(self.s3_client.generate_presigned_url, **kwargs)
         except Exception as e:
             logger.error("Failed to generate presigned URL: %s", e)
             return None
     
-    async def _generate_get_urls(self, object_id: str) -> Optional[List[Dict[str, Any]]]:
-        """Generate get_urls for an object_id"""
-        try:
-            # Get the object to find its storage path and storage_id
-            obj_dict = await self._get_object(object_id)
-            
-            # Try to get storage path, storage_id, and content_type from object metadata
-            storage_path = None
-            storage_id = None
-            content_type = None
-            if obj_dict:
-                # Handle both Object model (with _internal_metadata) and raw dict
-                metadata = None
-                if hasattr(obj_dict, '_internal_metadata'):
-                    metadata = obj_dict._internal_metadata
-                elif isinstance(obj_dict, dict):
-                    metadata_raw = obj_dict.get('metadata', {})
-                    if isinstance(metadata_raw, str):
-                        import json
-                        try:
-                            metadata = json.loads(metadata_raw)
-                        except:
-                            metadata = {}
-                    elif isinstance(metadata_raw, dict):
-                        metadata = metadata_raw
-                
-                if metadata and isinstance(metadata, dict):
-                    storage_path = metadata.get('storage_path')
-                    storage_id = metadata.get('storage_id')
-                    content_type = metadata.get('content_type')  # Retrieve stored content-type for GET URLs
-                
-                # If no storage path in metadata, reconstruct from created timestamp
-                if not storage_path:
-                    created = obj_dict.get('created') if isinstance(obj_dict, dict) else getattr(obj_dict, 'created', None)
-                    if created:
-                        # Parse created timestamp if it's a string
-                        if isinstance(created, str):
-                            from datetime import datetime
-                            try:
-                                dt = datetime.fromisoformat(created.replace('Z', '+00:00'))
-                            except:
-                                dt = get_tams_timestamp()
-                        else:
-                            dt = created if hasattr(created, 'year') else get_tams_timestamp()
-                        
-                        year = str(dt.year)
-                        month = f"{dt.month:02d}"
-                        date = f"{dt.day:02d}"
-                        tams_path = self.settings.tams_storage_path.strip('/')
-                        relative_path = f"{tams_path}/{year}/{month}/{date}/{object_id}"
-                        
-                        # Include root_path if storage_id is available
-                        if storage_id:
-                            try:
-                                from ..storagebackends.service import StorageBackendService
-                                backend_service = StorageBackendService(self.vast_db, self.s3_client)
-                                backend = await backend_service.get_storage_backend(storage_id)
-                                if backend and backend.root_path:
-                                    root_path = backend.root_path.strip('/')
-                                    storage_path = f"{root_path}/{relative_path}"
-                                else:
-                                    storage_path = relative_path
-                            except Exception as e:
-                                logger.warning(f"Failed to load backend {storage_id} for path reconstruction: {e}")
-                                storage_path = relative_path
-                        else:
-                            storage_path = relative_path
-            
-            # If object doesn't exist or path can't be determined, return None
-            # This indicates a data integrity issue - segments should not reference non-existent objects
-            if not storage_path:
-                if not obj_dict:
-                    # Object doesn't exist in database - this is a data integrity issue
-                    logger.error(
-                        f"Object {object_id} not found in database when generating get_urls. "
-                        f"This indicates orphaned segment references. Returning None for get_urls."
-                    )
-                    # Record metrics
-                    try:
-                        from ..core.telemetry import metrics
-                        metrics.object_fetch_failures_total.labels(reason="object_not_found").inc()
-                    except Exception:
-                        pass  # Don't fail if metrics unavailable
-                    return None
-                else:
-                    # Object exists but has no storage_path and no created timestamp
-                    # This is also a data integrity issue - object should have proper metadata
-                    logger.error(
-                        f"Object {object_id} exists but has no storage_path in metadata and no created timestamp. "
-                        f"Cannot reconstruct storage path. Returning None for get_urls."
-                    )
-                    # Record metrics
-                    try:
-                        from ..core.telemetry import metrics
-                        metrics.object_fetch_failures_total.labels(reason="missing_metadata").inc()
-                    except Exception:
-                        pass  # Don't fail if metrics unavailable
-                    return None
-            
-            # Generate presigned GET URL
-            backend_info = None
-            relative_storage_path = storage_path
-            if storage_id:
-                try:
-                    from ..storagebackends.service import StorageBackendService
-                    backend_service = StorageBackendService(self.vast_db, self.s3_client)
-                    backend = await backend_service.get_storage_backend(storage_id)
-                    if backend:
-                        backend_info = backend.model_dump()
-                        # If storage_path includes root_path, strip it for use with key_prefix
-                        backend_root_path = backend.root_path
-                        if backend_root_path:
-                            backend_root_path = backend_root_path.strip('/')
-                            if storage_path.startswith(backend_root_path + '/'):
-                                relative_storage_path = storage_path[len(backend_root_path) + 1:]
-                            elif storage_path == backend_root_path:
-                                relative_storage_path = ""
-                except Exception as e:
-                    logger.warning(f"Failed to load storage backend {storage_id}: {e}")
-            
-            get_url = await self._generate_presigned_url(
-                key=relative_storage_path,
-                operation="get_object",
-                expiration=self.settings.s3_presigned_url_download_timeout if hasattr(self.settings, 's3_presigned_url_download_timeout') else 3600,
-                storage_backend=backend_info,
-                content_type=content_type  # Use stored content-type for response-content-type header
-            )
-            
-            if not get_url:
-                return None
-            
-            # If no storage_id from object metadata, try to get default storage backend
-            if not storage_id:
-                from ..storagebackends.service import StorageBackendService
-                backend_service = StorageBackendService(self.vast_db, self.s3_client)
-                backends = await backend_service.get_storage_backends()
-                default_backend = next((b for b in backends if b.default_storage), None)
-                if default_backend:
-                    storage_id = default_backend.id
-                    logger.debug(f"Using default storage backend for get_urls: {storage_id}")
-                else:
-                    # Generate a valid TAMS UUID as last resort
-                    import uuid
-                    storage_id = str(uuid.uuid4())
-                    logger.warning(f"No storage_id found for object {object_id}, generated UUID: {storage_id}")
-            
-            # Return get_urls in TAMS format
-            from .models import GetUrl
-            get_url_obj = GetUrl(
-                url=get_url,
-                storage_id=storage_id,
-                presigned=True,
-                controlled=True,
-                store_type="http_object_store",
-                provider=self.settings.s3_provider if hasattr(self.settings, 's3_provider') else "aws",
-                store_product=self.settings.s3_store_product if hasattr(self.settings, 's3_store_product') else "s3"
-            )
-            return [get_url_obj]
-        except Exception as e:
-            logger.error(f"Failed to generate get_urls for object {object_id}: {e}")
-            return None
     
     async def get_segments_with_flow_and_object_details(self, flow_id: str) -> List[Dict[str, Any]]:
         """Get segments with flow and object details using join query"""

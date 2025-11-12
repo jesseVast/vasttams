@@ -6,10 +6,12 @@ from fastapi import HTTPException
 from vastdbmanager import VastDBManager
 from vasts3 import S3Client, S3Config
 from .config import get_settings
+from .cache import CacheService
 
 # Global storage instances
 vast_db = None
 s3_client = None
+cache_service = None
 
 def get_vast_db() -> VastDBManager:
     """Get the global VastDBManager instance."""
@@ -66,4 +68,11 @@ def get_vast_store():
 
 def set_vast_store(store):
     """Legacy compatibility - will be removed."""
-    raise HTTPException(status_code=500, detail="VASTStore deprecated - use get_vast_db() and get_s3_client()") 
+    raise HTTPException(status_code=500, detail="VASTStore deprecated - use get_vast_db() and get_s3_client()")
+
+def get_cache_service() -> CacheService:
+    """Get the global CacheService instance."""
+    global cache_service
+    if cache_service is None:
+        cache_service = CacheService()
+    return cache_service 

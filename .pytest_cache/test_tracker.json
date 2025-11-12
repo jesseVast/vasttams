@@ -2351,6 +2351,86 @@
     "client/test_deletion_requests.py::TestTAMSDeletionRequest::test_deletion_request_refresh": {
       "timestamp": "2025-11-10T18:27:59.475564+00:00",
       "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_create_get_urls_object_not_found": {
+      "timestamp": "2025-11-12T12:14:07.085234+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_extract_storage_metadata_from_metadata": {
+      "timestamp": "2025-11-12T12:14:07.210614+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_extract_storage_metadata_reconstruct_path": {
+      "timestamp": "2025-11-12T12:14:07.220414+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_get_backend_info_no_storage_id": {
+      "timestamp": "2025-11-12T12:14:07.290436+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_generate_presigned_url_default_client": {
+      "timestamp": "2025-11-12T12:14:07.293995+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_generate_presigned_url_with_backend": {
+      "timestamp": "2025-11-12T12:14:07.297814+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_create_get_url_object": {
+      "timestamp": "2025-11-12T12:14:07.428200+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_thread_pool_executor_usage": {
+      "timestamp": "2025-11-12T12:14:07.432596+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_factory_cleanup": {
+      "timestamp": "2025-11-12T12:14:07.435747+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_metadata_with_internal_metadata": {
+      "timestamp": "2025-11-12T12:14:07.438963+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_metadata_string_json": {
+      "timestamp": "2025-11-12T12:14:07.442141+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_metadata_dict": {
+      "timestamp": "2025-11-12T12:14:07.445109+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_create_get_urls_success": {
+      "timestamp": "2025-11-12T12:14:23.498780+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_create_get_urls_batch_success": {
+      "timestamp": "2025-11-12T12:14:23.509424+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_get_backend_info_with_storage_id": {
+      "timestamp": "2025-11-12T12:14:23.519679+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_resolve_storage_id_default_backend": {
+      "timestamp": "2025-11-12T12:14:23.525733+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_resolve_storage_id_generate_uuid": {
+      "timestamp": "2025-11-12T12:14:23.529305+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_batch_processing_different_sizes": {
+      "timestamp": "2025-11-12T12:14:23.539094+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_create_get_urls_no_storage_path": {
+      "timestamp": "2025-11-12T12:14:35.246486+00:00",
+      "source_files": []
+    },
+    "services/test_get_url_factory.py::TestGetUrlFactory::test_create_get_urls_batch_with_failures": {
+      "timestamp": "2025-11-12T12:14:46.460974+00:00",
+      "source_files": []
     }
   },
   "failed_tests": {

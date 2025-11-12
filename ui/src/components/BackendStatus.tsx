@@ -18,30 +18,40 @@ const BackendStatus: React.FC<BackendStatusProps> = ({ size = 'small' }) => {
   const checkBackendStatus = useCallback(async () => {
     try {
       // Use the /health endpoint which doesn't require authentication
-      await api.get('/health', { timeout: 5000 });
+      // Increased timeout to 10s to handle server load during video playback
+      const response = await api.get('/health', { timeout: 10000 });
       setStatus('online');
+      setLastChecked(new Date());
     } catch (error: any) {
       // If it's a timeout or network error, mark as offline
       if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        setStatus('offline');
+        // Timeout - server might be busy but still online
+        // Keep previous status if it was online, only change if it was offline
+        setStatus((prev) => prev === 'online' ? 'online' : 'offline');
       } else if (error.response) {
         // If we got a response (even an error like 500), backend is online
         // Only mark as offline if it's a network error (no response)
         setStatus('online');
+        setLastChecked(new Date());
       } else {
         // Network error (CORS, connection refused, etc.)
         setStatus('offline');
+        setLastChecked(new Date());
       }
     }
-    setLastChecked(new Date());
   }, []);
 
   useEffect(() => {
     // Check immediately
     checkBackendStatus();
     
-    // Check every 30 seconds
-    const interval = setInterval(checkBackendStatus, 30000);
+    // Check every 15 seconds (more frequent updates)
+    // Use shorter interval for better responsiveness during video playback
+    const interval = setInterval(() => {
+      // Always update lastChecked to show widget is active
+      setLastChecked(new Date());
+      checkBackendStatus();
+    }, 15000);
     
     return () => clearInterval(interval);
   }, [checkBackendStatus]);

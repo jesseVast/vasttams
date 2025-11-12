@@ -12174,3 +12174,77 @@ UnboundLocalError: cannot access local variable 'asyncio' where it is not associ
 2025-11-12 15:16:24 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
 2025-11-12 15:16:24 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
 2025-11-12 15:16:25 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-12 15:16:34 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-12 15:16:34 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-12 15:16:34 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-12 15:16:34 - vasttamsserver.core.cache:64:__init__ - INFO - Redis cache initialization enabled
+2025-11-12 15:16:34 - vasttamsserver.core.cache:65:__init__ - INFO - Redis configuration: host=localhost, port=6379, db=0, ssl=False, max_connections=50
+2025-11-12 15:16:34 - vasttamsserver.main:116:lifespan - INFO - Initializing Redis cache service on startup...
+2025-11-12 15:16:34 - vasttamsserver.core.cache:86:_initialize - INFO - Initializing Redis cache connection...
+2025-11-12 15:16:34 - vasttamsserver.core.cache:104:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 15:16:34 - vasttamsserver.core.cache:145:_connect - INFO - ✅ Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-12 15:16:34 - vasttamsserver.core.cache:92:_initialize - INFO - Redis cache initialization completed successfully
+2025-11-12 15:16:34 - vasttamsserver.main:119:lifespan - INFO - ✅ Redis cache service initialized successfully
+2025-11-12 15:16:38 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
+2025-11-12 15:16:38 - vasttamsserver.core.cache:162:_health_check_loop - INFO - Redis health check loop started (interval: 30s)
+2025-11-12 15:16:39 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-12 15:16:39 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-12 15:16:39 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-12 15:16:39 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-12 15:16:40 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-12 15:16:40 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-12 15:16:41 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-12 15:16:50 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-12 15:16:50 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-12 15:16:50 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-12 15:16:50 - vasttamsserver.core.cache:64:__init__ - INFO - Redis cache initialization enabled
+2025-11-12 15:16:50 - vasttamsserver.core.cache:65:__init__ - INFO - Redis configuration: host=localhost, port=6379, db=0, ssl=False, max_connections=50
+2025-11-12 15:16:50 - vasttamsserver.main:116:lifespan - INFO - Initializing Redis cache service on startup...
+2025-11-12 15:16:50 - vasttamsserver.core.cache:86:_initialize - INFO - Initializing Redis cache connection...
+2025-11-12 15:16:50 - vasttamsserver.core.cache:104:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 15:16:50 - vasttamsserver.core.cache:145:_connect - INFO - ✅ Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-12 15:16:50 - vasttamsserver.core.cache:92:_initialize - INFO - Redis cache initialization completed successfully
+2025-11-12 15:16:50 - vasttamsserver.main:119:lifespan - INFO - ✅ Redis cache service initialized successfully
+2025-11-12 15:16:54 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
+2025-11-12 15:16:54 - vasttamsserver.core.cache:162:_health_check_loop - INFO - Redis health check loop started (interval: 30s)
+2025-11-12 15:16:55 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-12 15:16:55 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-12 15:16:55 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-12 15:16:55 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-12 15:16:55 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-12 15:16:56 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-12 15:16:56 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-12 15:17:05 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-12 15:17:05 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-12 15:17:05 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-12 15:17:05 - vasttamsserver.core.cache:64:__init__ - INFO - Redis cache initialization enabled
+2025-11-12 15:17:05 - vasttamsserver.core.cache:65:__init__ - INFO - Redis configuration: host=localhost, port=6379, db=0, ssl=False, max_connections=50
+2025-11-12 15:17:05 - vasttamsserver.main:116:lifespan - INFO - Initializing Redis cache service on startup...
+2025-11-12 15:17:05 - vasttamsserver.core.cache:86:_initialize - INFO - Initializing Redis cache connection...
+2025-11-12 15:17:05 - vasttamsserver.core.cache:104:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 15:17:05 - vasttamsserver.core.cache:145:_connect - INFO - ✅ Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-12 15:17:05 - vasttamsserver.core.cache:92:_initialize - INFO - Redis cache initialization completed successfully
+2025-11-12 15:17:05 - vasttamsserver.main:119:lifespan - INFO - ✅ Redis cache service initialized successfully
+2025-11-12 15:17:09 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
+2025-11-12 15:17:09 - vasttamsserver.core.cache:162:_health_check_loop - INFO - Redis health check loop started (interval: 30s)
+2025-11-12 15:17:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=5.032s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:17:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:17:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=5.036s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:17:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=5.036s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:17:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=5.037s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:17:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - ✅ Redis health check #1: Ping successful (1.2ms) - Stats: 1 success, 0 failures
+2025-11-12 15:17:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.013s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:18:09 - vasttamsserver.core.cache:190:_health_check_loop - INFO - ✅ Redis health check #2: Ping successful (1.5ms) - Stats: 2 success, 0 failures
+2025-11-12 15:18:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - ✅ Redis health check #3: Ping successful (3.4ms) - Stats: 3 success, 0 failures
+2025-11-12 15:18:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 15:18:57 - vasttamsserver.main:221:lifespan - INFO - Shutting down TAMS API...
+2025-11-12 15:18:57 - vasttamsserver.core.cache:200:_health_check_loop - INFO - Redis health check loop cancelled
+2025-11-12 15:18:57 - vasttamsserver.core.cache:472:close - INFO - Redis cache service closed
+2025-11-12 15:18:57 - vasttamsserver.main:239:lifespan - INFO - TAMS API shutdown complete
+2025-11-12 15:18:58 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-12 15:18:58 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-12 15:18:58 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-12 15:18:58 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-12 15:18:59 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-12 15:18:59 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-12 15:18:59 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001

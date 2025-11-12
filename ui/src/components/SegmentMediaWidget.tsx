@@ -130,12 +130,12 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
 
   const timeInfo = parseTimerange(timerange);
 
-  // Lazy load video only when it comes into view (using Intersection Observer)
+  // Lazy load and autoplay video when it comes into view (using Intersection Observer)
   useEffect(() => {
     if (mediaType === 'video' && videoRef.current && firstUrl?.url) {
       const video = videoRef.current;
       
-      // Use Intersection Observer to only load video when visible
+      // Use Intersection Observer to load and autoplay video when visible
       const observer = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
@@ -143,6 +143,26 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
               // Video is visible, ensure it's loaded
               if (video.readyState === 0 || video.readyState === 1) {
                 video.load();
+              }
+              
+              // Autoplay when video can play (muted to avoid browser autoplay restrictions)
+              const tryAutoplay = () => {
+                if (video.readyState >= 3) { // HAVE_FUTURE_DATA or higher
+                  video.muted = true; // Mute to allow autoplay
+                  video.play().catch((error) => {
+                    console.debug('Autoplay prevented:', error);
+                  });
+                } else {
+                  // Wait for video to be ready
+                  video.addEventListener('canplay', tryAutoplay, { once: true });
+                }
+              };
+              
+              tryAutoplay();
+            } else {
+              // Video is not visible, pause it
+              if (!video.paused) {
+                video.pause();
               }
             }
           });
@@ -186,6 +206,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
             ref={videoRef}
             controls
             playsInline
+            muted
             style={{
               width: '100%',
               height: height,

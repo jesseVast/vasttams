@@ -11610,3 +11610,88 @@ vastdb.errors.MissingTable: {'bucket': 'jthaloor-db', 'schema': 'tams8-dev', 'ta
 2025-11-12 14:33:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
 2025-11-12 14:34:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
 2025-11-12 14:34:44 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.250s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:35:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=2.689s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:35:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=2.689s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 14:35:10 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.808s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:35:11 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/sources - user=admin, duration=2.103s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/sources, method=GET]
+2025-11-12 14:35:14 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:35:17 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.943s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:35:17 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.947s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 14:35:18 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=1.898s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:35:19 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=0.885s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 14:35:21 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.321s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 14:35:22 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.349s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 14:35:55 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 33.02s for GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de - server may be overloaded
+2025-11-12 14:35:55 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 33.02s
+2025-11-12 14:36:09 - vasttamsserver.core.cache:173:_health_check_loop - WARNING - Redis health check failed: Timeout reading from localhost:6379
+2025-11-12 14:36:42 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 34.24s for GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de - server may be overloaded
+2025-11-12 14:36:42 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 34.24s
+2025-11-12 14:36:42 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 34.24s for GET /health - server may be overloaded
+2025-11-12 14:36:42 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /health: Request timeout after 34.24s
+2025-11-12 14:36:42 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:36:48 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=86.336s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:36:48 - vasttamsserver.core.cache:147:_connect - WARNING - Redis connection failed: Timeout connecting to server. Continuing without cache.
+2025-11-12 14:36:48 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
+2025-11-12 14:36:48 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError
+2025-11-12 14:36:57 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=8.388s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:36:57 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=48.972s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:36:57 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:37:31 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:37:38 - vasttamsserver.core.cache:147:_connect - WARNING - Redis connection failed: Timeout connecting to server. Continuing without cache.
+2025-11-12 14:37:38 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
+2025-11-12 14:37:38 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError
+2025-11-12 14:37:45 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=7.417s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:37:45 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=48.479s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:38:20 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:38:20 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 34.72s for GET /sources - server may be overloaded
+2025-11-12 14:38:20 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources: Request timeout after 34.72s
+2025-11-12 14:38:20 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 34.72s for GET /flows - server may be overloaded
+2025-11-12 14:38:20 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows: Request timeout after 34.72s
+2025-11-12 14:38:20 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 34.72s for GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de - server may be overloaded
+2025-11-12 14:38:20 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 34.72s
+2025-11-12 14:39:05 - vasttamsserver.core.cache:147:_connect - WARNING - Redis connection failed: Timeout connecting to server. Continuing without cache.
+2025-11-12 14:39:05 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
+2025-11-12 14:39:05 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError
+2025-11-12 14:39:07 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 47.46s for GET /sources - server may be overloaded
+2025-11-12 14:39:07 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources: Request timeout after 47.46s
+2025-11-12 14:39:20 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=94.626s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:39:53 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 48.47s for GET /flows - server may be overloaded
+2025-11-12 14:39:53 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows: Request timeout after 48.47s
+2025-11-12 14:39:53 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 48.48s for GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de - server may be overloaded
+2025-11-12 14:39:53 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 48.48s
+2025-11-12 14:39:53 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:39:54 - vasttamsserver.core.telemetry:405:record_list_performance - WARNING - Slow list operation: flows - query=1.159s, json_parse=0.000s, total=1.160s, records=3, filters=False
+2025-11-12 14:39:55 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 129.99s for GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - server may be overloaded
+2025-11-12 14:39:55 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments: Request timeout after 129.99s
+2025-11-12 14:39:55 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 35.38s for GET /sources - server may be overloaded
+2025-11-12 14:39:55 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources: Request timeout after 35.38s
+2025-11-12 14:40:09 - vasttamsserver.core.cache:147:_connect - WARNING - Redis connection failed: Timeout connecting to server. Continuing without cache.
+2025-11-12 14:40:09 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
+2025-11-12 14:40:09 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError
+2025-11-12 14:40:10 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=64.841s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:40:46 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 51.04s for GET /flows - server may be overloaded
+2025-11-12 14:40:46 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows: Request timeout after 51.04s
+2025-11-12 14:40:46 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 51.04s for GET /sources - server may be overloaded
+2025-11-12 14:40:46 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources: Request timeout after 51.04s
+2025-11-12 14:40:46 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 51.04s for GET /flows - server may be overloaded
+2025-11-12 14:40:46 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows: Request timeout after 51.04s
+2025-11-12 14:40:47 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 44.84s for GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de - server may be overloaded
+2025-11-12 14:40:47 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 44.84s
+2025-11-12 14:40:47 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:40:59 - vasttamsserver.core.cache:147:_connect - WARNING - Redis connection failed: Timeout connecting to server. Continuing without cache.
+2025-11-12 14:40:59 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
+2025-11-12 14:40:59 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError
+2025-11-12 14:41:33 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=83.775s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:41:33 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 47.16s for GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de - server may be overloaded
+2025-11-12 14:41:33 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de: Request timeout after 47.16s
+2025-11-12 14:41:35 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 47.85s for GET /sources - server may be overloaded
+2025-11-12 14:41:35 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources: Request timeout after 47.85s
+2025-11-12 14:41:35 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 47.85s for GET /flows - server may be overloaded
+2025-11-12 14:41:35 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /flows: Request timeout after 47.85s
+2025-11-12 14:41:35 - vasttamsserver.core.telemetry:520:telemetry_middleware - WARNING - Request timeout after 41.54s for GET /sources - server may be overloaded
+2025-11-12 14:41:35 - vasttamsserver.core.telemetry:418:record_error - ERROR - Error recorded: timeout at /sources: Request timeout after 41.54s
+2025-11-12 14:41:35 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:41:42 - vasttamsserver.core.cache:147:_connect - WARNING - Redis connection failed: Timeout connecting to server. Continuing without cache.
+2025-11-12 14:41:42 - vasttamsserver.core.cache:148:_connect - WARNING - Connection attempt was to localhost:6379 (db=0)
+2025-11-12 14:41:42 - vasttamsserver.core.cache:149:_connect - WARNING - Exception type: TimeoutError
+2025-11-12 14:41:56 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=69.133s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]

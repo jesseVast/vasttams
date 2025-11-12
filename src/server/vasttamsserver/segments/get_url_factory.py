@@ -148,7 +148,11 @@ class GetUrlFactory:
     async def _get_object(self, object_id: str) -> Optional[Dict[str, Any]]:
         """Get object from database"""
         try:
-            result = self.vast_db.query("objects").select("*").where(f"id = '{object_id}'").execute()
+            # Run blocking database query in thread pool to avoid blocking event loop
+            # This is especially important in dev mode with single worker
+            result = await asyncio.to_thread(
+                lambda: self.vast_db.query("objects").select("*").where(f"id = '{object_id}'").execute()
+            )
             
             # Handle VAST query result format
             obj_data = None

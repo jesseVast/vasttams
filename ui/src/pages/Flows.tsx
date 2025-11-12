@@ -16,8 +16,11 @@ import {
   FormControl,
   InputLabel,
   Button,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -54,6 +57,7 @@ const Flows: React.FC = () => {
   const [uniqueCodecsForFilters, setUniqueCodecsForFilters] = useState<string[]>([]);
   const [uniqueResolutionsForFilters, setUniqueResolutionsForFilters] = useState<string[]>([]);
   const [uniqueFrameRatesForFilters, setUniqueFrameRatesForFilters] = useState<string[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadSources();
@@ -148,7 +152,9 @@ const Flows: React.FC = () => {
 
   const loadFlows = async () => {
     try {
-      setLoading(true);
+      if (!refreshing) {
+        setLoading(true);
+      }
       // Load flows list first - extract filter values immediately
       const flowsData = await flowService.list();
       
@@ -184,7 +190,14 @@ const Flows: React.FC = () => {
       console.error('Failed to load flows:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadFlows();
+    loadSources(); // Also refresh sources list
   };
 
   // Extract unique values for dropdowns - merge with pre-loaded filter values
@@ -437,6 +450,22 @@ const Flows: React.FC = () => {
         <Typography variant="h4">
           Flows
         </Typography>
+        <Tooltip title="Refresh flows">
+          <IconButton 
+            onClick={handleRefresh} 
+            disabled={loading || refreshing}
+            color="primary"
+            aria-label="refresh flows"
+          >
+            <RefreshIcon sx={{ 
+              animation: refreshing ? 'spin 1s linear infinite' : 'none',
+              '@keyframes spin': {
+                '0%': { transform: 'rotate(0deg)' },
+                '100%': { transform: 'rotate(360deg)' }
+              }
+            }} />
+          </IconButton>
+        </Tooltip>
       </Box>
 
       {/* Filter Section */}

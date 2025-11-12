@@ -11856,3 +11856,78 @@ UnboundLocalError: cannot access local variable 'asyncio' where it is not associ
 2025-11-12 14:46:33 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
 2025-11-12 14:46:34 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
 2025-11-12 14:46:34 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-12 14:46:42 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-12 14:46:42 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-12 14:46:42 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-12 14:46:42 - vasttamsserver.core.cache:61:__init__ - INFO - Redis cache initialization enabled
+2025-11-12 14:46:42 - vasttamsserver.core.cache:62:__init__ - INFO - Redis configuration: host=localhost, port=6379, db=0, ssl=False, max_connections=50
+2025-11-12 14:46:42 - vasttamsserver.main:116:lifespan - INFO - Initializing Redis cache service on startup...
+2025-11-12 14:46:42 - vasttamsserver.core.cache:83:_initialize - INFO - Initializing Redis cache connection...
+2025-11-12 14:46:42 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:46:42 - vasttamsserver.core.cache:142:_connect - INFO - ✅ Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-12 14:46:42 - vasttamsserver.core.cache:89:_initialize - INFO - Redis cache initialization completed successfully
+2025-11-12 14:46:42 - vasttamsserver.main:119:lifespan - INFO - ✅ Redis cache service initialized successfully
+2025-11-12 14:46:46 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
+2025-11-12 14:46:47 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-12 14:46:47 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-12 14:46:47 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-12 14:46:47 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-12 14:46:48 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-12 14:46:48 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-12 14:46:48 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-12 14:46:57 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-12 14:46:57 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-12 14:46:57 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-12 14:46:57 - vasttamsserver.core.cache:61:__init__ - INFO - Redis cache initialization enabled
+2025-11-12 14:46:57 - vasttamsserver.core.cache:62:__init__ - INFO - Redis configuration: host=localhost, port=6379, db=0, ssl=False, max_connections=50
+2025-11-12 14:46:57 - vasttamsserver.main:116:lifespan - INFO - Initializing Redis cache service on startup...
+2025-11-12 14:46:57 - vasttamsserver.core.cache:83:_initialize - INFO - Initializing Redis cache connection...
+2025-11-12 14:46:57 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:46:57 - vasttamsserver.core.cache:142:_connect - INFO - ✅ Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-12 14:46:57 - vasttamsserver.core.cache:89:_initialize - INFO - Redis cache initialization completed successfully
+2025-11-12 14:46:57 - vasttamsserver.main:119:lifespan - INFO - ✅ Redis cache service initialized successfully
+2025-11-12 14:47:01 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
+2025-11-12 14:47:02 - app.core.logging:181:setup_logging - INFO - Unified logging initialized - Debug: False, Level: INFO
+2025-11-12 14:47:02 - vastdbmanager.connection_manager:44:__init__ - INFO - Initialized ConnectionManager with 1 endpoints
+2025-11-12 14:47:02 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
+2025-11-12 14:47:02 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
+2025-11-12 14:47:03 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-12 14:47:03 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-12 14:47:03 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-12 14:47:12 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-12 14:47:12 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-12 14:47:12 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-12 14:47:12 - vasttamsserver.core.cache:61:__init__ - INFO - Redis cache initialization enabled
+2025-11-12 14:47:12 - vasttamsserver.core.cache:62:__init__ - INFO - Redis configuration: host=localhost, port=6379, db=0, ssl=False, max_connections=50
+2025-11-12 14:47:12 - vasttamsserver.main:116:lifespan - INFO - Initializing Redis cache service on startup...
+2025-11-12 14:47:12 - vasttamsserver.core.cache:83:_initialize - INFO - Initializing Redis cache connection...
+2025-11-12 14:47:12 - vasttamsserver.core.cache:101:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-12 14:47:12 - vasttamsserver.core.cache:142:_connect - INFO - ✅ Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-12 14:47:12 - vasttamsserver.core.cache:89:_initialize - INFO - Redis cache initialization completed successfully
+2025-11-12 14:47:12 - vasttamsserver.main:119:lifespan - INFO - ✅ Redis cache service initialized successfully
+2025-11-12 14:47:15 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
+2025-11-12 14:47:18 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=2.013s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:47:18 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=2.015s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:47:45 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:47:59 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=1.727s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:47:59 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=1.728s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 14:47:59 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /sources - user=admin, duration=0.782s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/sources, method=GET]
+2025-11-12 14:48:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows - user=admin, duration=2.120s, status=200 [SLOW LIST - UI may be unresponsive] [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows, method=GET]
+2025-11-12 14:48:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=2.119s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 14:48:03 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /analytics/flows - user=admin, duration=1.728s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/analytics/flows, method=GET]
+2025-11-12 14:48:04 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:48:04 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 9
+2025-11-12 14:48:05 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 6
+2025-11-12 14:48:07 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:48:07 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:48:08 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:48:08 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:48:08 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:48:30 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=6.867s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-12 14:48:31 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments - user=admin, duration=28.071s, status=200 [User: username=admin, user_id=d59ed4df-58e1-4a4d-bd16-108b93aeb6c4, role=admin] [API: endpoint=/flows/23d09cf7-0df3-4de8-85ba-59df14cd88de/segments, method=GET]
+2025-11-12 14:48:36 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:48:36 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:48:36 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:48:38 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:48:38 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10
+2025-11-12 14:48:58 - urllib3.connectionpool:327:_put_conn - WARNING - Connection pool is full, discarding connection: docker1. Connection pool size: 10

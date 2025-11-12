@@ -32,9 +32,12 @@ def _get_requests_session():
     if not hasattr(_thread_local, 'session'):
         _thread_local.session = requests.Session()
         # Configure connection pooling
+        # Increased pool sizes to handle concurrent parallel uploads and URL generation
+        # pool_connections: number of connection pools (one per host)
+        # pool_maxsize: max connections per pool (increased for parallel operations)
         adapter = requests.adapters.HTTPAdapter(
-            pool_connections=10,  # Number of connection pools to cache
-            pool_maxsize=20,  # Maximum number of connections to save in the pool
+            pool_connections=50,  # Number of connection pools to cache (increased from 10)
+            pool_maxsize=100,  # Maximum number of connections to save in the pool (increased from 20)
             max_retries=3
         )
         _thread_local.session.mount('http://', adapter)

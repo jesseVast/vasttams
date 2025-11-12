@@ -247,26 +247,27 @@ class CacheService:
         await self._ensure_initialized()
         
         if not self._available:
+            logger.info(f"Cache miss (Redis unavailable): {key}")
             return None
         
         try:
             full_key = self._make_key(key)
             value = await self._redis.get(full_key)
             if value is None:
-                logger.debug(f"Cache miss: {key}")
+                logger.info(f"Cache miss: {key} (full key: {full_key})")
                 return None
             
             deserialized = self._deserialize(value)
-            logger.debug(f"Cache hit: {key}")
+            logger.info(f"Cache hit: {key} (full key: {full_key})")
             return deserialized
             
         except (ConnectionError, TimeoutError) as e:
-            logger.debug(f"Cache get failed (connection error): {key} - {e}")
+            logger.info(f"Cache miss (connection error): {key} - {e}")
             self._available = False
             self._consecutive_failures += 1
             return None
         except Exception as e:
-            logger.debug(f"Cache get failed: {key} - {e}")
+            logger.info(f"Cache miss (error): {key} - {e}")
             return None
     
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
@@ -294,7 +295,7 @@ class CacheService:
                 ttl = self.settings.tams_cache_ttl
             
             await self._redis.setex(full_key, ttl, serialized)
-            logger.debug(f"Cache set: {key} (TTL: {ttl}s)")
+            logger.info(f"Cache set: {key} (full key: {full_key}, TTL: {ttl}s)")
             self._consecutive_failures = 0
             return True
             

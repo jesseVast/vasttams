@@ -7,7 +7,10 @@ import {
   TableCell,
   CircularProgress,
   Link,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { Source } from '../types';
 import { sourceService, analyticsService } from '../services/api';
 import DataTable, { Column } from '../components/DataTable';
@@ -27,6 +30,7 @@ const Sources: React.FC = () => {
   const [selectedSource, setSelectedSource] = useState<Source | null>(null);
   const [flowCounts, setFlowCounts] = useState<Record<string, number>>({});
   const [segmentCounts, setSegmentCounts] = useState<Record<string, number>>({});
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadSources();
@@ -34,7 +38,9 @@ const Sources: React.FC = () => {
 
   const loadSources = async () => {
     try {
-      setLoading(true);
+      if (!refreshing) {
+        setLoading(true);
+      }
       // Load sources and analytics in parallel
       const [sourcesData, analyticsData] = await Promise.all([
         sourceService.list(),
@@ -70,7 +76,13 @@ const Sources: React.FC = () => {
       console.error('Failed to load sources:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadSources();
   };
 
   const handleSort = (property: string | keyof Source) => {
@@ -204,6 +216,22 @@ const Sources: React.FC = () => {
         <Typography variant="h4">
           Sources
         </Typography>
+        <Tooltip title="Refresh sources">
+          <IconButton 
+            onClick={handleRefresh} 
+            disabled={loading || refreshing}
+            color="primary"
+            aria-label="refresh sources"
+          >
+            <RefreshIcon sx={{ 
+              animation: refreshing ? 'spin 1s linear infinite' : 'none',
+              '@keyframes spin': {
+                '0%': { transform: 'rotate(0deg)' },
+                '100%': { transform: 'rotate(360deg)' }
+              }
+            }} />
+          </IconButton>
+        </Tooltip>
       </Box>
 
       {loading ? (

@@ -23,7 +23,8 @@ from vasttamsclient.domain.source import TAMSSource
 from vasttamsclient.domain.flow import TAMSFlow
 
 # Test server configuration
-TEST_SERVER_URL = "http://localhost:8000"
+TEST_SERVER_URL = "http://localhost:8000/api/tams/latest"
+TEST_SERVER_BASE = "http://localhost:8000"  # For root endpoints like /health
 TEST_USERNAME = "admin"  # Default test user
 TEST_PASSWORD = "vastdata"  # Default test password (per TAMS server defaults)
 
@@ -37,7 +38,7 @@ def check_server_available() -> bool:
         async def check():
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(f"{TEST_SERVER_URL}/health", timeout=aiohttp.ClientTimeout(total=2)) as response:
+                    async with session.get(f"{TEST_SERVER_BASE}/health", timeout=aiohttp.ClientTimeout(total=2)) as response:
                         return response.status == 200
             except Exception:
                 return False

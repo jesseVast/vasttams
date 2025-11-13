@@ -9,7 +9,7 @@ import uuid
 import time
 import sys
 
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "http://localhost:8000/api/tams/latest"
 WEBHOOK_SERVER_URL = "http://localhost:8080"
 
 def login():

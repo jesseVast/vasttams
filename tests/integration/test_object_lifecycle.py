@@ -36,7 +36,7 @@ from vasttamsserver.core.config import get_settings
 
 # Get settings for API base URL
 settings = get_settings()
-BASE_URL = f"http://{settings.host}:{settings.port}"
+BASE_URL = f"http://{settings.host}:{settings.port}/api/tams/latest"
 
 def get_auth_headers():
     """Get authentication headers with JWT token"""

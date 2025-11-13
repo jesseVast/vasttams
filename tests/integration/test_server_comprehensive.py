@@ -24,7 +24,8 @@ from typing import Optional, Dict, Any, List
 from uuid import uuid4
 
 # Test server configuration
-TEST_SERVER_URL = "http://localhost:8000"
+TEST_SERVER_URL = "http://localhost:8000/api/tams/latest"
+TEST_SERVER_BASE = "http://localhost:8000"  # For root endpoints like /health
 TEST_USERNAME = "admin"
 TEST_PASSWORD = "vastdata"
 
@@ -36,7 +37,7 @@ def check_server_available() -> bool:
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(
-                        f"{TEST_SERVER_URL}/health",
+                        f"{TEST_SERVER_BASE}/health",
                         timeout=aiohttp.ClientTimeout(total=2)
                     ) as response:
                         return response.status == 200

@@ -18,7 +18,7 @@ from typing import Dict, List, Tuple
 from datetime import datetime, timedelta
 
 # Configuration
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "http://localhost:8000/api/tams/latest"
 USERNAME = "admin"
 PASSWORD = "vastdata"
 

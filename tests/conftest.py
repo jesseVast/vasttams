@@ -35,9 +35,9 @@ warnings.simplefilter("ignore")
 try:
     from vasttamsserver.core.config import get_settings
     settings = get_settings()
-    BASE_URL = f"http://{settings.host}:{settings.port}"
+    BASE_URL = f"http://{settings.host}:{settings.port}/api/tams/latest"
 except Exception:
-    BASE_URL = "http://localhost:8000"
+    BASE_URL = "http://localhost:8000/api/tams/latest"
 
 
 def _get_token_cache_path():
@@ -151,6 +151,7 @@ def _get_auth_headers_internal():
                 logger.debug(f"Waiting {delay:.1f}s before retry {attempt + 1}/{max_retries}")
                 time.sleep(delay)
             
+            # Use base URL without /api/tams/latest for login (it's already in BASE_URL)
             response = requests.post(
                 f"{BASE_URL}/auth/login",
                 json={"username": "admin", "password": "vastdata"},
@@ -266,9 +267,9 @@ def get_auth_headers():
     try:
         from vasttamsserver.core.config import get_settings
         settings = get_settings()
-        base_url = f"http://{settings.host}:{settings.port}"
+        base_url = f"http://{settings.host}:{settings.port}/api/tams/latest"
     except Exception:
-        base_url = "http://localhost:8000"
+        base_url = "http://localhost:8000/api/tams/latest"
     
     response = requests.post(
         f"{base_url}/auth/login",

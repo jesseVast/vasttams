@@ -17,14 +17,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
-BASE_URL = f"http://{settings.host}:{settings.port}"
+BASE_URL = f"http://{settings.host}:{settings.port}/api/tams/latest"
 
 
 @pytest.fixture(scope="module")
 def api_available():
     """Check if API server is running"""
     try:
-        response = requests.get(f"{BASE_URL}/health", timeout=2)
+        # Health endpoint is at root, not under /api/tams/latest
+        base_url_without_api = BASE_URL.replace("/api/tams/latest", "")
+        response = requests.get(f"{base_url_without_api}/health", timeout=2)
         return response.status_code == 200
     except requests.exceptions.RequestException:
         pytest.skip("API server not running. Start server with: python run.py")

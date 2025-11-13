@@ -406,9 +406,36 @@ def create_latest_alias_router(router, versioned_prefix: str, latest_alias: str)
     # Copy all routes from original router
     for route in router.routes:
         if isinstance(route, APIRoute):
-            # Recreate the route with the new prefix (which is already set in latest_router)
+            # Extract relative path from route - routes have full path including router prefix
+            # e.g., route.path might be "/api/tams/v8.0/service" but we need just "" (empty for root of router)
+            route_path = route.path
+            # Remove the router prefix from the route path to get relative path
+            if route_path == current_prefix:
+                # Route is at the root of the router (e.g., path="" in router definition)
+                relative_route_path = ""
+            elif route_path.startswith(current_prefix + "/"):
+                # Route has a sub-path (e.g., path="/something" in router definition)
+                relative_route_path = route_path[len(current_prefix):]
+            elif route_path.startswith(current_prefix):
+                # Route path exactly matches prefix (shouldn't happen, but handle it)
+                relative_route_path = ""
+            else:
+                # Route path doesn't match prefix - might be a relative path already
+                # Try to extract by removing versioned prefix
+                if route_path.startswith(versioned_prefix):
+                    # Remove versioned prefix and relative_path to get the route's relative path
+                    temp_path = route_path[len(versioned_prefix):]
+                    if temp_path.startswith(relative_path):
+                        relative_route_path = temp_path[len(relative_path):]
+                    else:
+                        relative_route_path = temp_path
+                else:
+                    # Assume it's already a relative path
+                    relative_route_path = route_path
+            
+            # Recreate the route with the relative path (router prefix will be added automatically)
             latest_router.add_api_route(
-                path=route.path,
+                path=relative_route_path,
                 endpoint=route.endpoint,
                 methods=list(route.methods),
                 name=route.name,

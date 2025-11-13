@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Get settings for API base URL
 settings = get_settings()
-BASE_URL = f"http://{settings.host}:{settings.port}"
+BASE_URL = f"http://{settings.host}:{settings.port}/api/tams/latest"
 
 
 # Removed _login_admin_headers() - use auth_headers fixture instead

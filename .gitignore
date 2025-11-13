@@ -55,3 +55,7 @@ wheels/
 htmlcov/
 .pytest_cache/
 .coverage.*
+
+# Logs
+logs/
+*.log

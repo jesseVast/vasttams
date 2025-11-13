@@ -81,7 +81,7 @@ python folder_ingestor.py \
 - `--label` (optional): Source label
 - `--description` (optional): Source description
 - `--config` (optional): Path to JSON config file
-- `--server-url` (optional): TAMS server URL (default: `http://localhost:8000`)
+- `--server-url` (optional): TAMS server URL (default: `http://localhost:8000`). The client automatically uses `/api/tams/latest` for all API calls.
 - `--username` (optional): TAMS username (default: `admin`)
 - `--password` (optional): TAMS password (default: `admin`)
 - `--chunk-duration` (optional): Chunk duration in seconds (default: 30)
@@ -100,6 +100,8 @@ python folder_ingestor.py \
   "recursive": false
 }
 ```
+
+**Note**: The `server_url` should be the base server URL (e.g., `http://localhost:8000`). The client automatically appends `/api/tams/latest` to all API calls.
 
 ## How It Works
 

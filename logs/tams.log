@@ -17659,3 +17659,152 @@ UnboundLocalError: cannot access local variable 'asyncio' where it is not associ
 2025-11-13 14:00:17 - vastdbmanager.trino.client:59:__init__ - INFO - Initialized Trino client: docker1:8080/vast.default
 2025-11-13 14:00:17 - vastdbmanager.core:112:__init__ - INFO - Initialized Trino query system: docker1:8080/vast
 2025-11-13 14:00:18 - vastdb.features:16:__init__ - INFO - VAST version: (5, 3, 3, 1)
+2025-11-13 14:00:18 - vastdbmanager.connection_manager:78:_setup_schema - INFO - Schema 'tams8-dev' already exists
+2025-11-13 14:00:19 - vastdbmanager.connection_manager:60:connect - INFO - Connected to VAST database at http://docker1:4001
+2025-11-13 14:00:27 - vastdbmanager.core:153:_discover_tables - INFO - Discovered and cached 17 tables
+2025-11-13 14:00:27 - vastdbmanager.core:124:__init__ - INFO - Initialized VastDBManager with 1 endpoints
+2025-11-13 14:00:27 - vasttamsserver.main:76:lifespan - INFO - Starting TAMS API...
+2025-11-13 14:00:27 - vasttamsserver.core.cache:64:__init__ - INFO - Redis cache initialization enabled
+2025-11-13 14:00:27 - vasttamsserver.core.cache:65:__init__ - INFO - Redis configuration: host=localhost, port=6379, db=0, ssl=False, max_connections=50
+2025-11-13 14:00:27 - vasttamsserver.main:116:lifespan - INFO - Initializing Redis cache service on startup...
+2025-11-13 14:00:27 - vasttamsserver.core.cache:86:_initialize - INFO - Initializing Redis cache connection...
+2025-11-13 14:00:27 - vasttamsserver.core.cache:104:_connect - INFO - Connecting to Redis at localhost:6379 (db=0)...
+2025-11-13 14:00:27 - vasttamsserver.core.cache:145:_connect - INFO - Redis cache connected successfully to localhost:6379 (db=0)
+2025-11-13 14:00:27 - vasttamsserver.core.cache:92:_initialize - INFO - Redis cache initialization completed successfully
+2025-11-13 14:00:27 - vasttamsserver.main:119:lifespan - INFO - Redis cache service initialized successfully
+2025-11-13 14:00:31 - vasttamsserver.main:213:lifespan - INFO - TAMS API startup complete
+2025-11-13 14:00:31 - vasttamsserver.core.cache:162:_health_check_loop - INFO - Redis health check loop started (interval: 30s)
+2025-11-13 14:00:33 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=2.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:00:33 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.036s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:00:48 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.013s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:01:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #1: Ping successful (2.9ms) - Stats: 1 success, 0 failures
+2025-11-13 14:01:04 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:01:19 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:01:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #2: Ping successful (0.8ms) - Stats: 2 success, 0 failures
+2025-11-13 14:01:34 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:01:49 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:02:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #3: Ping successful (1.9ms) - Stats: 3 success, 0 failures
+2025-11-13 14:02:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #4: Ping successful (10.4ms) - Stats: 4 success, 0 failures
+2025-11-13 14:02:50 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.007s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:03:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #5: Ping successful (1.2ms) - Stats: 5 success, 0 failures
+2025-11-13 14:03:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #6: Ping successful (2.3ms) - Stats: 6 success, 0 failures
+2025-11-13 14:03:51 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.014s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:04:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #7: Ping successful (2.2ms) - Stats: 7 success, 0 failures
+2025-11-13 14:04:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #8: Ping successful (4.3ms) - Stats: 8 success, 0 failures
+2025-11-13 14:04:52 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:05:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #9: Ping successful (2.4ms) - Stats: 9 success, 0 failures
+2025-11-13 14:05:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #10: Ping successful (2.2ms) - Stats: 10 success, 0 failures
+2025-11-13 14:05:53 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:06:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #11: Ping successful (9.1ms) - Stats: 11 success, 0 failures
+2025-11-13 14:06:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #12: Ping successful (2.6ms) - Stats: 12 success, 0 failures
+2025-11-13 14:06:54 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.016s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:07:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #13: Ping successful (1.5ms) - Stats: 13 success, 0 failures
+2025-11-13 14:07:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #14: Ping successful (3.1ms) - Stats: 14 success, 0 failures
+2025-11-13 14:07:55 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:08:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #15: Ping successful (2.5ms) - Stats: 15 success, 0 failures
+2025-11-13 14:08:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #16: Ping successful (8.7ms) - Stats: 16 success, 0 failures
+2025-11-13 14:08:56 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.014s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:09:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #17: Ping successful (1.8ms) - Stats: 17 success, 0 failures
+2025-11-13 14:09:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #18: Ping successful (2.2ms) - Stats: 18 success, 0 failures
+2025-11-13 14:09:57 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.013s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:10:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #19: Ping successful (1.1ms) - Stats: 19 success, 0 failures
+2025-11-13 14:10:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #20: Ping successful (4.7ms) - Stats: 20 success, 0 failures
+2025-11-13 14:10:58 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.021s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:11:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #21: Ping successful (2.9ms) - Stats: 21 success, 0 failures
+2025-11-13 14:11:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #22: Ping successful (5.0ms) - Stats: 22 success, 0 failures
+2025-11-13 14:11:59 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.015s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:12:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #23: Ping successful (1.1ms) - Stats: 23 success, 0 failures
+2025-11-13 14:12:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #24: Ping successful (6.9ms) - Stats: 24 success, 0 failures
+2025-11-13 14:13:00 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.016s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:13:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #25: Ping successful (2.2ms) - Stats: 25 success, 0 failures
+2025-11-13 14:13:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #26: Ping successful (1.5ms) - Stats: 26 success, 0 failures
+2025-11-13 14:14:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.015s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:14:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #27: Ping successful (1.0ms) - Stats: 27 success, 0 failures
+2025-11-13 14:14:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #28: Ping successful (2.3ms) - Stats: 28 success, 0 failures
+2025-11-13 14:15:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:15:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #29: Ping successful (2.1ms) - Stats: 29 success, 0 failures
+2025-11-13 14:15:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #30: Ping successful (2.7ms) - Stats: 30 success, 0 failures
+2025-11-13 14:16:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.026s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:16:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #31: Ping successful (0.9ms) - Stats: 31 success, 0 failures
+2025-11-13 14:16:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #32: Ping successful (2.3ms) - Stats: 32 success, 0 failures
+2025-11-13 14:17:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.006s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:17:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #33: Ping successful (1.3ms) - Stats: 33 success, 0 failures
+2025-11-13 14:17:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #34: Ping successful (6.4ms) - Stats: 34 success, 0 failures
+2025-11-13 14:18:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.012s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:18:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #35: Ping successful (2.2ms) - Stats: 35 success, 0 failures
+2025-11-13 14:18:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #36: Ping successful (3.8ms) - Stats: 36 success, 0 failures
+2025-11-13 14:19:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.014s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:19:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #37: Ping successful (1.3ms) - Stats: 37 success, 0 failures
+2025-11-13 14:19:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #38: Ping successful (1.0ms) - Stats: 38 success, 0 failures
+2025-11-13 14:20:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.012s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:20:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #39: Ping successful (2.5ms) - Stats: 39 success, 0 failures
+2025-11-13 14:20:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #40: Ping successful (0.9ms) - Stats: 40 success, 0 failures
+2025-11-13 14:21:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.008s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:21:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #41: Ping successful (1.1ms) - Stats: 41 success, 0 failures
+2025-11-13 14:21:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #42: Ping successful (4.1ms) - Stats: 42 success, 0 failures
+2025-11-13 14:22:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.014s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:22:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #43: Ping successful (2.1ms) - Stats: 43 success, 0 failures
+2025-11-13 14:22:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #44: Ping successful (11.7ms) - Stats: 44 success, 0 failures
+2025-11-13 14:23:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.018s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:23:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #45: Ping successful (2.2ms) - Stats: 45 success, 0 failures
+2025-11-13 14:23:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #46: Ping successful (1.6ms) - Stats: 46 success, 0 failures
+2025-11-13 14:24:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.012s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:24:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #47: Ping successful (2.4ms) - Stats: 47 success, 0 failures
+2025-11-13 14:24:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #48: Ping successful (2.3ms) - Stats: 48 success, 0 failures
+2025-11-13 14:25:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.012s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:25:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #49: Ping successful (2.1ms) - Stats: 49 success, 0 failures
+2025-11-13 14:25:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #50: Ping successful (2.4ms) - Stats: 50 success, 0 failures
+2025-11-13 14:26:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.013s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:26:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #51: Ping successful (1.8ms) - Stats: 51 success, 0 failures
+2025-11-13 14:26:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #52: Ping successful (5.0ms) - Stats: 52 success, 0 failures
+2025-11-13 14:27:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:27:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #53: Ping successful (2.2ms) - Stats: 53 success, 0 failures
+2025-11-13 14:27:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #54: Ping successful (3.4ms) - Stats: 54 success, 0 failures
+2025-11-13 14:28:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:28:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #55: Ping successful (1.8ms) - Stats: 55 success, 0 failures
+2025-11-13 14:28:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #56: Ping successful (4.3ms) - Stats: 56 success, 0 failures
+2025-11-13 14:29:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:29:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #57: Ping successful (1.9ms) - Stats: 57 success, 0 failures
+2025-11-13 14:29:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #58: Ping successful (2.6ms) - Stats: 58 success, 0 failures
+2025-11-13 14:30:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:30:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #59: Ping successful (2.0ms) - Stats: 59 success, 0 failures
+2025-11-13 14:30:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #60: Ping successful (2.8ms) - Stats: 60 success, 0 failures
+2025-11-13 14:31:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.012s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:31:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #61: Ping successful (2.2ms) - Stats: 61 success, 0 failures
+2025-11-13 14:31:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #62: Ping successful (1.9ms) - Stats: 62 success, 0 failures
+2025-11-13 14:32:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:32:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #63: Ping successful (2.1ms) - Stats: 63 success, 0 failures
+2025-11-13 14:32:31 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #64: Ping successful (1.8ms) - Stats: 64 success, 0 failures
+2025-11-13 14:33:01 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.023s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:33:01 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #65: Ping successful (2.3ms) - Stats: 65 success, 0 failures
+2025-11-13 14:33:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #66: Ping successful (5.7ms) - Stats: 66 success, 0 failures
+2025-11-13 14:34:09 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #67: Ping successful (2.9ms) - Stats: 67 success, 0 failures
+2025-11-13 14:34:09 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.016s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:34:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #68: Ping successful (4.0ms) - Stats: 68 success, 0 failures
+2025-11-13 14:35:08 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.009s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:35:09 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #69: Ping successful (1.6ms) - Stats: 69 success, 0 failures
+2025-11-13 14:35:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #70: Ping successful (2.0ms) - Stats: 70 success, 0 failures
+2025-11-13 14:36:08 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:36:09 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #71: Ping successful (1.8ms) - Stats: 71 success, 0 failures
+2025-11-13 14:36:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #72: Ping successful (2.6ms) - Stats: 72 success, 0 failures
+2025-11-13 14:37:08 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.013s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:37:09 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #73: Ping successful (1.5ms) - Stats: 73 success, 0 failures
+2025-11-13 14:37:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #74: Ping successful (2.8ms) - Stats: 74 success, 0 failures
+2025-11-13 14:38:08 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.011s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:38:09 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #75: Ping successful (1.2ms) - Stats: 75 success, 0 failures
+2025-11-13 14:38:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #76: Ping successful (0.8ms) - Stats: 76 success, 0 failures
+2025-11-13 14:39:08 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.014s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:39:09 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #77: Ping successful (1.8ms) - Stats: 77 success, 0 failures
+2025-11-13 14:39:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #78: Ping successful (0.9ms) - Stats: 78 success, 0 failures
+2025-11-13 14:40:08 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.024s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:40:09 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #79: Ping successful (1.8ms) - Stats: 79 success, 0 failures
+2025-11-13 14:40:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #80: Ping successful (1.3ms) - Stats: 80 success, 0 failures
+2025-11-13 14:41:08 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:41:09 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #81: Ping successful (2.2ms) - Stats: 81 success, 0 failures
+2025-11-13 14:41:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #82: Ping successful (1.2ms) - Stats: 82 success, 0 failures
+2025-11-13 14:42:08 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.010s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:42:09 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #83: Ping successful (2.0ms) - Stats: 83 success, 0 failures
+2025-11-13 14:42:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #84: Ping successful (2.3ms) - Stats: 84 success, 0 failures
+2025-11-13 14:43:08 - vasttamsserver.core.telemetry:297:record_http_metrics - INFO - GET /health - user=anonymous, duration=1.022s, status=200 [User: ] [API: endpoint=/health, method=GET]
+2025-11-13 14:43:09 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #85: Ping successful (1.8ms) - Stats: 85 success, 0 failures
+2025-11-13 14:43:39 - vasttamsserver.core.cache:190:_health_check_loop - INFO - Redis health check #86: Ping successful (2.5ms) - Stats: 86 success, 0 failures

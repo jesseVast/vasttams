@@ -22,6 +22,7 @@ import {
   Chip
 } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
+import VideoPlayer, { VideoPlayerType } from './VideoPlayer';
 import { Segment, Flow } from '../types';
 
 interface SegmentMediaWidgetProps {
@@ -29,6 +30,8 @@ interface SegmentMediaWidgetProps {
   flow?: Flow | null;
   width?: number;
   height?: number;
+  isFirst?: boolean; // Flag to indicate if this is the first video (load immediately)
+  videoPlayerType?: VideoPlayerType; // Which video player to use: 'videojs', 'react-player', or 'native'
 }
 
 type MediaType = 'video' | 'image' | 'audio' | 'data' | 'unknown';
@@ -37,11 +40,13 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   segment, 
   flow,
   width = 240, 
-  height = 135 
+  height = 135,
+  isFirst = false,
+  videoPlayerType = 'native' // Default to native HTML5 for best performance
 }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(true);
   
   const getFirstPresignedUrl = (seg: Segment) => {
     return seg.get_urls?.find(url => url.presigned && url.url) || seg.get_urls?.[0];
@@ -176,70 +181,13 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
 
   const timeInfo = parseTimerange(timerange);
 
-  // Lazy load and autoplay video when it comes into view (using Intersection Observer)
-  // Limit initial loading to 1 second, but allow smooth playback buffering
+  // Handle video loading state
   useEffect(() => {
-    if (mediaType === 'video' && videoRef.current && firstUrl?.url) {
-      const video = videoRef.current;
-      let playTimeout: NodeJS.Timeout | null = null;
-      
-      // Use Intersection Observer to load and autoplay video when visible
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              // Video is visible, ensure it's loaded
-              if (video.readyState === 0 || video.readyState === 1) {
-                video.load();
-              }
-              
-              // Autoplay when video can play (muted to avoid browser autoplay restrictions)
-              const tryAutoplay = () => {
-                if (video.readyState >= 3) { // HAVE_FUTURE_DATA or higher
-                  video.muted = true; // Mute to allow autoplay
-                  video.play().then(() => {
-                    // Stop playback after 1 second to limit data usage
-                    if (playTimeout) clearTimeout(playTimeout);
-                    playTimeout = setTimeout(() => {
-                      if (!video.paused) {
-                        video.pause();
-                        // Reset to start for next play
-                        video.currentTime = 0;
-                      }
-                    }, 1000); // 1 second
-                  }).catch((error) => {
-                    console.debug('Autoplay prevented:', error);
-                  });
-                } else {
-                  // Wait for video to be ready
-                  video.addEventListener('canplay', tryAutoplay, { once: true });
-                }
-              };
-              
-              tryAutoplay();
-            } else {
-              // Video is not visible, pause it and clear timeout
-              if (playTimeout) {
-                clearTimeout(playTimeout);
-                playTimeout = null;
-              }
-              if (!video.paused) {
-                video.pause();
-              }
-            }
-          });
-        },
-        { rootMargin: '50px' } // Start loading 50px before it comes into view
-      );
-      
-      observer.observe(video);
-      
-      return () => {
-        if (playTimeout) clearTimeout(playTimeout);
-        observer.disconnect();
-      };
+    if (mediaType === 'video' && firstUrl?.url && isFirst) {
+      // First video: show loading indicator
+      setVideoLoading(true);
     }
-  }, [firstUrl?.url, mediaType]);
+  }, [firstUrl?.url, mediaType, isFirst]);
 
   const renderMediaContent = () => {
     // Check if we have URLs available
@@ -282,55 +230,54 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
 
     switch (mediaType) {
       case 'video':
-        const mimeType = getVideoMimeType(firstUrl.url);
         return (
-          <video
-            ref={videoRef}
-            controls
-            playsInline
-            muted
+          <VideoPlayer
             src={firstUrl.url}
-            style={{
-              width: '100%',
-              height: height,
-              display: 'block',
-            }}
-            preload="metadata"
-            onError={(e) => {
-              const video = e.currentTarget;
-              console.error('Video playback error:', {
-                error: e,
-                src: video.src,
-                networkState: video.networkState,
-                readyState: video.readyState,
-                errorCode: video.error?.code,
-                errorMessage: video.error?.message,
-                url: firstUrl.url
-              });
-            }}
-            onLoadStart={() => {
-              console.debug('Video load started:', firstUrl.url);
-            }}
-            onCanPlay={() => {
-              console.debug('Video can play:', firstUrl.url);
-            }}
-            onProgress={() => {
-              // Limit initial buffering to ~1 second, but allow smooth playback
-              // Only limit if video hasn't started playing yet
-              const video = videoRef.current;
-              if (video && video.buffered.length > 0 && video.paused) {
-                const bufferedEnd = video.buffered.end(0);
-                // If video is paused and has buffered more than 1.5 seconds, stop loading
-                if (bufferedEnd > 1.5 && video.currentTime === 0) {
-                  // Pause loading by seeking to end of buffer
-                  video.currentTime = Math.min(1.0, bufferedEnd - 0.1);
-                }
+            width="100%"
+            height={height}
+            controls
+            muted
+            playsInline
+            preload={isFirst ? 'auto' : 'metadata'}
+            playerType={videoPlayerType}
+            light={!isFirst && videoPlayerType === 'react-player'} // Light mode for non-first videos with react-player
+            playIcon={
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                <Typography variant="h4">▶</Typography>
+              </Box>
+            }
+            onReady={() => {
+              if (isFirst) {
+                setVideoLoading(false);
               }
             }}
-          >
-            {mimeType && <source src={firstUrl.url} type={mimeType} />}
-            Your browser does not support the video tag.
-          </video>
+            onError={(error) => {
+              console.error('Video playback error:', {
+                error,
+                url: firstUrl.url,
+                playerType: videoPlayerType
+              });
+              if (isFirst) {
+                setVideoLoading(false);
+              }
+            }}
+            onLoadStart={() => {
+              if (isFirst) {
+                setVideoLoading(true);
+              }
+            }}
+          />
         );
 
       case 'image':
@@ -419,31 +366,23 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
         // For unknown types, try to render as video if we have a URL (browsers can often handle it)
         if (firstUrl?.url) {
           return (
-            <video
-              ref={videoRef}
-              controls
-              playsInline
-              muted
+            <VideoPlayer
               src={firstUrl.url}
-              style={{
-                width: '100%',
-                height: height,
-                display: 'block',
-              }}
+              width="100%"
+              height={height}
+              controls
+              muted
+              playsInline
               preload="metadata"
-              onError={(e) => {
-                const video = e.currentTarget;
+              playerType={videoPlayerType}
+              onError={(error) => {
                 console.debug('Video playback error (unknown format):', {
-                  error: e,
-                  src: video.src,
+                  error,
                   url: firstUrl.url,
                   format: flow?.format
                 });
               }}
-            >
-              <source src={firstUrl.url} />
-              Your browser does not support the video tag.
-            </video>
+            />
           );
         }
         return (

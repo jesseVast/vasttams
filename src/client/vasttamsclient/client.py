@@ -41,6 +41,12 @@ class TAMSClient:
             api_version: API version to use (e.g., "v8.0", "v7.0"). 
                         If None, uses "/api/tams/latest" (default: None)
         """
+        # Normalize server URL: add http:// if no protocol is specified
+        server_url = server_url.strip()
+        if not server_url.startswith(('http://', 'https://')):
+            # Default to http:// if no protocol specified
+            server_url = f"http://{server_url}"
+            logger.debug(f"Added http:// protocol to server URL: {server_url}")
         self.server_url = server_url.rstrip('/')
         self.username = username
         self.password = password

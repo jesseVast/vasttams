@@ -17,13 +17,65 @@ api.interceptors.request.use((config) => {
   if (token) {
     (config.headers as any).Authorization = `Bearer ${token}`;
   }
+  
+  // Performance instrumentation for API calls
+  if (config.url?.includes('/segments')) {
+    const requestId = `api-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    (config as any).__requestId = requestId;
+    (config as any).__startTime = performance.now();
+    performance.mark(`${requestId}-request-start`);
+    console.log(`[API] ${config.method?.toUpperCase()} ${config.url} - Request started`);
+  }
+  
   return config;
 });
 
 // Logout and redirect on auth failures
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Performance instrumentation for API responses
+    const config = response.config as any;
+    if (config?.__requestId && config.url?.includes('/segments')) {
+      const duration = performance.now() - config.__startTime;
+      performance.mark(`${config.__requestId}-response-end`);
+      performance.measure(`${config.__requestId}-duration`, `${config.__requestId}-request-start`, `${config.__requestId}-response-end`);
+      const dataLength = JSON.stringify(response.data).length;
+      const itemCount = Array.isArray(response.data?.data) ? response.data.data.length : (Array.isArray(response.data) ? response.data.length : 'N/A');
+      const dataSizeKB = (dataLength / 1024).toFixed(2);
+      const rate = typeof itemCount === 'number' && duration > 0 ? (itemCount / (duration / 1000)).toFixed(2) : 'N/A';
+      
+      console.log(`[API] ${config.method?.toUpperCase()} ${config.url} - Response received: ${duration.toFixed(2)}ms, ${dataSizeKB} KB, ${itemCount} items${typeof rate === 'string' && rate !== 'N/A' ? `, ${rate} items/sec` : ''}`);
+      
+      // Log detailed timing if available
+      if (response.headers && typeof performance !== 'undefined') {
+        const timing = (performance as any).getEntriesByName?.(config.__requestId + '-request-start', 'mark');
+        if (timing && timing.length > 0) {
+          const networkTiming = performance.getEntriesByType('resource').find((entry: any) => 
+            entry.name.includes(config.url || '')
+          ) as PerformanceResourceTiming | undefined;
+          
+          if (networkTiming) {
+            console.log(`[API] Network breakdown:`, {
+              dns: `${(networkTiming.domainLookupEnd - networkTiming.domainLookupStart).toFixed(2)}ms`,
+              connect: `${(networkTiming.connectEnd - networkTiming.connectStart).toFixed(2)}ms`,
+              request: `${(networkTiming.responseStart - networkTiming.requestStart).toFixed(2)}ms`,
+              response: `${(networkTiming.responseEnd - networkTiming.responseStart).toFixed(2)}ms`,
+              total: `${(networkTiming.responseEnd - networkTiming.requestStart).toFixed(2)}ms`,
+            });
+          }
+        }
+      }
+    }
+    return response;
+  },
   (error) => {
+    // Performance instrumentation for API errors
+    const config = error?.config as any;
+    if (config?.__requestId && config.url?.includes('/segments')) {
+      const duration = performance.now() - config.__startTime;
+      console.error(`[API] ${config.method?.toUpperCase()} ${config.url} - Error after ${duration.toFixed(2)}ms:`, error.message);
+    }
+    
     const status = error?.response?.status;
     const path = window.location.pathname;
     const isAuthRoute = path.toLowerCase().includes('/login');

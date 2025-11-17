@@ -62,6 +62,7 @@ const Flows: React.FC = () => {
   useEffect(() => {
     loadSources();
     loadFlows(); // Load flows - filter values will be extracted immediately
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

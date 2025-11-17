@@ -7,8 +7,6 @@ import {
   CircularProgress,
   Box,
   Chip,
-  Card,
-  CardContent,
   Button,
   Paper,
   IconButton,
@@ -19,6 +17,37 @@ import SearchIcon from '@mui/icons-material/Search';
 import { Segment, Flow } from '../types';
 import { segmentService, flowService } from '../services/api';
 import SegmentMediaWidget from '../components/SegmentMediaWidget';
+
+// Normalize time input to TAMS format (seconds:nanoseconds)
+// Accepts formats like: "10", "10:0", "10:500000000" (for half a second in nanoseconds)
+const normalizeTimeInput = (input: string): string => {
+  if (!input) return '';
+  
+  // Remove any whitespace
+  input = input.trim();
+  
+  // If it contains a colon, assume it's already in seconds:nanoseconds format
+  if (input.includes(':')) {
+    const parts = input.split(':');
+    if (parts.length === 2) {
+      const seconds = parts[0];
+      const nanoseconds = parts[1].padEnd(9, '0').substring(0, 9); // Ensure 9 digits
+      return `${seconds}:${nanoseconds}`;
+    }
+  }
+  
+  // If it's just a number, treat as seconds
+  const numValue = parseFloat(input);
+  if (!isNaN(numValue)) {
+    const seconds = Math.floor(numValue);
+    const fractionalPart = numValue - seconds;
+    const nanoseconds = Math.floor(fractionalPart * 1000000000);
+    return `${seconds}:${nanoseconds.toString().padStart(9, '0')}`;
+  }
+  
+  // Return as-is if we can't parse it
+  return input;
+};
 
 const Segments: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -36,7 +65,8 @@ const Segments: React.FC = () => {
     if (flowIdParam && flowIdParam !== filterFlowId) {
       setFilterFlowId(flowIdParam);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     // Update URL when filter changes
@@ -61,7 +91,7 @@ const Segments: React.FC = () => {
   };
 
   // Convert user input to TAMS timerange format
-  const buildTimerange = (start: string, end: string): string | undefined => {
+  const buildTimerange = useCallback((start: string, end: string): string | undefined => {
     if (!start && !end) return undefined;
     
     let timerange = '';
@@ -85,38 +115,7 @@ const Segments: React.FC = () => {
     }
     
     return timerange;
-  };
-
-  // Normalize time input to TAMS format (seconds:nanoseconds)
-  // Accepts formats like: "10", "10:0", "10:500000000" (for half a second in nanoseconds)
-  const normalizeTimeInput = (input: string): string => {
-    if (!input) return '';
-    
-    // Remove any whitespace
-    input = input.trim();
-    
-    // If it contains a colon, assume it's already in seconds:nanoseconds format
-    if (input.includes(':')) {
-      const parts = input.split(':');
-      if (parts.length === 2) {
-        const seconds = parts[0];
-        const nanoseconds = parts[1].padEnd(9, '0').substring(0, 9); // Ensure 9 digits
-        return `${seconds}:${nanoseconds}`;
-      }
-    }
-    
-    // If it's just a number, treat as seconds
-    const numValue = parseFloat(input);
-    if (!isNaN(numValue)) {
-      const seconds = Math.floor(numValue);
-      const fractionalPart = numValue - seconds;
-      const nanoseconds = Math.floor(fractionalPart * 1000000000);
-      return `${seconds}:${nanoseconds.toString().padStart(9, '0')}`;
-    }
-    
-    // Return as-is if we can't parse it
-    return input;
-  };
+  }, []);
 
   // Parse TAMS timerange to extract start time in seconds (for sorting)
   // Format: [start_seconds:start_nanos_end_seconds:end_nanos) or [start_end)
@@ -125,7 +124,7 @@ const Segments: React.FC = () => {
     
     try {
       // Remove brackets/parentheses
-      const cleanRange = timerange.trim().replace(/^[\[\(]|[\)\]]+$/g, '');
+      const cleanRange = timerange.trim().replace(/^[[(]|[)\]]+$/g, '');
       
       if (cleanRange.includes('_')) {
         // TAMS format: [start_end)
@@ -232,7 +231,7 @@ const Segments: React.FC = () => {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [filterFlowId, startTime, endTime, sortSegments]);
+  }, [filterFlowId, startTime, endTime, sortSegments, buildTimerange]);
 
   const handleSearch = () => {
     loadSegments();

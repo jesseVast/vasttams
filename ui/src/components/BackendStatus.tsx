@@ -19,7 +19,7 @@ const BackendStatus: React.FC<BackendStatusProps> = ({ size = 'small' }) => {
     try {
       // Use the /health endpoint which doesn't require authentication
       // Increased timeout to 10s to handle server load during video playback
-      const response = await api.get('/health', { timeout: 10000 });
+      await api.get('/health', { timeout: 10000 });
       setStatus('online');
       setLastChecked(new Date());
     } catch (error: any) {

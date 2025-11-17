@@ -10,13 +10,12 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import ImageIcon from '@mui/icons-material/Image';
 import DataObjectIcon from '@mui/icons-material/DataObject';
 import AppsIcon from '@mui/icons-material/Apps';
-import { authService, analyticsService } from '../services/api';
+import { analyticsService } from '../services/api';
 import { AnalyticsSummary } from '../types';
 import MetricCard from '../components/MetricCard';
 import MetricCardGrid from '../components/MetricCardGrid';
 
 const Dashboard: React.FC = () => {
-  const user = authService.getCurrentUser();
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

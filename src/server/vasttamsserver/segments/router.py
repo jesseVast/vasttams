@@ -224,17 +224,25 @@ async def list_flow_segments(
 ):
     """List segments for a specific flow"""
     try:
+        import time
+        start_time = time.time()
+        
         # Skip expensive get_urls generation only if accept_get_urls is explicitly set to empty string (per TAMS spec ADR-0023)
         # Generate get_urls by default for UI compatibility - only skip if explicitly requested with accept_get_urls=""
+        # Note: Performance optimizations (batch queries, parallel processing, caching) make URL generation fast enough
+        # that we can generate URLs even for initial loads without significant performance impact
         skip_get_urls_generation = accept_get_urls == ""
         
         # Log if we're generating URLs (for performance monitoring)
         if not skip_get_urls_generation:
-            logger.debug(f"Generating get_urls for segments in flow {flow_id} (this may take time for large flows)")
+            logger.debug(f"Generating get_urls for segments in flow {flow_id} (using optimized batch processing)")
         
+        db_start = time.time()
         segments = await storage.get_flow_segments(flow_id, timerange, skip_get_urls_generation=skip_get_urls_generation)
+        db_time = time.time() - db_start
         
         # Apply object_id filtering if specified
+        filter_start = time.time()
         if object_id:
             segments = [s for s in segments if s.object_id == object_id]
         
@@ -245,6 +253,7 @@ async def list_flow_segments(
         else:
             # Sort by timerange value in ascending order (default)
             segments.sort(key=lambda s: s.timerange.value if s.timerange else "")
+        filter_time = time.time() - filter_start
         
         # Apply verbose_storage filtering if specified
         if not verbose_storage:
@@ -345,6 +354,7 @@ async def list_flow_segments(
                 segment.get_urls = filtered_urls
         
         # Apply pagination if specified
+        pagination_start = time.time()
         if offset is not None:
             segments = segments[offset:]
         
@@ -352,6 +362,19 @@ async def list_flow_segments(
         if limit is not None:
             limit = min(limit, 1000)  # Cap at 1000
             segments = segments[:limit]
+        pagination_time = time.time() - pagination_start
+        
+        # Log performance metrics
+        total_time = time.time() - start_time
+        logger.info(
+            f"get_flow_segments performance - "
+            f"DB+URLs: {db_time:.3f}s, "
+            f"Filter+Sort: {filter_time:.3f}s, "
+            f"Pagination: {pagination_time:.3f}s, "
+            f"Total: {total_time:.3f}s, "
+            f"Segments: {len(segments)}, "
+            f"Skip URLs: {skip_get_urls_generation}"
+        )
         
         return segments
     except HTTPException:

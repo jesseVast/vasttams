@@ -31,13 +31,16 @@ class GetUrlFactory:
             vast_db: VAST database manager
             s3_client: S3 client for generating presigned URLs
             settings: Application settings
-            max_workers: Maximum number of worker threads for parallel processing (default: 10)
+            max_workers: Maximum number of worker threads for parallel processing (default: 50)
         """
         self.vast_db = vast_db
         self.s3_client = s3_client
         self.settings = settings
-        self.max_workers = max_workers or 10
+        self.max_workers = max_workers or 50  # Increased from 10 to 50 for better parallelism
         self._executor = ThreadPoolExecutor(max_workers=self.max_workers)
+        # Cache for storage backends to avoid repeated lookups
+        self._backend_cache: Dict[str, Dict[str, Any]] = {}
+        self._backend_cache_ttl = 300  # 5 minutes TTL
     
     def __del__(self):
         """Cleanup thread pool executor on destruction"""
@@ -47,39 +50,225 @@ class GetUrlFactory:
     async def create_get_urls_batch(
         self, 
         object_ids: List[str], 
-        batch_size: int = 10
+        batch_size: int = 100
     ) -> Dict[str, Optional[List[GetUrl]]]:
         """
         Create GetUrl objects for multiple object_ids in parallel batches
         
+        Optimized version that:
+        - Fetches all objects in a single database query (batch query)
+        - Processes batches in parallel (not sequentially)
+        - Uses cached storage backends
+        
         Args:
             object_ids: List of object identifiers
-            batch_size: Number of objects to process in each batch (default: 10)
+            batch_size: Number of objects to process in each parallel batch (default: 100)
             
         Returns:
             Dictionary mapping object_id to List[GetUrl] or None if generation failed
         """
-        results = {}
+        if not object_ids:
+            return {}
         
-        # Process in batches to avoid overwhelming the system
-        for i in range(0, len(object_ids), batch_size):
-            batch = object_ids[i:i + batch_size]
-            
-            # Create tasks for this batch
-            tasks = [self.create_get_urls(obj_id) for obj_id in batch]
-            
-            # Execute batch in parallel
-            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # Map results back to object_ids
-            for obj_id, result in zip(batch, batch_results):
-                if isinstance(result, Exception):
-                    logger.warning(f"Failed to generate get_urls for object_id {obj_id}: {result}", exc_info=True)
+        # Fetch ALL objects in a single database query (major optimization)
+        objects_dict = await self._get_objects_batch(object_ids)
+        logger.debug(f"Fetched {len(objects_dict)} objects out of {len(object_ids)} requested in batch query")
+        
+        # Create batches for parallel processing
+        batches = [object_ids[i:i + batch_size] for i in range(0, len(object_ids), batch_size)]
+        logger.debug(f"Processing {len(batches)} batches of up to {batch_size} objects each")
+        
+        # Process ALL batches in parallel (not sequentially)
+        batch_tasks = [self._process_batch_with_cache(batch, objects_dict) for batch in batches]
+        batch_results_list = await asyncio.gather(*batch_tasks, return_exceptions=True)
+        
+        # Merge results from all batches
+        results = {}
+        for i, batch_results in enumerate(batch_results_list):
+            if isinstance(batch_results, Exception):
+                logger.error(f"Batch {i+1} failed: {batch_results}", exc_info=True)
+                # Mark all objects in this batch as failed
+                batch_start = i * batch_size
+                batch_end = min(batch_start + batch_size, len(object_ids))
+                for obj_id in object_ids[batch_start:batch_end]:
                     results[obj_id] = None
-                else:
-                    results[obj_id] = result
+            else:
+                results.update(batch_results)
         
         return results
+    
+    async def _process_batch_with_cache(
+        self, 
+        batch: List[str], 
+        objects_dict: Dict[str, Optional[Dict[str, Any]]]
+    ) -> Dict[str, Optional[List[GetUrl]]]:
+        """Process a single batch using cached object data"""
+        tasks = [
+            self._create_get_urls_cached(obj_id, objects_dict.get(obj_id)) 
+            for obj_id in batch
+        ]
+        batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        results = {}
+        for obj_id, result in zip(batch, batch_results):
+            if isinstance(result, Exception):
+                logger.warning(f"Failed to generate get_urls for object_id {obj_id}: {result}", exc_info=True)
+                results[obj_id] = None
+            else:
+                results[obj_id] = result
+        
+        return results
+    
+    async def _create_get_urls_cached(
+        self, 
+        object_id: str, 
+        obj_dict: Optional[Dict[str, Any]]
+    ) -> Optional[List[GetUrl]]:
+        """Create get_urls using pre-fetched object data (avoids database query)"""
+        try:
+            # If object wasn't found in batch query, try individual query as fallback
+            if not obj_dict:
+                obj_dict = await self._get_object(object_id)
+                if not obj_dict:
+                    logger.warning(f"Object {object_id} not found in database")
+                    return None
+            
+            # Extract storage metadata
+            storage_path, storage_id, content_type = self._extract_storage_metadata(obj_dict, object_id)
+            
+            # Validate we have a storage path
+            if not storage_path:
+                if not obj_dict:
+                    logger.error(
+                        f"Object {object_id} not found in database when generating get_urls. "
+                        f"This indicates orphaned segment references. Returning None for get_urls."
+                    )
+                    self._record_metrics("object_not_found")
+                else:
+                    logger.error(
+                        f"Object {object_id} exists but has no storage_path in metadata and no created timestamp. "
+                        f"Cannot reconstruct storage path. Returning None for get_urls."
+                    )
+                    self._record_metrics("missing_metadata")
+                return None
+            
+            # Get storage backend information (with caching)
+            backend_info, relative_storage_path = await self._get_backend_info_cached(storage_id, storage_path)
+            
+            # Generate presigned URL
+            presigned_url = await self._generate_presigned_url(
+                key=relative_storage_path,
+                operation="get_object",
+                expiration=self.settings.s3_presigned_url_download_timeout if hasattr(self.settings, 's3_presigned_url_download_timeout') else 3600,
+                storage_backend=backend_info,
+                content_type=content_type
+            )
+            
+            if not presigned_url:
+                return None
+            
+            # Resolve storage_id if not available
+            if not storage_id:
+                storage_id = await self._resolve_storage_id()
+            
+            # Create and return GetUrl object
+            return [self._create_get_url_object(
+                url=presigned_url,
+                storage_id=storage_id,
+                provider=self.settings.s3_provider if hasattr(self.settings, 's3_provider') else "aws",
+                store_product=self.settings.s3_store_product if hasattr(self.settings, 's3_store_product') else "s3"
+            )]
+            
+        except Exception as e:
+            logger.error(f"Failed to generate get_urls for object {object_id}: {e}", exc_info=True)
+            return None
+    
+    async def _get_objects_batch(self, object_ids: List[str]) -> Dict[str, Optional[Dict[str, Any]]]:
+        """
+        Get multiple objects in a single database query (major performance optimization)
+        
+        This eliminates the N+1 query problem by fetching all objects at once.
+        """
+        if not object_ids:
+            return {}
+        
+        try:
+            # Build WHERE clause with IN operator for batch query
+            # Escape single quotes in IDs to prevent SQL injection
+            escaped_ids = [obj_id.replace("'", "''") for obj_id in object_ids]
+            ids_str = "', '".join(escaped_ids)
+            where_clause = f"id IN ('{ids_str}')"
+            
+            # Execute batch query in thread pool
+            result = await asyncio.to_thread(
+                lambda: self.vast_db.query("objects").select("*").where(where_clause).execute()
+            )
+            
+            # Convert result to dictionary mapping object_id -> object_data
+            objects_dict: Dict[str, Optional[Dict[str, Any]]] = {}
+            
+            # Handle VAST query result format
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
+                if isinstance(data, dict) and data:
+                    # VAST tabular format: columns dict -> reconstruct rows
+                    columns = data
+                    if columns:
+                        try:
+                            row_count = len(next(iter(columns.values())))
+                        except StopIteration:
+                            row_count = 0
+                        
+                        for i in range(row_count):
+                            obj_data = {}
+                            obj_id = None
+                            for col, values in columns.items():
+                                if col != '$row_id':  # Skip internal row IDs
+                                    try:
+                                        value = values[i] if i < len(values) else None
+                                        obj_data[col] = value
+                                        if col == 'id':
+                                            obj_id = value
+                                    except Exception:
+                                        obj_data[col] = None
+                            
+                            if obj_id:
+                                # Parse metadata JSON string if present
+                                if 'metadata' in obj_data and isinstance(obj_data['metadata'], str):
+                                    try:
+                                        import json
+                                        obj_data['metadata'] = json.loads(obj_data['metadata'])
+                                    except (json.JSONDecodeError, TypeError):
+                                        obj_data['metadata'] = None
+                                
+                                objects_dict[obj_id] = obj_data
+            elif isinstance(result, list):
+                # List format
+                for item in result:
+                    if isinstance(item, dict):
+                        obj_id = item.get('id')
+                        if obj_id:
+                            # Parse metadata JSON string if present
+                            if 'metadata' in item and isinstance(item['metadata'], str):
+                                try:
+                                    import json
+                                    item['metadata'] = json.loads(item['metadata'])
+                                except (json.JSONDecodeError, TypeError):
+                                    item['metadata'] = None
+                            objects_dict[obj_id] = item
+            
+            # Mark missing objects as None
+            for obj_id in object_ids:
+                if obj_id not in objects_dict:
+                    objects_dict[obj_id] = None
+            
+            logger.debug(f"Batch query returned {len([v for v in objects_dict.values() if v is not None])} objects out of {len(object_ids)} requested")
+            return objects_dict
+            
+        except Exception as e:
+            logger.error(f"Failed to batch fetch objects: {e}", exc_info=True)
+            # Fallback: return empty dict, individual queries will be used
+            return {obj_id: None for obj_id in object_ids}
     
     async def create_get_urls(self, object_id: str) -> Optional[List[GetUrl]]:
         """
@@ -265,6 +454,50 @@ class GetUrlFactory:
         
         return storage_path, storage_id, content_type
     
+    async def _get_backend_info_cached(self, storage_id: Optional[str], storage_path: str) -> tuple[Optional[Dict[str, Any]], str]:
+        """
+        Get storage backend information with caching to avoid repeated lookups
+        
+        Returns:
+            Tuple of (backend_info dict, relative_storage_path for S3 key)
+        """
+        backend_info = None
+        relative_storage_path = storage_path
+        
+        if storage_id:
+            # Check cache first
+            if storage_id in self._backend_cache:
+                backend_info = self._backend_cache[storage_id]
+                logger.debug(f"Using cached backend info for storage_id: {storage_id}")
+            else:
+                # Fetch from database
+                try:
+                    from ..storagebackends.service import StorageBackendService
+                    backend_service = StorageBackendService(self.vast_db, self.s3_client)
+                    backend = await backend_service.get_storage_backend(storage_id)
+                    if backend:
+                        backend_info = backend.model_dump()
+                        # Cache it
+                        self._backend_cache[storage_id] = backend_info
+                        logger.debug(f"Cached backend info for storage_id: {storage_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to load storage backend {storage_id}: {e}")
+            
+            # Calculate relative path if backend_info is available
+            if backend_info:
+                backend_root_path = backend_info.get('root_path')
+                if backend_root_path:
+                    backend_root_path = backend_root_path.strip('/')
+                    # If storage_path already includes root_path, strip it for S3 key
+                    if storage_path.startswith(backend_root_path + '/'):
+                        relative_storage_path = storage_path[len(backend_root_path) + 1:]
+                    elif storage_path == backend_root_path:
+                        relative_storage_path = ""
+                    # If storage_path doesn't include root_path, it's already relative
+                    # (This happens when path was reconstructed from timestamp)
+        
+        return backend_info, relative_storage_path
+    
     async def _get_backend_info(self, storage_id: Optional[str], storage_path: str) -> tuple[Optional[Dict[str, Any]], str]:
         """
         Get storage backend information and calculate relative storage path
@@ -274,30 +507,8 @@ class GetUrlFactory:
         Returns:
             Tuple of (backend_info dict, relative_storage_path for S3 key)
         """
-        backend_info = None
-        relative_storage_path = storage_path
-        
-        if storage_id:
-            try:
-                from ..storagebackends.service import StorageBackendService
-                backend_service = StorageBackendService(self.vast_db, self.s3_client)
-                backend = await backend_service.get_storage_backend(storage_id)
-                if backend:
-                    backend_info = backend.model_dump()
-                    backend_root_path = backend.root_path
-                    if backend_root_path:
-                        backend_root_path = backend_root_path.strip('/')
-                        # If storage_path already includes root_path, strip it for S3 key
-                        if storage_path.startswith(backend_root_path + '/'):
-                            relative_storage_path = storage_path[len(backend_root_path) + 1:]
-                        elif storage_path == backend_root_path:
-                            relative_storage_path = ""
-                        # If storage_path doesn't include root_path, it's already relative
-                        # (This happens when path was reconstructed from timestamp)
-            except Exception as e:
-                logger.warning(f"Failed to load storage backend {storage_id}: {e}")
-        
-        return backend_info, relative_storage_path
+        # Use cached version
+        return await self._get_backend_info_cached(storage_id, storage_path)
     
     async def _generate_presigned_url(
         self, 

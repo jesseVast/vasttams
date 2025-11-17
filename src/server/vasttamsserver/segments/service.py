@@ -76,11 +76,11 @@ class SegmentStorageService:
                                 valid_segments = [s for s in segments_needing_urls if s.object_id]
                                 if valid_segments:
                                     logger.debug(f"Found {len(valid_segments)} segments with object_id out of {len(segments_needing_urls)} needing URLs")
-                                    # Use factory's batch processing for better multi-threaded performance
+                                    # Use factory's optimized batch processing
                                     object_ids = [segment.object_id for segment in valid_segments]
                                     batch_results = await self._get_url_factory.create_get_urls_batch(
                                         object_ids, 
-                                        batch_size=10
+                                        batch_size=100  # Increased from 10 to 100 for better parallelism
                                     )
                                     
                                     # Map results back to segments
@@ -273,13 +273,16 @@ class SegmentStorageService:
                         logger.warning(f"Skipping {len(invalid_segments)} segments without object_id (data integrity issue)")
                     
                     if valid_segments:
-                        # Use factory's batch processing for better multi-threaded performance
-                        # Increase batch size for better throughput when processing many segments
+                        # Use factory's optimized batch processing
+                        # Factory now handles:
+                        # - Batch database queries (single query for all objects)
+                        # - Parallel batch processing (all batches in parallel)
+                        # - Storage backend caching
                         object_ids = [segment.object_id for segment in valid_segments]
-                        # Use larger batch size (20) for better parallelization
+                        logger.debug(f"Generating get_urls for {len(object_ids)} segments using optimized batch processing")
                         batch_results = await self._get_url_factory.create_get_urls_batch(
                             object_ids, 
-                            batch_size=20
+                            batch_size=100  # Increased from 20 to 100 for better parallelism
                         )
                         
                         # Map results back to segments

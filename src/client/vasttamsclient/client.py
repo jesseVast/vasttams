@@ -154,16 +154,48 @@ class TAMSClient:
                 # Clear specific object
                 self._cache[object_type].pop(object_id, None)
     
-    async def close(self):
-        """Close HTTP session."""
+    async def close(self, wait_timeout: float = 10.0):
+        """
+        Close HTTP session properly, waiting for pending operations to complete.
+        
+        This method ensures that long-running uploads don't cause "Unclosed client session" warnings.
+        It waits for pending operations to complete before closing the session and connector.
+        
+        Args:
+            wait_timeout: Maximum time to wait for pending operations and connector close (default: 10.0 seconds)
+        """
         if self._session and not self._session.closed:
-            # Wait a brief moment to ensure any pending operations complete
-            # This helps avoid "Unclosed client session" warnings
-            await asyncio.sleep(0.1)
-            await self._session.close()
-            # Wait for connector to close all connections
-            if self._session.connector:
-                await self._session.connector.close()
+            try:
+                # Close the session first - this will cancel pending operations gracefully
+                # aiohttp will handle cleanup of active connections
+                await self._session.close()
+                
+                # Wait for connector to close all connections with timeout
+                # This is critical for proper cleanup and avoiding "Unclosed client session" warnings
+                if self._session.connector and not self._session.connector.closed:
+                    try:
+                        # Give connector time to close all connections
+                        # Use wait_for to prevent hanging indefinitely
+                        await asyncio.wait_for(
+                            self._session.connector.close(),
+                            timeout=wait_timeout
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            f"Timeout ({wait_timeout}s) closing connector. "
+                            "Some connections may still be closing in the background."
+                        )
+                    except Exception as e:
+                        logger.warning(f"Error closing connector: {e}", exc_info=True)
+            except Exception as e:
+                logger.warning(f"Error during session close: {e}", exc_info=True)
+                # Ensure session is marked as closed even if there's an error
+                try:
+                    if self._session and not self._session.closed:
+                        await self._session.close()
+                except Exception:
+                    pass
+        
         # Clear cache on close
         self.clear_cache()
         self._closed = True

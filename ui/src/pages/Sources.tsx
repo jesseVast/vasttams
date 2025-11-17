@@ -34,6 +34,7 @@ const Sources: React.FC = () => {
 
   useEffect(() => {
     loadSources();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadSources = async () => {

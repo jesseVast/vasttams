@@ -1,7 +1,8 @@
 import axios from 'axios';
-import { User, Source, Flow, Segment, AuthResponse, AnalyticsSummary, StorageBackend } from '../types';
+import { User, Source, Flow, Segment, AuthResponse, AnalyticsSummary } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_PREFIX = '/api/tams/v8.0';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -45,7 +46,7 @@ api.interceptors.response.use(
 export const authService = {
   login: async (username: string, password: string): Promise<AuthResponse> => {
     try {
-      const response = await api.post('/auth/login', {
+      const response = await api.post(`${API_PREFIX}/auth/login`, {
         username,
         password,
       });
@@ -69,12 +70,12 @@ export const authService = {
 
 export const userService = {
   list: async (): Promise<User[]> => {
-    const response = await api.get('/users');
+    const response = await api.get(`${API_PREFIX}/users`);
     return response.data || [];
   },
 
   create: async (username: string, role: string, password: string): Promise<User> => {
-    const response = await api.post('/users', {
+    const response = await api.post(`${API_PREFIX}/users`, {
       username,
       password,
       role,
@@ -83,15 +84,15 @@ export const userService = {
   },
 
   delete: async (username: string): Promise<void> => {
-    await api.delete(`/users/${username}`);
+    await api.delete(`${API_PREFIX}/users/${username}`);
   },
 
   updateRole: async (username: string, role: string): Promise<void> => {
-    await api.put(`/users/${username}/role`, { role });
+    await api.put(`${API_PREFIX}/users/${username}/role`, { role });
   },
 
   updatePassword: async (username: string, password: string): Promise<void> => {
-    await api.put(`/users/${username}/password`, { password });
+    await api.put(`${API_PREFIX}/users/${username}/password`, { password });
   },
 };
 
@@ -99,22 +100,22 @@ export const sourceService = {
   list: async (): Promise<Source[]> => {
     // source_collection is computed on-demand in get_source() only
     // List operations return empty source_collection for performance
-    const response = await api.get('/sources');
+    const response = await api.get(`${API_PREFIX}/sources`);
     return response.data?.data || response.data || [];
   },
 
   get: async (id: string): Promise<Source> => {
-    const response = await api.get(`/sources/${id}`);
+    const response = await api.get(`${API_PREFIX}/sources/${id}`);
     return response.data;
   },
 
   create: async (source: Partial<Source>): Promise<Source> => {
-    const response = await api.post('/sources', source);
+    const response = await api.post(`${API_PREFIX}/sources`, source);
     return response.data;
   },
 
   delete: async (id: string): Promise<void> => {
-    await api.delete(`/sources/${id}`);
+    await api.delete(`${API_PREFIX}/sources/${id}`);
   },
 };
 
@@ -124,12 +125,12 @@ export const flowService = {
     if (includeStatistics) {
       params.include_statistics = true;
     }
-    const response = await api.get('/flows', { params });
+    const response = await api.get(`${API_PREFIX}/flows`, { params });
     return response.data?.data || response.data || [];
   },
 
   getStatistics: async (): Promise<any[]> => {
-    const response = await api.get('/analytics/flows');
+    const response = await api.get(`${API_PREFIX}/analytics/flows`);
     return response.data || [];
   },
 
@@ -138,17 +139,17 @@ export const flowService = {
     if (includeTimerange) {
       params.include_timerange = true;
     }
-    const response = await api.get(`/flows/${id}`, { params });
+    const response = await api.get(`${API_PREFIX}/flows/${id}`, { params });
     return response.data;
   },
 
   create: async (flow: Partial<Flow>): Promise<Flow> => {
-    const response = await api.post('/flows', flow);
+    const response = await api.post(`${API_PREFIX}/flows`, flow);
     return response.data;
   },
 
   delete: async (id: string): Promise<void> => {
-    await api.delete(`/flows/${id}`);
+    await api.delete(`${API_PREFIX}/flows/${id}`);
   },
 };
 
@@ -166,7 +167,7 @@ export const segmentService = {
     }
     // Request get_urls by not setting accept_get_urls to empty string
     // The server will generate get_urls by default unless accept_get_urls="" is set
-    const response = await api.get(`/flows/${flowId}/segments`, { params });
+    const response = await api.get(`${API_PREFIX}/flows/${flowId}/segments`, { params });
     return response.data?.data || response.data || [];
   },
 };
@@ -190,60 +191,60 @@ export const segmentService = {
 
 export const webhookService = {
   list: async (): Promise<any[]> => {
-    const response = await api.get('/service/webhooks');
+    const response = await api.get(`${API_PREFIX}/service/webhooks`);
     return response.data?.data || response.data || [];
   },
 
   create: async (webhook: any): Promise<any> => {
-    const response = await api.post('/service/webhooks', webhook);
+    const response = await api.post(`${API_PREFIX}/service/webhooks`, webhook);
     return response.data;
   },
 
   delete: async (id: string): Promise<void> => {
-    await api.delete(`/service/webhooks/${id}`);
+    await api.delete(`${API_PREFIX}/service/webhooks/${id}`);
   },
 };
 
 export const storageBackendService = {
   list: async (): Promise<any[]> => {
-    const response = await api.get('/service/storage-backends');
+    const response = await api.get(`${API_PREFIX}/service/storage-backends`);
     return response.data?.data || response.data || [];
   },
 
   get: async (id: string): Promise<any> => {
-    const response = await api.get(`/service/storage-backends/${id}`);
+    const response = await api.get(`${API_PREFIX}/service/storage-backends/${id}`);
     return response.data;
   },
 
   create: async (backend: any): Promise<any> => {
-    const response = await api.post('/service/storage-backends', backend);
+    const response = await api.post(`${API_PREFIX}/service/storage-backends`, backend);
     return response.data;
   },
 
   update: async (id: string, backend: any): Promise<any> => {
-    const response = await api.put(`/service/storage-backends/${id}`, backend);
+    const response = await api.put(`${API_PREFIX}/service/storage-backends/${id}`, backend);
     return response.data;
   },
 
   delete: async (id: string): Promise<void> => {
-    await api.delete(`/service/storage-backends/${id}`);
+    await api.delete(`${API_PREFIX}/service/storage-backends/${id}`);
   },
 };
 
 export const analyticsService = {
   getSummary: async (refresh: boolean = false): Promise<AnalyticsSummary> => {
     const params = refresh ? { refresh: 'true' } : {};
-    const response = await api.get('/analytics/summary', { params });
+    const response = await api.get(`${API_PREFIX}/analytics/summary`, { params });
     return response.data;
   },
 
   getSourceAnalytics: async (): Promise<any[]> => {
-    const response = await api.get('/analytics/sources');
+    const response = await api.get(`${API_PREFIX}/analytics/sources`);
     return response.data || [];
   },
 
   getFlowAnalytics: async (): Promise<any[]> => {
-    const response = await api.get('/analytics/flows');
+    const response = await api.get(`${API_PREFIX}/analytics/flows`);
     return response.data || [];
   },
 };

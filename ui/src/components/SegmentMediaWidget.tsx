@@ -182,7 +182,6 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     if (mediaType === 'video' && videoRef.current && firstUrl?.url) {
       const video = videoRef.current;
       let playTimeout: NodeJS.Timeout | null = null;
-      let hasPlayed = false;
       
       // Use Intersection Observer to load and autoplay video when visible
       const observer = new IntersectionObserver(
@@ -199,7 +198,6 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                 if (video.readyState >= 3) { // HAVE_FUTURE_DATA or higher
                   video.muted = true; // Mute to allow autoplay
                   video.play().then(() => {
-                    hasPlayed = true;
                     // Stop playback after 1 second to limit data usage
                     if (playTimeout) clearTimeout(playTimeout);
                     playTimeout = setTimeout(() => {
@@ -207,7 +205,6 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                         video.pause();
                         // Reset to start for next play
                         video.currentTime = 0;
-                        hasPlayed = false;
                       }
                     }, 1000); // 1 second
                   }).catch((error) => {
@@ -226,7 +223,6 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                 clearTimeout(playTimeout);
                 playTimeout = null;
               }
-              hasPlayed = false;
               if (!video.paused) {
                 video.pause();
               }

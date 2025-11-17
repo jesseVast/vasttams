@@ -149,8 +149,23 @@ class TestDataGenerator:
         return self
         
     async def __aexit__(self, self_type, self_value, self_traceback):
-        if self.session:
-            await self.session.close()
+        if self.session and not self.session.closed:
+            try:
+                # Close the session first
+                await self.session.close()
+                # Close the connector to ensure all connections are properly cleaned up
+                if self.session.connector and not self.session.connector.closed:
+                    try:
+                        await asyncio.wait_for(
+                            self.session.connector.close(),
+                            timeout=10.0
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning("Timeout closing connector in generate_test_data")
+                    except Exception as e:
+                        logger.warning(f"Error closing connector: {e}")
+            except Exception as e:
+                logger.warning(f"Error during session close: {e}")
     
     async def wait_for_api(self, max_wait: int = DEFAULT_API_WAIT_TIMEOUT) -> bool:
         """Wait for the API to come online"""

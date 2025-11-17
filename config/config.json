@@ -18,7 +18,7 @@
       "access_key": "SRSPW0DQT9T70Y787U68",
       "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
       "bucket": "jthaloor-db",
-      "schema": "tams8-dev"
+      "schema": "tams8"
     },
     "trino": {
       "host": "docker1",
@@ -43,7 +43,7 @@
       "access_key": "SRSPW0DQT9T70Y787U68",
       "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
       "bucket_name": "jthaloor-s3",
-      "root_path": "/tams8-dev",
+      "root_path": "/",
       "use_ssl": false,
       "chunk_size": 8388608,
       "max_concurrent_parts": 10,
@@ -105,7 +105,7 @@
   
   "redis": {
     "enabled": true,
-    "host": "localhost",
+    "host": "docker1",
     "port": 6379,
     "password": null,
     "db": 0,

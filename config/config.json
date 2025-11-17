@@ -14,7 +14,7 @@
   
   "database": {
     "vast": {
-      "endpoint": "http://docker1:4001",
+      "endpoint": "http://docker1:4003",
       "access_key": "SRSPW0DQT9T70Y787U68",
       "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
       "bucket": "jthaloor-db",
@@ -39,7 +39,7 @@
       "store_product": "vast-s3",
       "region": "us-east-1",
       "availability_zone": null,
-      "endpoint_url": "http://docker1:4001",
+      "endpoint_url": "http://docker1:4002",
       "access_key": "SRSPW0DQT9T70Y787U68",
       "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
       "bucket_name": "jthaloor-s3",
@@ -107,7 +107,7 @@
     "enabled": true,
     "host": "localhost",
     "port": 6379,
-    "password": "redis",
+    "password": null,
     "db": 0,
     "ssl": false,
     "socket_timeout": 5,

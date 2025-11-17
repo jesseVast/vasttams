@@ -1,0 +1,78 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Documentation (but keep README files)
+*.md
+!README.md
+!**/README.md
+docs/
+
+# Test files
+tests/
+*.test.py
+*_test.py
+test_*.py
+
+# IDE files
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Build artifacts
+build/
+dist/
+*.egg
+wheels/*.egg-info
+wheels/dist/
+wheels/build/
+
+# Logs
+logs/
+*.log
+failed_tests.txt
+
+# Environment files
+.env
+.env.*
+.pip.conf
+pip.conf
+*.token
+*.key
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.coverage.*
+
+# Node modules (for UI)
+ui/node_modules/
+ui/build/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# Note: We explicitly include:
+# - src/server/requirements.txt (needed for Docker build)
+# - src/server/ (needed for application)
+# - wheels/*.whl (needed for private dependencies)
+# - mgmt/ (needed for management scripts)
+# - run.py (needed to start the server)
+# - config/ (needed for configuration)

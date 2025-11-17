@@ -17,6 +17,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { Segment, Flow } from '../types';
 import { segmentService, flowService } from '../services/api';
 import SegmentMediaWidget from '../components/SegmentMediaWidget';
+import { testSegmentLoading } from '../utils/performanceTest';
 
 // Normalize time input to TAMS format (seconds:nanoseconds)
 // Accepts formats like: "10", "10:0", "10:500000000" (for half a second in nanoseconds)
@@ -58,6 +59,8 @@ const Segments: React.FC = () => {
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  const [totalSegments, setTotalSegments] = useState<number | null>(null);
+  const [estimatedTotal, setEstimatedTotal] = useState<number | null>(null); // Estimated count for placeholders
 
   useEffect(() => {
     // Read initial flow_id from URL
@@ -187,49 +190,170 @@ const Segments: React.FC = () => {
   const loadSegments = useCallback(async () => {
     if (!filterFlowId) return;
     
+    // Show loading page immediately
+    setLoading(true);
+    setSegments([]);
+    setTotalSegments(null);
+    setEstimatedTotal(null);
+    setLoadingMore(false);
+    
+    // Performance instrumentation
+    const perfId = `loadSegments-${Date.now()}`;
+    const perfStartTime = performance.now();
+    performance.mark(`${perfId}-start`);
+    
+    console.group(`🔍 [Segments] Loading segments for flow: ${filterFlowId}`);
+    console.time(`${perfId}-total`);
+    
     try {
-      setLoading(true);
       const timerange = buildTimerange(startTime, endTime);
       
-      // Load first 4 segments immediately
-      const initialData = await segmentService.listByFlow(filterFlowId, timerange, 4, 0);
-      const sortedInitial = sortSegments(initialData);
-      setSegments(sortedInitial);
-      setLoading(false);
+      console.log(`[${perfId}] Timerange: ${timerange || 'none'}`);
       
-      // If we got 4 segments, there might be more - load them in background
-      if (initialData.length === 4) {
-        setLoadingMore(true);
+      // Load initial batch to get estimate and show UI immediately
+      const initialBatchSize = 50; // Load first 50 segments quickly
+      const initialApiStart = performance.now();
+      performance.mark(`${perfId}-initial-api-start`);
+      console.log(`[${perfId}] Starting initial API call (limit=${initialBatchSize}, offset=0)...`);
+      
+      const initialBatch = await segmentService.listByFlow(filterFlowId, timerange, initialBatchSize, 0);
+      
+      const initialApiEnd = performance.now();
+      performance.mark(`${perfId}-initial-api-end`);
+      performance.measure(`${perfId}-initial-api`, `${perfId}-initial-api-start`, `${perfId}-initial-api-end`);
+      console.log(`[${perfId}] Initial API call completed: ${(initialApiEnd - initialApiStart).toFixed(2)}ms, received ${initialBatch.length} segments`);
+      
+      // Estimate total: if we got a full batch, there are likely more
+      const estimated = initialBatch.length === initialBatchSize ? initialBatchSize * 10 : initialBatch.length;
+      setEstimatedTotal(estimated);
+      setTotalSegments(null); // Will be set when we know the actual total
+      
+      // Show UI with initial batch
+      const sortStart = performance.now();
+      const sortedInitial = sortSegments(initialBatch);
+      const sortEnd = performance.now();
+      console.log(`[${perfId}] Sorting initial batch: ${(sortEnd - sortStart).toFixed(2)}ms`);
+      
+      const setStateStart = performance.now();
+      setSegments(sortedInitial);
+      setLoading(false); // Hide loading page, show segments
+      setLoadingMore(true); // Show loading indicator in scroll bar
+      const setStateEnd = performance.now();
+      console.log(`[${perfId}] State update (setSegments, show UI): ${(setStateEnd - setStateStart).toFixed(2)}ms`);
+      console.log(`[${perfId}] UI displayed after: ${(setStateEnd - perfStartTime).toFixed(2)}ms`);
+      
+      // Load remaining segments in background
+      if (initialBatch.length > 0) {
+        const backgroundStart = performance.now();
+        console.log(`[${perfId}] Starting background loading...`);
+        
         // Load all remaining segments using pagination (max 1000 per request)
         // Fetch in batches of 1000 until we get fewer than requested
-        let allSegments = [...initialData];
-        let offset = 4;
+        let allSegments = [...initialBatch];
+        let offset = initialBatch.length;
         const batchSize = 1000;
-        let hasMore = true;
+        let hasMore = initialBatch.length === initialBatchSize; // If we got a full batch, there might be more
+        let batchCount = 0;
+        const batchTimings: number[] = [];
         
         while (hasMore) {
+          batchCount++;
+          const batchStart = performance.now();
+          performance.mark(`${perfId}-batch-${batchCount}-start`);
+          console.log(`[${perfId}] Batch ${batchCount}: Starting API call (limit=${batchSize}, offset=${offset})...`);
+          
           const batch = await segmentService.listByFlow(filterFlowId, timerange, batchSize, offset);
+          
+          const batchEnd = performance.now();
+          const batchDuration = batchEnd - batchStart;
+          batchTimings.push(batchDuration);
+          performance.mark(`${perfId}-batch-${batchCount}-end`);
+          performance.measure(`${perfId}-batch-${batchCount}`, `${perfId}-batch-${batchCount}-start`, `${perfId}-batch-${batchCount}-end`);
+          console.log(`[${perfId}] Batch ${batchCount} completed: ${batchDuration.toFixed(2)}ms, received ${batch.length} segments`);
+          
           if (batch.length === 0) {
             hasMore = false;
+            console.log(`[${perfId}] No more segments (empty batch)`);
           } else {
+            const mergeStart = performance.now();
             allSegments = [...allSegments, ...batch];
             offset += batch.length;
+            console.log(`[${perfId}] Merged batch ${batchCount}: ${(performance.now() - mergeStart).toFixed(2)}ms, total segments: ${allSegments.length}`);
+            
+            const sortPartialStart = performance.now();
+            const sortedPartial = sortSegments(allSegments);
+            const sortPartialEnd = performance.now();
+            console.log(`[${perfId}] Sorting partial (${allSegments.length} segments): ${(sortPartialEnd - sortPartialStart).toFixed(2)}ms`);
+            
+            const updateStateStart = performance.now();
+            setSegments(sortedPartial);
+            const updateStateEnd = performance.now();
+            console.log(`[${perfId}] State update (setSegments): ${(updateStateEnd - updateStateStart).toFixed(2)}ms`);
+            
+            // Keep scroll position at the left (first video visible) when new segments are added
+            // Use setTimeout to ensure DOM has updated
+            const domUpdateStart = performance.now();
+            setTimeout(() => {
+              const container = document.getElementById('segments-container');
+              if (container) {
+                // Keep scroll at the left (0) to show first video
+                container.scrollLeft = 0;
+              }
+              console.log(`[${perfId}] DOM update (scroll reset): ${(performance.now() - domUpdateStart).toFixed(2)}ms`);
+            }, 0);
+            
             // If we got fewer than requested, we've reached the end
             if (batch.length < batchSize) {
               hasMore = false;
+              // Set total count when we've loaded everything
+              setTotalSegments(allSegments.length);
+              console.log(`[${perfId}] Reached end (batch size < ${batchSize})`);
             }
           }
         }
         
+        const finalSortStart = performance.now();
         const sortedAll = sortSegments(allSegments);
+        const finalSortEnd = performance.now();
+        console.log(`[${perfId}] Final sort (${allSegments.length} segments): ${(finalSortEnd - finalSortStart).toFixed(2)}ms`);
+        
+        const finalStateStart = performance.now();
         setSegments(sortedAll);
+        setTotalSegments(sortedAll.length);
         setLoadingMore(false);
+        const finalStateEnd = performance.now();
+        console.log(`[${perfId}] Final state update: ${(finalStateEnd - finalStateStart).toFixed(2)}ms`);
+        
+        const backgroundEnd = performance.now();
+        const backgroundDuration = backgroundEnd - backgroundStart;
+        console.log(`[${perfId}] Background loading completed: ${backgroundDuration.toFixed(2)}ms`);
+        console.log(`[${perfId}] Batch timings: ${batchTimings.map(t => t.toFixed(2)).join(', ')}ms`);
+        console.log(`[${perfId}] Average batch time: ${(batchTimings.reduce((a, b) => a + b, 0) / batchTimings.length).toFixed(2)}ms`);
+      } else {
+        // No segments found
+        setTotalSegments(0);
+        setEstimatedTotal(0);
+        setLoadingMore(false);
+        console.log(`[${perfId}] No segments found`);
       }
+      
+      const totalEnd = performance.now();
+      const totalDuration = totalEnd - perfStartTime;
+      performance.mark(`${perfId}-end`);
+      performance.measure(`${perfId}-total`, `${perfId}-start`, `${perfId}-end`);
+      console.timeEnd(`${perfId}-total`);
+      console.log(`[${perfId}] ✅ Total time: ${totalDuration.toFixed(2)}ms`);
+      console.groupEnd();
+      
     } catch (error) {
-      console.error('Failed to load segments:', error);
+      const errorTime = performance.now();
+      const errorDuration = errorTime - perfStartTime;
+      console.error(`[${perfId}] ❌ Failed to load segments after ${errorDuration.toFixed(2)}ms:`, error);
+      console.groupEnd();
       setSegments([]);
       setLoading(false);
       setLoadingMore(false);
+      setTotalSegments(null);
     }
   }, [filterFlowId, startTime, endTime, sortSegments, buildTimerange]);
 
@@ -386,12 +510,61 @@ const Segments: React.FC = () => {
         </Paper>
       )}
 
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
-          <CircularProgress />
-          <Typography sx={{ ml: 2 }}>Loading segments...</Typography>
+      {/* Performance Test Button (dev only) */}
+      {process.env.NODE_ENV === 'development' && filterFlowId && (
+        <Box sx={{ mb: 2, p: 1, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={async () => {
+              const timerange = buildTimerange(startTime, endTime);
+              console.log('🧪 Running performance test...');
+              try {
+                await testSegmentLoading(filterFlowId, timerange || undefined);
+              } catch (error) {
+                console.error('Performance test failed:', error);
+              }
+            }}
+          >
+            🧪 Test Segment Loading Performance
+          </Button>
+          <Typography variant="caption" sx={{ ml: 2, color: 'text.secondary' }}>
+            Check browser console for detailed metrics
+          </Typography>
         </Box>
-      ) : segments.length === 0 ? (
+      )}
+
+      {/* Loading Page - Show before segments load */}
+      {loading ? (
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            minHeight: '60vh',
+            p: 4
+          }}
+        >
+          <CircularProgress size={60} thickness={4} />
+          <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
+            Loading Segments
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', maxWidth: 400 }}>
+            {filterFlowId 
+              ? `Loading segments for flow: ${filterFlowId}`
+              : 'Preparing to load segments...'}
+          </Typography>
+          {filteredFlow && (
+            <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Chip label={filteredFlow.format || 'Unknown'} size="small" />
+              {filteredFlow.label && (
+                <Chip label={filteredFlow.label} size="small" variant="outlined" />
+              )}
+            </Box>
+          )}
+        </Box>
+      ) : segments.length === 0 && !loadingMore ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300, p: 4 }}>
           <Typography variant="h6" color="text.secondary" gutterBottom>
             No segments found
@@ -404,25 +577,51 @@ const Segments: React.FC = () => {
         </Box>
       ) : (
         <Box>
-          {/* Segments Section */}
-          {segments.length > 0 && (
+          {/* Segments Section - Show scroll bar immediately */}
+          {(segments.length > 0 || loadingMore) && (
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
                 <Typography variant="subtitle1" color="text.secondary">
-                  {segments.length} segment{segments.length !== 1 ? 's' : ''} 
-                  {loadingMore && ' (loading more...)'}
+                  {totalSegments !== null 
+                    ? `${segments.length} of ${totalSegments} segment${totalSegments !== 1 ? 's' : ''} loaded`
+                    : `${segments.length} segment${segments.length !== 1 ? 's' : ''}${loadingMore ? ' (loading...)' : ''}`
+                  }
                 </Typography>
                 {loadingMore && (
-                  <LinearProgress sx={{ width: '100%', maxWidth: 300 }} />
+                  <Box sx={{ width: '100%', maxWidth: 300, position: 'relative' }}>
+                    <LinearProgress 
+                      variant={totalSegments !== null ? "determinate" : "indeterminate"}
+                      value={totalSegments !== null ? (segments.length / totalSegments) * 100 : undefined}
+                      sx={{ width: '100%' }}
+                    />
+                    {totalSegments !== null && (
+                      <Typography 
+                        variant="caption" 
+                        color="text.secondary" 
+                        sx={{ 
+                          mt: 0.5, 
+                          display: 'block', 
+                          textAlign: 'center',
+                          fontWeight: 'medium'
+                        }}
+                      >
+                        {segments.length} of {totalSegments} loaded ({Math.round((segments.length / totalSegments) * 100)}%)
+                      </Typography>
+                    )}
+                  </Box>
                 )}
               </Box>
           <Box
             sx={{
               display: 'flex',
+              flexDirection: 'row', // Left to right layout
               overflowX: 'auto',
               overflowY: 'hidden',
               pb: 2,
               gap: 0,
+              // Ensure first video stays on the left
+              justifyContent: 'flex-start',
+              alignItems: 'flex-start',
               '&::-webkit-scrollbar': {
                 height: 8,
               },
@@ -438,6 +637,7 @@ const Segments: React.FC = () => {
                 },
               },
             }}
+            id="segments-container"
           >
             {segments.map((segment, index) => (
               <SegmentMediaWidget
@@ -446,6 +646,7 @@ const Segments: React.FC = () => {
                 flow={filteredFlow}
                 width={280}
                 height={157.5} // 16:9 aspect ratio
+                isFirst={index === 0} // Pass flag to indicate first video
               />
             ))}
           </Box>

@@ -1,4 +1,10 @@
 # TAMS FastAPI Server Dockerfile
+#
+# BUILD CONTEXT: This Dockerfile expects the build context to be the project root directory.
+# When using docker-compose, the context is automatically set to '..' (parent of docker/).
+# When building manually, use: docker build -f docker/Dockerfile .
+# (from the project root, not from the docker/ directory)
+#
 FROM python:3.12-slim
 
 # Set working directory
@@ -14,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     && useradd -r -g tamsuser -s /bin/bash -d /app tamsuser
 
 # Copy server requirements first for better caching
+# Note: This path is relative to the build context (project root)
 COPY src/server/requirements.txt /app/requirements.txt
 
 # Copy private dependency wheels (vastdbmanager and vasts3)

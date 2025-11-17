@@ -16,14 +16,17 @@
     "@types/node": "^16.18.126",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "@videojs/themes": "^1.0.1",
     "axios": "^1.13.0",
     "dayjs": "^1.11.18",
     "hls.js": "^1.6.14",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-player": "^3.4.0",
     "react-router-dom": "^7.9.4",
     "react-scripts": "5.0.1",
     "typescript": "^4.9.5",
+    "video.js": "^8.23.4",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

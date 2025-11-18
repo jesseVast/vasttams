@@ -52,9 +52,11 @@ wheels/
 
 # Test coverage
 .coverage
+.coverage.*
+coverage.json
+coverage.xml
 htmlcov/
 .pytest_cache/
-.coverage.*
 
 # Logs
 logs/

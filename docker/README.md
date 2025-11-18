@@ -2,14 +2,20 @@
 
 This directory contains Docker configuration files for running TAMS in containerized environments.
 
-## Files
+## Directory Structure
 
-- `Dockerfile` - Server container image
-- `Dockerfile.ui` - UI container image  
+- `server/` - Server-related Docker files
+  - `Dockerfile` - Server container image
+  - `config/` - Configuration examples (production.yaml.example)
+  - `haproxy/` - HAProxy configuration for S3 proxying
+  - `trino/` - Trino configuration files
+  - `BUILD.md` - Server build documentation
+  - `LOGGING.md` - Logging configuration documentation
+- `ui/` - UI-related Docker files
+  - `Dockerfile.ui` - UI container image
+  - `nginx.conf` - Nginx configuration for UI
 - `docker-compose.yml` - Multi-container orchestration
-- `nginx.conf` - Nginx configuration for UI
-- `haproxy/` - HAProxy configuration for S3 proxying
-- `trino/` - Trino configuration files
+- `docker-compose.observability.yml` - Observability stack configuration
 
 ## Quick Start
 
@@ -128,6 +134,12 @@ Set `CONFIG_FILE` environment variable to use a different config file:
 
 ```bash
 export CONFIG_FILE=/path/to/production.yaml
+docker-compose up
+```
+
+For production, you can use the example config:
+```bash
+export CONFIG_FILE=../docker/server/config/production.yaml.example
 docker-compose up
 ```
 

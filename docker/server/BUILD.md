@@ -14,12 +14,12 @@ cd ~/images/vasttams
 
 **Step 2: Build the image**
 ```bash
-docker build -f docker/Dockerfile -t tams-api .
+docker build -f docker/server/Dockerfile -t tams-api .
 ```
 
 Or in one command:
 ```bash
-cd ~/images/vasttams && docker build -f docker/Dockerfile -t tams-api .
+cd ~/images/vasttams && docker build -f docker/server/Dockerfile -t tams-api .
 ```
 
 ### ❌ Wrong Ways (causes errors):
@@ -30,7 +30,7 @@ docker build -t tams-api docker/.
 
 # ❌ WRONG: Running from src/ directory - can't find docker/Dockerfile
 cd src
-docker build -f docker/Dockerfile -t tams-api .
+docker build -f docker/server/Dockerfile -t tams-api .
 # Error: unable to evaluate symlinks in Dockerfile path: lstat docker: no such file or directory
 ```
 
@@ -53,6 +53,6 @@ The `docker-compose.yml` file correctly sets:
 ```yaml
 build:
   context: ..          # Project root
-  dockerfile: docker/Dockerfile
+      dockerfile: docker/server/Dockerfile
 ```
 

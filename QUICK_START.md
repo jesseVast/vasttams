@@ -63,7 +63,7 @@ from app.flows.service import FlowStorageService
 ## Docker (Alternative)
 
 ```bash
-docker build -f docker/Dockerfile -t tams:8.0.0 .
+docker build -f docker/server/Dockerfile -t tams:8.0.0 .
 docker run -p 8000:8000 tams:8.0.0
 ```
 

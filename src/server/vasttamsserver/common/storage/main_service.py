@@ -597,8 +597,11 @@ class TAMSStorageService(StorageInterface):
             logger.debug(f"Derived content-type '{content_type}' from flow {flow_id}")
             
             backend_info = None
+            resolved_storage_id = None
+            
             # If a storage_id was specified, fetch that backend to use its endpoint/credentials
             if getattr(storage_request, 'storage_id', None):
+                resolved_storage_id = storage_request.storage_id
                 try:
                     from ...storagebackends.service import StorageBackendService
                     backend_service = StorageBackendService(self.vast_db, self.s3_client)
@@ -607,6 +610,22 @@ class TAMSStorageService(StorageInterface):
                         backend_info = backend.model_dump()
                 except Exception as e:
                     logger.warning(f"Failed to load storage backend {storage_request.storage_id}: {e}")
+            else:
+                # No storage_id provided - resolve default backend at creation time
+                # This ensures all objects have storage_id in metadata (required for get_urls)
+                try:
+                    from ...storagebackends.service import StorageBackendService
+                    backend_service = StorageBackendService(self.vast_db, self.s3_client)
+                    backends = await backend_service.get_storage_backends()
+                    default_backend = next((b for b in backends if b.default_storage), None)
+                    if default_backend:
+                        resolved_storage_id = default_backend.id
+                        backend_info = default_backend.model_dump()
+                        logger.debug(f"Using default storage backend {resolved_storage_id} for object allocation")
+                    else:
+                        logger.warning("No default storage backend found - object will not have storage_id in metadata")
+                except Exception as e:
+                    logger.warning(f"Failed to resolve default storage backend: {e}")
             
             # Generate object IDs
             limit = storage_request.limit or 1
@@ -676,8 +695,14 @@ class TAMSStorageService(StorageInterface):
                         "storage_path": storage_path,  # Full path including root_path
                         "content_type": content_type  # Store for GET URL generation
                     }
-                    if backend_info and backend_info.get('id'):
+                    # Always store storage_id if we resolved one (required for get_urls generation)
+                    if resolved_storage_id:
+                        metadata["storage_id"] = resolved_storage_id
+                    elif backend_info and backend_info.get('id'):
+                        # Fallback to backend_info.id if resolved_storage_id wasn't set
                         metadata["storage_id"] = backend_info['id']
+                    else:
+                        logger.warning(f"Object {object_id} created without storage_id - get_urls generation may fail")
                     # Build raw row dict (avoid Pydantic Object model to bypass timerange requirement)
                     # Note: referenced_by_flows is computed dynamically from segments table, not stored
                     obj_row = {

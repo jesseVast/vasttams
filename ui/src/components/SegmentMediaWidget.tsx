@@ -648,7 +648,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                 <Divider sx={{ mb: 1 }} />
                 <Stack spacing={1}>
                   {segment.get_urls.map((url, index) => (
-                    <Box key={index} sx={{ p: 1, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                    <Box key={index} sx={{ p: 1, backgroundColor: '#e8e8e8', borderRadius: 1 }}>
                       <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem', wordBreak: 'break-all' }}>
                         {url.url}
                       </Typography>

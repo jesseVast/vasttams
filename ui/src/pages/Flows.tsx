@@ -579,7 +579,7 @@ const Flows: React.FC = () => {
       </Box>
 
       {filteredSource && (
-        <Card sx={{ mb: 2, backgroundColor: '#f5f5f5' }}>
+        <Card sx={{ mb: 2, backgroundColor: '#e8e8e8' }}>
           <CardContent>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 0.5 }}>

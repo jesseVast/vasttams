@@ -141,7 +141,7 @@ const Layout: React.FC = () => {
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
-          backgroundColor: '#f5f5f5',
+          backgroundColor: '#e8e8e8',  // Less bright gray
           color: '#333',
         }}
       >
@@ -232,6 +232,8 @@ const Layout: React.FC = () => {
           flexGrow: 1,
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
+          backgroundColor: '#f0f0f0',  // Less bright background
+          minHeight: '100vh',
         }}
       >
         <Toolbar />

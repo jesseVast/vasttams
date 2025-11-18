@@ -102,8 +102,8 @@ async def get_source_analytics(
         analytics_service = AnalyticsService(vast_db)
         analytics = await analytics_service.get_source_analytics()
         
-        # Cache the result
-        analytics_dict = [item.model_dump() for item in analytics]
+        # Cache the result - use mode='json' to serialize datetime objects to ISO strings
+        analytics_dict = [item.model_dump(mode='json') for item in analytics]
         await cache_service.set(ANALYTICS_SOURCES_CACHE_KEY, json.dumps(analytics_dict), ttl=ANALYTICS_CACHE_TTL)
         
         return analytics
@@ -149,8 +149,8 @@ async def get_flow_analytics(
         analytics_service = AnalyticsService(vast_db)
         analytics = await analytics_service.get_flow_analytics()
         
-        # Cache the result
-        analytics_dict = [item.model_dump() for item in analytics]
+        # Cache the result - use mode='json' to serialize datetime objects to ISO strings
+        analytics_dict = [item.model_dump(mode='json') for item in analytics]
         await cache_service.set(ANALYTICS_FLOWS_CACHE_KEY, json.dumps(analytics_dict), ttl=ANALYTICS_CACHE_TTL)
         
         return analytics

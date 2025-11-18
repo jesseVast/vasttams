@@ -22,6 +22,7 @@ passlib[bcrypt]==1.7.4
 # Environment and configuration
 python-dotenv==1.1.1
 click==8.1.7
+pyyaml>=6.0  # YAML support for configuration files (supports comments)
 
 # Database and ORM
 alembic==1.16.2

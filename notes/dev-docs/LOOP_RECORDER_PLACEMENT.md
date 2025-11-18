@@ -307,16 +307,13 @@ async def _handle_loop_recorder(self, flow_id: str):
 
 ### Step 5: Configuration
 
-Add to `config/config.json`:
+Add to `config/config.yaml`:
 
-```json
-{
-  "loop_recorder": {
-    "enabled": true,
-    "min_segment_duration": 0.5,
-    "max_segment_age_seconds": 86400
-  }
-}
+```yaml
+loop_recorder:
+  enabled: true
+  min_segment_duration: 0.5
+  max_segment_age_seconds: 86400
 ```
 
 ## Alternative: Background Task

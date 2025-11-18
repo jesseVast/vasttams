@@ -44,7 +44,7 @@ spec:
           env:
             # Config file path
             - name: TAMS_CONFIG_PATH
-              value: "/etc/tams/config.json"
+              value: "/etc/tams/config.yaml"
             # VAST Database credentials
             - name: VAST_ACCESS_KEY
               valueFrom:

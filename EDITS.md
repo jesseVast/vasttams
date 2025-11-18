@@ -98,7 +98,7 @@ Removed legacy `client/` folder that was superseded by `src/client/vasttamsclien
 - **src/server/vasttamsserver/core/tams_logging.py**:
   - Updated to use `self.settings.log_dir` for log directory
 
-- **config/config.json**:
+- **config/config.yaml**:
   - Added `"dir": "logs"` to logging section
 
 ### Files Created
@@ -111,7 +111,7 @@ Removed legacy `client/` folder that was superseded by `src/client/vasttamsclien
 - **Client Package**: New implementation in `src/client/vasttamsclient/` is properly packaged and independently installable
 - **Observability**: All services integrated into main docker-compose.yml with profile-based activation
 - **K8s**: Only Helm charts supported, all standalone YAML files removed
-- **Logging**: Configurable via `config.json`, supports both relative and absolute paths
+- **Logging**: Configurable via `config.yaml`, supports both relative and absolute paths
 
 ### Impact
 - Cleaner codebase with legacy code removed
@@ -138,7 +138,7 @@ Migrated Kubernetes deployment to Helm-only approach. Removed all standalone YAM
 - **src/server/vasttamsserver/core/config.py**: Added log_dir setting
 - **src/server/vasttamsserver/core/simple_logging.py**: Use configurable path
 - **src/server/vasttamsserver/core/tams_logging.py**: Use configurable path
-- **config/config.json**: Added log_dir configuration
+- **config/config.yaml**: Added log_dir configuration
 
 ### Impact
 Simplified Kubernetes deployment with Helm-only approach. Configurable logging for different environments.
@@ -349,7 +349,7 @@ Added comprehensive Storage Backends management UI, fixed storage backend schema
 - **src/server/vasttamsserver/storagebackends/schemas.py**: Added `bucket_name`, `root_path`, `use_ssl` fields to PyArrow schema
 - **src/server/vasttamsserver/storagebackends/models.py**: Added fields to StorageBackend, StorageBackendPost, StorageBackendPatch models
 - **src/server/vasttamsserver/storagebackends/service.py**: Updated `create_storage_backend` to include new fields
-- **src/server/vasttamsserver/main.py**: Updated storage backend initialization from config.json to include new fields
+- **src/server/vasttamsserver/main.py**: Updated storage backend initialization from config.yaml to include new fields
 - **src/server/vasttamsserver/common/storage/main_service.py**: Use `storage_backend.get('root_path')`, `bucket_name`, `use_ssl` in presigned URL generation
 - **src/server/vasttamsserver/segments/service.py**: Use `storage_backend.get('root_path')`, `bucket_name`, `use_ssl` in presigned URL generation
 - **src/server/vasttamsserver/core/simple_logging.py**: Use `settings.log_level` instead of hardcoded values, set levels for all existing loggers
@@ -381,7 +381,7 @@ Added comprehensive Storage Backends management UI, fixed storage backend schema
    - Changed from hardcoded `"DEBUG" if settings.debug else "INFO"` to `settings.log_level.upper()`
    - Explicitly sets root logger level after dictConfig
    - Iterates through existing loggers to set level for `vasttams.*` submodules
-   - All submodules now respect configured log level from config.json
+   - All submodules now respect configured log level from config.yaml
 
 5. **Navigation Reorganization**:
    - Main items: Dashboard, Sources, Flows, Segments

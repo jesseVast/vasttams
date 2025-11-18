@@ -225,7 +225,7 @@ bash mgmt/generate_self_signed_cert.sh
 
 ## Environment Configuration
 
-Scripts use the same configuration as the TAMS server. Make sure your `config/config.json` is properly configured with:
+Scripts use the same configuration as the TAMS server. Make sure your `config/config.yaml` is properly configured with:
 
 - `vast_endpoint`
 - `vast_access_key`
@@ -269,8 +269,8 @@ docker exec -it tams-api python /app/mgmt/generate_openapi.py
 ### Container Configuration
 
 - Scripts automatically detect container vs development environment
-- In container: config is at `/etc/tams/config.json` (mounted from host)
-- In development: config is at `config/config.json`
+- In container: config is at `/etc/tams/config.yaml` (mounted from host)
+- In development: config is at `config/config.yaml`
 - The `Settings` class handles path resolution automatically
 
 ## Notes

@@ -81,7 +81,7 @@ notes/
    - Added HAProxy deployment template with S3 proxy config
    - Added HAProxy ConfigMap with backend server configuration
    - Added PVC templates for logs and vast_data persistence
-   - Updated configmap to full config.json structure
+   - Updated configmap to full config.yaml structure
    - Added environment variables for all configuration
    - Support configurable logs directory via `config.logDir`
 
@@ -112,13 +112,13 @@ notes/
 - **Modified**: `src/server/vasttamsserver/core/config.py` (configurable log_dir)
 - **Modified**: `src/server/vasttamsserver/core/simple_logging.py` (use configurable path)
 - **Modified**: `src/server/vasttamsserver/core/tams_logging.py` (use configurable path)
-- **Modified**: `config/config.json` (added log_dir setting)
+- **Modified**: `config/config.yaml` (added log_dir setting)
 
 #### **🔍 Technical Details**
 - **Client Package**: New implementation in `src/client/vasttamsclient/` is properly packaged with setup.py, pyproject.toml
 - **Observability**: All services use Docker Compose profiles for flexible deployment
 - **K8s Deployment**: Only Helm charts supported, standalone YAML deprecated
-- **Logging**: Log directory now configurable via `config.json` (default: "logs")
+- **Logging**: Log directory now configurable via `config.yaml` (default: "logs")
 
 ### **🔧 FLOW FILTERING AND TEST FIXES COMPLETE** (November 8, 2025)
 **Date**: November 8, 2025  
@@ -327,7 +327,7 @@ notes/
 #### **🗄️ Storage Backend Schema Updates**
 - **Added Fields**: `bucket_name`, `root_path`, and `use_ssl` to storage_backends schema
 - **Database Storage**: These fields now properly stored in database and available in models
-- **Initialization**: Updated storage backend initialization from config.json to include new fields
+- **Initialization**: Updated storage backend initialization from config.yaml to include new fields
 
 #### **🔧 Presigned URL Root Path Fix**
 - **Problem**: Presigned URLs using settings.s3_root_path instead of storage backend's root_path
@@ -336,7 +336,7 @@ notes/
 - **Files Updated**: `main_service.py` and `segments/service.py` both updated
 
 #### **📝 Logging Configuration Fix**
-- **Problem**: Log level from config.json not propagating to all submodules
+- **Problem**: Log level from config.yaml not propagating to all submodules
 - **Root Cause**: `simple_logging.py` using hardcoded levels instead of `settings.log_level`
 - **Solution**: Updated to use `settings.log_level` and explicitly set levels for all existing loggers
 - **Result**: All `vasttams.*` submodules now respect configured log level

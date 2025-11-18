@@ -72,18 +72,16 @@ kafka_config = {
 
 ### Enabling Kafka in Config
 
-Add to `config/config.json`:
+Add to `config/config.yaml`:
 
-```json
-{
-  "kafka": {
-    "enabled": true,
-    "bootstrap_servers": ["localhost:9092"],
-    "topic": "tams-events",
-    "client_id": "tams-producer",
-    "security_protocol": "PLAINTEXT"
-  }
-}
+```yaml
+kafka:
+  enabled: true
+  bootstrap_servers:
+    - "localhost:9092"
+  topic: "tams-events"
+  client_id: "tams-producer"
+  security_protocol: "PLAINTEXT"
 ```
 
 ### Installing Kafka Library

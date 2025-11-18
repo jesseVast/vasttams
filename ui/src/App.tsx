@@ -21,6 +21,10 @@ const theme = createTheme({
     secondary: {
       main: '#dc004e',
     },
+    background: {
+      default: '#f0f0f0',  // Less bright gray background
+      paper: '#ffffff',
+    },
   },
 });
 

@@ -41,6 +41,9 @@ class GetUrlFactory:
         # Cache for storage backends to avoid repeated lookups
         self._backend_cache: Dict[str, Dict[str, Any]] = {}
         self._backend_cache_ttl = 300  # 5 minutes TTL
+        # Cache for the full list of storage backends (to avoid repeated SELECT * queries)
+        self._all_backends_cache: Optional[List[Dict[str, Any]]] = None
+        self._all_backends_cache_time: Optional[float] = None
     
     def __del__(self):
         """Cleanup thread pool executor on destruction"""
@@ -666,13 +669,32 @@ class GetUrlFactory:
     async def _resolve_storage_id(self) -> str:
         """Resolve storage_id from default backend or generate UUID"""
         try:
-            from ..storagebackends.service import StorageBackendService
-            backend_service = StorageBackendService(self.vast_db, self.s3_client)
-            backends = await backend_service.get_storage_backends()
-            default_backend = next((b for b in backends if b.default_storage), None)
+            import time
+            current_time = time.time()
+            
+            # Check cache first (with TTL)
+            if (self._all_backends_cache is not None and 
+                self._all_backends_cache_time is not None and
+                (current_time - self._all_backends_cache_time) < self._backend_cache_ttl):
+                logger.debug("Using cached storage backends list")
+                backends = self._all_backends_cache
+            else:
+                # Fetch from database and cache
+                from ..storagebackends.service import StorageBackendService
+                backend_service = StorageBackendService(self.vast_db, self.s3_client)
+                backends_list = await backend_service.get_storage_backends()
+                # Convert to dict format for caching
+                backends = [b.model_dump() for b in backends_list]
+                self._all_backends_cache = backends
+                self._all_backends_cache_time = current_time
+                logger.debug(f"Cached storage backends list ({len(backends)} backends)")
+            
+            default_backend = next((b for b in backends if b.get('default_storage')), None)
             if default_backend:
-                logger.debug(f"Using default storage backend for get_urls: {default_backend.id}")
-                return default_backend.id
+                storage_id = default_backend.get('id')
+                if storage_id:
+                    logger.debug(f"Using default storage backend for get_urls: {storage_id}")
+                    return storage_id
         except Exception as e:
             logger.warning(f"Failed to get default storage backend: {e}")
         

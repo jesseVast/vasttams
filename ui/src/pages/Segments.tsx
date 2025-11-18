@@ -387,7 +387,7 @@ const Segments: React.FC = () => {
       </Box>
 
       {filteredFlow && (
-        <Paper sx={{ p: 1.5, mb: 2, backgroundColor: '#f5f5f5' }}>
+        <Paper sx={{ p: 1.5, mb: 2, backgroundColor: '#e8e8e8' }}>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
             <Typography variant="caption" sx={{ fontWeight: 'bold', minWidth: 60 }}>
               Flow:
@@ -437,7 +437,7 @@ const Segments: React.FC = () => {
 
       {/* Time Interval Search */}
       {filterFlowId && (
-        <Paper sx={{ p: 1.5, mb: 2, backgroundColor: '#fafafa' }}>
+        <Paper sx={{ p: 1.5, mb: 2, backgroundColor: '#e8e8e8' }}>
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
             <Typography variant="caption" sx={{ fontWeight: 'bold', minWidth: 80 }}>
               Time Range:

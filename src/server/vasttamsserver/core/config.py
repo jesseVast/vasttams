@@ -38,8 +38,8 @@ class Settings(BaseSettings):
     workers: int = Field(default=4, description="Number of uvicorn worker processes (default: 4, set to 1 for single process)")
     
     # VAST Database settings
-    vast_endpoint: str = Field(default="http://localhost:9090",
-        description="VAST database endpoint URL")
+    vast_endpoint: str = Field(default="",
+        description="VAST database endpoint URL (REQUIRED - must be set in config.json or TAMS_VAST_ENDPOINT)")
     vast_access_key: str = Field(default="",
         description="VAST database access key")
     vast_secret_key: str = Field(default="",
@@ -238,9 +238,29 @@ class Settings(BaseSettings):
         
         if self.tams_cache_ttl > 86400:  # 24 hours
             raise ValueError("TAMS cache TTL cannot exceed 24 hours (86400 seconds)")
+        
+        # Validate VAST endpoint is configured (fail fast if not set)
+        if not self.vast_endpoint or self.vast_endpoint.strip() == "":
+            raise ValueError(
+                "VAST endpoint is not configured. "
+                "Please set 'database.vast.endpoint' in config.json or set TAMS_VAST_ENDPOINT environment variable. "
+                "Application cannot start without a valid VAST database endpoint."
+            )
+        
+        # Warn if using localhost:9090 (likely misconfiguration)
+        if "localhost:9090" in self.vast_endpoint or "127.0.0.1:9090" in self.vast_endpoint:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"VAST endpoint is set to {self.vast_endpoint} which may be incorrect. "
+                f"Please verify 'database.vast.endpoint' in config.json is set correctly."
+            )
 
     def _load_mounted_config(self):
         """Load configuration from mounted config file or local development config"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         # Check for mounted config first (production)
         config_file_path = "/etc/tams/config.json"
         
@@ -249,6 +269,7 @@ class Settings(BaseSettings):
             config_file_path = "config/config.json"
         
         if os.path.exists(config_file_path):
+            logger.debug(f"Loading configuration from: {config_file_path}")
             try:
                 with open(config_file_path, 'r') as f:
                     config_data = json.load(f)
@@ -281,7 +302,11 @@ class Settings(BaseSettings):
                     if 'vast' in db:
                         vast = db['vast']
                         if 'endpoint' in vast:
-                            self.vast_endpoint = vast['endpoint']
+                            endpoint_value = vast['endpoint']
+                            logger.debug(f"Loaded vast_endpoint from config: {endpoint_value}")
+                            self.vast_endpoint = endpoint_value
+                        else:
+                            logger.warning("Config file found but 'database.vast.endpoint' is missing. Will use default or environment variable.")
                         if 'access_key' in vast:
                             self.vast_access_key = vast['access_key']
                         if 'secret_key' in vast:
@@ -451,7 +476,13 @@ class Settings(BaseSettings):
                 # Log error but continue with default values
                 import logging
                 logger = logging.getLogger(__name__)
-                logger.warning(f"Could not load config file {config_file_path}: {e}")
+                logger.error(f"Could not load config file {config_file_path}: {e}")
+                logger.error("Application will use default values. This may cause startup failures if required settings are missing.")
+        else:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Config file not found at {config_file_path}. Using default values and environment variables.")
+            logger.warning("This may cause startup failures if required settings (like vast_endpoint) are not configured.")
     
     @property
     def storage_backends_config(self) -> Optional[List[dict]]:

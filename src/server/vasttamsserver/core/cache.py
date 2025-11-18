@@ -58,6 +58,11 @@ class CacheService:
         self._health_check_success_count = 0
         self._health_check_failure_count = 0
         self._key_prefix = "tams"
+        # Cache statistics for periodic reporting
+        self._cache_hits = 0
+        self._cache_misses = 0
+        self._last_stats_log: Optional[datetime] = None
+        self._stats_log_interval = timedelta(minutes=5)
         
         if REDIS_AVAILABLE and self.settings.redis_enabled:
             self._enabled = True
@@ -187,7 +192,7 @@ class CacheService:
                         
                         self._consecutive_failures = 0
                         self._health_check_success_count += 1
-                        logger.info(f"Redis health check #{self._health_check_count}: Ping successful ({elapsed_ms:.1f}ms) - "
+                        logger.debug(f"Redis health check #{self._health_check_count}: Ping successful ({elapsed_ms:.1f}ms) - "
                                    f"Stats: {self._health_check_success_count} success, {self._health_check_failure_count} failures")
                     except Exception as e:
                         self._available = False
@@ -247,27 +252,37 @@ class CacheService:
         await self._ensure_initialized()
         
         if not self._available:
-            logger.info(f"Cache miss (Redis unavailable): {key}")
+            logger.debug(f"Cache miss (Redis unavailable): {key}")
+            self._cache_misses += 1
+            self._log_cache_stats_if_needed()
             return None
         
         try:
             full_key = self._make_key(key)
             value = await self._redis.get(full_key)
             if value is None:
-                logger.info(f"Cache miss: {key} (full key: {full_key})")
+                logger.debug(f"Cache miss: {key} (full key: {full_key})")
+                self._cache_misses += 1
+                self._log_cache_stats_if_needed()
                 return None
             
             deserialized = self._deserialize(value)
-            logger.info(f"Cache hit: {key} (full key: {full_key})")
+            logger.debug(f"Cache hit: {key} (full key: {full_key})")
+            self._cache_hits += 1
+            self._log_cache_stats_if_needed()
             return deserialized
             
         except (ConnectionError, TimeoutError) as e:
-            logger.info(f"Cache miss (connection error): {key} - {e}")
+            logger.debug(f"Cache miss (connection error): {key} - {e}")
+            self._cache_misses += 1
+            self._log_cache_stats_if_needed()
             self._available = False
             self._consecutive_failures += 1
             return None
         except Exception as e:
-            logger.info(f"Cache miss (error): {key} - {e}")
+            logger.debug(f"Cache miss (error): {key} - {e}")
+            self._cache_misses += 1
+            self._log_cache_stats_if_needed()
             return None
     
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
@@ -401,6 +416,20 @@ class CacheService:
         except Exception as e:
             logger.debug(f"Cache clear pattern failed: {pattern} - {e}")
             return 0
+    
+    def _log_cache_stats_if_needed(self):
+        """Log cache hit/miss statistics periodically (every 5 minutes)."""
+        now = datetime.now()
+        if self._last_stats_log is None or (now - self._last_stats_log) >= self._stats_log_interval:
+            total_requests = self._cache_hits + self._cache_misses
+            if total_requests > 0:
+                hit_rate = (self._cache_hits / total_requests) * 100
+                logger.info(f"Cache statistics (last 5min): {self._cache_hits} hits, {self._cache_misses} misses, "
+                           f"{hit_rate:.1f}% hit rate (total: {total_requests} requests)")
+            self._last_stats_log = now
+            # Reset counters for next period
+            self._cache_hits = 0
+            self._cache_misses = 0
     
     async def get_status(self) -> Dict[str, Any]:
         """

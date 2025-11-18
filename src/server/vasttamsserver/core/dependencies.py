@@ -18,6 +18,9 @@ def get_vast_db() -> VastDBManager:
     global vast_db
     if vast_db is None:
         settings = get_settings()
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Initializing VastDBManager with endpoint: {settings.vast_endpoint}")
         vast_db = VastDBManager(
             endpoints=[settings.vast_endpoint],
             access_key=settings.vast_access_key,

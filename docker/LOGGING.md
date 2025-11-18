@@ -92,16 +92,13 @@ docker volume inspect logs_data
 
 ### Config File Settings
 
-Log directory and level can be configured in `config.json`:
+Log directory and level can be configured in `config.yaml`:
 
-```json
-{
-  "logging": {
-    "level": "INFO",
-    "format": "detailed",
-    "dir": "/app/logs"
-  }
-}
+```yaml
+logging:
+  level: "INFO"
+  format: "detailed"
+  dir: "/app/logs"
 ```
 
 ### Environment Variables

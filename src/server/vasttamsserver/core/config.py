@@ -4,7 +4,15 @@ from pydantic_settings import BaseSettings
 from pydantic import Field
 from typing import Optional, List
 import os
-import json
+
+# YAML is required for configuration file support
+try:
+    import yaml
+except ImportError:
+    raise ImportError(
+        "PyYAML is required for configuration file support. "
+        "Install with: pip install pyyaml>=6.0"
+    )
 
 # Configuration Constants
 DEFAULT_PORT = 8000
@@ -39,7 +47,7 @@ class Settings(BaseSettings):
     
     # VAST Database settings
     vast_endpoint: str = Field(default="",
-        description="VAST database endpoint URL (REQUIRED - must be set in config.json or TAMS_VAST_ENDPOINT)")
+        description="VAST database endpoint URL (REQUIRED - must be set in config.yaml or TAMS_VAST_ENDPOINT)")
     vast_access_key: str = Field(default="",
         description="VAST database access key")
     vast_secret_key: str = Field(default="",
@@ -243,7 +251,7 @@ class Settings(BaseSettings):
         if not self.vast_endpoint or self.vast_endpoint.strip() == "":
             raise ValueError(
                 "VAST endpoint is not configured. "
-                "Please set 'database.vast.endpoint' in config.json or set TAMS_VAST_ENDPOINT environment variable. "
+                "Please set 'database.vast.endpoint' in config.yaml or set TAMS_VAST_ENDPOINT environment variable. "
                 "Application cannot start without a valid VAST database endpoint."
             )
         
@@ -253,26 +261,40 @@ class Settings(BaseSettings):
             logger = logging.getLogger(__name__)
             logger.warning(
                 f"VAST endpoint is set to {self.vast_endpoint} which may be incorrect. "
-                f"Please verify 'database.vast.endpoint' in config.json is set correctly."
+                f"Please verify 'database.vast.endpoint' in config.yaml is set correctly."
             )
 
     def _load_mounted_config(self):
-        """Load configuration from mounted config file or local development config"""
+        """Load configuration from mounted config file or local development config
+        
+        Only supports YAML (.yaml, .yml) format.
+        YAML is required as it supports comments for documentation.
+        """
         import logging
         logger = logging.getLogger(__name__)
         
-        # Check for mounted config first (production)
-        config_file_path = "/etc/tams/config.json"
+        # Try multiple YAML config file locations
+        # Priority: production > development, .yaml > .yml
+        config_candidates = [
+            "/etc/tams/config.yaml",
+            "/etc/tams/config.yml",
+            "config/config.yaml",
+            "config/config.yml"
+        ]
         
-        # If mounted config doesn't exist, check for local development config
-        if not os.path.exists(config_file_path):
-            config_file_path = "config/config.json"
+        config_file_path = None
+        for candidate in config_candidates:
+            if os.path.exists(candidate):
+                config_file_path = candidate
+                break
         
-        if os.path.exists(config_file_path):
+        if config_file_path:
             logger.debug(f"Loading configuration from: {config_file_path}")
             try:
                 with open(config_file_path, 'r') as f:
-                    config_data = json.load(f)
+                    config_data = yaml.safe_load(f)
+                    if config_data is None:
+                        config_data = {}  # Handle empty YAML files
                 
                 # Load API settings
                 if 'api' in config_data:
@@ -472,16 +494,23 @@ class Settings(BaseSettings):
                     if 'retry_attempts' in webhooks:
                         self.webhook_retry_attempts = webhooks['retry_attempts']
                         
-            except (json.JSONDecodeError, IOError) as e:
+            except (yaml.YAMLError, IOError) as e:
                 # Log error but continue with default values
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.error(f"Could not load config file {config_file_path}: {e}")
                 logger.error("Application will use default values. This may cause startup failures if required settings are missing.")
+            except Exception as e:
+                # Re-raise unexpected errors
+                logger.error(f"Unexpected error loading config file {config_file_path}: {e}")
+                raise
         else:
             import logging
             logger = logging.getLogger(__name__)
-            logger.warning(f"Config file not found at {config_file_path}. Using default values and environment variables.")
+            logger.warning("No config file found. Tried:")
+            for candidate in config_candidates:
+                logger.warning(f"  - {candidate}")
+            logger.warning("Using default values and environment variables.")
             logger.warning("This may cause startup failures if required settings (like vast_endpoint) are not configured.")
     
     @property

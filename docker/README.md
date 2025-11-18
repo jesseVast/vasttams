@@ -78,7 +78,7 @@ docker exec -it tams-api python /app/mgmt/generate_openapi.py
 ### Configuration
 
 Scripts use the same configuration as the server:
-- In container: `/etc/tams/config.json` (mounted from host)
+- In container: `/etc/tams/config.yaml` (mounted from host)
 - The `Settings` class automatically detects the correct config path
 - Environment variables can override config values (prefixed with `TAMS_`)
 
@@ -117,23 +117,23 @@ docker cp tams-api:/app/logs/tams.log ./
 
 ## Configuration
 
-The server expects configuration at `/etc/tams/config.json` inside the container. This is mounted from the host via docker-compose:
+The server expects configuration at `/etc/tams/config.yaml` inside the container. This is mounted from the host via docker-compose:
 
 ```yaml
 volumes:
-  - ${CONFIG_FILE:-../config/config.json}:/etc/tams/config.json:ro
+  - ${CONFIG_FILE:-../config/config.yaml}:/etc/tams/config.yaml:ro
 ```
 
 Set `CONFIG_FILE` environment variable to use a different config file:
 
 ```bash
-export CONFIG_FILE=/path/to/production.json
+export CONFIG_FILE=/path/to/production.yaml
 docker-compose up
 ```
 
 ## Environment Variables
 
-- `TAMS_CONFIG_PATH` - Override config file path (default: `/etc/tams/config.json`)
+- `TAMS_CONFIG_PATH` - Override config file path (default: `/etc/tams/config.yaml`)
 - `TAMS_*` - Any setting can be overridden with `TAMS_` prefix (e.g., `TAMS_VAST_ENDPOINT`)
 
 ## Volumes

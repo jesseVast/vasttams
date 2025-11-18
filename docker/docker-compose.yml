@@ -51,10 +51,10 @@ services:
     volumes:
       - vast_data:/app/vast_data
       - logs_data:/app/logs
-      # Config file mounting - use production.json for prod, config.json for dev
-      - ${CONFIG_FILE:-../config/config.json}:/etc/tams/config.json:ro
+      # Config file mounting - use production.yaml for prod, config.yaml for dev
+      - ${CONFIG_FILE:-../config/config.yaml}:/etc/tams/config.yaml:ro
     environment:
-      - TAMS_CONFIG_PATH=/etc/tams/config.json
+      - TAMS_CONFIG_PATH=/etc/tams/config.yaml
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

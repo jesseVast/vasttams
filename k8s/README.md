@@ -38,7 +38,7 @@ The Helm chart deploys:
 - **HAProxy S3 Proxy**: Clients don't talk directly to S3
 - **UI Support**: Optional React UI deployment
 - **Persistent Storage**: Configurable PVCs for logs and data
-- **Full Config Support**: Complete config.json structure via ConfigMap
+- **Full Config Support**: Complete config.yaml structure via ConfigMap
 - **Secrets Management**: Secure credential handling
 - **Auto-scaling**: HPA based on CPU and memory
 

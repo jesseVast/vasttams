@@ -1,0 +1,111 @@
+# TAMS (Time-addressable Media Store) Configuration
+# This file supports comments for documentation and clarity
+# YAML format is recommended over JSON for better readability and comment support
+
+api:
+  title: "TAMS API"
+  version: "8.0"
+  description: "Time-addressable Media Store API"
+
+server:
+  host: "0.0.0.0"  # Listen on all interfaces (use 127.0.0.1 for localhost only)
+  port: 8000
+  debug: false  # Should be false in production for security and performance
+  workers: 1  # Set to 1 for single-process mode (development), higher for production (default: 4)
+
+database:
+  vast:
+    # REQUIRED: VAST database endpoint URL
+    # Must be set or application will fail to start
+    # Format: http://hostname:port
+    endpoint: "http://docker1:4003"
+    access_key: "SRSPW0DQT9T70Y787U68"
+    secret_key: "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
+    bucket: "jthaloor-db"
+    schema: "tams8"
+  
+  trino:
+    host: "docker1"
+    port: 8080
+    user: "admin"
+    catalog: "vast"
+    enabled: true
+  
+  enable_table_projections: true
+
+storage_backends:
+  - id: "default"
+    label: "default-s3-storage"
+    store_type: "http_object_store"
+    provider: "vast"
+    store_product: "vast-s3"
+    region: "us-east-1"
+    availability_zone: null
+    endpoint_url: "http://docker1:4002"
+    access_key: "SRSPW0DQT9T70Y787U68"
+    secret_key: "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
+    bucket_name: "jthaloor-s3"
+    root_path: "/tams8"
+    use_ssl: false
+    chunk_size: 8388608  # 8MB chunks for multipart uploads
+    max_concurrent_parts: 10
+    default_storage: true
+
+storage:
+  default_backend_id: "default"
+  tams_storage_path: "tams"
+  tams_root: "/"
+  presigned_url:
+    upload_timeout: 3600  # 1 hour - matches cache TTL
+    download_timeout: 3600  # 1 hour - matches cache TTL
+  get_urls_max_count: 5
+  flow_storage_default_limit: 10
+  segment_storage_default_limit: 10
+  async_deletion_threshold: 1000  # Threshold for switching to async deletion (segments)
+
+logging:
+  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
+  dir: "logs"
+
+tams_compliance:
+  enabled: true
+  validation_level: "strict"  # Options: strict, moderate, lenient
+  uuid_validation: true
+  timestamp_validation: true
+  content_format_validation: true
+  mime_type_validation: true
+  error_reporting: true
+  audit_logging: true
+  cache_enabled: true
+  cache_ttl: 3600  # Matches presigned URL expiration (1 hour)
+
+telemetry:
+  enabled: true
+  metrics_enabled: true
+  tracing_enabled: true
+  jaeger_endpoint: "localhost:14268"
+  otlp_endpoint: "http://localhost:4318/v1/traces"
+
+authentication:
+  # WARNING: Change this secret key in production!
+  secret_key: "your-secret-key-here-change-in-production"
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+
+webhooks:
+  timeout: 30  # seconds
+  retry_attempts: 3
+
+redis:
+  enabled: true
+  host: "docker1"
+  port: 6379
+  password: null  # Set password if Redis requires authentication
+  db: 0
+  ssl: false
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  max_connections: 50
+  health_check_interval: 30  # seconds
+

@@ -59,19 +59,19 @@ python folder_ingestor.py \
 
 ### With Configuration File
 
-1. Copy `config.json.example` to `config.json`:
+1. Copy `config.yaml.example` to `config.yaml`:
    ```bash
-   cp config.json.example config.json
+   cp config.yaml.example config.yaml
    ```
 
-2. Edit `config.json` with your settings
+2. Edit `config.yaml` with your settings
 
 3. Run with config file:
    ```bash
    python folder_ingestor.py \
      --folder /path/to/folder \
      --format urn:x-nmos:format:video \
-     --config config.json
+     --config config.yaml
    ```
 
 ### Command Line Options

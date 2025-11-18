@@ -1,27 +1,35 @@
 # Configuration File Documentation
 
-This document describes the `config.json` configuration file used by the TAMS (Time-addressable Media Store) server.
+This document describes the configuration files used by the TAMS (Time-addressable Media Store) server.
+
+## Configuration File Format
+
+The server **only supports YAML** configuration format:
+
+- **YAML** (`.yaml` or `.yml`) - Required format with comment support for documentation
+
+**Why YAML?** YAML supports comments, making it easier to document settings, explain defaults, and temporarily disable options. JSON does not support comments and is no longer supported.
 
 ## Configuration File Location
 
-The server looks for the configuration file in the following order:
-1. `/etc/tams/config.json` (production - mounted config)
-2. `config/config.json` (development - local config)
+The server looks for configuration files in the following order:
 
-If neither file exists, the server will use default values for all settings.
+1. `/etc/tams/config.yaml` (production - mounted config)
+2. `/etc/tams/config.yml` (production - mounted config)
+3. `config/config.yaml` (development - local config)
+4. `config/config.yml` (development - local config)
+
+If no config file is found, the server will use default values for all settings (which may cause startup failures if required settings like `vast_endpoint` are missing).
 
 ## Configuration Sections
 
 ### API Configuration
 
-```json
-{
-  "api": {
-    "title": "TAMS API",
-    "version": "8.0",
-    "description": "Time-addressable Media Store API"
-  }
-}
+```yaml
+api:
+  title: "TAMS API"
+  version: "8.0"
+  description: "Time-addressable Media Store API"
 ```
 
 - **`title`** (string): API title displayed in OpenAPI documentation
@@ -30,15 +38,12 @@ If neither file exists, the server will use default values for all settings.
 
 ### Server Configuration
 
-```json
-{
-  "server": {
-    "host": "0.0.0.0",
-    "port": 8000,
-    "debug": false,
-    "workers": 1
-  }
-}
+```yaml
+server:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  workers: 1
 ```
 
 - **`host`** (string): Server bind address. Use `0.0.0.0` to listen on all interfaces, or a specific IP address
@@ -48,26 +53,21 @@ If neither file exists, the server will use default values for all settings.
 
 ### Database Configuration
 
-```json
-{
-  "database": {
-    "vast": {
-      "endpoint": "http://docker1:4001",
-      "access_key": "SRSPW0DQT9T70Y787U68",
-      "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
-      "bucket": "jthaloor-db",
-      "schema": "tams8-dev"
-    },
-    "trino": {
-      "host": "docker1",
-      "port": 8080,
-      "user": "admin",
-      "catalog": "vast",
-      "enabled": true
-    },
-    "enable_table_projections": true
-  }
-}
+```yaml
+database:
+  vast:
+    endpoint: "http://docker1:4001"
+    access_key: "SRSPW0DQT9T70Y787U68"
+    secret_key: "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
+    bucket: "jthaloor-db"
+    schema: "tams8-dev"
+  trino:
+    host: "docker1"
+    port: 8080
+    user: "admin"
+    catalog: "vast"
+    enabled: true
+  enable_table_projections: true
 ```
 
 #### VAST Database Settings
@@ -97,29 +97,24 @@ If neither file exists, the server will use default values for all settings.
 
 ### Storage Backends Configuration
 
-```json
-{
-  "storage_backends": [
-    {
-      "id": "default",
-      "label": "default-s3-storage",
-      "store_type": "http_object_store",
-      "provider": "vast",
-      "store_product": "vast-s3",
-      "region": "us-east-1",
-      "availability_zone": null,
-      "endpoint_url": "http://docker1:4001",
-      "access_key": "SRSPW0DQT9T70Y787U68",
-      "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
-      "bucket_name": "jthaloor-s3",
-      "root_path": "/tams8-dev",
-      "use_ssl": false,
-      "chunk_size": 8388608,
-      "max_concurrent_parts": 10,
-      "default_storage": true
-    }
-  ]
-}
+```yaml
+storage_backends:
+  - id: "default"
+    label: "default-s3-storage"
+    store_type: "http_object_store"
+    provider: "vast"
+    store_product: "vast-s3"
+    region: "us-east-1"
+    availability_zone: null
+    endpoint_url: "http://docker1:4001"
+    access_key: "SRSPW0DQT9T70Y787U68"
+    secret_key: "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
+    bucket_name: "jthaloor-s3"
+    root_path: "/tams8-dev"
+    use_ssl: false
+    chunk_size: 8388608
+    max_concurrent_parts: 10
+    default_storage: true
 ```
 
 Multiple storage backends can be configured. Each backend supports:
@@ -143,22 +138,18 @@ Multiple storage backends can be configured. Each backend supports:
 
 ### Storage Configuration
 
-```json
-{
-  "storage": {
-    "default_backend_id": "default",
-    "tams_storage_path": "tams",
-    "tams_root": "/tams",
-    "presigned_url": {
-      "upload_timeout": 3600,
-      "download_timeout": 3600
-    },
-    "get_urls_max_count": 5,
-    "flow_storage_default_limit": 10,
-    "segment_storage_default_limit": 10,
-    "async_deletion_threshold": 1000
-  }
-}
+```yaml
+storage:
+  default_backend_id: "default"
+  tams_storage_path: "tams"
+  tams_root: "/tams"
+  presigned_url:
+    upload_timeout: 3600
+    download_timeout: 3600
+  get_urls_max_count: 5
+  flow_storage_default_limit: 10
+  segment_storage_default_limit: 10
+  async_deletion_threshold: 1000
 ```
 
 - **`default_backend_id`** (string): ID of the default storage backend (must match an ID in `storage_backends`)
@@ -173,14 +164,11 @@ Multiple storage backends can be configured. Each backend supports:
 
 ### Logging Configuration
 
-```json
-{
-  "logging": {
-    "level": "INFO",
-    "format": "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
-    "dir": "logs"
-  }
-}
+```yaml
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
+  dir: "logs"
 ```
 
 - **`level`** (string): Log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`). Use `INFO` for production, `DEBUG` for development
@@ -189,21 +177,18 @@ Multiple storage backends can be configured. Each backend supports:
 
 ### TAMS Compliance Configuration
 
-```json
-{
-  "tams_compliance": {
-    "enabled": true,
-    "validation_level": "strict",
-    "uuid_validation": true,
-    "timestamp_validation": true,
-    "content_format_validation": true,
-    "mime_type_validation": true,
-    "error_reporting": true,
-    "audit_logging": true,
-    "cache_enabled": true,
-    "cache_ttl": 300
-  }
-}
+```yaml
+tams_compliance:
+  enabled: true
+  validation_level: "strict"
+  uuid_validation: true
+  timestamp_validation: true
+  content_format_validation: true
+  mime_type_validation: true
+  error_reporting: true
+  audit_logging: true
+  cache_enabled: true
+  cache_ttl: 300
 ```
 
 - **`enabled`** (boolean): Enable TAMS API compliance mode
@@ -219,16 +204,13 @@ Multiple storage backends can be configured. Each backend supports:
 
 ### Telemetry Configuration
 
-```json
-{
-  "telemetry": {
-    "enabled": true,
-    "metrics_enabled": true,
-    "tracing_enabled": true,
-    "jaeger_endpoint": "localhost:14268",
-    "otlp_endpoint": "http://localhost:4318/v1/traces"
-  }
-}
+```yaml
+telemetry:
+  enabled: true
+  metrics_enabled: true
+  tracing_enabled: true
+  jaeger_endpoint: "localhost:14268"
+  otlp_endpoint: "http://localhost:4318/v1/traces"
 ```
 
 - **`enabled`** (boolean): Enable telemetry collection
@@ -239,14 +221,11 @@ Multiple storage backends can be configured. Each backend supports:
 
 ### Authentication Configuration
 
-```json
-{
-  "authentication": {
-    "secret_key": "your-secret-key-here-change-in-production",
-    "algorithm": "HS256",
-    "access_token_expire_minutes": 30
-  }
-}
+```yaml
+authentication:
+  secret_key: "your-secret-key-here-change-in-production"
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
 ```
 
 - **`secret_key`** (string): **IMPORTANT**: Secret key for JWT token generation. **Must be changed in production** to a secure random string
@@ -255,13 +234,10 @@ Multiple storage backends can be configured. Each backend supports:
 
 ### Webhooks Configuration
 
-```json
-{
-  "webhooks": {
-    "timeout": 30,
-    "retry_attempts": 3
-  }
-}
+```yaml
+webhooks:
+  timeout: 30
+  retry_attempts: 3
 ```
 
 - **`timeout`** (integer): Webhook request timeout in seconds (default: 30)
@@ -269,21 +245,18 @@ Multiple storage backends can be configured. Each backend supports:
 
 ### Redis Configuration
 
-```json
-{
-  "redis": {
-    "enabled": true,
-    "host": "localhost",
-    "port": 6379,
-    "password": "redis",
-    "db": 0,
-    "ssl": false,
-    "socket_timeout": 5,
-    "socket_connect_timeout": 5,
-    "max_connections": 50,
-    "health_check_interval": 30
-  }
-}
+```yaml
+redis:
+  enabled: true
+  host: "localhost"
+  port: 6379
+  password: "redis"
+  db: 0
+  ssl: false
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  max_connections: 50
+  health_check_interval: 30
 ```
 
 - **`enabled`** (boolean): Enable Redis caching (required for multi-container deployments)
@@ -306,7 +279,7 @@ All configuration values can also be set via environment variables using the `TA
 - `TAMS_VAST_ENDPOINT` → `database.vast.endpoint`
 - `TAMS_REDIS_HOST` → `redis.host`
 
-Environment variables take precedence over values in `config.json`.
+Environment variables take precedence over values in `config.yaml`.
 
 ## Production Considerations
 
@@ -334,5 +307,5 @@ Environment variables take precedence over values in `config.json`.
 
 ## Example Configuration
 
-See `config/config.json` for a complete example configuration file.
+See `config/config.yaml.example` for a complete example configuration file.
 

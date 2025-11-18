@@ -164,7 +164,7 @@ class CacheService:
     
     async def _health_check_loop(self):
         """Periodic health check and reconnection."""
-        logger.info(f"Redis health check loop started (interval: {self.settings.redis_health_check_interval}s)")
+        logger.debug(f"Redis health check loop started (interval: {self.settings.redis_health_check_interval}s)")
         
         while self._enabled:
             try:
@@ -179,7 +179,7 @@ class CacheService:
                     await self._connect()
                     if self._available:
                         self._health_check_success_count += 1
-                        logger.info(f"Redis health check #{self._health_check_count}: Reconnection successful")
+                        logger.debug(f"Redis health check #{self._health_check_count}: Reconnection successful")
                     else:
                         self._health_check_failure_count += 1
                         logger.warning(f"Redis health check #{self._health_check_count}: Reconnection failed (consecutive failures: {self._consecutive_failures})")
@@ -202,7 +202,7 @@ class CacheService:
                                      f"(consecutive failures: {self._consecutive_failures})")
                         
             except asyncio.CancelledError:
-                logger.info("Redis health check loop cancelled")
+                logger.debug("Redis health check loop cancelled")
                 break
             except Exception as e:
                 self._health_check_failure_count += 1

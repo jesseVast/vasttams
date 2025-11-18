@@ -313,7 +313,7 @@ kubectl logs -f deployment/tams-api-haproxy
    - Check logs: `kubectl logs deployment/tams-api`
    - Verify secrets are set correctly
    - Check VAST and S3 connectivity
-   - Verify config.json is valid: `kubectl get configmap tams-api-config -o jsonpath='{.data.config\.json}' | jq`
+   - Verify config.yaml is valid: `kubectl get configmap tams-api-config -o jsonpath='{.data.config\.yaml}' | yq`
 
 2. **Ingress not working**
    - Verify NGINX ingress controller is installed

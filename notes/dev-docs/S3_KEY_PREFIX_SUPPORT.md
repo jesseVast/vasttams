@@ -6,7 +6,7 @@ Added support for `s3_root_path` configuration to be used as `key_prefix` in S3C
 ## Changes Made
 
 ### Issue
-The `s3_root_path` setting in `config/config.json` was not being used when creating the S3 client. VAST S3 supports a `key_prefix` parameter which acts the same way - prefixing all object keys.
+The `s3_root_path` setting in `config/config.yaml` was not being used when creating the S3 client. VAST S3 supports a `key_prefix` parameter which acts the same way - prefixing all object keys.
 
 ### Solution
 1. **Added `s3_root_path` to Settings model** (`src/vasttams/core/config.py`):

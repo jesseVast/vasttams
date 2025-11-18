@@ -1,9 +1,46 @@
 # TAMS Project - Current Status
 
-**Last Updated**: November 10, 2025  
-**Status**: Non-Blocking Deletion Requests Implemented, Client 202 Response Handling Complete
+**Last Updated**: January 27, 2025  
+**Status**: YAML Configuration Support Added, Non-Blocking Deletion Requests Implemented
 
-## 🎯 **CURRENT FOCUS: NON-BLOCKING DELETION REQUESTS**
+## 🎯 **CURRENT FOCUS: CONFIGURATION FILE IMPROVEMENTS**
+
+### **✅ COMPLETED: YAML CONFIGURATION SUPPORT** (January 27, 2025)
+**Status**: ✅ **COMPLETED** - YAML config file support added with backward compatibility
+
+#### **🏗️ Key Achievements**
+- **YAML Support**: Added support for YAML configuration files (`.yaml`, `.yml`)
+  - Native comment support for documentation
+  - More readable than JSON for nested structures
+  - Backward compatible with existing JSON configs
+  
+- **File Priority**: Config loader checks YAML files in multiple locations
+  - Priority: production > development, .yaml > .yml
+  - Supports: `/etc/tams/config.yaml`, `/etc/tams/config.yml`
+  - Development: `config/config.yaml`, `config/config.yml`
+
+- **Dependencies**: Added `pyyaml>=6.0` to requirements.txt
+- **Documentation**: Updated `config/README.md` with YAML format information
+- **Example**: Created `config/config.yaml.example` with helpful comments
+
+#### **📝 Files Modified**
+- `src/server/requirements.txt` - Added pyyaml>=6.0
+- `src/server/vasttamsserver/core/config.py` - Added YAML parsing with backward compatibility
+- `config/README.md` - Updated with YAML format documentation
+
+#### **📝 Files Created**
+- `config/config.yaml.example` - Example YAML config with comments
+- `docs/CONFIG_FORMAT_RECOMMENDATION.md` - Detailed comparison of config formats
+
+#### **💡 Benefits**
+- **Comments**: Can now document settings directly in config files
+- **Readability**: YAML is more human-readable than JSON
+- **Backward Compatible**: Existing JSON configs continue to work
+- **No Breaking Changes**: Seamless migration path
+
+---
+
+## 🎯 **PREVIOUS FOCUS: NON-BLOCKING DELETION REQUESTS**
 
 ### **✅ COMPLETED: NON-BLOCKING DELETION REQUESTS IMPLEMENTATION** (November 10, 2025)
 **Status**: ✅ **COMPLETED** - Non-blocking deletion requests implemented with hybrid quantity/time thresholds, full client support

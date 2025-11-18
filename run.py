@@ -34,7 +34,7 @@ def main():
     # Start the server
     # Use multiple workers for better concurrency handling
     # Workers can be configured via:
-    # 1. Settings.workers (from config.json or TAMS_WORKERS env var)
+    # 1. Settings.workers (from config.yaml or TAMS_WORKERS env var)
     # 2. UVICORN_WORKERS environment variable (takes precedence)
     import os
     workers = int(os.getenv("UVICORN_WORKERS", str(settings.workers)))

@@ -1,0 +1,109 @@
+# TAMS (Time-addressable Media Store) Production Configuration
+# Copy this file to production.yaml and update with your production values
+# This file supports comments for documentation and clarity
+
+api:
+  title: "TAMS API"
+  version: "8.0"
+  description: "Time-addressable Media Store API"
+
+server:
+  host: "0.0.0.0"  # Listen on all interfaces
+  port: 8000
+  debug: false  # MUST be false in production
+  workers: 4  # Set based on CPU cores (typically 4-8 for production)
+
+database:
+  vast:
+    # REQUIRED: VAST database endpoint URL
+    endpoint: "http://your-vast-endpoint:4001"
+    access_key: "YOUR_VAST_ACCESS_KEY"
+    secret_key: "YOUR_VAST_SECRET_KEY"
+    bucket: "your-bucket"
+    schema: "tams8"
+  
+  trino:
+    host: "trino-host"
+    port: 8080
+    user: "admin"
+    catalog: "vast"
+    enabled: true
+  
+  enable_table_projections: true
+
+storage_backends:
+  - id: "default"
+    label: "default-s3-storage"
+    store_type: "http_object_store"
+    provider: "vast"
+    store_product: "vast-s3"
+    region: "us-east-1"
+    availability_zone: null
+    endpoint_url: "http://your-s3-endpoint:4001"
+    access_key: "YOUR_S3_ACCESS_KEY"
+    secret_key: "YOUR_S3_SECRET_KEY"
+    bucket_name: "your-s3-bucket"
+    root_path: "/tams8"
+    use_ssl: false  # Set to true if using SSL/TLS
+    chunk_size: 8388608  # 8MB chunks
+    max_concurrent_parts: 10
+    default_storage: true
+
+storage:
+  default_backend_id: "default"
+  tams_storage_path: "tams"
+  tams_root: "/tams"
+  presigned_url:
+    upload_timeout: 3600  # 1 hour
+    download_timeout: 3600  # 1 hour
+  get_urls_max_count: 5
+  flow_storage_default_limit: 10
+  segment_storage_default_limit: 10
+  async_deletion_threshold: 1000
+
+logging:
+  level: "INFO"  # Use INFO for production, DEBUG only for troubleshooting
+  format: "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"
+  dir: "logs"  # Log directory path
+
+tams_compliance:
+  enabled: true
+  validation_level: "strict"
+  uuid_validation: true
+  timestamp_validation: true
+  content_format_validation: true
+  mime_type_validation: true
+  error_reporting: true
+  audit_logging: false  # Set to true if audit logging is required
+  cache_enabled: true
+  cache_ttl: 3600
+
+telemetry:
+  enabled: true
+  metrics_enabled: true
+  tracing_enabled: true
+  jaeger_endpoint: "localhost:14268"  # Update with your Jaeger endpoint
+  otlp_endpoint: "http://localhost:4318/v1/traces"  # Update with your OTLP endpoint
+
+authentication:
+  # CRITICAL: Change this secret key in production!
+  secret_key: "CHANGE_THIS_IN_PRODUCTION"
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+
+webhooks:
+  timeout: 30  # seconds
+  retry_attempts: 3
+
+redis:
+  enabled: true
+  host: "redis-host"  # Update with your Redis host
+  port: 6379
+  password: null  # Set password if Redis requires authentication
+  db: 0
+  ssl: false  # Set to true if using SSL/TLS
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  max_connections: 50
+  health_check_interval: 30  # seconds
+

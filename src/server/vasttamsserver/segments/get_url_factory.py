@@ -154,17 +154,63 @@ class GetUrlFactory:
             
             # Get storage backend information (with caching)
             backend_info, relative_storage_path = await self._get_backend_info_cached(storage_id, storage_path)
-            
-            # Generate presigned URL
-            presigned_url = await self._generate_presigned_url(
-                key=relative_storage_path,
-                operation="get_object",
-                expiration=self.settings.s3_presigned_url_download_timeout if hasattr(self.settings, 's3_presigned_url_download_timeout') else 3600,
-                storage_backend=backend_info,
-                content_type=content_type
+
+            # Log path information for debugging
+            backend_root_path = backend_info.get('root_path') if backend_info else None
+            backend_root_path_stripped = backend_root_path.strip('/') if backend_root_path else ""
+            bucket_name = backend_info.get('bucket_name') if backend_info else None
+            logger.debug(
+                f"[_create_get_urls_cached] Object {object_id}: "
+                f"storage_path={storage_path}, relative_storage_path={relative_storage_path}, "
+                f"backend_root_path={backend_root_path} (stripped: '{backend_root_path_stripped}'), "
+                f"bucket_name={bucket_name}, storage_id={storage_id}"
             )
-            
+
+            # Check cache for presigned URL first (using object_id as key)
+            cache_key = f"presigned_url:{object_id}"
+            presigned_url = None
+
+            try:
+                from ..core.dependencies import get_cache_service
+                cache_service = get_cache_service()
+                cached_url = await cache_service.get(cache_key)
+                if cached_url:
+                    logger.debug(f"[_create_get_urls_cached] Cache hit for presigned URL: {object_id}")
+                    presigned_url = cached_url
+            except Exception as e:
+                logger.debug(f"Failed to check cache for presigned URL {object_id}: {e}")
+
+            # Generate presigned URL if not cached
             if not presigned_url:
+                logger.debug(
+                    f"[_create_get_urls_cached] Generating presigned URL for {object_id} with "
+                    f"key='{relative_storage_path}', key_prefix='{backend_root_path_stripped}', "
+                    f"bucket={bucket_name}"
+                )
+                presigned_url = await self._generate_presigned_url(
+                    key=relative_storage_path,
+                    operation="get_object",
+                    expiration=self.settings.s3_presigned_url_download_timeout if hasattr(self.settings, 's3_presigned_url_download_timeout') else 3600,
+                    storage_backend=backend_info,
+                    content_type=content_type
+                )
+                
+                # Cache the presigned URL with TTL matching expiration time
+                if presigned_url:
+                    try:
+                        from ..core.dependencies import get_cache_service
+                        cache_service = get_cache_service()
+                        expiration_ttl = self.settings.s3_presigned_url_download_timeout if hasattr(self.settings, 's3_presigned_url_download_timeout') else 3600
+                        await cache_service.set(cache_key, presigned_url, ttl=expiration_ttl)
+                        logger.debug(f"[_create_get_urls_cached] Cached presigned URL for {object_id} (TTL: {expiration_ttl}s)")
+                    except Exception as e:
+                        logger.debug(f"Failed to cache presigned URL {object_id}: {e}")
+                        # Don't fail if caching fails
+
+            if presigned_url:
+                logger.debug(f"[_create_get_urls_cached] Generated presigned URL for {object_id}: {presigned_url[:150]}...")
+            else:
+                logger.error(f"[_create_get_urls_cached] Failed to generate presigned URL for {object_id}")
                 return None
             
             # Resolve storage_id if not available
@@ -487,14 +533,24 @@ class GetUrlFactory:
             if backend_info:
                 backend_root_path = backend_info.get('root_path')
                 if backend_root_path:
-                    backend_root_path = backend_root_path.strip('/')
-                    # If storage_path already includes root_path, strip it for S3 key
-                    if storage_path.startswith(backend_root_path + '/'):
-                        relative_storage_path = storage_path[len(backend_root_path) + 1:]
-                    elif storage_path == backend_root_path:
-                        relative_storage_path = ""
-                    # If storage_path doesn't include root_path, it's already relative
-                    # (This happens when path was reconstructed from timestamp)
+                    backend_root_path_stripped = backend_root_path.strip('/')
+                    # If root_path is "/", backend_root_path_stripped will be empty string
+                    # In this case, storage_path is already relative (doesn't include root_path)
+                    if backend_root_path_stripped:
+                        # If storage_path already includes root_path, strip it for S3 key
+                        if storage_path.startswith(backend_root_path_stripped + '/'):
+                            relative_storage_path = storage_path[len(backend_root_path_stripped) + 1:]
+                            logger.debug(f"[_get_backend_info_cached] Stripped root_path '{backend_root_path_stripped}' from storage_path: {storage_path} -> {relative_storage_path}")
+                        elif storage_path == backend_root_path_stripped:
+                            relative_storage_path = ""
+                            logger.debug(f"[_get_backend_info_cached] Storage path equals root_path, using empty relative path")
+                        else:
+                            # If storage_path doesn't include root_path, it's already relative
+                            # (This happens when path was reconstructed from timestamp)
+                            logger.debug(f"[_get_backend_info_cached] Storage path doesn't start with root_path, using as-is: {relative_storage_path}")
+                    else:
+                        # root_path is "/" (stripped to empty), storage_path is already relative
+                        logger.debug(f"[_get_backend_info_cached] root_path is '/', storage_path is already relative: {relative_storage_path}")
         
         return backend_info, relative_storage_path
     
@@ -540,18 +596,27 @@ class GetUrlFactory:
                 from vasts3 import S3Client, S3Config
                 
                 backend_root_path = storage_backend.get('root_path') or getattr(self.settings, 's3_root_path', None)
-                key_prefix = backend_root_path.strip('/') if backend_root_path else None
+                key_prefix = backend_root_path.strip('/') if backend_root_path else ""
+                
+                # Log S3 key construction details for debugging
+                bucket_name = storage_backend.get('bucket_name') or self.settings.s3_bucket_name
+                final_s3_key = f"{key_prefix}/{key}" if key_prefix else key
+                logger.debug(
+                    f"[_generate_presigned_url] Generating presigned URL - "
+                    f"bucket: {bucket_name}, key_prefix: '{key_prefix}', key: '{key}', "
+                    f"final_s3_key: '{final_s3_key}', operation: {operation}"
+                )
                 
                 cfg = S3Config(
                     endpoint_url=storage_backend.get('endpoint_url') or self.settings.s3_endpoint_url or "",
-                    bucket_name=storage_backend.get('bucket_name') or self.settings.s3_bucket_name,
+                    bucket_name=bucket_name,
                     access_key=access_key,
                     secret_key=secret_key,
                     region=storage_backend.get('region') or self.settings.s3_region,
                     use_ssl=bool(storage_backend.get('use_ssl') if storage_backend.get('use_ssl') is not None else self.settings.s3_use_ssl),
                     chunk_size=self.settings.vaststore_s3_chunk_size,
                     max_concurrent_parts=self.settings.vaststore_s3_max_concurrent_parts,
-                    key_prefix=key_prefix or "",
+                    key_prefix=key_prefix,
                 )
                 tmp_client = S3Client(cfg)
                 sig = inspect.signature(tmp_client.generate_presigned_url)
@@ -571,7 +636,9 @@ class GetUrlFactory:
                 # Use functools.partial to bind kwargs since run_in_executor doesn't accept **kwargs
                 loop = asyncio.get_event_loop()
                 bound_func = functools.partial(tmp_client.generate_presigned_url, **kwargs)
-                return await loop.run_in_executor(self._executor, bound_func)
+                presigned_url = await loop.run_in_executor(self._executor, bound_func)
+                logger.debug(f"[_generate_presigned_url] Generated presigned URL (first 100 chars): {presigned_url[:100] if presigned_url else 'None'}...")
+                return presigned_url
             
             # Fallback to default client
             sig = inspect.signature(self.s3_client.generate_presigned_url)

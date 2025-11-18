@@ -39,10 +39,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Validate src prop
+  const isValidSrc = src && src.trim().length > 0;
 
   // Lazy load other players only when needed
   const [ReactPlayerComponent, setReactPlayerComponent] = useState<React.ComponentType<any> | null>(null);
   const [VideoJS, setVideoJS] = useState<any>(null);
+
+  // Clear loading state immediately if src is invalid
+  useEffect(() => {
+    if (!isValidSrc) {
+      setLoading(false);
+      setError('No video source provided');
+    } else {
+      setError(null);
+    }
+  }, [isValidSrc]);
 
   // Lazy load react-player
   useEffect(() => {
@@ -65,7 +79,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Video.js player initialization
   const videojsRef = useRef<any>(null);
   useEffect(() => {
-    if (playerType === 'videojs' && VideoJS && videoRef.current && !videojsRef.current) {
+    if (playerType === 'videojs' && VideoJS && videoRef.current && !videojsRef.current && isValidSrc) {
       const player = VideoJS(videoRef.current, {
         controls,
         muted,
@@ -74,25 +88,33 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         fluid: true,
         responsive: true,
         fill: true,
+        sources: [{ src }],
       });
 
       videojsRef.current = player;
 
       player.ready(() => {
         setLoading(false);
+        setError(null);
         if (onReady) onReady();
       });
 
       player.on('loadstart', () => {
         setLoading(true);
+        setError(null);
         if (onLoadStart) onLoadStart();
       });
 
       player.on('error', () => {
         setLoading(false);
+        const error = player.error();
+        let errorMessage = 'Video.js error';
+        if (error) {
+          errorMessage = `Video.js error: ${error.message || 'Unknown error'}`;
+        }
+        setError(errorMessage);
         if (onError) {
-          const error = player.error();
-          onError(new Error(`Video.js error: ${error?.message || 'Unknown error'}`));
+          onError(new Error(errorMessage));
         }
       });
 
@@ -103,41 +125,75 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
       };
     }
-  }, [playerType, VideoJS, src, controls, muted, preload, playsInline, onReady, onError, onLoadStart]);
+  }, [playerType, VideoJS, src, isValidSrc, controls, muted, preload, playsInline, onReady, onError, onLoadStart]);
 
   // Update Video.js source when src changes
   useEffect(() => {
-    if (playerType === 'videojs' && videojsRef.current && src) {
+    if (playerType === 'videojs' && videojsRef.current && isValidSrc) {
       videojsRef.current.src(src);
     }
-  }, [src, playerType]);
+  }, [src, isValidSrc, playerType]);
 
   // Check if native video is already loaded when component mounts or src changes
   useEffect(() => {
-    if (playerType === 'native' && videoRef.current && src) {
+    if (playerType === 'native' && videoRef.current && isValidSrc) {
       const video = videoRef.current;
-      
+      setError(null); // Clear error when src changes
+
       // If video already has metadata loaded, clear loading immediately
       if (video.readyState >= 1) {
         setLoading(false);
         if (onReady) onReady();
       }
-      
+
       // Fallback timeout to clear loading if events don't fire
       const timeoutId = setTimeout(() => {
         if (loading && video.readyState >= 1) {
           console.debug('[VideoPlayer] Loading timeout - clearing loading state, readyState:', video.readyState);
           setLoading(false);
           if (onReady) onReady();
+        } else if (loading && video.readyState === 0) {
+          // Video hasn't started loading - might be a network/CORS issue
+          console.warn('[VideoPlayer] Video not loading after 5s, readyState:', video.readyState);
+          setError('Video failed to load - check URL and network');
+          setLoading(false);
         }
       }, 5000); // 5 second timeout
-      
+
       return () => clearTimeout(timeoutId);
+    } else if (playerType === 'native' && !isValidSrc) {
+      setLoading(false);
+      setError('No video source provided');
     }
-  }, [playerType, src, loading, onReady]);
+  }, [playerType, src, isValidSrc, loading, onReady]);
 
   // Native HTML5 video player (default, always works)
   if (playerType === 'native') {
+    // Show error message if src is invalid
+    if (!isValidSrc) {
+      return (
+        <Box sx={{ position: 'relative', width, height, backgroundColor: '#000' }}>
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              zIndex: 1,
+            }}
+          >
+            <Typography variant="body2" sx={{ color: '#fff', textAlign: 'center', p: 2 }}>
+              {error || 'No video source provided'}
+            </Typography>
+          </Box>
+        </Box>
+      );
+    }
     
     return (
       <Box sx={{ position: 'relative', width, height, backgroundColor: '#000' }}>
@@ -161,6 +217,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </Typography>
           </Box>
         )}
+        {error && !loading && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              zIndex: 1,
+            }}
+          >
+            <Typography variant="body2" sx={{ color: '#fff', textAlign: 'center', p: 2 }}>
+              {error}
+            </Typography>
+          </Box>
+        )}
         <video
           ref={videoRef}
           src={src}
@@ -177,6 +253,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           onLoadedMetadata={() => {
             console.debug('[VideoPlayer] onLoadedMetadata fired');
             setLoading(false);
+            setError(null);
             if (onReady) onReady();
           }}
           onLoadedData={() => {
@@ -184,25 +261,48 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             // Also clear loading on loadeddata as a backup
             if (videoRef.current && videoRef.current.readyState >= 2) {
               setLoading(false);
+              setError(null);
             }
           }}
           onCanPlay={() => {
             console.debug('[VideoPlayer] onCanPlay fired');
             // Clear loading when video can play
             setLoading(false);
+            setError(null);
           }}
           onLoadStart={() => {
             console.debug('[VideoPlayer] onLoadStart fired');
             setLoading(true);
+            setError(null);
             if (onLoadStart) onLoadStart();
           }}
           onError={(e) => {
             console.error('[VideoPlayer] onError fired:', e);
             setLoading(false);
+            const video = e.currentTarget;
+            const videoError = video.error;
+            let errorMessage = 'Video failed to load';
+            if (videoError) {
+              switch (videoError.code) {
+                case videoError.MEDIA_ERR_ABORTED:
+                  errorMessage = 'Video loading aborted';
+                  break;
+                case videoError.MEDIA_ERR_NETWORK:
+                  errorMessage = 'Network error while loading video';
+                  break;
+                case videoError.MEDIA_ERR_DECODE:
+                  errorMessage = 'Video decoding error';
+                  break;
+                case videoError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                  errorMessage = 'Video format not supported';
+                  break;
+                default:
+                  errorMessage = `Video error: ${videoError.message || 'Unknown error'}`;
+              }
+            }
+            setError(errorMessage);
             if (onError) {
-              const video = e.currentTarget;
-              const error = video.error;
-              onError(error || e);
+              onError(videoError || e);
             }
           }}
         />
@@ -212,6 +312,31 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Video.js player
   if (playerType === 'videojs') {
+    if (!isValidSrc) {
+      return (
+        <Box sx={{ position: 'relative', width, height, backgroundColor: '#000' }}>
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              zIndex: 1,
+            }}
+          >
+            <Typography variant="body2" sx={{ color: '#fff', textAlign: 'center', p: 2 }}>
+              {error || 'No video source provided'}
+            </Typography>
+          </Box>
+        </Box>
+      );
+    }
+
     if (!VideoJS) {
       // Fallback to native while loading
       return (
@@ -251,6 +376,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </Typography>
           </Box>
         )}
+        {error && !loading && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              zIndex: 1,
+            }}
+          >
+            <Typography variant="body2" sx={{ color: '#fff', textAlign: 'center', p: 2 }}>
+              {error}
+            </Typography>
+          </Box>
+        )}
         <div data-vjs-player>
           <video
             ref={videoRef}
@@ -266,6 +411,31 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // React Player
   if (playerType === 'react-player') {
+    if (!isValidSrc) {
+      return (
+        <Box sx={{ position: 'relative', width, height, backgroundColor: '#000' }}>
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              zIndex: 1,
+            }}
+          >
+            <Typography variant="body2" sx={{ color: '#fff', textAlign: 'center', p: 2 }}>
+              {error || 'No video source provided'}
+            </Typography>
+          </Box>
+        </Box>
+      );
+    }
+
     if (!ReactPlayerComponent) {
       // Fallback to native while loading
       return (
@@ -305,31 +475,56 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </Typography>
           </Box>
         )}
+        {error && !loading && !light && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              zIndex: 1,
+            }}
+          >
+            <Typography variant="body2" sx={{ color: '#fff', textAlign: 'center', p: 2 }}>
+              {error}
+            </Typography>
+          </Box>
+        )}
         <ReactPlayerComponent
-          src={src}
+          url={src}
           width="100%"
           height="100%"
           controls={controls}
           playing={false}
           muted={muted}
-          playsInline={playsInline}
+          playsinline={playsInline}
           pip={false}
           stopOnUnmount={false}
           light={light}
           playIcon={playIcon}
           onReady={() => {
             setLoading(false);
+            setError(null);
             if (onReady) onReady();
           }}
           onStart={() => {
             setLoading(false);
+            setError(null);
           }}
           onError={(error: unknown) => {
             setLoading(false);
+            const errorMessage = error instanceof Error ? error.message : 'Video playback error';
+            setError(errorMessage);
             if (onError) onError(error);
           }}
           onLoadStart={() => {
             setLoading(true);
+            setError(null);
             if (onLoadStart) onLoadStart();
           }}
         />

@@ -43,7 +43,7 @@
       "access_key": "SRSPW0DQT9T70Y787U68",
       "secret_key": "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr",
       "bucket_name": "jthaloor-s3",
-      "root_path": "/",
+      "root_path": "/tams8",
       "use_ssl": false,
       "chunk_size": 8388608,
       "max_concurrent_parts": 10,
@@ -54,7 +54,7 @@
   "storage": {
     "default_backend_id": "default",
     "tams_storage_path": "tams",
-    "tams_root": "/tams",
+    "tams_root": "/",
     "presigned_url": {
       "upload_timeout": 3600,
       "download_timeout": 3600
@@ -81,7 +81,7 @@
     "error_reporting": true,
     "audit_logging": true,
     "cache_enabled": true,
-    "cache_ttl": 300
+    "cache_ttl": 3600
   },
   
   "telemetry": {

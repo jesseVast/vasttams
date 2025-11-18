@@ -17,7 +17,6 @@ import SearchIcon from '@mui/icons-material/Search';
 import { Segment, Flow } from '../types';
 import { segmentService, flowService } from '../services/api';
 import SegmentMediaWidget from '../components/SegmentMediaWidget';
-import { testSegmentLoading } from '../utils/performanceTest';
 
 // Normalize time input to TAMS format (seconds:nanoseconds)
 // Accepts formats like: "10", "10:0", "10:500000000" (for half a second in nanoseconds)
@@ -508,30 +507,6 @@ const Segments: React.FC = () => {
               )}
             </Box>
         </Paper>
-      )}
-
-      {/* Performance Test Button (dev only) */}
-      {process.env.NODE_ENV === 'development' && filterFlowId && (
-        <Box sx={{ mb: 2, p: 1, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={async () => {
-              const timerange = buildTimerange(startTime, endTime);
-              console.log('🧪 Running performance test...');
-              try {
-                await testSegmentLoading(filterFlowId, timerange || undefined);
-              } catch (error) {
-                console.error('Performance test failed:', error);
-              }
-            }}
-          >
-            🧪 Test Segment Loading Performance
-          </Button>
-          <Typography variant="caption" sx={{ ml: 2, color: 'text.secondary' }}>
-            Check browser console for detailed metrics
-          </Typography>
-        </Box>
       )}
 
       {/* Loading Page - Show before segments load */}

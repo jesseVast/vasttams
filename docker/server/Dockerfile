@@ -2,7 +2,7 @@
 #
 # BUILD CONTEXT: This Dockerfile expects the build context to be the project root directory.
 # When using docker-compose, the context is automatically set to '..' (parent of docker/).
-# When building manually, use: docker build -f docker/Dockerfile .
+# When building manually, use: docker build -f docker/server/Dockerfile .
 # (from the project root, not from the docker/ directory)
 #
 FROM python:3.12-slim

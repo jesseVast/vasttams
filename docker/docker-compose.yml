@@ -29,7 +29,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./trino/vast.properties:/etc/trino/catalog/vast.properties
+      - ./server/trino/vast.properties:/etc/trino/catalog/vast.properties
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/v1/status"]
@@ -44,7 +44,7 @@ services:
   tams-api:
     build:
       context: ..
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/server/Dockerfile
     container_name: tams-api
     ports:
       - "8000:8000"
@@ -73,7 +73,7 @@ services:
   tams-ui:
     build:
       context: ..
-      dockerfile: docker/Dockerfile.ui
+      dockerfile: docker/ui/Dockerfile.ui
     container_name: tams-ui
     profiles:
       - prod
@@ -102,7 +102,7 @@ services:
     ports:
       - "${HAPROXY_PORT:-4001}:80"
     volumes:
-      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./server/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     dns:
       - ${HAPROXY_DNS:-10.140.3.248}
     restart: unless-stopped

@@ -238,7 +238,7 @@ class SegmentDuration(BaseModel):
 
 # Event models moved to events module - import here for backward compatibility
 # Imported at end of file to avoid circular dependencies
-from vasttamsserver.events.models import (
+from ..events.models import (
     EventStreamMechanism,
     EventData,
     SourceEventData,

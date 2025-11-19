@@ -22,10 +22,26 @@ os.chdir(root_dir)
 
 try:
     from vasttamsserver.main import app
-except ImportError:
+except (ImportError, ValueError, Exception) as e:
+    # Handle config errors during build (VAST endpoint not configured)
+    error_msg = str(e)
+    if "VAST endpoint is not configured" in error_msg or "ValueError" in str(type(e)):
+        print("Warning: Skipping OpenAPI generation - configuration not available during build")
+        print("OpenAPI spec will be generated at runtime when the application starts")
+        sys.exit(0)
     # Fallback for direct execution
     sys.path.insert(0, str(Path(__file__).parent))
-    from vasttamsserver.main import app
+    try:
+        from vasttamsserver.main import app
+    except (ImportError, ValueError, Exception) as e2:
+        error_msg2 = str(e2)
+        if "VAST endpoint is not configured" in error_msg2:
+            print("Warning: Skipping OpenAPI generation - configuration not available")
+            print("OpenAPI spec will be generated at runtime")
+            sys.exit(0)
+        print(f"Error: Cannot import app: {e2}")
+        print("OpenAPI generation skipped - will be generated at runtime")
+        sys.exit(0)
 
 def generate_openapi_json():
     """Generate OpenAPI JSON specification"""

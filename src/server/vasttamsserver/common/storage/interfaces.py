@@ -7,17 +7,20 @@ testing and swapping of storage backends.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, TYPE_CHECKING
 from datetime import datetime
 
 from ...sources.models import Source
-from ...flows.models import Flow
 from ...segments.models import FlowSegment
 from ...objects.models import Object, ObjectInstance
 from ...service.models import Service
 from ...service.storage_models import StorageBackend, MediaObject, FlowStorage, FlowStoragePost
 from ..filters import SourceFilters, FlowFilters, FlowDetailFilters
 from ..models import Tags, CollectionItem, TimeRange
+
+# Avoid circular import by using TYPE_CHECKING
+if TYPE_CHECKING:
+    from ...flows.models import Flow
 
 
 class StorageInterface(ABC):
@@ -51,22 +54,22 @@ class StorageInterface(ABC):
     
     # Flow operations
     @abstractmethod
-    async def get_flows(self, filters: FlowFilters) -> List[Flow]:
+    async def get_flows(self, filters: FlowFilters) -> List['Flow']:
         """Get flows with filtering"""
         pass
     
     @abstractmethod
-    async def get_flow(self, flow_id: str, filters: Optional[FlowDetailFilters] = None) -> Optional[Flow]:
+    async def get_flow(self, flow_id: str, filters: Optional[FlowDetailFilters] = None) -> Optional['Flow']:
         """Get a specific flow by ID with optional filters for timerange handling"""
         pass
     
     @abstractmethod
-    async def create_flow(self, flow: Flow) -> bool:
+    async def create_flow(self, flow: 'Flow') -> bool:
         """Create a new flow"""
         pass
     
     @abstractmethod
-    async def update_flow(self, flow_id: str, flow: Flow) -> bool:
+    async def update_flow(self, flow_id: str, flow: 'Flow') -> bool:
         """Update an existing flow"""
         pass
     

@@ -49,6 +49,8 @@ wheels/
 *.swo
 *~
 .DS_Store
+.dockerignore
+.pip*
 
 # Test coverage
 .coverage

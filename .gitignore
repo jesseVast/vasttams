@@ -36,7 +36,7 @@ lib64/
 parts/
 sdist/
 var/
-wheels/
+# wheels/ - REMOVED: We want to track wheels/*.whl files for Docker builds (see comment above)
 *.egg-info/
 .installed.cfg
 *.egg
@@ -63,3 +63,15 @@ htmlcov/
 # Logs
 logs/
 *.log
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.pyzwz
+*.pyzwzw

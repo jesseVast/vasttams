@@ -8,6 +8,21 @@ import pyarrow as pa
 from typing import List
 
 
+def _create_fixed_size_list(value_type, size: int):
+    """Create a fixed-size list type, compatible with PyArrow 16.1.0+ and 16.2.0+
+    
+    Uses the same syntax as vastdbmanager/vaststore:
+    pa.list_(pa.field("item", type=pa.float32(), nullable=False), dimension)
+    """
+    # Create field for list item (required by VAST)
+    item_field = pa.field(name="item", type=value_type, nullable=False)
+    # Try fixed_size_list first (PyArrow 16.2.0+)
+    if hasattr(pa, 'fixed_size_list'):
+        return pa.fixed_size_list(item_field, size)
+    # Fallback to list_ with field and size parameter (PyArrow 16.1.0+)
+    return pa.list_(item_field, size)
+
+
 def get_objects_schema() -> pa.Schema:
     """Get objects table schema - TAMS 8.0 with timerange support
     
@@ -22,7 +37,7 @@ def get_objects_schema() -> pa.Schema:
         pa.field("size", pa.int64(), nullable=True),
         pa.field("metadata", pa.string(), nullable=True),  # JSON metadata (storage_id, storage_path, etc.)
         pa.field("created", pa.timestamp("ns"), nullable=True),
-        pa.field("vector", pa.fixed_size_list(pa.float32(), 768), nullable=True),  # 768-dim vector embedding
+        pa.field("vector", _create_fixed_size_list(pa.float32(), 768), nullable=True),  # 768-dim vector embedding
         pa.field("summary", pa.string(), nullable=True),  # Text summary
         pa.field("embedding_date", pa.timestamp("ns"), nullable=True),  # Date of embedding
         pa.field("embedding_model", pa.string(), nullable=True),  # Embedding model name

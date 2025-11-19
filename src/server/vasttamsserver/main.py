@@ -55,6 +55,7 @@ from .auth.router import router as auth_router, login_router, users_router
 from .webhooks.router import router as webhooks_router
 from .hls.router import router as hls_router
 from .analytics.router import router as analytics_router
+from .vast.router import router as vast_objects_router
 
 from .core.dependencies import get_vast_db, get_s3_client
 from .core.telemetry import telemetry_manager, telemetry_middleware, metrics_endpoint, enhanced_health_check
@@ -296,6 +297,7 @@ def custom_openapi():
         {"name": "segments", "description": "Flow segment operations"},
         {"name": "service", "description": "Service information and configuration"},
         {"name": "deletion-requests", "description": "Deletion request management"},
+        {"name": "vast", "description": "VAST-specific extensions (outside TAMS spec)"},
     ]
     
     app.openapi_schema = openapi_schema
@@ -378,6 +380,7 @@ app.include_router(users_router)
 app.include_router(webhooks_router)
 app.include_router(hls_router)
 app.include_router(analytics_router)
+app.include_router(vast_objects_router)
 
 # Create latest alias by including routers again with /api/tams/latest prefix
 # Get API version from settings

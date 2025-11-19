@@ -1,9 +1,73 @@
 # TAMS Project - Current Status
 
-**Last Updated**: January 27, 2025  
-**Status**: YAML Configuration Support Added, Non-Blocking Deletion Requests Implemented
+**Last Updated**: November 18, 2025  
+**Status**: Performance Optimizations Complete, Object Vectors Design Under Consideration
 
-## 🎯 **CURRENT FOCUS: CONFIGURATION FILE IMPROVEMENTS**
+## 🎯 **CURRENT FOCUS: OBJECT VECTORS FOR VIDEO SEARCH**
+
+### **💡 DESIGN CONSIDERATION: Adding Video Summaries/Vectors to Objects**
+
+**Context**: Exploring adding video summaries/vectors to objects table for search functionality that can return 100+ matches and tie them to segments, flows, and sources.
+
+#### **Data Model Relationships**
+The TAMS data model has clear relationships:
+- **Objects → Segments**: `segments.object_id` references `objects.id`
+- **Segments → Flows**: `segments.flow_id` references `flows.id`
+- **Flows → Sources**: `flows.source_id` references `sources.id`
+
+#### **Recommended Approach: Add Vector Column to Objects Table**
+- **VAST Native Support**: VAST natively supports vector data types (PyArrow list/array types)
+- **Single Query Efficiency**: One JOIN query can return all related data (objects, segments, flows, sources)
+- **Performance**: VAST's optimized JOINs handle 100 matches efficiently (< 1 second expected)
+- **Implementation Ease**: Very easy - relationships already established, existing JOIN patterns in analytics queries
+
+#### **Search Endpoint Design**
+- **Endpoint**: `GET /api/tams/v8.0/search/objects?vector=<encoded>&limit=100`
+- **Query**: Single JOIN query across objects → segments → flows → sources
+- **Response**: Objects with nested segments, flows, sources, and similarity scores
+
+#### **Performance Considerations**
+- **For 100 Matches**: Single JOIN query is very efficient with VAST
+- **Existing Patterns**: Analytics queries already demonstrate efficient multi-table JOINs
+- **Vector Similarity**: VAST supports vector similarity search natively
+
+#### **Next Steps** (When Implementing)
+1. Add `vector_summary` column to objects table schema (PyArrow list/array type)
+2. Update object creation endpoints to accept optional vector data
+3. Create search service with vector similarity matching
+4. Implement search endpoint with efficient JOIN query
+5. Add caching for frequent searches (similar to analytics caching)
+
+**See**: `notes/edits/2025-11-18.md` for detailed design discussion
+
+---
+
+## 🎯 **RECENT COMPLETED: PERFORMANCE OPTIMIZATIONS** (November 18, 2025)
+
+### **✅ COMPLETED: Analytics Caching and Storage Backend Query Optimization**
+**Status**: ✅ **COMPLETED** - Analytics endpoints cached, storage backend queries optimized
+
+#### **🏗️ Key Achievements**
+- **Analytics Endpoint Caching**: Added Redis caching (5 min TTL) for `/analytics/sources` and `/analytics/flows`
+  - Prevents duplicate queries when React StrictMode causes double renders
+  - Reduces database load for expensive JOIN queries
+  - Uses `refresh=true` query parameter to bypass cache when needed
+
+- **Storage Backends Query Optimization**: Added caching for full storage backends list
+  - Cache key: `storage_backends:list` (5 min TTL)
+  - Eliminated repeated `SELECT * FROM storage_backends` queries
+  - Always resolve and store `storage_id` at object creation time
+
+- **Performance Impact**: Flow segments endpoint improved from ~18s to ~2s (9x faster)
+
+#### **📝 Files Modified**
+- `src/server/vasttamsserver/analytics/router.py` - Added Redis caching with datetime serialization
+- `src/server/vasttamsserver/segments/get_url_factory.py` - Added storage backends list caching
+- `src/server/vasttamsserver/common/storage/main_service.py` - Always resolve storage_id at creation
+
+---
+
+## 🎯 **PREVIOUS FOCUS: CONFIGURATION FILE IMPROVEMENTS**
 
 ### **✅ COMPLETED: YAML CONFIGURATION SUPPORT** (January 27, 2025)
 **Status**: ✅ **COMPLETED** - YAML config file support added with backward compatibility

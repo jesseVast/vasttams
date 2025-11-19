@@ -131,6 +131,14 @@ class Settings(BaseSettings):
     async_deletion_threshold: int = Field(default=1000,
         description="Threshold for triggering async deletion workflow (number of segments)")
     
+    # Vector search settings
+    vector_search_default_num_matches: int = Field(default=10,
+        description="Default number of matches to return for vector search")
+    vector_search_default_distance_metric: str = Field(default="cosine",
+        description="Default distance metric for vector search (e.g., cosine, euclidean, dot_product)")
+    vector_search_default_distance_numerical_value: float = Field(default=0.75,
+        description="Default distance numerical value/threshold for vector search (default: 0.75 for cosine)")
+    
     # Table projections settings
     enable_table_projections: bool = Field(default=False,
         description="Enable table projections for improved query performance. Creates projections for: source(id), flow(id), segment(id,flow_id,object_id), object(id), flow_object_references(id)")
@@ -493,6 +501,16 @@ class Settings(BaseSettings):
                         self.webhook_timeout = webhooks['timeout']
                     if 'retry_attempts' in webhooks:
                         self.webhook_retry_attempts = webhooks['retry_attempts']
+                
+                # Load vector search settings
+                if 'vector_search' in config_data:
+                    vector_search = config_data['vector_search']
+                    if 'default_num_matches' in vector_search:
+                        self.vector_search_default_num_matches = vector_search['default_num_matches']
+                    if 'default_distance_metric' in vector_search:
+                        self.vector_search_default_distance_metric = vector_search['default_distance_metric']
+                    if 'default_distance_numerical_value' in vector_search:
+                        self.vector_search_default_distance_numerical_value = vector_search['default_distance_numerical_value']
                         
             except (yaml.YAMLError, IOError) as e:
                 # Log error but continue with default values

@@ -63,6 +63,11 @@ storage:
   segment_storage_default_limit: 10
   async_deletion_threshold: 1000  # Threshold for switching to async deletion (segments)
 
+vector_search:
+  default_num_matches: 10
+  default_distance_metric: "cosine"
+  default_distance_numerical_value: 0.75
+
 logging:
   level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
   format: "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"

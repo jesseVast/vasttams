@@ -30,6 +30,51 @@ notes/
 
 ## 📝 **RECENT EDITS**
 
+## Edit #54: Performance Optimizations and Object Vectors Design (November 18, 2025)
+
+### Summary
+Added Redis caching for analytics endpoints, optimized storage backend queries, improved UI background colors, and documented design considerations for adding object vectors for video search functionality.
+
+### Performance Optimizations
+- **Analytics Endpoint Caching**: Added Redis caching (5 min TTL) for `/analytics/sources` and `/analytics/flows` endpoints
+  - Prevents duplicate queries from React StrictMode double renders
+  - Proper datetime serialization using `model_dump(mode='json')`
+  - Cache key format: `analytics:sources`, `analytics:flows`
+
+- **Storage Backends Query Optimization**: Added caching for full storage backends list
+  - Cache key: `storage_backends:list` (5 min TTL)
+  - Eliminated repeated `SELECT * FROM storage_backends` queries
+  - Always resolve and store `storage_id` at object creation time
+
+- **Performance Impact**: Flow segments endpoint improved from ~18s to ~2s (9x faster)
+
+### UI Improvements
+- Reduced UI background brightness for better visual comfort
+- Updated theme colors: main background `#f0f0f0`, card backgrounds `#e8e8e8`
+
+### Git Repository Maintenance
+- Created tag `8.0_preVastExtras` marking pre-VAST extras implementation
+- Stopped tracking log files, Python cache files, and coverage files
+- Updated `.gitignore` to include `coverage.json` and `coverage.xml`
+
+### Object Vectors Design Discussion
+- Documented design considerations for adding video summaries/vectors to objects table
+- Analyzed data model relationships (objects → segments → flows → sources)
+- Recommended approach: Add vector column to objects table (VAST native support)
+- Performance analysis: Single JOIN query efficient for 100+ matches (< 1 second expected)
+- See `notes/edits/2025-11-18.md` for detailed design discussion
+
+### Files Modified
+- `src/server/vasttamsserver/analytics/router.py` - Added Redis caching with datetime serialization
+- `src/server/vasttamsserver/segments/get_url_factory.py` - Added storage backends list caching
+- `src/server/vasttamsserver/common/storage/main_service.py` - Always resolve storage_id at creation
+- `ui/src/App.tsx`, `ui/src/components/Layout.tsx`, `ui/src/index.css` - UI background colors
+- `ui/src/pages/Segments.tsx`, `ui/src/pages/Flows.tsx`, `ui/src/components/SegmentMediaWidget.tsx` - Component backgrounds
+- `.gitignore` - Added coverage file patterns
+
+### Files Created
+- `notes/edits/2025-11-18.md` - Detailed notes on performance optimizations and object vectors design
+
 ## Edit #53: Remove Legacy Client Folder and Fix Observability (January 27, 2025)
 
 ### Summary

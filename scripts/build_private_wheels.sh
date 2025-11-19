@@ -30,6 +30,8 @@ if [ -d "$VASTSTORE_DIR/vastdbmanager" ]; then
     cd "$VASTSTORE_DIR/vastdbmanager"
     python3 -m pip install --upgrade build wheel
     python3 -m build --wheel
+    # Remove old vastdbmanager wheels before copying new one
+    rm -f "$WHEELS_DIR"/vastdbmanager-*.whl
     # Copy wheel to wheels directory
     cp dist/*.whl "$WHEELS_DIR/"
     echo "✅ vastdbmanager wheel built and copied to $WHEELS_DIR"
@@ -45,6 +47,8 @@ if [ -d "$VASTSTORE_DIR/vasts3" ]; then
     cd "$VASTSTORE_DIR/vasts3"
     python3 -m pip install --upgrade build wheel
     python3 -m build --wheel
+    # Remove old vasts3 wheels before copying new one
+    rm -f "$WHEELS_DIR"/vasts3-*.whl
     # Copy wheel to wheels directory
     cp dist/*.whl "$WHEELS_DIR/"
     echo "✅ vasts3 wheel built and copied to $WHEELS_DIR"

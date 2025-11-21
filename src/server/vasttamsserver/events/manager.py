@@ -50,7 +50,13 @@ class EventManager:
         
         try:
             from ..webhooks.service import WebhookService
-            webhook_service = WebhookService(self.vast_db)
+            # Extract vast_db if self.vast_db is a TAMSStorageService
+            vast_db = self.vast_db
+            if hasattr(self.vast_db, 'vast_db'):
+                # It's a TAMSStorageService, extract the actual vast_db
+                vast_db = self.vast_db.vast_db
+            
+            webhook_service = WebhookService(vast_db)
             webhooks = await webhook_service.get_webhooks()
             
             # Convert Webhook models to dicts for filtering
@@ -353,10 +359,33 @@ class EventManager:
         """Handle loop recorder check (called as background task)"""
         try:
             from ..looprecorder import LoopRecorderManager
-            loop_recorder = LoopRecorderManager(self.vast_db)
-            await loop_recorder.process_flow(flow_id)
+            from ..core.dependencies import get_s3_client
+            from ..core.config import get_settings
+            
+            # Extract vast_db if self.vast_db is a TAMSStorageService
+            vast_db = self.vast_db
+            if hasattr(self.vast_db, 'vast_db'):
+                # It's a TAMSStorageService, extract the actual vast_db
+                vast_db = self.vast_db.vast_db
+            
+            # Get s3_client and settings for LoopRecorderManager
+            try:
+                s3_client = get_s3_client()
+            except Exception as e:
+                logger.debug(f"Could not get s3_client for loop recorder: {e}")
+                s3_client = None
+            
+            settings = get_settings()
+            
+            logger.debug(f"Loop recorder: Triggered for flow {flow_id}")
+            loop_recorder = LoopRecorderManager(vast_db, s3_client=s3_client, settings=settings)
+            result = await loop_recorder.process_flow(flow_id)
+            if result:
+                logger.info(f"Loop recorder: Successfully processed flow {flow_id}")
+            else:
+                logger.debug(f"Loop recorder: No action needed for flow {flow_id}")
         except Exception as e:
-            logger.debug("Loop recorder check skipped for flow %s: %s", flow_id, e)
+            logger.warning("Loop recorder check failed for flow %s: %s", flow_id, e, exc_info=True)
     
     async def emit_object_event(self, event_type: str, obj: Any, user_id: Optional[str] = None) -> None:
         """Emit an object-related event"""

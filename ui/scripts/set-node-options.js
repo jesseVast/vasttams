@@ -1,14 +1,21 @@
 const { spawn } = require('node:child_process');
+const os = require('os');
+const path = require('path');
 
-// --no-experimental-webstorage was removed in Node.js 20+
-// Only use it for older Node versions
+// Disable localStorage for webpack builds
 const nodeVersion = process.version.match(/^v(\d+)/)?.[1];
-const WEBSTORAGE_FLAG = nodeVersion && parseInt(nodeVersion) < 20 ? '--no-experimental-webstorage' : null;
+const args = [];
+
+if (nodeVersion && parseInt(nodeVersion) >= 20) {
+  // Node 20+ requires a file path for localStorage or we need to disable it
+  // Use a temp file that gets cleaned up
+  const tempFile = path.join(os.tmpdir(), '.localstorage-webpack-temp');
+  args.push(`--localstorage-file=${tempFile}`);
+}
 
 module.exports = function runReactScript(scriptName) {
   const scriptPath = require.resolve(`react-scripts/scripts/${scriptName}`);
-
-  const args = WEBSTORAGE_FLAG ? [WEBSTORAGE_FLAG, scriptPath] : [scriptPath];
+  args.push(scriptPath);
 
   const child = spawn(
     process.execPath,

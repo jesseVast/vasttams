@@ -51,7 +51,7 @@ class FileProcessor:
             no_chunking: If True, upload files as-is without chunking (overrides use_metadata)
             use_metadata: If True, use metadata files for marker-based chunking when available
             include_originals: If True, also upload original files to separate flow when chunking
-            chunk_format: Chunk format - "original" (copy codecs, MP4) or "hls" (HLS-compatible TS) (default: "original")
+            chunk_format: Chunk format - "original" (copy codecs, MP4), "mp4" (transcode to H.264/AAC MP4), or "hls" (HLS-compatible TS) (default: "original")
         """
         self.client = client
         self.chunk_duration = chunk_duration
@@ -306,12 +306,6 @@ class FileProcessor:
                     auto_probe=False  # Don't probe chunks
                 )
                 
-                # Store filename mapping in flow tags (segments don't have tags in TAMS)
-                # Use pattern: file_mapping_{object_id} = {filename}|{file_path}|{chunk_index}|{total_chunks}
-                object_id = segment.object_id
-                mapping_value = f"{relative_path.name}|{file_path_str}|{chunk_idx}|{total_chunks}"
-                await target_flow.set_tag(f"file_mapping_{object_id}", mapping_value)
-                
                 logger.debug(f"   ✅ Uploaded chunk {chunk_idx + 1}/{total_chunks}")
         
         # Upload chunks in parallel
@@ -391,11 +385,6 @@ class FileProcessor:
             auto_probe=True  # Probe the full file
         )
         
-        # Store filename mapping in flow tags
-        object_id = segment.object_id
-        mapping_value = f"{relative_path.name}|{file_path_str}|-1|-1"  # -1 indicates full file (not chunked)
-        await target_flow.set_tag(f"file_mapping_{object_id}", mapping_value)
-        
         logger.info(f"✅ Completed: {relative_path}")
         return 1, 0
     
@@ -445,11 +434,6 @@ class FileProcessor:
                 timerange=timerange,
                 auto_probe=False
             )
-            
-            # Store filename mapping in flow tags (segments don't have tags in TAMS)
-            object_id = segment.object_id
-            mapping_value = f"{relative_path.name}|{file_path_str}|-1|-1"  # -1 indicates data file
-            await target_flow.set_tag(f"file_mapping_{object_id}", mapping_value)
             
             logger.info(f"✅ Completed: {relative_path}")
             return 1, 0

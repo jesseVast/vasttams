@@ -20,7 +20,7 @@ wheels/dist/
 wheels/build/
 
 # Python cache and build artifacts
-__pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -64,8 +64,7 @@ htmlcov/
 logs/
 *.log
 
-# python
-__pycache__/
+# Python bytecode (redundant with above, but kept for clarity)
 *.pyc
 *.pyo
 *.pyd

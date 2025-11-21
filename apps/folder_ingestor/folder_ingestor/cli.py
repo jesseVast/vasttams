@@ -106,9 +106,9 @@ async def main():
     )
     parser.add_argument(
         "--chunk-format",
-        choices=["original", "hls"],
+        choices=["original", "mp4", "hls"],
         default="original",
-        help="Chunk format: 'original' (copy codecs, MP4) or 'hls' (HLS-compatible TS with H.264/AAC) (default: original)"
+        help="Chunk format: 'original' (copy codecs, MP4), 'mp4' (transcode to H.264/AAC MP4), or 'hls' (HLS-compatible TS with H.264/AAC) (default: original)"
     )
     
     args = parser.parse_args()

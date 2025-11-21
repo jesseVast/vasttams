@@ -10,7 +10,6 @@ import {
   Chip,
   Card,
   CardContent,
-  Link,
   Select,
   MenuItem,
   FormControl,
@@ -21,6 +20,8 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import InfoIcon from '@mui/icons-material/Info';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -30,7 +31,14 @@ import { flowService, sourceService, analyticsService } from '../services/api';
 import DataTable, { Column } from '../components/DataTable';
 import DetailModal from '../components/DetailModal';
 
-type SortableField = 'label' | 'format' | 'source_id' | 'created';
+type SortableField = 'label' | 'format' | 'created';
+
+// Helper function to get last part of format after ":"
+const getShortFormat = (format: string | undefined): string => {
+  if (!format) return '-';
+  const parts = format.split(':');
+  return parts.length > 1 ? parts[parts.length - 1] : format;
+};
 
 const Flows: React.FC = () => {
   const navigate = useNavigate();
@@ -332,10 +340,6 @@ const Flows: React.FC = () => {
           aValue = a.format || '';
           bValue = b.format || '';
           break;
-        case 'source_id':
-          aValue = a.source_id || '';
-          bValue = b.source_id || '';
-          break;
         case 'created':
           aValue = a.created ? new Date(a.created).getTime() : 0;
           bValue = b.created ? new Date(b.created).getTime() : 0;
@@ -376,7 +380,9 @@ const Flows: React.FC = () => {
     { id: 'label', label: 'Label', sortable: true },
     { id: 'description', label: 'Description', sortable: false },
     { id: 'format', label: 'Format', sortable: true },
-    { id: 'source_id', label: 'Source ID', sortable: true },
+    { id: 'codec', label: 'Codec', sortable: false },
+    { id: 'container', label: 'Container', sortable: false },
+    { id: 'resolution', label: 'Resolution', sortable: false },
     { id: 'segments', label: 'Segments', sortable: false, align: 'right' },
     { id: 'duration', label: 'Total Time', sortable: false },
     { id: 'created', label: 'Created (Date/Time)', sortable: true },
@@ -412,33 +418,41 @@ const Flows: React.FC = () => {
     return (
     <>
         <TableCell>
-          <Link
-            component="button"
-            variant="body2"
-            onClick={() => handleOpenDetail(flow)}
-            sx={{ cursor: 'pointer' }}
-          >
-            Detail
-          </Link>
+          <Tooltip title="View Details">
+            <IconButton
+              size="small"
+              onClick={() => handleOpenDetail(flow)}
+              sx={{ padding: '4px' }}
+            >
+              <InfoIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </TableCell>
       <TableCell>{flow.label || '-'}</TableCell>
       <TableCell>{flow.description || '-'}</TableCell>
-      <TableCell>{flow.format}</TableCell>
-      <TableCell>{flow.source_id}</TableCell>
+      <TableCell>{getShortFormat(flow.format)}</TableCell>
+      <TableCell>{flow.codec || '-'}</TableCell>
+      <TableCell>{flow.container || '-'}</TableCell>
+      <TableCell>
+        {flow.essence_parameters?.frame_width && flow.essence_parameters?.frame_height
+          ? `${flow.essence_parameters.frame_width}x${flow.essence_parameters.frame_height}`
+          : '-'}
+      </TableCell>
         <TableCell align="right">
           {typeof segmentCount === 'number' ? segmentCount.toLocaleString() : segmentCount}
         </TableCell>
         <TableCell>{formattedDuration}</TableCell>
       <TableCell>{flow.created ? new Date(flow.created).toLocaleString() : '-'}</TableCell>
       <TableCell>
-        <Link
-          component="button"
-          variant="body2"
-          onClick={() => navigate(`/segments?flow_id=${flow.id}`)}
-          sx={{ cursor: 'pointer' }}
-        >
-          View Segments
-        </Link>
+        <Tooltip title="View Segments">
+          <IconButton
+            size="small"
+            onClick={() => navigate(`/segments?flow_id=${flow.id}`)}
+            sx={{ padding: '4px' }}
+          >
+            <PlayArrowIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
       </TableCell>
     </>
   );
@@ -447,42 +461,43 @@ const Flows: React.FC = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
     <Container>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h4">
-          Flows
-        </Typography>
-        <Tooltip title="Refresh flows">
-          <IconButton 
-            onClick={handleRefresh} 
-            disabled={loading || refreshing}
-            color="primary"
-            aria-label="refresh flows"
-          >
-            <RefreshIcon sx={{ 
-              animation: refreshing ? 'spin 1s linear infinite' : 'none',
-              '@keyframes spin': {
-                '0%': { transform: 'rotate(0deg)' },
-                '100%': { transform: 'rotate(360deg)' }
-              }
-            }} />
-          </IconButton>
-        </Tooltip>
+      {/* Compact Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Flows
+          </Typography>
+          <Tooltip title="Refresh flows">
+            <IconButton 
+              onClick={handleRefresh} 
+              disabled={loading || refreshing}
+              size="small"
+              aria-label="refresh flows"
+            >
+              <RefreshIcon sx={{ 
+                fontSize: 18,
+                animation: refreshing ? 'spin 1s linear infinite' : 'none',
+                '@keyframes spin': {
+                  '0%': { transform: 'rotate(0deg)' },
+                  '100%': { transform: 'rotate(360deg)' }
+                }
+              }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
 
-      {/* Filter Section */}
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-          Filters:
-        </Typography>
+      {/* Compact Filter Section */}
+      <Box sx={{ mb: 1.5 }}>
         <Box
           sx={{
             display: 'flex',
             flexWrap: 'wrap',
-            gap: 1.5,
-            alignItems: 'flex-end',
+            gap: 1,
+            alignItems: 'center',
             '& > *': {
-              flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 6px)', md: '0 1 auto' },
-              minWidth: { xs: '100%', sm: '150px', md: 'auto' },
+              flex: { xs: '1 1 100%', sm: '0 1 auto' },
+              minWidth: { xs: '100%', sm: 'auto' },
             },
           }}
         >
@@ -493,7 +508,7 @@ const Flows: React.FC = () => {
             slotProps={{
               textField: {
                 size: 'small',
-                sx: { width: 180 },
+                sx: { width: 160 },
               },
             }}
           />
@@ -504,19 +519,19 @@ const Flows: React.FC = () => {
             slotProps={{
               textField: {
                 size: 'small',
-                sx: { width: 180 },
+                sx: { width: 160 },
               },
             }}
           />
           <TextField
-            label="Filter by Source ID"
+            label="Source ID"
             value={filterSourceId}
             onChange={(e) => setFilterSourceId(e.target.value)}
-            placeholder="Enter source ID"
+            placeholder="Source ID"
             size="small"
-            sx={{ minWidth: 200 }}
+            sx={{ width: 160 }}
           />
-          <FormControl size="small" sx={{ minWidth: 150 }}>
+          <FormControl size="small" sx={{ width: 130 }}>
             <InputLabel>Codec</InputLabel>
             <Select
               value={filterCodec}
@@ -524,14 +539,14 @@ const Flows: React.FC = () => {
               onChange={(e) => setFilterCodec(e.target.value)}
             >
               <MenuItem value="">
-                <em>All Codecs</em>
+                <em>All</em>
               </MenuItem>
               {uniqueCodecs.map(codec => (
                 <MenuItem key={codec} value={codec}>{codec}</MenuItem>
               ))}
             </Select>
           </FormControl>
-          <FormControl size="small" sx={{ minWidth: 150 }}>
+          <FormControl size="small" sx={{ width: 130 }}>
             <InputLabel>Resolution</InputLabel>
             <Select
               value={filterResolution}
@@ -539,14 +554,14 @@ const Flows: React.FC = () => {
               onChange={(e) => setFilterResolution(e.target.value)}
             >
               <MenuItem value="">
-                <em>All Resolutions</em>
+                <em>All</em>
               </MenuItem>
               {uniqueResolutions.map(resolution => (
                 <MenuItem key={resolution} value={resolution}>{resolution}</MenuItem>
               ))}
             </Select>
           </FormControl>
-          <FormControl size="small" sx={{ minWidth: 150 }}>
+          <FormControl size="small" sx={{ width: 130 }}>
             <InputLabel>Frame Rate</InputLabel>
             <Select
               value={filterFrameRate}
@@ -554,7 +569,7 @@ const Flows: React.FC = () => {
               onChange={(e) => setFilterFrameRate(e.target.value)}
             >
               <MenuItem value="">
-                <em>All Frame Rates</em>
+                <em>All</em>
               </MenuItem>
               {uniqueFrameRates.map(frameRate => (
                 <MenuItem key={frameRate} value={frameRate}>{frameRate}</MenuItem>
@@ -562,15 +577,15 @@ const Flows: React.FC = () => {
             </Select>
           </FormControl>
           <Button
-            variant="contained"
+            variant="outlined"
             startIcon={<SearchIcon />}
             onClick={() => {
               // Filters are applied automatically via useMemo, but we can trigger a visual feedback
               // The search button serves as a visual indicator
             }}
+            size="small"
             sx={{
-              minWidth: 120,
-              height: 40,
+              minWidth: 100,
             }}
           >
             Search

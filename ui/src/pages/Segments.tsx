@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Container,
@@ -14,6 +14,8 @@ import {
 } from '@mui/material';
 import ClearIcon from '@mui/icons-material/Clear';
 import SearchIcon from '@mui/icons-material/Search';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import PauseIcon from '@mui/icons-material/Pause';
 import { Segment, Flow } from '../types';
 import { segmentService, flowService } from '../services/api';
 import SegmentMediaWidget from '../components/SegmentMediaWidget';
@@ -59,7 +61,8 @@ const Segments: React.FC = () => {
   const [endTime, setEndTime] = useState<string>('');
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [totalSegments, setTotalSegments] = useState<number | null>(null);
-  const [estimatedTotal, setEstimatedTotal] = useState<number | null>(null); // Estimated count for placeholders
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState<boolean>(true);
+  const autoScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // Read initial flow_id from URL
@@ -82,10 +85,15 @@ const Segments: React.FC = () => {
   }, [filterFlowId, setSearchParams]);
 
   const loadFlowDetails = async () => {
-    if (!filterFlowId) return;
+    if (!filterFlowId) {
+      return;
+    }
+    
+    
     try {
       const flow = await flowService.get(filterFlowId);
       setFilteredFlow(flow);
+      
     } catch (error) {
       console.error('Failed to load flow details:', error);
       setFilteredFlow(null);
@@ -193,7 +201,6 @@ const Segments: React.FC = () => {
     setLoading(true);
     setSegments([]);
     setTotalSegments(null);
-    setEstimatedTotal(null);
     setLoadingMore(false);
     
     // Performance instrumentation
@@ -222,9 +229,6 @@ const Segments: React.FC = () => {
       performance.measure(`${perfId}-initial-api`, `${perfId}-initial-api-start`, `${perfId}-initial-api-end`);
       console.log(`[${perfId}] Initial API call completed: ${(initialApiEnd - initialApiStart).toFixed(2)}ms, received ${initialBatch.length} segments`);
       
-      // Estimate total: if we got a full batch, there are likely more
-      const estimated = initialBatch.length === initialBatchSize ? initialBatchSize * 10 : initialBatch.length;
-      setEstimatedTotal(estimated);
       setTotalSegments(null); // Will be set when we know the actual total
       
       // Show UI with initial batch
@@ -331,7 +335,6 @@ const Segments: React.FC = () => {
       } else {
         // No segments found
         setTotalSegments(0);
-        setEstimatedTotal(0);
         setLoadingMore(false);
         console.log(`[${perfId}] No segments found`);
       }
@@ -369,11 +372,93 @@ const Segments: React.FC = () => {
     }, 0);
   };
 
+  const handleAutoScroll = useCallback(() => {
+    if (!autoPlayEnabled) return;
+    
+    const container = document.getElementById('segments-container');
+    if (!container) return;
+    
+    const videoCards = Array.from(container.querySelectorAll('[data-segment-index]')) as HTMLElement[];
+    if (videoCards.length === 0) return;
+    
+    // Find the currently visible leftmost video
+    const containerRect = container.getBoundingClientRect();
+    let currentVisibleIndex = 0;
+    let minDistance = Infinity;
+    
+    // Find the card closest to the left edge of the container
+    for (let i = 0; i < videoCards.length; i++) {
+      const cardRect = videoCards[i].getBoundingClientRect();
+      const distance = Math.abs(cardRect.left - containerRect.left);
+      
+      if (distance < minDistance) {
+        minDistance = distance;
+        currentVisibleIndex = i;
+      }
+    }
+    
+    // Scroll to next video (loop back to start if at end)
+    const nextIndex = (currentVisibleIndex + 1) % videoCards.length;
+    const nextCard = videoCards[nextIndex];
+    
+    // Smooth scroll using scrollLeft (CSS smooth scroll-behavior will handle animation)
+    container.scrollLeft = nextCard.offsetLeft - parseInt(window.getComputedStyle(nextCard).marginLeft || '0');
+    
+    // Schedule next auto-scroll (continuous loop)
+    if (autoScrollTimeoutRef.current !== null) {
+      clearTimeout(autoScrollTimeoutRef.current);
+    }
+    autoScrollTimeoutRef.current = setTimeout(() => {
+      handleAutoScroll();
+    }, 5000); // 5 seconds per video
+  }, [autoPlayEnabled]);
+  
+  // Start auto-scroll when auto-play is enabled
+  useEffect(() => {
+    if (autoPlayEnabled && segments.length > 0) {
+      // Clear any existing timeout
+      if (autoScrollTimeoutRef.current !== null) {
+        clearTimeout(autoScrollTimeoutRef.current);
+      }
+      
+      // Start by scrolling to first video smoothly
+      const container = document.getElementById('segments-container');
+      if (container) {
+        const videoCards = Array.from(container.querySelectorAll('[data-segment-index]')) as HTMLElement[];
+        if (videoCards.length > 0) {
+          const firstCard = videoCards[0];
+          // Scroll to first video smoothly
+          container.scrollLeft = firstCard.offsetLeft - parseInt(window.getComputedStyle(firstCard).marginLeft || '0');
+          
+          // Start auto-scroll loop after 5 seconds
+          autoScrollTimeoutRef.current = setTimeout(() => {
+            handleAutoScroll();
+          }, 5000);
+        }
+      }
+    } else {
+      // Clear timeout when disabled
+      if (autoScrollTimeoutRef.current !== null) {
+        clearTimeout(autoScrollTimeoutRef.current);
+        autoScrollTimeoutRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (autoScrollTimeoutRef.current !== null) {
+        clearTimeout(autoScrollTimeoutRef.current);
+      }
+    };
+  }, [autoPlayEnabled, segments.length, handleAutoScroll]);
+  
+
   // Initial load when filterFlowId is set
   useEffect(() => {
     if (filterFlowId) {
       loadFlowDetails();
       loadSegments();
+      // Enable auto-play when segments are loaded for a flow
+      setAutoPlayEnabled(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterFlowId]);
@@ -387,68 +472,47 @@ const Segments: React.FC = () => {
       </Box>
 
       {filteredFlow && (
-        <Paper sx={{ p: 1.5, mb: 2, backgroundColor: '#e8e8e8' }}>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Typography variant="caption" sx={{ fontWeight: 'bold', minWidth: 60 }}>
-              Flow:
-              </Typography>
-            <Chip label={filteredFlow.id} size="small" variant="outlined" />
-                  {filteredFlow.label && (
-              <Chip label={filteredFlow.label} size="small" variant="outlined" />
-                  )}
+        <Paper sx={{ p: 1, mb: 1, backgroundColor: '#f5f5f5' }}>
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
             <Chip label={filteredFlow.format} size="small" variant="outlined" color="primary" />
-                    {filteredFlow.codec && (
+            {filteredFlow.label && (
+              <Chip label={filteredFlow.label} size="small" variant="outlined" />
+            )}
+            {filteredFlow.codec && (
               <Chip label={filteredFlow.codec} size="small" variant="outlined" color="secondary" />
-                    )}
-                    {filteredFlow.container && (
-              <Chip label={filteredFlow.container} size="small" variant="outlined" />
-                    )}
+            )}
             {filteredFlow.essence_parameters?.frame_width && filteredFlow.essence_parameters?.frame_height && (
-                      <Chip 
+              <Chip 
                 label={`${filteredFlow.essence_parameters.frame_width}x${filteredFlow.essence_parameters.frame_height}`} 
-                        size="small" 
-                        variant="outlined"
-                      />
-                    )}
+                size="small" 
+                variant="outlined"
+              />
+            )}
             {filteredFlow.essence_parameters?.frame_rate && (
-                      <Chip 
+              <Chip 
                 label={`${filteredFlow.essence_parameters.frame_rate.value || 
-                          (filteredFlow.essence_parameters.frame_rate.numerator && filteredFlow.essence_parameters.frame_rate.denominator
-                            ? `${filteredFlow.essence_parameters.frame_rate.numerator}/${filteredFlow.essence_parameters.frame_rate.denominator}`
+                  (filteredFlow.essence_parameters.frame_rate.numerator && filteredFlow.essence_parameters.frame_rate.denominator
+                    ? `${filteredFlow.essence_parameters.frame_rate.numerator}/${filteredFlow.essence_parameters.frame_rate.denominator}`
                     : 'N/A')} fps`} 
-                        size="small" 
-                        variant="outlined"
-                      />
-                    )}
-            {filteredFlow.avg_bit_rate && (
-                      <Chip 
-                label={`${(filteredFlow.avg_bit_rate / 1000).toFixed(1)} Mbps`} 
-                        size="small" 
-                        variant="outlined"
-                color="info"
-                      />
-                    )}
-            {filteredFlow.generation && (
-              <Chip label={`Gen ${filteredFlow.generation}`} size="small" variant="outlined" />
-                    )}
-                  </Box>
+                size="small" 
+                variant="outlined"
+              />
+            )}
+          </Box>
         </Paper>
-              )}
+      )}
 
       {/* Time Interval Search */}
       {filterFlowId && (
-        <Paper sx={{ p: 1.5, mb: 2, backgroundColor: '#e8e8e8' }}>
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Typography variant="caption" sx={{ fontWeight: 'bold', minWidth: 80 }}>
-              Time Range:
-                  </Typography>
+        <Paper sx={{ p: 1, mb: 1, backgroundColor: '#f5f5f5' }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             <TextField
               label="Start"
               placeholder="0:0"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
               size="small"
-              sx={{ width: 120 }}
+              sx={{ width: 100 }}
               InputProps={{
                 endAdornment: startTime ? (
                   <IconButton
@@ -471,7 +535,7 @@ const Segments: React.FC = () => {
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
               size="small"
-              sx={{ width: 120 }}
+              sx={{ width: 100 }}
               InputProps={{
                 endAdornment: endTime ? (
                   <IconButton
@@ -491,21 +555,41 @@ const Segments: React.FC = () => {
               variant="contained"
               startIcon={<SearchIcon />}
               onClick={handleSearch}
-                        size="small" 
+              size="small"
             >
               Search
             </Button>
             {(startTime || endTime) && (
               <Button
-                        variant="outlined"
+                variant="outlined"
                 startIcon={<ClearIcon />}
                 onClick={handleClearSearch}
                 size="small"
               >
                 Clear
               </Button>
-              )}
-            </Box>
+            )}
+            <Box sx={{ flexGrow: 1 }} />
+            {segments.length > 0 && (
+              <Button
+                variant={autoPlayEnabled ? "contained" : "outlined"}
+                size="small"
+                startIcon={autoPlayEnabled ? <PauseIcon /> : <PlayArrowIcon />}
+                onClick={() => {
+                  const newValue = !autoPlayEnabled;
+                  setAutoPlayEnabled(newValue);
+                  if (newValue) {
+                    const container = document.getElementById('segments-container');
+                    if (container) {
+                      container.scrollTo({ left: 0, behavior: 'smooth' });
+                    }
+                  }
+                }}
+              >
+                {autoPlayEnabled ? 'Stop' : 'Auto-Play'}
+              </Button>
+            )}
+          </Box>
         </Paper>
       )}
 
@@ -555,81 +639,78 @@ const Segments: React.FC = () => {
           {/* Segments Section - Show scroll bar immediately */}
           {(segments.length > 0 || loadingMore) && (
             <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-                <Typography variant="subtitle1" color="text.secondary">
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
+                <Typography variant="body2" color="text.secondary">
                   {totalSegments !== null 
-                    ? `${segments.length} of ${totalSegments} segment${totalSegments !== 1 ? 's' : ''} loaded`
-                    : `${segments.length} segment${segments.length !== 1 ? 's' : ''}${loadingMore ? ' (loading...)' : ''}`
+                    ? `${segments.length}/${totalSegments} segments`
+                    : `${segments.length} segment${segments.length !== 1 ? 's' : ''}${loadingMore ? '...' : ''}`
                   }
                 </Typography>
-                {loadingMore && (
-                  <Box sx={{ width: '100%', maxWidth: 300, position: 'relative' }}>
+                {loadingMore && totalSegments !== null && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <LinearProgress 
-                      variant={totalSegments !== null ? "determinate" : "indeterminate"}
-                      value={totalSegments !== null ? (segments.length / totalSegments) * 100 : undefined}
-                      sx={{ width: '100%' }}
+                      variant="determinate"
+                      value={(segments.length / totalSegments) * 100}
+                      sx={{ width: 150, height: 6 }}
                     />
-                    {totalSegments !== null && (
-                      <Typography 
-                        variant="caption" 
-                        color="text.secondary" 
-                        sx={{ 
-                          mt: 0.5, 
-                          display: 'block', 
-                          textAlign: 'center',
-                          fontWeight: 'medium'
-                        }}
-                      >
-                        {segments.length} of {totalSegments} loaded ({Math.round((segments.length / totalSegments) * 100)}%)
-                      </Typography>
-                    )}
+                    <Typography variant="caption" color="text.secondary">
+                      {Math.round((segments.length / totalSegments) * 100)}%
+                    </Typography>
                   </Box>
                 )}
               </Box>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'row', // Left to right layout
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              pb: 2,
-              gap: 0,
-              // Ensure first video stays on the left
-              justifyContent: 'flex-start',
-              alignItems: 'flex-start',
-              '&::-webkit-scrollbar': {
-                height: 8,
-              },
-              '&::-webkit-scrollbar-track': {
-                backgroundColor: '#f1f1f1',
-                borderRadius: 4,
-              },
-              '&::-webkit-scrollbar-thumb': {
-                backgroundColor: '#888',
-                borderRadius: 4,
-                '&:hover': {
-                  backgroundColor: '#555',
-                },
-              },
-            }}
-            id="segments-container"
-          >
-            {segments.map((segment, index) => (
-              <SegmentMediaWidget
-                key={`${segment.object_id}-${index}`}
-                segment={segment}
-                flow={filteredFlow}
-                width={280}
-                height={157.5} // 16:9 aspect ratio
-                isFirst={index === 0} // Pass flag to indicate first video
-              />
-            ))}
-          </Box>
+          
+              {/* Individual segment widgets */}
+              {segments.length > 0 && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'row', // Left to right layout
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                    pb: 2,
+                    gap: 0,
+                    scrollBehavior: 'smooth', // CSS smooth scrolling
+                    // Ensure first video stays on the left
+                    justifyContent: 'flex-start',
+                    alignItems: 'flex-start',
+                    '&::-webkit-scrollbar': {
+                      height: 8,
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      backgroundColor: '#f1f1f1',
+                      borderRadius: 4,
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      backgroundColor: '#888',
+                      borderRadius: 4,
+                      '&:hover': {
+                        backgroundColor: '#555',
+                      },
+                    },
+                  }}
+                  id="segments-container"
+                >
+                  {segments.map((segment, index) => (
+                    <SegmentMediaWidget
+                      key={`${segment.object_id}-${index}`}
+                      segment={segment}
+                      flow={filteredFlow}
+                      width={280}
+                      height={157.5} // 16:9 aspect ratio
+                      isFirst={index === 0} // Pass flag to indicate first video
+                      autoPlayEnabled={autoPlayEnabled}
+                      segmentIndex={index}
+                    />
+                  ))}
+                </Box>
+              )}
             </Box>
           )}
 
         </Box>
       )}
+      
     </Container>
   );
 };

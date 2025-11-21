@@ -23,9 +23,9 @@ class TAMSClient:
     """Main TAMS client class."""
     
     def __init__(self, server_url: str, username: str, password: str, 
-                 timeout: int = 30, verify_ssl: bool = True,
+                 timeout: int = 60, verify_ssl: bool = True,
                  limit: int = 100, limit_per_host: int = 30,
-                 keepalive_timeout: int = 30, api_version: Optional[str] = None):
+                 keepalive_timeout: int = 60, api_version: Optional[str] = None):
         """
         Initialize TAMS client.
         
@@ -33,11 +33,11 @@ class TAMSClient:
             server_url: TAMS server base URL (e.g., "http://localhost:8000")
             username: Username for authentication
             password: Password for authentication
-            timeout: Request timeout in seconds
+            timeout: Request timeout in seconds (default: 60)
             verify_ssl: Verify SSL certificates
             limit: Total connection pool size (default: 100)
             limit_per_host: Max connections per host (default: 30)
-            keepalive_timeout: Keep-alive timeout in seconds (default: 30)
+            keepalive_timeout: Keep-alive timeout in seconds (default: 60)
             api_version: API version to use (e.g., "v8.0", "v7.0"). 
                         If None, uses "/api/tams/latest" (default: None)
         """
@@ -556,4 +556,67 @@ class TAMSClient:
                                 indent: int = 2) -> Dict[str, Any]:
         """Synchronous wrapper for export_source_tree."""
         return asyncio.run(self.export_source_tree(source, output_file, indent))
+
+    # Vector operations (VAST extensions)
+    async def search_vectors(self, vector: List[float], limit: int = 10, 
+                            distance_metric: str = "L2",
+                            distance_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
+        """
+        Search for objects by vector similarity.
+        
+        Args:
+            vector: Query vector (list of floats)
+            limit: Maximum number of results
+            distance_metric: Distance metric ("L2", "COSINE", "IP")
+            distance_threshold: Optional threshold for distance
+            
+        Returns:
+            List of search results with object_id, distance, and metadata
+        """
+        from .api import vectors as vector_api
+        return await vector_api.search_vectors(self, vector, limit, distance_metric, distance_threshold)
+
+    async def update_object_vector(self, object_id: str, vector: List[float],
+                                  summary: Optional[str] = None,
+                                  embedding_model: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Update or set vector for an object.
+        
+        Args:
+            object_id: Object ID
+            vector: Vector embedding (list of floats)
+            summary: Optional text summary
+            embedding_model: Optional model name
+            
+        Returns:
+            Response dictionary
+        """
+        from .api import vectors as vector_api
+        return await vector_api.update_object_vector(self, object_id, vector, summary, embedding_model)
+
+    async def get_object_vector(self, object_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get vector data for an object.
+        
+        Args:
+            object_id: Object ID
+            
+        Returns:
+            Vector data dict or None if not found
+        """
+        from .api import vectors as vector_api
+        return await vector_api.get_object_vector(self, object_id)
+
+    async def delete_object_vector(self, object_id: str) -> bool:
+        """
+        Delete vector data for an object.
+        
+        Args:
+            object_id: Object ID
+            
+        Returns:
+            True if deleted, False if not found
+        """
+        from .api import vectors as vector_api
+        return await vector_api.delete_object_vector(self, object_id)
 

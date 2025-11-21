@@ -57,7 +57,7 @@ class FolderIngestor:
             no_chunking: If True, upload files as-is without chunking (default: False). Overrides use_metadata.
             use_metadata: If True, use metadata files for marker-based chunking when available (default: False)
             include_originals: If True, also upload original files to separate flow when chunking (default: False)
-            chunk_format: Chunk format - "original" (copy codecs, MP4) or "hls" (HLS-compatible TS) (default: "original")
+            chunk_format: Chunk format - "original" (copy codecs, MP4), "mp4" (transcode to H.264/AAC MP4), or "hls" (HLS-compatible TS) (default: "original")
         """
         self.server_url = server_url
         self.username = username
@@ -243,11 +243,22 @@ class FolderIngestor:
             source_format = self._auto_detect_source_format(media_types_detected)
             logger.info(f"🔍 Auto-detected source format: {source_format}")
         
+        # Build source description - use folder path as description if none provided
+        if source_description:
+            if folder_path_str not in source_description:
+                description = f"{source_description} (Folder: {folder_path_str})"
+            else:
+                description = source_description
+        else:
+            # Use folder path as description if none provided
+            description = folder_path_str
+        
         # Create or get source
         if self.dry_run:
             logger.info(f"🔍 DRY RUN: Would {'use existing' if source_id else 'create new'} source")
             logger.info(f"   Format: {source_format}")
             logger.info(f"   Label: {source_label or folder.name}")
+            logger.info(f"   Description: {description}")
             if source_id:
                 source_id = f"dry-run-source-{uuid.uuid4()}"
             else:
@@ -265,13 +276,13 @@ class FolderIngestor:
                 source = self.client.TAMSSource(
                     format=source_format,
                     label=source_label or folder.name,
-                    description=source_description or f"Folder ingest: {folder_path_str}"
+                    description=description
                 )
                 await source._ensure_created()
                 source_id = source.id
                 logger.info(f"✅ Created source: {source_id}")
                 
-                # Set folder_path tag
+                # Set folder_path tag (always absolute path since folder is resolved)
                 logger.debug("🏷️  Setting source tags...")
                 await source.set_tag("folder_path", folder_path_str)
                 await source.set_tag("ingest_state", "in_progress")
@@ -286,7 +297,8 @@ class FolderIngestor:
         type_codecs, type_containers, type_essence_params = await self.flow_manager.determine_codecs_and_essence_params(
             media_types_detected,
             file_media_types,
-            files
+            files,
+            chunk_format=self.chunk_format
         )
         
         # Ensure data codec and container are always set correctly

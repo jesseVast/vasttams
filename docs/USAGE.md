@@ -8,11 +8,51 @@ This guide provides comprehensive examples and usage patterns for the TAMS (Time
 http://localhost:8000
 ```
 
+**Note**: Most examples below use the versioned path `/api/tams/v8.0/` or the `/api/tams/latest/` alias. The root alias is also available for backward compatibility in some cases, but versioned paths are recommended.
+
 ## API Version
 - **Current Version**: 8.0.0
+- **Root Alias**: `/api/tams/latest/`
 - **Interactive Documentation**: `/docs` (Swagger UI)
 - **ReDoc Documentation**: `/redoc`
 - **OpenAPI Specification**: `/openapi.json`
+
+---
+
+## 🔎 Vector Search (VAST Extension)
+
+TAMS supports semantic vector search for objects via the VAST database integration.
+
+### Search Objects by Vector
+```bash
+POST /api/vast/objects/vector/search
+```
+
+**Request Body:**
+```json
+{
+  "vector": [0.1, 0.2, ...], // 768-dimensional vector
+  "limit": 10,
+  "distance_metric": "L2", // or "COSINE", "IP"
+  "distance_threshold": 0.5
+}
+```
+
+**Expected Response (200 OK):**
+```json
+[
+  {
+    "object_id": "obj_123",
+    "distance": 0.15,
+    "metadata": { ... }
+  },
+  {
+    "object_id": "obj_456",
+    "distance": 0.22,
+    "metadata": { ... }
+  }
+]
+```
 
 ---
 

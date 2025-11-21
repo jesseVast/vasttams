@@ -1,44 +1,41 @@
 # TAMS Project - Current Status
 
-**Last Updated**: November 18, 2025  
-**Status**: Performance Optimizations Complete, Object Vectors Design Under Consideration
+**Last Updated**: November 20, 2025  
+**Status**: Vector Table Separation Complete
 
-## 🎯 **CURRENT FOCUS: OBJECT VECTORS FOR VIDEO SEARCH**
+## 🎯 **CURRENT FOCUS: VECTOR TABLE SEPARATION** (November 20, 2025)
 
-### **💡 DESIGN CONSIDERATION: Adding Video Summaries/Vectors to Objects**
+### **✅ COMPLETED: Vectors Moved to Separate Table**
 
-**Context**: Exploring adding video summaries/vectors to objects table for search functionality that can return 100+ matches and tie them to segments, flows, and sources.
+**Implementation**: Vectors are now stored in separate `object_vector` table managed by vast module.
 
-#### **Data Model Relationships**
-The TAMS data model has clear relationships:
-- **Objects → Segments**: `segments.object_id` references `objects.id`
-- **Segments → Flows**: `segments.flow_id` references `flows.id`
-- **Flows → Sources**: `flows.source_id` references `sources.id`
+#### **Architecture**
+- **Separate Table**: `object_vector` table (not part of TAMS specification)
+- **Location**: Managed by vast module (`vast/schemas.py`)
+- **Rationale**: Vectors are not part of TAMS spec, managed separately from TAMS objects
+- **vastdbmanager 1.1.10+**: Automatic query routing based on table type
+  - Vector operations → ADBC/vector_client (via query builder `search()`)
+  - Regular queries → Trino (objects, segments, flows tables)
 
-#### **Recommended Approach: Add Vector Column to Objects Table**
-- **VAST Native Support**: VAST natively supports vector data types (PyArrow list/array types)
-- **Single Query Efficiency**: One JOIN query can return all related data (objects, segments, flows, sources)
-- **Performance**: VAST's optimized JOINs handle 100 matches efficiently (< 1 second expected)
-- **Implementation Ease**: Very easy - relationships already established, existing JOIN patterns in analytics queries
+#### **Operations**
+- **INSERT/UPSERT**: `insert_record("object_vector", ...)` - automatically routes to ADBC
+- **QUERY/SEARCH**: Query builder `search()` method - automatically routes to ADBC
+- **DELETE**: Standard delete operations
+- **No UPDATE**: Only INSERT (upsert) - `insert_record` handles replacements
 
-#### **Search Endpoint Design**
-- **Endpoint**: `GET /api/tams/v8.0/search/objects?vector=<encoded>&limit=100`
-- **Query**: Single JOIN query across objects → segments → flows → sources
-- **Response**: Objects with nested segments, flows, sources, and similarity scores
+#### **Query Pattern**
+1. Vector search uses `vast_db.search("object_vector").vector(...)` to get object_ids with distances
+2. Extract object_ids from vector search results
+3. Use `execute_sql()` for JOIN query excluding object_vector table (avoids Trino reading vectors)
+4. Combine JOIN results (objects, segments, flows) with distances from vector search
 
-#### **Performance Considerations**
-- **For 100 Matches**: Single JOIN query is very efficient with VAST
-- **Existing Patterns**: Analytics queries already demonstrate efficient multi-table JOINs
-- **Vector Similarity**: VAST supports vector similarity search natively
+#### **Benefits**
+- Eliminates Trino errors when querying objects table (no vector columns in schema)
+- Clean separation: TAMS objects table contains only TAMS-compliant fields
+- Automatic routing: vastdbmanager handles vector vs regular query routing
+- Performance: Vector operations use optimized ADBC path
 
-#### **Next Steps** (When Implementing)
-1. Add `vector_summary` column to objects table schema (PyArrow list/array type)
-2. Update object creation endpoints to accept optional vector data
-3. Create search service with vector similarity matching
-4. Implement search endpoint with efficient JOIN query
-5. Add caching for frequent searches (similar to analytics caching)
-
-**See**: `notes/edits/2025-11-18.md` for detailed design discussion
+**See**: `notes/edits/2025-11-20.md` for detailed implementation notes
 
 ---
 

@@ -38,6 +38,62 @@ python mgmt/cleanup_database.py --dry-run
 - Lists all tables before deletion
 - Provides detailed summary after completion
 
+### `cascade_delete.py`
+
+**Purpose**: Cascade delete a specific flow or source by ID, or cleanup all empty sources and flows.
+
+**Use Cases**:
+- Delete a specific source or flow with all dependencies
+- Clean up test data by ID
+- Remove content with verification of what will be deleted
+- **Cleanup empty sources and flows** (sources with no flows, flows with no segments)
+
+**Features**:
+- Works with both source and flow IDs (auto-detects type)
+- **Cleanup mode**: Find and delete all empty sources and flows
+- Remote server support with authentication
+- Shows detailed count of sub-elements before deletion
+- User confirmation with detailed preview
+- Auto-confirmation option with `--yes` flag
+- Environment variable support for credentials
+
+**Usage**:
+```bash
+# Delete specific ID with confirmation prompt
+python mgmt/cascade_delete.py <id> --server http://localhost:8000 --username admin --password secret
+
+# Delete specific ID with auto-confirmation
+python mgmt/cascade_delete.py <id> --server http://localhost:8000 --username admin --password secret --yes
+
+# Cleanup all empty sources and flows
+python mgmt/cascade_delete.py --cleanup-empty --server http://localhost:8000 --username admin --password secret
+
+# Cleanup empty with auto-confirmation
+python mgmt/cascade_delete.py --cleanup-empty --server http://localhost:8000 --username admin --password secret --yes
+
+# Using environment variables
+export TAMS_SERVER=http://localhost:8000
+export TAMS_USERNAME=admin
+export TAMS_PASSWORD=secret
+python mgmt/cascade_delete.py <id> --yes
+python mgmt/cascade_delete.py --cleanup-empty --yes
+```
+
+**What it shows before deletion**:
+- For sources: number of flows, segments, and objects
+- For flows: number of segments and objects
+- Detailed breakdown per flow with labels
+- **For cleanup mode**: List of all empty sources and flows found
+
+**Cleanup Mode Details**:
+- Scans all sources and flows in the system
+- Identifies sources with no flows or all flows empty
+- Identifies flows with no segments
+- Shows summary before deletion
+- Deletes empty flows first, then empty sources
+
+**Warning**: This performs cascade deletion - all flows, segments, and objects associated with deleted sources/flows will be permanently removed.
+
 ### `delete_sources_by_label_filter.py`
 
 **Purpose**: Delete sources by label prefix filter with cascade delete.
@@ -259,6 +315,9 @@ docker exec -it tams-api python /app/mgmt/cleanup_database.py --yes
 # Delete sources by label
 docker exec -it tams-api python /app/mgmt/delete_sources_by_label_filter.py "Test"
 
+# Cascade delete a source or flow
+docker exec -it tams-api python /app/mgmt/cascade_delete.py <id> --server http://localhost:8000 --username admin --password secret
+
 # Get database version
 docker exec -it tams-api python /app/mgmt/get_db_version.py
 
@@ -286,6 +345,7 @@ docker exec -it tams-api python /app/mgmt/generate_openapi.py
 ```
 mgmt/
 ├── README.md                          # This file
+├── cascade_delete.py                  # Cascade delete source or flow by ID
 ├── cleanup_database.py                # Database cleanup script
 ├── delete_sources_by_label_filter.py  # Delete sources by label prefix filter
 ├── user_mgmt.py                       # User management CLI

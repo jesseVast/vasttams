@@ -48,7 +48,7 @@ def _get_requests_session():
     return _thread_local.session
 
 
-async def create_segment(client: "TAMSClient", flow_id: str, segment_data: Dict[str, Any], file_path: Optional[str] = None, chunk_size: int = DEFAULT_CHUNK_SIZE) -> Dict[str, Any]:
+async def create_segment(client: "TAMSClient", flow_id: str, segment_data: Dict[str, Any], file_path: Optional[str] = None, chunk_size: int = DEFAULT_CHUNK_SIZE, filename: Optional[str] = None) -> Dict[str, Any]:
     """
     Create a segment with optional file upload.
     
@@ -61,6 +61,15 @@ async def create_segment(client: "TAMSClient", flow_id: str, segment_data: Dict[
     """
     url = f"{client.server_url}{client.api_prefix}/flows/{flow_id}/segments"
     
+    # Add filename as query parameter if provided
+    if filename:
+        import urllib.parse
+        url += f"?filename={urllib.parse.quote(filename)}"
+    
+    # Retry logic for connection errors
+    max_retries = 3
+    retry_delay = 1  # Start with 1 second
+    
     if file_path:
         # Multipart form data upload with chunked file reading
         file_path_obj = Path(file_path)
@@ -70,34 +79,77 @@ async def create_segment(client: "TAMSClient", flow_id: str, segment_data: Dict[
         file_size = file_path_obj.stat().st_size
         logger.debug(f"Uploading file {file_path} ({file_size} bytes) using multipart form data")
         
-        # Use aiohttp's FormData for multipart upload
-        # For large files, aiohttp will stream the file in chunks automatically
-        data = aiohttp.FormData()
-        data.add_field('segment_data', json.dumps(segment_data), content_type='application/json')
-        
-        # Add file field - aiohttp will handle streaming for large files
-        # When file is large, aiohttp streams it in chunks during multipart encoding
-        with open(file_path, 'rb') as f:
-            data.add_field('file', f, filename=file_path_obj.name, content_type='application/octet-stream')
-            
-            headers = await client._get_headers()
-            # Remove Content-Type for multipart (aiohttp will set it correctly with boundary)
-            headers.pop('Content-Type', None)
-            
-            async with client._session.post(url, data=data, headers=headers) as response:
-                if response.status == 201:
-                    return await response.json()
+        for attempt in range(max_retries):
+            try:
+                # Use aiohttp's FormData for multipart upload
+                # For large files, aiohttp will stream the file in chunks automatically
+                data = aiohttp.FormData()
+                data.add_field('segment_data', json.dumps(segment_data), content_type='application/json')
+                
+                # Add file field - aiohttp will handle streaming for large files
+                # When file is large, aiohttp streams it in chunks during multipart encoding
+                with open(file_path, 'rb') as f:
+                    data.add_field('file', f, filename=file_path_obj.name, content_type='application/octet-stream')
+                    
+                    headers = await client._get_headers()
+                    # Remove Content-Type for multipart (aiohttp will set it correctly with boundary)
+                    headers.pop('Content-Type', None)
+                    
+                    # Use longer timeout for segment creation (60 seconds)
+                    timeout = aiohttp.ClientTimeout(total=60)
+                    async with client._session.post(url, data=data, headers=headers, timeout=timeout) as response:
+                        if response.status == 201:
+                            return await response.json()
+                        else:
+                            error_text = await response.text()
+                            raise TAMSAPIError(f"Failed to create segment: {error_text}", response.status, error_text)
+            except (aiohttp.ClientOSError, aiohttp.ServerConnectionError, aiohttp.ClientConnectorError) as e:
+                if attempt < max_retries - 1:
+                    wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                    logger.warning(f"Connection error on attempt {attempt + 1}/{max_retries}: {e}. Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
                 else:
-                    error_text = await response.text()
-                    raise TAMSAPIError(f"Failed to create segment: {error_text}", response.status, error_text)
+                    logger.error(f"Failed to create segment after {max_retries} attempts: {e}")
+                    raise TAMSAPIError(f"Connection error after {max_retries} retries: {e}", 0, str(e))
+            except aiohttp.ClientTimeout:
+                if attempt < max_retries - 1:
+                    wait_time = retry_delay * (2 ** attempt)
+                    logger.warning(f"Timeout on attempt {attempt + 1}/{max_retries}. Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"Timeout creating segment after {max_retries} attempts")
+                    raise TAMSAPIError(f"Request timeout after {max_retries} retries", 0, "Request timeout")
     else:
         # JSON only
-        async with client._session.post(url, json=segment_data, headers=await client._get_headers()) as response:
-            if response.status == 201:
-                return await response.json()
-            else:
-                error_text = await response.text()
-                raise TAMSAPIError(f"Failed to create segment: {error_text}", response.status, error_text)
+        for attempt in range(max_retries):
+            try:
+                timeout = aiohttp.ClientTimeout(total=60)
+                async with client._session.post(url, json=segment_data, headers=await client._get_headers(), timeout=timeout) as response:
+                    if response.status == 201:
+                        return await response.json()
+                    else:
+                        error_text = await response.text()
+                        raise TAMSAPIError(f"Failed to create segment: {error_text}", response.status, error_text)
+            except (aiohttp.ClientOSError, aiohttp.ServerConnectionError, aiohttp.ClientConnectorError) as e:
+                if attempt < max_retries - 1:
+                    wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                    logger.warning(f"Connection error on attempt {attempt + 1}/{max_retries}: {e}. Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"Failed to create segment after {max_retries} attempts: {e}")
+                    raise TAMSAPIError(f"Connection error after {max_retries} retries: {e}", 0, str(e))
+            except aiohttp.ClientTimeout:
+                if attempt < max_retries - 1:
+                    wait_time = retry_delay * (2 ** attempt)
+                    logger.warning(f"Timeout on attempt {attempt + 1}/{max_retries}. Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"Timeout creating segment after {max_retries} attempts")
+                    raise TAMSAPIError(f"Request timeout after {max_retries} retries", 0, "Request timeout")
 
 
 async def list_segments(client: "TAMSClient", flow_id: str, query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
@@ -154,7 +206,7 @@ async def delete_segments(client: "TAMSClient", flow_id: str, query_params: Opti
 
 
 async def allocate_storage(client: "TAMSClient", flow_id: str, label: Optional[str] = None, limit: int = 1, storage_id: Optional[str] = None) -> Dict[str, Any]:
-    """Allocate storage for flow segments."""
+    """Allocate storage for flow segments with retry logic for connection errors."""
     url = f"{client.server_url}{client.api_prefix}/flows/{flow_id}/storage"
     data = {"limit": limit}
     if label:
@@ -162,12 +214,40 @@ async def allocate_storage(client: "TAMSClient", flow_id: str, label: Optional[s
     if storage_id:
         data["storage_id"] = storage_id
     
-    async with client._session.post(url, json=data, headers=await client._get_headers()) as response:
-        if response.status == 201:
-            return await response.json()
-        else:
-            error_text = await response.text()
-            raise TAMSAPIError(f"Failed to allocate storage: {error_text}", response.status, error_text)
+    # Retry logic for connection errors
+    max_retries = 3
+    retry_delay = 1  # Start with 1 second
+    
+    for attempt in range(max_retries):
+        try:
+            # Use longer timeout for storage allocation (60 seconds)
+            timeout = aiohttp.ClientTimeout(total=60)
+            headers = await client._get_headers()
+            
+            async with client._session.post(url, json=data, headers=headers, timeout=timeout) as response:
+                if response.status == 201:
+                    return await response.json()
+                else:
+                    error_text = await response.text()
+                    raise TAMSAPIError(f"Failed to allocate storage: {error_text}", response.status, error_text)
+        except (aiohttp.ClientOSError, aiohttp.ServerConnectionError, aiohttp.ClientConnectorError) as e:
+            if attempt < max_retries - 1:
+                wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                logger.warning(f"Connection error on attempt {attempt + 1}/{max_retries}: {e}. Retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+                continue
+            else:
+                logger.error(f"Failed to allocate storage after {max_retries} attempts: {e}")
+                raise TAMSAPIError(f"Connection error after {max_retries} retries: {e}", 0, str(e))
+        except aiohttp.ClientTimeout:
+            if attempt < max_retries - 1:
+                wait_time = retry_delay * (2 ** attempt)
+                logger.warning(f"Timeout on attempt {attempt + 1}/{max_retries}. Retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+                continue
+            else:
+                logger.error(f"Timeout allocating storage after {max_retries} attempts")
+                raise TAMSAPIError(f"Request timeout after {max_retries} retries", 0, "Request timeout")
 
 
 async def upload_to_storage(client: "TAMSClient", presigned_url: str, data: bytes = None, file_path: Optional[str] = None, 

@@ -644,6 +644,13 @@ class GetUrlFactory:
                 return presigned_url
             
             # Fallback to default client
+            if self.s3_client is None:
+                logger.warning(
+                    f"[_generate_presigned_url] Cannot generate presigned URL: s3_client is None and no storage_backend with valid credentials available. "
+                    f"key='{key}', operation={operation}"
+                )
+                return None
+            
             sig = inspect.signature(self.s3_client.generate_presigned_url)
             supported = set(sig.parameters.keys())
             candidate_kwargs = {

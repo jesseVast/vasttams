@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     # VAST Database settings
     vast_endpoint: str = Field(default="",
         description="VAST database endpoint URL (REQUIRED - must be set in config.yaml or TAMS_VAST_ENDPOINT)")
+    vast_vector_endpoint: Optional[str] = Field(default=None,
+        description="Optional separate VAST endpoint for vector operations (vastdbmanager 1.1.10+). If not set, uses vast_endpoint.")
     vast_access_key: str = Field(default="",
         description="VAST database access key")
     vast_secret_key: str = Field(default="",
@@ -335,6 +337,12 @@ class Settings(BaseSettings):
                             endpoint_value = vast['endpoint']
                             logger.debug(f"Loaded vast_endpoint from config: {endpoint_value}")
                             self.vast_endpoint = endpoint_value
+                            
+                            # Load optional vector_endpoint (vastdbmanager 1.1.10+)
+                            vector_endpoint_value = vast.get("vector_endpoint")
+                            if vector_endpoint_value:
+                                self.vast_vector_endpoint = vector_endpoint_value
+                                logger.debug(f"Loaded vast_vector_endpoint from config: {vector_endpoint_value}")
                         else:
                             logger.warning("Config file found but 'database.vast.endpoint' is missing. Will use default or environment variable.")
                         if 'access_key' in vast:

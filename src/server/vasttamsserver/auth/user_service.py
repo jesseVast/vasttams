@@ -85,7 +85,7 @@ class UserService:
         
         try:
             # Use SQL query instead of lambda-based filtering
-            sql = f"SELECT * FROM users WHERE username = '{username}'"
+            sql = f"SELECT id, username, password_hash, role, created, updated FROM users WHERE username = '{username}'"
             result = self.vast_db.execute_sql(sql)
             
             if result and result.get('data'):
@@ -218,7 +218,7 @@ class UserService:
             logger.debug("Listing all users")
         
         try:
-            result = self.vast_db.query("users").select("*").execute()
+            result = self.vast_db.query("users").select("id, username, password_hash, role, created, updated").execute()
             
             if not result or not result.get('data'):
                 return []

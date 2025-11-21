@@ -68,53 +68,31 @@ class VastObjectVectorService:
             embedding_date = get_tams_timestamp()
             model_name = embedding_model or "nomic-embed-1.5"
             
-            # Use vastdbmanager's query builder interface for vector updates
-            # This uses VAST's native UPDATE capability with fluent query builder
+            # Use insert_record for vector operations - vastdbmanager 1.1.10+ automatically routes
+            # vector operations to ADBC/vector_client, avoiding Trino errors
+            # insert_record handles upserts (inserts new or replaces existing records)
+            # Prepare vector data for insertion/update
+            # insert_record will upsert if object_id exists
+            vector_data = {
+                "object_id": object_id,
+                "vector": vector,
+                "embedding_date": embedding_date,
+                "embedding_model": model_name
+            }
+            if summary is not None:
+                vector_data["summary"] = summary
+            
+            # Convert timestamps for PyArrow
+            vector_data = prepare_data_for_pyarrow(vector_data)
+            
             try:
-                # Get existing object data
-                existing_obj = await self.object_service.get_object(object_id)
-                if not existing_obj:
-                    raise HTTPException(status_code=404, detail=f"Object {object_id} not found")
+                # Use insert_record which automatically routes to ADBC for vector columns
+                # With vastdbmanager 1.1.10+, this avoids Trino errors
+                self.vast_db.insert_record("object_vector", vector_data)
                 
-                # Escape object_id to prevent SQL injection
-                escaped_object_id = object_id.replace("'", "''")
-                
-                # Build UPDATE query using query builder interface
-                # Format: query(table).update().set(column=value, ...).where(condition).execute()
-                query_builder = self.vast_db.query("objects").update()
-                
-                # Set vector field (768-dimensional list)
-                # The query builder will handle proper formatting of the vector list
-                query_builder = query_builder.set(vector=vector)
-                
-                # Add optional fields if provided
-                if summary is not None:
-                    query_builder = query_builder.set(summary=summary)
-                if embedding_date:
-                    query_builder = query_builder.set(embedding_date=embedding_date)
-                if model_name:
-                    query_builder = query_builder.set(embedding_model=model_name)
-                
-                # Add WHERE clause
-                query_builder = query_builder.where(f"id == '{escaped_object_id}'")
-                
-                # Execute the update query
-                result = query_builder.execute()
-                
-                # Check if update was successful
-                # The execute() method returns a dict with execution results
-                # For UPDATE operations, it typically returns affected row count or success status
-                if isinstance(result, dict):
-                    # Check for error or zero rows updated
-                    if result.get('row_count', 0) == 0:
-                        logger.warning(f"No rows updated for object {object_id}, object may not exist")
-                        raise HTTPException(status_code=404, detail=f"Object {object_id} not found or could not be updated")
-                
-                logger.debug(f"Successfully updated vector for object {object_id} using vastdbmanager query builder")
+                logger.debug(f"Successfully inserted/updated vector for object {object_id} using insert_record (ADBC routing)")
                 return True
                 
-            except HTTPException:
-                raise
             except Exception as upsert_error:
                 logger.error(f"Upsert failed for object {object_id}: {upsert_error}")
                 raise HTTPException(status_code=500, detail="Failed to update object vector")
@@ -165,135 +143,97 @@ class VastObjectVectorService:
                 distance_metric = (distance_metric or "cosine").lower()
             
             # Get table names
+            object_vector_table = self.vast_db.get_qualified_table_name("object_vector")
             objects_table = self.vast_db.get_qualified_table_name("objects")
             segments_table = self.vast_db.get_qualified_table_name("segments")
             flows_table = self.vast_db.get_qualified_table_name("flows")
             
-            # Use vastdbmanager vector client if available
-            if self.vector_client:
+            # Use vastdbmanager query builder search() method (vector-only operations)
+            vector_result = None
+            builder_error: Optional[Exception] = None
+            try:
+                query_builder = self.vast_db.query("object_vector")
+            except AttributeError:
+                query_builder = None
+            
+            if query_builder and hasattr(query_builder, "select") and hasattr(query_builder, "search"):
                 try:
-                    # Use vector client to find matching objects with distances
-                    # Note: vector_client works on single table, so we'll get object matches first
-                    # then JOIN with segments/flows to get related IDs
+                    vector_query = query_builder.select("object_id").search(
+                        query_vector=query_vector,
+                        vector_column="vector",
+                        distance_metric=distance_metric
+                    )
+                    if num_matches:
+                        vector_query = vector_query.limit(num_matches)
+                    vector_result = vector_query.execute()
+                except Exception as exc:
+                    builder_error = exc
+                    logger.error("Query builder vector search failed: %s", exc, exc_info=True)
+            
+            # Fallback to vector_client if query builder search is unavailable or failed
+            if vector_result is None and self.vector_client:
+                try:
+                    # Note: vector_client.query_vectors_with_distance returns results with 'id' column
+                    # We'll need to map it to 'object_id' in post-processing
                     vector_result = self.vector_client.query_vectors_with_distance(
-                        table_name=objects_table,
+                        table_name=object_vector_table,
                         query_vector=query_vector,
                         vector_column="vector",
                         limit=num_matches,
-                        distance_metric=distance_metric,
-                        where_clause="vector IS NOT NULL",
-                        columns=["id"]  # Only need object IDs initially
+                        distance_metric=distance_metric
                     )
-                    
-                    # Extract object IDs and distances from vector search results
-                    object_ids_with_distances = []
-                    if isinstance(vector_result, dict) and 'data' in vector_result:
-                        data = vector_result['data']
-                        if isinstance(data, dict):
-                            # Columnar format
-                            object_id_col = data.get('id', [])
-                            distance_col = data.get('distance', [])
-                            
-                            for i in range(len(object_id_col)):
-                                if object_id_col[i]:
-                                    obj_id = str(object_id_col[i])
-                                    distance = float(distance_col[i]) if i < len(distance_col) else None
-                                    
-                                    # Apply distance threshold if provided
-                                    if distance_numerical_value is not None:
-                                        # For cosine distance, lower is better (more similar)
-                                        # For euclidean, lower is also better
-                                        if distance is not None and distance > distance_numerical_value:
-                                            continue  # Skip if distance exceeds threshold
-                                    
-                                    object_ids_with_distances.append({
-                                        'object_id': obj_id,
-                                        'distance': distance
-                                    })
-                    
-                    if not object_ids_with_distances:
-                        return {'matches': []}
-                    
-                    # Build list of object IDs for JOIN query
-                    object_ids = [item['object_id'] for item in object_ids_with_distances]
-                    # Escape single quotes in object IDs and build safe IN clause
-                    escaped_ids = []
-                    for obj_id in object_ids:
-                        # Escape single quotes by doubling them
-                        escaped_id = obj_id.replace("'", "''")
-                        escaped_ids.append(f"'{escaped_id}'")
-                    object_ids_str = ", ".join(escaped_ids)
-                    
-                    # JOIN with segments and flows to get related IDs
-                    join_query = f"""
-                        SELECT DISTINCT
-                            o.id as object_id,
-                            s.id as segment_id,
-                            s.flow_id as flow_id,
-                            f.source_id as source_id
-                        FROM {objects_table} o
-                        LEFT JOIN {segments_table} s ON o.id = s.object_id
-                        LEFT JOIN {flows_table} f ON s.flow_id = f.id
-                        WHERE o.id IN ({object_ids_str})
-                    """
-                    
-                    join_result = self.vast_db.execute_sql(join_query)
-                    
-                    # Create a mapping of object_id to distance
-                    distance_map = {item['object_id']: item['distance'] for item in object_ids_with_distances}
-                    
-                    # Process JOIN results and combine with distances
-                    matches = []
-                    if isinstance(join_result, dict) and 'data' in join_result:
-                        data = join_result['data']
-                        if isinstance(data, dict):
-                            # Columnar format
-                            object_id_col = data.get('object_id', [])
-                            segment_id_col = data.get('segment_id', [])
-                            flow_id_col = data.get('flow_id', [])
-                            source_id_col = data.get('source_id', [])
-                            
-                            for i in range(len(object_id_col)):
-                                if object_id_col[i]:
-                                    obj_id = str(object_id_col[i])
-                                    match = {
-                                        'object_id': obj_id,
-                                        'segment_id': str(segment_id_col[i]) if i < len(segment_id_col) and segment_id_col[i] else None,
-                                        'flow_id': str(flow_id_col[i]) if i < len(flow_id_col) and flow_id_col[i] else None,
-                                        'source_id': str(source_id_col[i]) if i < len(source_id_col) and source_id_col[i] else None,
-                                        'distance': distance_map.get(obj_id)
-                                    }
-                                    matches.append(match)
-                    
-                    elif isinstance(join_result, list):
-                        # Row format
-                        for row in join_result:
-                            if isinstance(row, dict) and row.get('object_id'):
-                                obj_id = str(row['object_id'])
-                                match = {
-                                    'object_id': obj_id,
-                                    'segment_id': str(row['segment_id']) if row.get('segment_id') else None,
-                                    'flow_id': str(row['flow_id']) if row.get('flow_id') else None,
-                                    'source_id': str(row['source_id']) if row.get('source_id') else None,
-                                    'distance': distance_map.get(obj_id)
-                                }
-                                matches.append(match)
-                    
-                    return {'matches': matches}
-                    
-                except Exception as vector_error:
-                    logger.error(f"Vector client search failed: {vector_error}, falling back to basic search")
-                    # Fall through to basic search below
-            else:
-                logger.warning("Vector client not available, using basic search")
+                except Exception as client_error:
+                    logger.error("Vector client search failed: %s", client_error, exc_info=True)
+                    raise HTTPException(status_code=503, detail="Vector search unavailable") from client_error
             
-            # Fallback: Basic search without vector similarity (for compatibility)
-            # This should rarely be used if vector_client is properly initialized
-            objects_table = self.vast_db.get_qualified_table_name("objects")
-            segments_table = self.vast_db.get_qualified_table_name("segments")
-            flows_table = self.vast_db.get_qualified_table_name("flows")
+            if vector_result is None:
+                error_detail = "Vector search unavailable"
+                if builder_error:
+                    error_detail += f": {builder_error}"
+                raise HTTPException(status_code=503, detail=error_detail)
             
-            search_query = f"""
+            # Extract object IDs and distances from vector search results
+            object_ids_with_distances = []
+            if isinstance(vector_result, dict) and 'data' in vector_result:
+                data = vector_result['data']
+                if isinstance(data, dict):
+                    # Columnar format - handle both 'object_id' and legacy 'id' columns
+                    object_id_col = data.get('object_id') or data.get('id') or []
+                    distance_col = data.get('distance', [])
+                    
+                    for i in range(len(object_id_col)):
+                        if object_id_col[i]:
+                            obj_id = str(object_id_col[i])
+                            distance = float(distance_col[i]) if i < len(distance_col) else None
+                            
+                            # Apply distance threshold if provided
+                            if distance_numerical_value is not None:
+                                # For cosine distance, lower is better (more similar)
+                                # For euclidean, lower is also better
+                                if distance is not None and distance > distance_numerical_value:
+                                    continue  # Skip if distance exceeds threshold
+                            
+                            object_ids_with_distances.append({
+                                'object_id': obj_id,
+                                'distance': distance
+                            })
+            
+            if not object_ids_with_distances:
+                return {'matches': []}
+            
+            # Build list of object IDs for JOIN query
+            object_ids = [item['object_id'] for item in object_ids_with_distances]
+            # Escape single quotes in object IDs and build safe IN clause
+            escaped_ids = []
+            for obj_id in object_ids:
+                # Escape single quotes by doubling them
+                escaped_id = obj_id.replace("'", "''")
+                escaped_ids.append(f"'{escaped_id}'")
+            object_ids_str = ", ".join(escaped_ids)
+            
+            # JOIN query using execute_sql - does NOT include object_vector table
+            # This avoids Trino reading vector columns - only regular tables in JOIN
+            join_query = f"""
                 SELECT DISTINCT
                     o.id as object_id,
                     s.id as segment_id,
@@ -302,16 +242,20 @@ class VastObjectVectorService:
                 FROM {objects_table} o
                 LEFT JOIN {segments_table} s ON o.id = s.object_id
                 LEFT JOIN {flows_table} f ON s.flow_id = f.id
-                WHERE o.vector IS NOT NULL
-                LIMIT {num_matches}
+                WHERE o.id IN ({object_ids_str})
             """
             
-            result = self.vast_db.execute_sql(search_query)
-            matches = []
+            join_result = self.vast_db.execute_sql(join_query)
             
-            if isinstance(result, dict) and 'data' in result:
-                data = result['data']
+            # Create a mapping of object_id to distance
+            distance_map = {item['object_id']: item['distance'] for item in object_ids_with_distances}
+            
+            # Process JOIN results and combine with distances
+            matches = []
+            if isinstance(join_result, dict) and 'data' in join_result:
+                data = join_result['data']
                 if isinstance(data, dict):
+                    # Columnar format
                     object_id_col = data.get('object_id', [])
                     segment_id_col = data.get('segment_id', [])
                     flow_id_col = data.get('flow_id', [])
@@ -319,14 +263,29 @@ class VastObjectVectorService:
                     
                     for i in range(len(object_id_col)):
                         if object_id_col[i]:
+                            obj_id = str(object_id_col[i])
                             match = {
-                                'object_id': str(object_id_col[i]),
+                                'object_id': obj_id,
                                 'segment_id': str(segment_id_col[i]) if i < len(segment_id_col) and segment_id_col[i] else None,
                                 'flow_id': str(flow_id_col[i]) if i < len(flow_id_col) and flow_id_col[i] else None,
                                 'source_id': str(source_id_col[i]) if i < len(source_id_col) and source_id_col[i] else None,
-                                'distance': None  # No distance available in fallback mode
+                                'distance': distance_map.get(obj_id)
                             }
                             matches.append(match)
+            
+            elif isinstance(join_result, list):
+                # Row format
+                for row in join_result:
+                    if isinstance(row, dict) and row.get('object_id'):
+                        obj_id = str(row['object_id'])
+                        match = {
+                            'object_id': obj_id,
+                            'segment_id': str(row['segment_id']) if row.get('segment_id') else None,
+                            'flow_id': str(row['flow_id']) if row.get('flow_id') else None,
+                            'source_id': str(row['source_id']) if row.get('source_id') else None,
+                            'distance': distance_map.get(obj_id)
+                        }
+                        matches.append(match)
             
             return {'matches': matches}
             

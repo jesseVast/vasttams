@@ -23,6 +23,9 @@ from ...objects.schemas import (
     get_objects_schema, get_object_instances_schema,
     get_objects_projections, get_object_instances_projections
 )
+from ...vast.schemas import (
+    get_object_vector_schema, get_object_vector_projections
+)
 from ...service.schemas import (
     get_deletion_requests_schema, get_deletion_requests_projections
 )
@@ -52,6 +55,7 @@ def get_tams_table_schemas() -> Dict[str, pa.Schema]:
         "segments": get_segments_schema(),
         "objects": get_objects_schema(),
         "object_instances": get_object_instances_schema(),
+        "object_vector": get_object_vector_schema(),
         "flow_object_references": get_flow_object_references_schema(),
         "flow_collections": get_flow_collections_schema(),
         "source_collections": get_source_collections_schema(),
@@ -79,6 +83,7 @@ def get_table_projections() -> Dict[str, List[List[str]]]:
         "flows": get_flows_projections(),
         "segments": get_segments_projections(),
         "objects": get_objects_projections(),
+        "object_vector": get_object_vector_projections(),
         "flow_object_references": get_flow_object_references_projections(),
         "flow_collections": get_flow_collections_projections(),
         "source_collections": get_source_collections_projections(),

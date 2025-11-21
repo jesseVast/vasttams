@@ -17,6 +17,7 @@ The TAMS API can be deployed using multiple approaches depending on your infrast
 
 - **Operating System**: Linux (Ubuntu 20.04+), macOS 12+, or Windows 10+
 - **Python**: Python 3.12+ with pip
+- **Git LFS**: Required for large file support (wheels)
 - **Memory**: Minimum 4GB RAM, recommended 8GB+
 - **Storage**: Minimum 10GB free space, recommended 50GB+
 - **Network**: Access to VAST database and S3-compatible storage
@@ -183,102 +184,32 @@ docker-compose --version
 ### **2. Docker Configuration**
 
 #### **Dockerfile**
-The project includes a multi-stage Dockerfile for optimized builds:
+The project includes Dockerfiles for both the Server and UI components:
 
-```dockerfile
-# Build stage
-FROM python:3.12-slim as builder
+- `docker/server/Dockerfile`: Multi-stage build for the TAMS API server.
+- `docker/ui/Dockerfile.ui`: Build for the TAMS React UI.
 
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --user -r requirements.txt
-
-# Runtime stage
-FROM python:3.12-slim
-
-WORKDIR /app
-COPY --from=builder /root/.local /root/.local
-COPY . .
-
-# Set PATH to include user-installed packages
-ENV PATH=/root/.local/bin:$PATH
-
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash tams
-USER tams
-
-# Expose port
-EXPOSE 8000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Start command
-CMD ["python", "run.py"]
-```
+See `docker/server/README.md` and `docker/ui/README.md` for details.
 
 #### **Docker Compose Configuration**
+The `docker/docker-compose.yml` file orchestrates both services along with optional dependencies.
+
 ```yaml
-# docker-compose.yml
+# docker/docker-compose.yml
 version: '3.8'
 
 services:
-  tams-api:
-    build: .
-    container_name: tams-api
-    ports:
-      - "8000:8000"
-    environment:
-      - HOST=0.0.0.0
-      - PORT=8000
-      - DEBUG=false
-      - LOG_LEVEL=INFO
-      - VAST_ENDPOINT=${VAST_ENDPOINT}
-      - VAST_ACCESS_KEY=${VAST_ACCESS_KEY}
-      - VAST_SECRET_KEY=${VAST_SECRET_KEY}
-      - VAST_BUCKET=${VAST_BUCKET}
-      - VAST_SCHEMA=${VAST_SCHEMA}
-      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
-      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
-      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
-      - S3_USE_SSL=${S3_USE_SSL}
-      - S3_REGION=${S3_REGION}
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - tams-network
+  tams-server:
+    build:
+      context: ../
+      dockerfile: docker/server/Dockerfile
+    # ... (configuration)
 
-  # Optional: Add MinIO for local S3-compatible storage
-  minio:
-    image: minio/minio:latest
-    container_name: tams-minio
-    ports:
-      - "9090:9000"
-      - "9091:9001"
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
-    networks:
-      - tams-network
-
-networks:
-  tams-network:
-    driver: bridge
-
-volumes:
-  minio_data:
+  tams-ui:
+    build:
+      context: ../
+      dockerfile: docker/ui/Dockerfile.ui
+    # ... (configuration)
 ```
 
 ### **3. Docker Deployment Steps**

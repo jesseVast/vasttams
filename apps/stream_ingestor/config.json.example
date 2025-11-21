@@ -1,0 +1,12 @@
+{
+  "server_url": "http://localhost:8000",
+  "username": "admin",
+  "password": "admin",
+  "srt_url": "srt://stream.example.com:5000",
+  "chunk_duration": 30,
+  "chunk_format": "hls",
+  "loop_recorder_duration": 900,
+  "label": "Stream Ingestor",
+  "description": "Live stream ingestion"
+}
+

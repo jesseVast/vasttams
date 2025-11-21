@@ -139,70 +139,32 @@ class FlowManager:
         flows_dict: Dict[str, str]
     ) -> Dict[str, Set[int]]:
         """
-        Build a map of already-processed files and their chunks from all flows.
+        Build a map of already-processed files and their chunks.
+        
+        Note: File mapping is no longer stored on flows. Resume functionality
+        based on file mapping has been removed. This function returns an empty
+        map to maintain API compatibility.
         
         Args:
-            flows_dict: Dict mapping media_type -> flow_id
+            flows_dict: Dict mapping media_type -> flow_id (unused, kept for compatibility)
             
         Returns:
-            Dict mapping file_path to set of chunk indices already processed
+            Dict mapping file_path to set of chunk indices already processed (empty)
         """
         processed_map: Dict[str, Set[int]] = {}
         
-        try:
-            from vasttamsclient.api import flows as flow_api
-            
-            if self.client is None:
-                return processed_map
-            
-            # Check all flows
-            for media_type, flow_id in flows_dict.items():
-                flow_data = await flow_api.get_flow(self.client, flow_id)
-                if not flow_data:
-                    continue
-                
-                flow_obj = self.client.TAMSFlow(
-                    id=flow_id,
-                    **{k: v for k, v in flow_data.items() if k != "id"}
-                )
-                flow_tags = await flow_obj.get_tags()
-                for tag_name, tag_value in flow_tags.items():
-                    if tag_name.startswith("file_mapping_"):
-                        # Parse mapping: filename|file_path|chunk_index|total_chunks
-                        try:
-                            parts = str(tag_value).split("|")
-                            if len(parts) >= 2:
-                                file_path = parts[1]
-                                if file_path not in processed_map:
-                                    processed_map[file_path] = set()
-                                
-                                if len(parts) >= 3:
-                                    chunk_index_str = parts[2]
-                                    if chunk_index_str and chunk_index_str != "-1":
-                                        try:
-                                            chunk_index = int(chunk_index_str)
-                                            processed_map[file_path].add(chunk_index)
-                                        except (ValueError, TypeError):
-                                            pass
-                                    elif chunk_index_str == "-1":
-                                        # Data file - mark as fully processed
-                                        processed_map[file_path].add(-1)
-                        except Exception as e:
-                            logger.debug(f"Failed to parse file mapping tag {tag_name}: {e}")
-                            continue
-            
-            logger.info(f"Found {len(processed_map)} processed files with {sum(len(chunks) for chunks in processed_map.values())} chunks")
-            return processed_map
-            
-        except Exception as e:
-            logger.warning(f"Error building processed files map: {e}")
-            return processed_map
+        # File mapping removed from flows - resume functionality disabled
+        # Future implementation could use object metadata (filename field) to track processed files
+        logger.debug("Resume functionality based on file mapping is no longer available")
+        
+        return processed_map
     
     async def determine_codecs_and_essence_params(
         self,
         media_types_detected: Set[str],
         file_media_types: Dict,
-        files: List
+        files: List,
+        chunk_format: str = "original"
     ) -> Tuple[Dict[str, str], Dict[str, str], Dict[str, Dict[str, Any]]]:
         """
         Determine codec, container, and essence parameters for each media type.
@@ -326,7 +288,11 @@ class FlowManager:
                                 break
                         
                         # Determine container: prefer probe result, then extension, then default
-                        if container_from_probe:
+                        # Override for HLS chunk format (chunks are .ts files, so container must be video/mp2t)
+                        if chunk_format == "hls" and base_media_type == "video":
+                            type_containers[base_media_type] = "video/mp2t"
+                            logger.debug(f"Overriding container to video/mp2t for HLS chunk format")
+                        elif container_from_probe:
                             type_containers[base_media_type] = container_from_probe
                             logger.debug(f"Detected container from probe: {container_from_probe} for {file_path}")
                         elif container_from_ext:

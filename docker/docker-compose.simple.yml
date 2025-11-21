@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # TAMS API Server
+  tams-api:
+    build:
+      context: ..
+      dockerfile: docker/server/Dockerfile
+    container_name: tams-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - vast_data:/app/vast_data
+      - logs_data:/app/logs
+      # Config file mounting - use production.yaml for prod, config.yaml for dev
+      - ${CONFIG_FILE:-../config/config.yaml}:/etc/tams/config.yaml:ro
+    environment:
+      - TAMS_CONFIG_PATH=/etc/tams/config.yaml
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - tams-network
+
+  # # TAMS UI
+  # tams-ui:
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/ui/Dockerfile.ui
+  #   container_name: tams-ui
+  #   ports:
+  #     - "80:80"
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 10s
+  #   networks:
+  #     - tams-network
+  #   depends_on:
+  #     - tams-api
+
+volumes:
+  vast_data:
+    driver: local
+  logs_data:
+    driver: local
+
+networks:
+  tams-network:
+    driver: bridge
+

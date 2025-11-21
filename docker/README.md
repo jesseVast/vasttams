@@ -14,10 +14,18 @@ This directory contains Docker configuration files for running TAMS in container
 - `ui/` - UI-related Docker files
   - `Dockerfile.ui` - UI container image
   - `nginx.conf` - Nginx configuration for UI
-- `docker-compose.yml` - Multi-container orchestration
+- `docker-compose.yml` - Multi-container orchestration (includes Redis, Trino, HAProxy, observability)
+- `docker-compose.simple.yml` - Minimal setup (UI and server only)
 - `docker-compose.observability.yml` - Observability stack configuration
 
 ## Quick Start
+
+### Simple Mode (UI and Server Only)
+
+```bash
+cd docker
+docker-compose -f docker-compose.simple.yml up
+```
 
 ### Development Mode
 

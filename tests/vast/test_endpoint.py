@@ -36,10 +36,12 @@ def create_mock_vector(dimension=768):
 def api_available():
     """Check if API server is running"""
     try:
-        response = requests.get(f"{BASE_URL}/", timeout=2)
-        return response.status_code == 200
-    except requests.exceptions.RequestException:
-        pytest.skip("API server not running. Start server with: python run.py")
+        # Check a valid endpoint instead of root
+        response = requests.get(f"{BASE_URL}/sources", timeout=2)
+        # Accept any status code except connection errors - server is running
+        return response.status_code is not None
+    except requests.exceptions.RequestException as e:
+        pytest.skip(f"API server not running: {e}. Start server with: python run.py")
 
 
 # Use auth_headers fixture from conftest.py

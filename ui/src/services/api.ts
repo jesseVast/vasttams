@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { User, Source, Flow, Segment, AuthResponse, AnalyticsSummary } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-const API_PREFIX = '/api/tams/v8.0';
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+export const API_PREFIX = '/api/tams/v8.0';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -13,9 +13,11 @@ const api = axios.create({
 
 // Add auth token to requests
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    (config.headers as any).Authorization = `Bearer ${token}`;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const token = localStorage.getItem('token');
+    if (token) {
+      (config.headers as any).Authorization = `Bearer ${token}`;
+    }
   }
   
   // Performance instrumentation for API calls
@@ -84,11 +86,15 @@ api.interceptors.response.use(
     if ((status === 401 || status === 403) && !isAuthRoute) {
       try {
         // Clear stored auth
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
       } catch {}
       // Redirect to login
-      window.location.replace('/login');
+      if (typeof window !== 'undefined') {
+        window.location.replace('/login');
+      }
     }
 
     return Promise.reject(error);
@@ -110,13 +116,18 @@ export const authService = {
   },
 
   logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
   },
 
   getCurrentUser: (): User | null => {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const userStr = localStorage.getItem('user');
+      return userStr ? JSON.parse(userStr) : null;
+    }
+    return null;
   },
 };
 
@@ -223,23 +234,6 @@ export const segmentService = {
     return response.data?.data || response.data || [];
   },
 };
-
-// HLS service removed - UI no longer uses HLS endpoints
-// export const hlsService = {
-//   getStatus: async (flowId: string): Promise<{ hls_ready: boolean; segment_count?: number; reason?: string; playlist_url?: string }> => {
-//     const response = await api.get(`/hls/flows/${flowId}/status`);
-//     return response.data;
-//   },
-//   getPlaylistUrl: (flowId: string): string => {
-//     const baseUrl = API_BASE_URL.replace(/\/$/, ''); // Remove trailing slash
-//     const token = localStorage.getItem('token');
-//     // Add token as query parameter for HLS players that can't send headers
-//     if (token) {
-//       return `${baseUrl}/hls/flows/${flowId}/playlist.m3u8?access_token=${encodeURIComponent(token)}`;
-//     }
-//     return `${baseUrl}/hls/flows/${flowId}/playlist.m3u8`;
-//   },
-// };
 
 export const webhookService = {
   list: async (): Promise<any[]> => {

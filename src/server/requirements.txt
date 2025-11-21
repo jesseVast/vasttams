@@ -36,7 +36,7 @@ httpx==0.28.1
 vastdb>=1.3.11  # Required by vastdbmanager
 # NOTE: vastdbmanager and vasts3 are PRIVATE dependencies from GitLab
 # See docs/PRIVATE_DEPENDENCIES.md for installation instructions
-vastdbmanager>=1.1.8  # Private GitLab package - requires authentication (wheel: vastdbmanager-1.1.8)
+vastdbmanager>=1.1.10  # Private GitLab package - requires authentication (wheel: vastdbmanager-1.1.10)
 vasts3>=1.1.6  # Private GitLab package - requires authentication (wheel: vasts3-1.1.6)
 ibis-framework>=9.0.0  # Required by vastdbmanager (==9.0.0 in vastdbmanager, using >= for flexibility)
 pyarrow==16.1.0  # Required by vastdbmanager (>=10.0.0 in vastdbmanager)

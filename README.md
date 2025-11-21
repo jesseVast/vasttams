@@ -13,7 +13,9 @@ A comprehensive FastAPI implementation of the BBC TAMS API specification with VA
 - **Comprehensive Observability**: Prometheus metrics, OpenTelemetry tracing, and Grafana dashboards
 - **Modular Architecture**: Clean separation of concerns with dedicated routers for each domain
 - **Webhook Support**: Event-driven notifications for media operations
-- **Docker Support**: Containerized deployment with Docker and docker-compose
+- **Vector Search**: Semantic search capabilities using VAST's vector database integration (via `object_vector` table)
+- **Git LFS Support**: Large file storage for Python wheels and other binary assets
+- **Docker Support**: Containerized deployment with Docker (Server & UI)
 - **Kubernetes Ready**: Complete K8s manifests for production deployment
 - **Comprehensive Testing**: Automated test suite for all endpoints
 - **Pydantic v2 Compatible**: Modern data validation with RootModel support
@@ -105,9 +107,15 @@ bbctams/
 │           ├── api/            # Low-level API methods
 │           └── ...
 ├── docker/                     # Docker configuration
-│   ├── Dockerfile              # Server container
-│   ├── Dockerfile.ui           # UI container
 │   ├── docker-compose.yml      # Multi-profile compose file
+│   ├── server/                 # Server Docker config
+│   │   ├── Dockerfile          # Server container
+│   │   ├── README.md           # Server Docker docs
+│   │   └── ...
+│   ├── ui/                     # UI Docker config
+│   │   ├── Dockerfile.ui       # UI container
+│   │   ├── nginx.conf          # UI Nginx config
+│   │   └── README.md           # UI Docker docs
 │   ├── haproxy/                # HAProxy S3 proxy config
 │   └── trino/                  # Trino connector config
 ├── k8s/                        # Kubernetes deployment (Helm-only)
@@ -180,6 +188,7 @@ bbctams/
 
 ### Core TAMS Endpoints
 - `GET /` - Service information and available paths
+- `GET /api/tams/latest/` - Service information for latest version (alias)
 - `GET /health` - Health check endpoint
 - `GET /openapi.json` - OpenAPI specification (JSON)
 - `GET /service` - Service configuration and capabilities
@@ -396,18 +405,25 @@ Soft delete functionality is enabled by default and cannot be disabled through c
 - VAST Database server (optional, can use mock for development)
 - S3-compatible storage (MinIO, AWS S3, etc.)
 - Docker (optional)
+- Git LFS (required for wheel files)
 
 ### Local Development
 
 1. **Clone the repository**
    ```bash
+   # Install Git LFS first
+   git lfs install
+   
    git clone <repository-url>
    cd bbctams
+   
+   # Pull LFS objects (wheels)
+   git lfs pull
    ```
 
 2. **Install dependencies**
    
-   ⚠️ **Note**: This project requires private dependencies (`vastdbmanager` and `vasts3`) from a private GitLab repository. See [Private Dependencies Setup](docs/PRIVATE_DEPENDENCIES.md) for installation instructions.
+   ⚠️ **Note**: This project requires private dependencies (`vastdbmanager` and `vasts3`) which are managed via Git LFS in the `wheels/` directory.
    
    ```bash
    # First, configure GitLab authentication (see docs/PRIVATE_DEPENDENCIES.md)
@@ -439,13 +455,17 @@ Soft delete functionality is enabled by default and cannot be disabled through c
 1. **Build and run with Docker**
 ```bash
 cd docker
+# Builds both server and UI containers
 docker-compose up --build
 ```
 
 2. **Or build manually**
    ```bash
-   docker build -t tams-api .
-   docker run -p 8000:8000 tams-api
+   # Server
+   docker build -t tams-api -f docker/server/Dockerfile .
+   
+   # UI
+   docker build -t tams-ui -f docker/ui/Dockerfile.ui .
    ```
 
 ### Kubernetes Deployment

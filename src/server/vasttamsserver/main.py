@@ -518,6 +518,31 @@ async def get_root():
         "redoc"
     ]
 
+# Root endpoints for /api/tams/latest/ (alias)
+# Note: These must be registered after the latest routers are included
+@app.head(f"{latest_alias}/")
+async def head_latest_root():
+    """Return root path headers for latest API version"""
+    return {}
+
+@app.get(f"{latest_alias}/", response_model=List[str])
+async def get_latest_root():
+    """List of paths available from this API (latest version)"""
+    return [
+        "service", 
+        "flows", 
+        "sources", 
+        "objects",
+        "flow-delete-requests",
+        "analytics",
+        "hls",
+        "auth",
+        "users",
+        "../openapi.json",
+        "../docs",
+        "../redoc"
+    ]
+
 # Health and metrics endpoints
 @app.head("/health")
 async def head_health():

@@ -24,6 +24,18 @@ from ..common.models import HttpRequest
 logger = logging.getLogger(__name__)
 
 
+def _is_conflict_error(error: Exception) -> bool:
+    """Check if an error is a 409 Conflict error from VAST"""
+    error_str = str(error)
+    # Check for common conflict error indicators
+    return (
+        "409" in error_str or
+        "VastConflictException" in error_str or
+        "Conflict" in error_str or
+        "TabularWwc" in error_str
+    )
+
+
 class SegmentStorageService:
     """Handles flow segment-related storage operations"""
     
@@ -105,7 +117,8 @@ class SegmentStorageService:
             # Query segments using vaststore
             # Run blocking database query in thread pool to avoid blocking event loop
             # This is especially important in dev mode with single worker
-            query = self.vast_db.query("segments").select("*").where(f"flow_id = '{flow_id}'")
+            # Exclude get_urls to avoid loading expired presigned URLs - they will be generated on-demand if needed
+            query = self.vast_db.query("segments").select("id, flow_id, object_id, timerange_start, timerange_end, ts_offset, last_duration, sample_offset, sample_count, key_frame_count, created").where(f"flow_id = '{flow_id}'")
             
             result = await asyncio.to_thread(lambda: query.execute())
             
@@ -466,28 +479,100 @@ class SegmentStorageService:
                 segments_table = self.vast_db.get_qualified_table_name("segments")
                 deleted_count = 0
                 for segment in segments:
-                    try:
-                        # Reconstruct timerange_start and timerange_end from segment timerange
-                        timerange_value = segment.timerange.value if segment.timerange else "0:0"
-                        if "_" in timerange_value:
-                            timerange_start, timerange_end = timerange_value.split("_", 1)
-                        else:
-                            timerange_start = timerange_value
-                            timerange_end = timerange_value
-                        
-                        delete_sql = f"""
-                            DELETE FROM {segments_table} 
-                            WHERE flow_id = '{flow_id}' 
-                            AND object_id = '{segment.object_id}' 
-                            AND timerange_start = '{timerange_start}' 
-                            AND timerange_end = '{timerange_end}'
-                        """
-                        await asyncio.to_thread(lambda: self.vast_db.execute_sql(delete_sql))
-                        deleted_count += 1
-                    except Exception as e:
-                        logger.warning("Failed to delete segment (flow_id=%s, object_id=%s): %s", 
-                                   flow_id, segment.object_id, e)
-                        # Continue with other segments
+                    # Reconstruct timerange_start and timerange_end from segment timerange
+                    timerange_value = segment.timerange.value if segment.timerange else "0:0"
+                    if "_" in timerange_value:
+                        timerange_start, timerange_end = timerange_value.split("_", 1)
+                    else:
+                        timerange_start = timerange_value
+                        timerange_end = timerange_value
+                    
+                    delete_sql = f"""
+                        DELETE FROM {segments_table} 
+                        WHERE flow_id = '{flow_id}' 
+                        AND object_id = '{segment.object_id}' 
+                        AND timerange_start = '{timerange_start}' 
+                        AND timerange_end = '{timerange_end}'
+                    """
+                    
+                    # Retry logic for conflict errors (409) with exponential backoff
+                    max_retries = 3
+                    base_delay = 0.1  # 100ms base delay
+                    success = False
+                    
+                    for attempt in range(max_retries):
+                        try:
+                            await asyncio.to_thread(lambda: self.vast_db.execute_sql(delete_sql))
+                            deleted_count += 1
+                            success = True
+                            break
+                        except Exception as e:
+                            # Check if this is a conflict error that should be retried
+                            if _is_conflict_error(e) and attempt < max_retries - 1:
+                                # Exponential backoff: 100ms, 200ms, 400ms
+                                delay = base_delay * (2 ** attempt)
+                                logger.debug(
+                                    "Conflict error deleting segment (flow_id=%s, object_id=%s, attempt %d/%d), "
+                                    "retrying after %.3fs: %s",
+                                    flow_id, segment.object_id, attempt + 1, max_retries, delay, str(e)[:200]
+                                )
+                                await asyncio.sleep(delay)
+                                continue
+                            else:
+                                # Not a conflict error, or max retries reached
+                                if _is_conflict_error(e):
+                                    logger.warning(
+                                        "Failed to delete segment after %d retries (flow_id=%s, object_id=%s): %s",
+                                        max_retries, flow_id, segment.object_id, str(e)[:500]
+                                    )
+                                else:
+                                    logger.warning(
+                                        "Failed to delete segment (flow_id=%s, object_id=%s): %s",
+                                        flow_id, segment.object_id, str(e)[:500]
+                                    )
+                                # Continue with other segments
+                                break
+                    
+                    # If deletion failed after retries, check if segment still exists (idempotent delete)
+                    if not success:
+                        try:
+                            # Check if segment still exists - if not, consider it successfully deleted
+                            check_sql = f"""
+                                SELECT COUNT(*) as count
+                                FROM {segments_table}
+                                WHERE flow_id = '{flow_id}' 
+                                AND object_id = '{segment.object_id}' 
+                                AND timerange_start = '{timerange_start}' 
+                                AND timerange_end = '{timerange_end}'
+                            """
+                            result = await asyncio.to_thread(lambda: self.vast_db.execute_sql(check_sql))
+                            
+                            # Parse result to check count
+                            count = 0
+                            if isinstance(result, dict) and 'data' in result:
+                                data = result['data']
+                                if isinstance(data, dict):
+                                    count_col = data.get('count', [])
+                                    if count_col and len(count_col) > 0:
+                                        count = count_col[0] or 0
+                                elif isinstance(data, list) and len(data) > 0:
+                                    count = data[0].get('count', 0) if isinstance(data[0], dict) else 0
+                            elif isinstance(result, list) and len(result) > 0:
+                                count = result[0].get('count', 0) if isinstance(result[0], dict) else 0
+                            
+                            if count == 0:
+                                # Segment doesn't exist - consider it successfully deleted (idempotent)
+                                logger.debug(
+                                    "Segment already deleted (flow_id=%s, object_id=%s) - treating as success",
+                                    flow_id, segment.object_id
+                                )
+                                deleted_count += 1
+                        except Exception as check_error:
+                            logger.debug(
+                                "Failed to check if segment exists (flow_id=%s, object_id=%s): %s",
+                                flow_id, segment.object_id, str(check_error)[:200]
+                            )
+                            # Continue - segment deletion failed but we'll try others
                 
                 logger.debug("Deleted %d segments for flow %s with timerange %s", deleted_count, flow_id, timerange)
                 # Invalidate segments cache for this flow

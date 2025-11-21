@@ -21,18 +21,25 @@ def get_vast_db() -> VastDBManager:
         import logging
         logger = logging.getLogger(__name__)
         logger.debug(f"Initializing VastDBManager with endpoint: {settings.vast_endpoint}")
-        vast_db = VastDBManager(
-            endpoints=[settings.vast_endpoint],
-            access_key=settings.vast_access_key,
-            secret_key=settings.vast_secret_key,
-            bucket=settings.vast_bucket,
-            schema=settings.vast_schema,
-            enable_trino=settings.vaststore_enable_trino,
-            trino_host=settings.trino_host,
-            trino_port=settings.trino_port,
-            trino_user=settings.trino_user,
-            trino_catalog=settings.trino_catalog
-        )
+        # Build VastDBManager initialization parameters
+        init_params = {
+            "endpoints": [settings.vast_endpoint],
+            "access_key": settings.vast_access_key,
+            "secret_key": settings.vast_secret_key,
+            "bucket": settings.vast_bucket,
+            "schema": settings.vast_schema,
+            "enable_trino": settings.vaststore_enable_trino,
+            "trino_host": settings.trino_host,
+            "trino_port": settings.trino_port,
+            "trino_user": settings.trino_user,
+            "trino_catalog": settings.trino_catalog
+        }
+        # Add vector_endpoint if configured (vastdbmanager 1.1.10+)
+        if settings.vast_vector_endpoint:
+            init_params["vector_endpoint"] = settings.vast_vector_endpoint
+            logger.debug(f"Using separate vector endpoint: {settings.vast_vector_endpoint}")
+        
+        vast_db = VastDBManager(**init_params)
     return vast_db
 
 def get_s3_client() -> S3Client:

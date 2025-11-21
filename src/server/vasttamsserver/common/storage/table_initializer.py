@@ -55,7 +55,7 @@ class TAMSTableInitializer:
             table_order = [
                 "users", "api_tokens", "refresh_tokens", "auth_logs", "auth_provider_configs",  # Auth tables first
                 "storage_backends",  # Storage configuration tables
-                "sources", "flows", "objects", "object_instances",  # Core entity tables (include instances)
+                "sources", "flows", "objects", "object_instances", "object_vector",  # Core entity tables (include instances and vectors)
                 "segments", "flow_object_references",  # Relationship tables
                 "flow_collections", "source_collections",  # Collection tables
                 "webhooks", "deletion_requests",  # Utility tables

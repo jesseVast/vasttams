@@ -166,11 +166,13 @@ class TAMSFlow(TAMSDomainObject):
         logger.debug(f"  Content-Type: {content_type}")
         logger.debug(f"  Put URL object: {put_url_obj}")
         
-        # Upload file or use S3 object
+        # Extract filename for object metadata
+        filename = None
         if file_path:
             file_path_obj = Path(file_path)
             if not file_path_obj.exists():
                 raise FileNotFoundError(f"File not found: {file_path}")
+            filename = file_path_obj.name
             
             # Use chunked upload for large files (multipart support)
             await segment_api.upload_to_storage(
@@ -184,7 +186,9 @@ class TAMSFlow(TAMSDomainObject):
             # For S3 objects, we assume the object already exists in S3
             # In a real implementation, you might need to copy from S3 to the presigned URL
             # For now, we'll just use the object_id
-            pass
+            # Try to extract filename from s3_object if available
+            if isinstance(s3_object, dict) and 'key' in s3_object:
+                filename = Path(s3_object['key']).name
         
         # Create segment
         if not timerange:
@@ -198,7 +202,7 @@ class TAMSFlow(TAMSDomainObject):
             "timerange": timerange
         })
         
-        segment_result = await segment_api.create_segment(self._client, self._id, segment_data)
+        segment_result = await segment_api.create_segment(self._client, self._id, segment_data, filename=filename)
         self._segment_count += 1
         
         return TAMSSegment(self._client, self._id, segment_result)

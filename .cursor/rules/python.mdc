@@ -22,6 +22,6 @@ alwaysApply: false
 - for vasts3 and vastdbmanager consult ~/Developer/gitlab/vaststore/ for the codebase.
 - use TAMS spec compliant ID where ID is required.
 - always run tests with feedback and verbose output
-- do not run pytest with -q option. For long running tests, use -v option.
+- do not run pytest with -q option. For long running tests, use -v option. Don't use head or tail options.
 - Keep a tab of tests that succeeded and don't them run again until the code behind them changes. Only run tests that failed.
 - Dont use UTF icons in logging

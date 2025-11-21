@@ -190,6 +190,82 @@ async def update_object_size_from_s3(object_id: str):
         # Log but don't fail - this is a background task
         logger.warning("Failed to update object size from S3 for object %s: %s", object_id, e)
 
+
+async def update_object_metadata_with_filename(object_id: str, filename: str):
+    """Background task to update object metadata with filename after segment creation
+    
+    This function updates the metadata JSON field in the objects table to include
+    the filename. It preserves existing metadata fields (storage_path, content_type, storage_id).
+    """
+    try:
+        import json
+        from ..core.dependencies import get_vast_db
+        
+        vast_db = get_vast_db()
+        objects_table = vast_db.get_qualified_table_name("objects")
+        
+        # Get existing metadata
+        check_sql = f"""
+            SELECT metadata 
+            FROM {objects_table} 
+            WHERE id = '{object_id}'
+        """
+        check_result = vast_db.execute_sql(check_sql)
+        
+        # Parse result to get current metadata
+        metadata_str = None
+        
+        if isinstance(check_result, dict) and 'data' in check_result:
+            data = check_result['data']
+            if isinstance(data, dict):
+                # Columnar format
+                metadata_col = data.get('metadata', [])
+                if metadata_col and len(metadata_col) > 0:
+                    metadata_str = metadata_col[0]
+            elif isinstance(data, list) and len(data) > 0:
+                # Row-oriented format
+                row = data[0]
+                if isinstance(row, dict):
+                    metadata_str = row.get('metadata')
+        elif isinstance(check_result, list) and len(check_result) > 0:
+            row = check_result[0]
+            if isinstance(row, dict):
+                metadata_str = row.get('metadata')
+        
+        # Parse existing metadata
+        if metadata_str:
+            try:
+                if isinstance(metadata_str, str):
+                    metadata = json.loads(metadata_str)
+                else:
+                    metadata = metadata_str
+            except (json.JSONDecodeError, TypeError):
+                # If metadata is invalid, create new dict with just filename
+                metadata = {}
+        else:
+            # No existing metadata, create new dict
+            metadata = {}
+        
+        # Update/add filename field
+        metadata['filename'] = filename
+        
+        # Convert back to JSON string and update database
+        updated_metadata = json.dumps(metadata)
+        # Escape single quotes for SQL
+        updated_metadata_escaped = updated_metadata.replace("'", "''")
+        
+        update_sql = f"""
+            UPDATE {objects_table} 
+            SET metadata = '{updated_metadata_escaped}'
+            WHERE id = '{object_id}'
+        """
+        vast_db.execute_sql(update_sql)
+        logger.debug("Updated metadata for object %s with filename: %s", object_id, filename)
+        
+    except Exception as e:
+        # Log but don't fail - this is a background task
+        logger.warning("Failed to update object metadata with filename for object %s: %s", object_id, e)
+
 # HEAD endpoint
 @router.head("/{flow_id}/segments")
 async def head_flow_segments(
@@ -388,6 +464,7 @@ async def list_flow_segments(
 async def create_new_flow_segment(
     flow_id: str,
     segment: FlowSegment = Body(...),
+    filename: Optional[str] = Query(None, description="Source filename for object metadata"),
     storage: StorageInterface = Depends(get_storage_service),
     user_session: UserSession = Depends(require_editor),
     background_tasks: BackgroundTasks = BackgroundTasks()
@@ -419,6 +496,10 @@ async def create_new_flow_segment(
         # Update object size from S3 in background (non-blocking)
         if segment.object_id:
             background_tasks.add_task(update_object_size_from_s3, segment.object_id)
+        
+        # Update object metadata with filename in background (non-blocking)
+        if segment.object_id and filename:
+            background_tasks.add_task(update_object_metadata_with_filename, segment.object_id, filename)
         
         return segment
         

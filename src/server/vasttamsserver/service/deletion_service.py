@@ -99,7 +99,7 @@ class DeletionRequestService:
         """Get a deletion request by ID"""
         try:
             table_name = self.vast_db.get_qualified_table_name("deletion_requests")
-            query_sql = f"SELECT * FROM {table_name} WHERE id = '{request_id}'"
+            query_sql = f"SELECT id, flow_id, timerange_to_delete, delete_flow, status, timerange_remaining, created, created_by, updated, expiry, error FROM {table_name} WHERE id = '{request_id}'"
             result = self.vast_db.execute_sql(query_sql)
             
             if not result:
@@ -119,7 +119,7 @@ class DeletionRequestService:
         """Get all active deletion requests"""
         try:
             table_name = self.vast_db.get_qualified_table_name("deletion_requests")
-            query_sql = f"SELECT * FROM {table_name} WHERE status IN ('created', 'started') ORDER BY created DESC LIMIT 100"
+            query_sql = f"SELECT id, flow_id, timerange_to_delete, delete_flow, status, timerange_remaining, created, created_by, updated, expiry, error FROM {table_name} WHERE status IN ('created', 'started') ORDER BY created DESC LIMIT 100"
             result = self.vast_db.execute_sql(query_sql)
             
             if not result:

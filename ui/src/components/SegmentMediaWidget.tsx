@@ -3,9 +3,6 @@ import {
   Box, 
   Typography, 
   Card, 
-  CardContent, 
-  Tooltip, 
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -21,9 +18,10 @@ import {
   TableRow,
   Chip
 } from '@mui/material';
-import InfoIcon from '@mui/icons-material/Info';
 import VideoPlayer, { VideoPlayerType } from './VideoPlayer';
+import VideoInfoButton from './VideoInfoButton';
 import { Segment, Flow } from '../types';
+import { API_BASE_URL, API_PREFIX } from '../services/api';
 
 interface SegmentMediaWidgetProps {
   segment: Segment;
@@ -32,6 +30,8 @@ interface SegmentMediaWidgetProps {
   height?: number;
   isFirst?: boolean; // Flag to indicate if this is the first video (load immediately)
   videoPlayerType?: VideoPlayerType; // Which video player to use: 'videojs', 'react-player', or 'native'
+  autoPlayEnabled?: boolean;
+  segmentIndex?: number;
 }
 
 type MediaType = 'video' | 'image' | 'audio' | 'data' | 'unknown';
@@ -42,14 +42,54 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   width = 240, 
   height = 135,
   isFirst = false,
-  videoPlayerType = 'native' // Default to native HTML5 for best performance
+  videoPlayerType = 'native', // Default to native HTML5 for best performance
+  autoPlayEnabled = false,
+  segmentIndex
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const videoPlayerRef = useRef<any>(null);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
-  const [videoLoading, setVideoLoading] = useState(true);
+  const [isInViewport, setIsInViewport] = useState(isFirst); // First video loads immediately
+  const [intersectionRatio, setIntersectionRatio] = useState(0); // Track how much is visible
+  const [wasPlayingBeforeModal, setWasPlayingBeforeModal] = useState<boolean>(false);
+  const [shouldLoadVideo, setShouldLoadVideo] = useState(isFirst); // Track if video should be loaded
+  const [shouldUnloadVideo, setShouldUnloadVideo] = useState(false); // Track if video should be unloaded
+  const [retryWithMpegts, setRetryWithMpegts] = useState(false); // Track if we should retry with mpegts.js after native player error
   
   const getFirstPresignedUrl = (seg: Segment) => {
     return seg.get_urls?.find(url => url.presigned && url.url) || seg.get_urls?.[0];
+  };
+
+  // Convert URLs to proxy URLs for CORS support (especially needed for mpegts.js)
+  const getProxyUrl = (originalUrl: string): string => {
+    if (!flow?.id || !segment.object_id) {
+      console.warn('[SegmentMediaWidget] Cannot create proxy URL: missing flow.id or segment.object_id');
+      return originalUrl;
+    }
+    
+    // Always use proxy endpoint for CORS support when proxying
+    // This is especially important for mpegts.js which needs to fetch the video data
+    const baseUrl = API_BASE_URL.replace(/\/$/, '');
+    const apiPrefix = API_PREFIX.replace(/\/$/, '');
+    const encodedUrl = encodeURIComponent(originalUrl);
+    
+    // Include token in query parameter for authentication (like HLS playlists)
+    let proxyUrl = `${baseUrl}${apiPrefix}/hls/flows/${flow.id}/segments/${segment.object_id}?url=${encodedUrl}`;
+    
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        proxyUrl += `&access_token=${encodeURIComponent(token)}`;
+      }
+    }
+    
+    console.debug(`[Segment ${segmentIndex}] Proxying URL:`, {
+      original: originalUrl.substring(0, 100),
+      proxy: proxyUrl.substring(0, 150)
+    });
+    
+    return proxyUrl;
   };
 
   // Determine media type from flow format and URL
@@ -110,23 +150,6 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     return 'unknown';
   };
 
-  const getVideoMimeType = (url: string): string => {
-    const urlLower = url.toLowerCase();
-    if (urlLower.includes('.ts') || urlLower.endsWith('.ts')) {
-      return 'video/mp2t';
-    } else if (urlLower.includes('.mp4') || urlLower.endsWith('.mp4')) {
-      return 'video/mp4';
-    } else if (urlLower.includes('.webm') || urlLower.endsWith('.webm')) {
-      return 'video/webm';
-    } else if (urlLower.includes('.ogg') || urlLower.endsWith('.ogv')) {
-      return 'video/ogg';
-    } else if (urlLower.includes('.mkv') || urlLower.endsWith('.mkv')) {
-      return 'video/x-matroska';
-    } else if (urlLower.includes('.m3u8')) {
-      return 'application/x-mpegURL';
-    }
-    return '';
-  };
 
   const getAudioMimeType = (url: string): string => {
     const urlLower = url.toLowerCase();
@@ -165,29 +188,103 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     }
   }, [segment, mediaType, firstUrl, timerange]);
   
-  // Parse timerange to extract time information for display
-  const parseTimerange = (tr: string): { start?: string; end?: string; duration?: string } => {
-    if (!tr || tr === '-') return {};
-    
-    // Match pattern like [10:0_20:0) or [10:0]
-    const match = tr.match(/\[?([0-9:-]+)_?([0-9:-]+)?/);
-    if (match) {
-      const start = match[1];
-      const end = match[2];
-      return { start, end };
-    }
-    return {};
-  };
 
-  const timeInfo = parseTimerange(timerange);
 
-  // Handle video loading state
+  // Setup IntersectionObserver for lazy loading and scroll-based playback
   useEffect(() => {
-    if (mediaType === 'video' && firstUrl?.url && isFirst) {
-      // First video: show loading indicator
-      setVideoLoading(true);
-    }
-  }, [firstUrl?.url, mediaType, isFirst]);
+    if (!cardRef.current || mediaType !== 'video') return;
+
+    const container = document.getElementById('segments-container');
+    if (!container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const ratio = entry.intersectionRatio;
+          const isVisible = entry.isIntersecting && ratio > 0.1;
+          
+          console.debug(`[Segment ${segmentIndex}] Viewport visibility:`, isVisible, 'ratio:', ratio);
+          
+          setIsInViewport(isVisible);
+          setIntersectionRatio(ratio);
+          
+          // Load video when it comes into viewport (with some margin)
+          if (isVisible && !shouldLoadVideo) {
+            setShouldLoadVideo(true);
+            setShouldUnloadVideo(false);
+          }
+          
+          // Unload video when it's far from viewport (save resources)
+          if (!isVisible && shouldLoadVideo && ratio === 0) {
+            // Only unload if it's been out of view for a bit (debounce)
+            const unloadTimer = setTimeout(() => {
+              if (!entry.isIntersecting) {
+                setShouldUnloadVideo(true);
+              }
+            }, 2000); // 2 second delay before unloading
+            
+            return () => clearTimeout(unloadTimer);
+          } else if (isVisible) {
+            setShouldUnloadVideo(false);
+          }
+        });
+      },
+      {
+        root: container,
+        rootMargin: '300px', // Start loading 300px before entering viewport
+        threshold: [0, 0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1] // More granular thresholds
+      }
+    );
+
+    observer.observe(cardRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [mediaType, segmentIndex, shouldLoadVideo]);
+
+  // Handle scroll-based playback: play only when highly visible, pause otherwise
+  useEffect(() => {
+    if (mediaType !== 'video' || !shouldLoadVideo || shouldUnloadVideo) return;
+    
+    // Small delay to ensure ref is set
+    const timer = setTimeout(() => {
+      if (videoPlayerRef.current) {
+        const player = videoPlayerRef.current;
+        const videoElement = player.getVideoElement?.();
+        
+        // Only play if:
+        // 1. Auto-play is enabled
+        // 2. Video is in viewport
+        // 3. At least 50% of the video is visible (to prioritize the most visible video)
+        const shouldPlay = autoPlayEnabled && isInViewport && intersectionRatio >= 0.5;
+        
+        if (shouldPlay) {
+          // Play when highly visible
+          console.debug(`[Segment ${segmentIndex}] Playing video (ratio: ${intersectionRatio.toFixed(2)})`);
+          if (player.play && typeof player.play === 'function') {
+            player.play().catch((error: any) => {
+              console.debug(`[Segment ${segmentIndex}] Video autoplay prevented:`, error);
+            });
+          }
+        } else {
+          // Pause when not highly visible or out of viewport
+          if (videoElement && !videoElement.paused) {
+            console.debug(`[Segment ${segmentIndex}] Pausing video (ratio: ${intersectionRatio.toFixed(2)}, autoPlay: ${autoPlayEnabled})`);
+            if (player.pause && typeof player.pause === 'function') {
+              player.pause();
+              // Reset playback to start when leaving viewport (optional - for better UX)
+              if (!isInViewport && videoElement) {
+                videoElement.currentTime = 0;
+              }
+            }
+          }
+        }
+      }
+    }, 150);
+    
+    return () => clearTimeout(timer);
+  }, [autoPlayEnabled, isInViewport, intersectionRatio, mediaType, segmentIndex, shouldLoadVideo, shouldUnloadVideo]);
 
   const renderMediaContent = () => {
     // Check if we have URLs available
@@ -230,18 +327,67 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
 
     switch (mediaType) {
       case 'video':
-        return (
-          <VideoPlayer
-            src={firstUrl.url}
-            width="100%"
-            height={height}
-            controls
-            muted
-            playsInline
-            preload={isFirst ? 'auto' : 'metadata'}
-            playerType={videoPlayerType}
-            light={!isFirst && videoPlayerType === 'react-player'} // Light mode for non-first videos with react-player
-            playIcon={
+        // Auto-detect video format and choose appropriate player
+        // Check multiple indicators: URL extension, flow container, and flow format
+        const urlLower = firstUrl.url.toLowerCase();
+        const containerLower = flow?.container?.toLowerCase() || '';
+        const formatLower = flow?.format?.toLowerCase() || '';
+        
+        // Detect MPEG-TS files (use mpegts.js)
+        const isTSFile = 
+          urlLower.includes('.ts') || 
+          urlLower.endsWith('.ts') || 
+          urlLower.includes('transport') || 
+          urlLower.includes('mpegts') ||
+          containerLower.includes('mp2t') ||
+          containerLower.includes('mpegts') ||
+          containerLower.includes('ts') ||
+          formatLower.includes('mpegts') ||
+          formatLower.includes('transport');
+        
+        // Detect unsupported formats that native player can't handle
+        // MKV, WebM, and other formats may need special handling
+        const isUnsupportedFormat = 
+          containerLower.includes('matroska') ||
+          containerLower.includes('mkv') ||
+          containerLower.includes('webm') ||
+          urlLower.includes('.mkv') ||
+          urlLower.includes('.webm');
+        
+        // Use mpegts.js for .ts files, or if we're retrying after a native player error
+        // For unsupported formats, try video.js if available, otherwise fall back to native
+        let actualPlayerType: VideoPlayerType;
+        if (isTSFile || retryWithMpegts) {
+          actualPlayerType = 'mpegts';
+        } else if (isUnsupportedFormat && videoPlayerType !== 'native') {
+          // Try the specified player type (video.js or react-player) for unsupported formats
+          actualPlayerType = videoPlayerType;
+        } else {
+          actualPlayerType = videoPlayerType;
+        }
+        
+        // For mpegts.js player, always use proxy URL for CORS support
+        // For other players, use proxy only if it's a .ts file
+        const needsProxy = actualPlayerType === 'mpegts' || isTSFile;
+        const videoUrl = needsProxy ? getProxyUrl(firstUrl.url) : firstUrl.url;
+        
+        console.debug(`[Segment ${segmentIndex}] Video player detection:`, {
+          actualPlayerType,
+          isTSFile,
+          isUnsupportedFormat,
+          retryWithMpegts,
+          urlCheck: urlLower.includes('.ts') || urlLower.includes('transport') || urlLower.includes('mpegts'),
+          containerCheck: containerLower.includes('mp2t') || containerLower.includes('mpegts') || containerLower.includes('ts') || containerLower.includes('matroska'),
+          formatCheck: formatLower.includes('mpegts') || formatLower.includes('transport'),
+          container: flow?.container,
+          format: flow?.format,
+          url: videoUrl.substring(0, 100)
+        });
+        
+        // Show placeholder until video should be loaded, or unload if far from viewport
+        if (!shouldLoadVideo || shouldUnloadVideo) {
+          return (
+            <Box sx={{ position: 'relative', width: '100%', height: height, backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Box
                 sx={{
                   width: '100%',
@@ -249,35 +395,295 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
                   color: '#fff',
-                  cursor: 'pointer',
                 }}
               >
-                <Typography variant="h4">▶</Typography>
+                <Typography variant="body2" sx={{ opacity: 0.5 }}>
+                  Loading...
+                </Typography>
               </Box>
-            }
-            onReady={() => {
-              if (isFirst) {
-                setVideoLoading(false);
+              {/* Timerange Overlay - Show even in placeholder */}
+              {timerange && timerange !== '-' && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 8,
+                    left: 8,
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    color: '#fff',
+                    padding: '6px 10px',
+                    borderRadius: 1,
+                    fontSize: '12px',
+                    fontFamily: 'monospace',
+                    zIndex: 1000,
+                    pointerEvents: 'none',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontSize: '12px', lineHeight: 1.2 }}>
+                    {timerange}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          );
+        }
+        
+        // Don't render VideoPlayer if it should be unloaded - show placeholder instead
+        if (shouldUnloadVideo) {
+          return (
+            <Box sx={{ position: 'relative', width: '100%', height: height, backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  color: '#fff',
+                }}
+              >
+                <Typography variant="body2" sx={{ opacity: 0.5 }}>
+                  Unloaded
+                </Typography>
+              </Box>
+              {/* Timerange Overlay - Show even when unloaded */}
+              {timerange && timerange !== '-' && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 8,
+                    left: 8,
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    color: '#fff',
+                    padding: '6px 10px',
+                    borderRadius: 1,
+                    fontSize: '12px',
+                    fontFamily: 'monospace',
+                    zIndex: 1000,
+                    pointerEvents: 'none',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontSize: '12px', lineHeight: 1.2 }}>
+                    {timerange}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          );
+        }
+        
+        return (
+          <Box sx={{ position: 'relative', width: '100%', height: height }}>
+            <VideoPlayer
+              ref={videoPlayerRef}
+              src={videoUrl}
+              width="100%"
+              height={height}
+              controls={false}
+              muted
+              playsInline
+              preload={isFirst ? 'auto' : shouldLoadVideo ? 'metadata' : 'none'}
+              playerType={actualPlayerType}
+              light={!isFirst && actualPlayerType === 'react-player'}
+              playIcon={
+                <Box
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    color: '#fff',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Typography variant="h4">▶</Typography>
+                </Box>
               }
-            }}
-            onError={(error) => {
-              console.error('Video playback error:', {
-                error,
-                url: firstUrl.url,
-                playerType: videoPlayerType
-              });
-              if (isFirst) {
-                setVideoLoading(false);
-              }
-            }}
-            onLoadStart={() => {
-              if (isFirst) {
-                setVideoLoading(true);
-              }
-            }}
-          />
+              onReady={() => {
+                // Video is ready
+              }}
+              onError={(error) => {
+                // Only log errors if video should be loaded (not during unload/load transitions)
+                if (shouldLoadVideo && !shouldUnloadVideo) {
+                  // Try to extract more details from the error
+                  let errorCode: number | null = null;
+                  let errorMessage: string = 'Unknown error';
+                  let errorName: string = 'Unknown';
+                  
+                  // If error is a MediaError, extract details
+                  if (error && typeof error === 'object') {
+                    const mediaError = error as MediaError;
+                    if (mediaError.code !== undefined) {
+                      errorCode = mediaError.code;
+                      errorMessage = mediaError.message || 'Unknown media error';
+                      
+                      // Map error codes to names
+                      switch (mediaError.code) {
+                        case 1:
+                          errorName = 'MEDIA_ERR_ABORTED';
+                          errorMessage = errorMessage || 'Video loading aborted';
+                          break;
+                        case 2:
+                          errorName = 'MEDIA_ERR_NETWORK';
+                          errorMessage = errorMessage || 'Network error while loading video';
+                          break;
+                        case 3:
+                          errorName = 'MEDIA_ERR_DECODE';
+                          errorMessage = errorMessage || 'Video decoding error';
+                          break;
+                        case 4:
+                          errorName = 'MEDIA_ERR_SRC_NOT_SUPPORTED';
+                          errorMessage = errorMessage || 'Video format not supported';
+                          break;
+                        default:
+                          errorName = 'UNKNOWN_ERROR';
+                      }
+                    }
+                  }
+                  
+                  // Also try to get error from video element if available
+                  if (videoPlayerRef.current) {
+                    const videoElement = videoPlayerRef.current.getVideoElement?.();
+                    if (videoElement && videoElement.error) {
+                      const videoError = videoElement.error;
+                      if (videoError.code !== undefined) {
+                        errorCode = videoError.code;
+                        errorMessage = videoError.message || errorMessage;
+                        
+                        // Update error name based on video element error
+                        switch (videoError.code) {
+                          case 1:
+                            errorName = 'MEDIA_ERR_ABORTED';
+                            break;
+                          case 2:
+                            errorName = 'MEDIA_ERR_NETWORK';
+                            break;
+                          case 3:
+                            errorName = 'MEDIA_ERR_DECODE';
+                            break;
+                          case 4:
+                            errorName = 'MEDIA_ERR_SRC_NOT_SUPPORTED';
+                            break;
+                        }
+                      }
+                    }
+                  }
+                  
+                  // Check if this is a known unsupported format that native player can't handle
+                  const containerLower = flow?.container?.toLowerCase() || '';
+                  const isKnownUnsupported = 
+                    containerLower.includes('matroska') ||
+                    containerLower.includes('mkv') ||
+                    (containerLower.includes('webm') && !containerLower.includes('mp4'));
+                  
+                  // Log detailed error information
+                  // For known unsupported formats, use debug level instead of error
+                  if (isKnownUnsupported && errorCode === 4) {
+                    console.debug(`[Segment ${segmentIndex}] Native player doesn't support ${flow?.container || 'format'} (expected - format requires video.js or react-player):`, {
+                      container: flow?.container,
+                      format: flow?.format,
+                      segmentId: segment.object_id
+                    });
+                  } else {
+                    console.error('Video playback error:', {
+                      errorName,
+                      errorCode,
+                      errorMessage,
+                      url: videoUrl.substring(0, 100) + (videoUrl.length > 100 ? '...' : ''),
+                      fullUrl: videoUrl,
+                      playerType: actualPlayerType,
+                      segmentIndex,
+                      segmentId: segment.object_id,
+                      flowId: flow?.id,
+                      container: flow?.container,
+                      format: flow?.format
+                    });
+                  }
+                  
+                  // If native player fails with MEDIA_ERR_SRC_NOT_SUPPORTED, try alternative players
+                  if (errorCode === 4 && actualPlayerType === 'native' && !retryWithMpegts) {
+                    // Check if it might be a TS file that should use mpegts.js
+                    const containerLower = flow?.container?.toLowerCase() || '';
+                    const formatLower = flow?.format?.toLowerCase() || '';
+                    const urlLower = firstUrl.url.toLowerCase();
+                    const mightBeTS = 
+                      containerLower.includes('mp2t') || 
+                      containerLower.includes('mpegts') ||
+                      formatLower.includes('mpegts') ||
+                      formatLower.includes('transport') ||
+                      urlLower.includes('transport') ||
+                      urlLower.includes('mpegts') ||
+                      urlLower.includes('.ts');
+                    
+                    if (mightBeTS) {
+                      console.warn(`[Segment ${segmentIndex}] Native player doesn't support format, retrying with mpegts.js (detected possible TS format)`);
+                      setRetryWithMpegts(true);
+                    } else {
+                      // For other unsupported formats (like MKV, WebM), log but don't retry with mpegts.js
+                      // as mpegts.js only works with MPEG-TS streams
+                      console.warn(`[Segment ${segmentIndex}] Native player doesn't support format (${flow?.container || 'unknown'}). Format may require video.js or react-player.`);
+                    }
+                  }
+                } else {
+                  console.debug('Video error during load/unload transition (ignored):', {
+                    shouldLoadVideo,
+                    shouldUnloadVideo,
+                    segmentIndex
+                  });
+                }
+              }}
+              onLoadStart={() => {
+                // Video started loading
+              }}
+            />
+            
+            {/* Timerange Overlay - Shows current segment's timerange */}
+            {timerange && timerange !== '-' && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 8,
+                  left: 8,
+                  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                  color: '#fff',
+                  padding: '6px 10px',
+                  borderRadius: 1,
+                  fontSize: '12px',
+                  fontFamily: 'monospace',
+                  zIndex: 1000,
+                  pointerEvents: 'none',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
+                }}
+              >
+                <Typography variant="body2" sx={{ fontSize: '12px', lineHeight: 1.2 }}>
+                  {timerange}
+                </Typography>
+              </Box>
+            )}
+            
+            {/* Info Button - Top Right */}
+            <VideoInfoButton
+              onClick={() => {
+                // Pause video and remember playing state
+                if (videoPlayerRef.current) {
+                  const videoElement = videoPlayerRef.current.getVideoElement();
+                  if (videoElement) {
+                    setWasPlayingBeforeModal(!videoElement.paused);
+                    videoPlayerRef.current.pause();
+                  }
+                }
+                setInfoModalOpen(true);
+              }}
+              position="top-right"
+              tooltip="Segment Info"
+            />
+          </Box>
         );
 
       case 'image':
@@ -417,6 +823,8 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   return (
     <>
     <Card 
+      ref={cardRef}
+      data-segment-index={segmentIndex}
       sx={{ 
         width, 
         minWidth: width,
@@ -431,94 +839,20 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
       <Box sx={{ position: 'relative', width: '100%', backgroundColor: '#000' }}>
         {renderMediaContent()}
       </Box>
-      <CardContent sx={{ flexGrow: 1, p: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-          <Tooltip title={timerange} arrow>
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                display: 'block',
-                fontFamily: 'monospace',
-                fontSize: '0.7rem',
-                color: 'text.secondary',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                flex: 1
-              }}
-            >
-              {timeInfo.start && timeInfo.end 
-                ? `${timeInfo.start} - ${timeInfo.end}`
-                : timeInfo.start 
-                ? `Start: ${timeInfo.start}`
-                : timerange}
-            </Typography>
-          </Tooltip>
-          <IconButton
-            size="small"
-            onClick={() => setInfoModalOpen(true)}
-            sx={{
-              ml: 1,
-              color: 'text.secondary',
-              '&:hover': {
-                color: 'primary.main',
-                backgroundColor: 'action.hover',
-              },
-            }}
-          >
-            <InfoIcon fontSize="small" />
-          </IconButton>
-        </Box>
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            display: 'block',
-            fontFamily: 'monospace',
-            fontSize: '0.65rem',
-            color: 'text.secondary',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            mb: 0.5
-          }}
-        >
-          Type: {mediaType}
-        </Typography>
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            display: 'block',
-            fontFamily: 'monospace',
-            fontSize: '0.65rem',
-            color: 'text.secondary',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          {segment.sample_offset !== null && segment.sample_offset !== undefined 
-            ? `Offset: ${segment.sample_offset.toLocaleString()}` 
-            : ''}
-        </Typography>
-        {segment.key_frame_count !== null && segment.key_frame_count !== undefined && (
-          <Typography 
-            variant="caption" 
-            sx={{ 
-              display: 'block',
-              fontSize: '0.65rem',
-              color: 'text.secondary'
-            }}
-          >
-            Key frames: {segment.key_frame_count}
-          </Typography>
-        )}
-      </CardContent>
     </Card>
 
     {/* Segment Info Modal */}
     <Dialog 
       open={infoModalOpen} 
-      onClose={() => setInfoModalOpen(false)} 
+      onClose={() => {
+        setInfoModalOpen(false);
+        // Resume video if it was playing before
+        if (wasPlayingBeforeModal && videoPlayerRef.current) {
+          videoPlayerRef.current.play().catch((error: unknown) => {
+            console.debug(`[Segment ${segmentIndex}] Failed to resume video after closing modal:`, error);
+          });
+        }
+      }} 
       maxWidth="md" 
       fullWidth
     >

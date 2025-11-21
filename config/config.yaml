@@ -18,11 +18,14 @@ database:
     # REQUIRED: VAST database endpoint URL
     # Must be set or application will fail to start
     # Format: http://hostname:port
-    endpoint: "http://docker1:4003"
+    endpoint: "http://docker1:4002"
+    # Optional: Separate endpoint for vector operations (vastdbmanager 1.1.10+)
+    # If not set, vector operations will use the main endpoint
+    vector_endpoint: "http://queryengine.selab-var201.selab.vastdata.com"
     access_key: "SRSPW0DQT9T70Y787U68"
     secret_key: "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
     bucket: "jthaloor-db"
-    schema: "tams8"
+    schema: "tams8-dev"
   
   trino:
     host: "docker1"
@@ -34,8 +37,8 @@ database:
   enable_table_projections: true
 
 storage_backends:
-  - id: "default"
-    label: "default-s3-storage"
+  - id: "var201-central"
+    label: "VAST-var201-s3-storage"
     store_type: "http_object_store"
     provider: "vast"
     store_product: "vast-s3"
@@ -44,17 +47,17 @@ storage_backends:
     endpoint_url: "http://docker1:4002"
     access_key: "SRSPW0DQT9T70Y787U68"
     secret_key: "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
-    bucket_name: "jthaloor-s3"
-    root_path: "/tams8"
+    bucket_name: "jthaloor-tams"
+    root_path: "/tams8dev"
     use_ssl: false
     chunk_size: 8388608  # 8MB chunks for multipart uploads
     max_concurrent_parts: 10
     default_storage: true
 
 storage:
-  default_backend_id: "default"
-  tams_storage_path: "tams"
-  tams_root: "/"
+  default_backend_id: "var201-central"
+  tams_storage_path: ""
+  tams_root: ""
   presigned_url:
     upload_timeout: 3600  # 1 hour - matches cache TTL
     download_timeout: 3600  # 1 hour - matches cache TTL

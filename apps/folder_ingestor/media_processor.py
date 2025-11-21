@@ -44,7 +44,7 @@ async def chunk_media_file(
         output_dir: Optional output directory (default: temp directory)
         metadata_file: Optional path to metadata file for marker-based chunking
         chunk_mode: Chunking mode - "duration", "metadata_file", or "mp4_markers" (default: "duration")
-        chunk_format: Output format - "original" (copy codecs, MP4) or "hls" (HLS-compatible TS) (default: "original")
+        chunk_format: Output format - "original" (copy codecs, MP4), "mp4" (transcode to H.264/AAC MP4), or "hls" (HLS-compatible TS) (default: "original")
         
     Returns:
         List of Path objects for the created chunk files
@@ -77,6 +77,13 @@ async def chunk_media_file(
         vcodec = "libx264"  # H.264 for HLS compatibility
         acodec = "aac"  # AAC for HLS compatibility
         logger.info(f"Chunking to HLS format (MPEG-TS with H.264/AAC)")
+    elif chunk_format == "mp4":
+        # MP4 format: MP4 container with H.264/AAC (transcoded)
+        file_ext = ".mp4"
+        output_format = "mp4"
+        vcodec = "libx264"  # H.264 for MP4 compatibility
+        acodec = "aac"  # AAC for MP4 compatibility
+        logger.info(f"Chunking to MP4 format (H.264/AAC)")
     else:
         # Original format: copy codecs, MP4 container
         file_ext = ".mp4"

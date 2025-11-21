@@ -45,12 +45,16 @@ class HLSManager:
             )
         return self._segment_service
     
-    async def generate_playlist(self, flow_id: str) -> Optional[HLSPlaylist]:
+    async def generate_playlist(self, flow_id: str, flow_container: Optional[str] = None, 
+                               use_proxy_urls: bool = True, base_url: Optional[str] = None) -> Optional[HLSPlaylist]:
         """
         Generate HLS master playlist for a flow
         
         Args:
             flow_id: Flow identifier
+            flow_container: Optional flow container type (e.g., 'video/mp2t') for validation
+            use_proxy_urls: If True, use proxy URLs through TAMS API (for CORS support)
+            base_url: Base URL for generating absolute proxy URLs (e.g., 'http://localhost:8000')
             
         Returns:
             HLSPlaylist or None if flow not found
@@ -65,28 +69,65 @@ class HLSManager:
                 logger.warning(f"No segments found for flow {flow_id}")
                 return None
             
-            # Generate HLS playlist
-            return self._generate_playlist(segments)
+            # Generate HLS playlist with flow container for validation
+            return self._generate_playlist(
+                segments, 
+                flow_container=flow_container, 
+                flow_id=flow_id, 
+                use_proxy_urls=use_proxy_urls,
+                base_url=base_url
+            )
             
         except Exception as e:
             logger.error(f"Failed to generate HLS playlist for flow {flow_id}: {e}", exc_info=True)
             return None
     
-    def _generate_playlist(self, segments: List['FlowSegment']) -> HLSPlaylist:
+    def _generate_playlist(self, segments: List['FlowSegment'], flow_container: Optional[str] = None, 
+                          flow_id: Optional[str] = None, use_proxy_urls: bool = True, 
+                          base_url: Optional[str] = None) -> HLSPlaylist:
         """Generate HLS playlist from segments
         
         Only includes segments with HLS-compatible URLs (.ts files).
+        
+        Args:
+            segments: List of flow segments
+            flow_container: Optional flow container type for validation (e.g., 'video/mp2t')
+            flow_id: Flow ID for generating proxy URLs
+            use_proxy_urls: If True, convert storage URLs to proxy URLs (for CORS support)
+            base_url: Base URL for generating absolute proxy URLs
         """
         hls_segments = []
         skipped_count = 0
         
+        # Check if flow container indicates HLS-compatible content
+        is_hls_container = False
+        if flow_container:
+            flow_container_lower = flow_container.lower()
+            is_hls_container = (
+                'mp2t' in flow_container_lower or 
+                'mpeg2ts' in flow_container_lower or
+                'video/mp2t' in flow_container_lower
+            )
+        
         for i, segment in enumerate(segments):
-            # Get segment URL (validates .ts extension)
-            url = self._get_segment_url(segment)
-            if not url:
+            # Get segment URL (validates .ts extension or uses flow container)
+            original_url = self._get_segment_url(segment, is_hls_container=is_hls_container)
+            if not original_url:
                 skipped_count += 1
                 logger.debug(f"Skipping segment {segment.object_id} - no HLS-compatible URL (.ts file)")
                 continue
+            
+            # Convert to proxy URL if requested (for CORS support)
+            if use_proxy_urls and flow_id:
+                from urllib.parse import quote
+                proxy_path = f"/api/tams/v8.0/hls/flows/{flow_id}/segments/{segment.object_id}?url={quote(original_url, safe='')}"
+                # Use absolute URL if base_url provided, otherwise use relative
+                if base_url:
+                    url = f"{base_url}{proxy_path}"
+                else:
+                    url = proxy_path
+            else:
+                url = original_url
             
             # Calculate duration
             duration = self._calculate_segment_duration(segment)
@@ -127,11 +168,15 @@ class HLSManager:
             endlist=True  # For now, always closed
         )
     
-    def _get_segment_url(self, segment: 'FlowSegment') -> Optional[str]:
+    def _get_segment_url(self, segment: 'FlowSegment', is_hls_container: bool = False) -> Optional[str]:
         """Get HLS-compatible URL from segment
         
         HLS requires .ts (Transport Stream) files. This method validates that
         the URL points to a .ts file or has an HLS-compatible label.
+        
+        Args:
+            segment: Flow segment
+            is_hls_container: If True, accept URLs even without .ts extension (for video/mp2t flows)
         """
         if not segment.get_urls or len(segment.get_urls) == 0:
             return None
@@ -141,25 +186,29 @@ class HLSManager:
             label = getattr(get_url, 'label', '') or ''
             if label and 'hls' in label.lower():
                 url = get_url.url
-                # Validate it's a .ts file
-                if self._is_hls_compatible_url(url):
+                # Validate it's a .ts file or flow container indicates HLS
+                if self._is_hls_compatible_url(url, is_hls_container=is_hls_container):
                     return url
         
-        # Fallback to first URL, but validate it's .ts
+        # Fallback to first URL, but validate it's .ts or flow is HLS-compatible
         for get_url in segment.get_urls:
             url = get_url.url
-            if self._is_hls_compatible_url(url):
+            if self._is_hls_compatible_url(url, is_hls_container=is_hls_container):
                 return url
         
         # No HLS-compatible URL found
         logger.warning(f"Segment {segment.object_id} has no HLS-compatible URLs (.ts files)")
         return None
     
-    def _is_hls_compatible_url(self, url: str) -> bool:
+    def _is_hls_compatible_url(self, url: str, is_hls_container: bool = False) -> bool:
         """Check if URL points to an HLS-compatible file (.ts extension)
         
         HLS requires Transport Stream (.ts) files. This validates the URL
         has a .ts extension or is explicitly marked as HLS-compatible.
+        
+        Args:
+            url: URL to validate
+            is_hls_container: If True, accept URLs even without .ts extension (for video/mp2t flows)
         """
         if not url:
             return False
@@ -171,6 +220,12 @@ class HLSManager:
         
         # Check for .ts in query parameters (some CDNs use this)
         if '.ts' in url_lower:
+            return True
+        
+        # If flow container indicates HLS-compatible content (video/mp2t), accept URLs without extension
+        # This handles cases where segments are stored by object_id without file extensions
+        if is_hls_container:
+            logger.debug(f"URL {url} accepted for HLS (flow container indicates Transport Stream)")
             return True
         
         # If URL doesn't have extension, we can't validate - log warning

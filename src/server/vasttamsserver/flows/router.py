@@ -335,10 +335,10 @@ async def get_flow_tag(
                 # Not JSON, return as plain string
                 pass
         
-        # Return as plain string (text/plain)
+        # Return as JSON string for consistency (TAMS spec allows both, but JSON is more consistent)
         return Response(
-            content=str(tag_value),
-            media_type="text/plain"
+            content=json.dumps(str(tag_value)),
+            media_type="application/json"
         )
     except HTTPException:
         raise

@@ -30,6 +30,161 @@ notes/
 
 ## 📝 **RECENT EDITS**
 
+## Edit #58: Cascade Delete Management Script (November 20, 2025)
+
+### Summary
+Created management script (`mgmt/cascade_delete.py`) for deleting sources or flows by ID with remote server support, detailed analysis, and confirmation. Script uses TAMS client library to connect to any TAMS server and shows exactly what will be deleted before performing cascade deletion.
+
+**Enhanced**: Added `--cleanup-empty` option to automatically find and delete all empty sources and flows (sources with no flows, flows with no segments).
+
+### Features
+- **Auto-Detection**: Automatically determines if ID is source or flow
+- **Remote Server Support**: Connects to any TAMS server with authentication
+- **Detailed Analysis**: Shows counts of flows, segments, and objects
+- **Flow-by-Flow Breakdown**: For sources, lists each flow with segment/object counts
+- **User Confirmation**: Interactive prompt with detailed preview
+- **Auto-Confirmation**: `--yes` flag for automation
+- **Environment Variables**: Support for `TAMS_SERVER`, `TAMS_USERNAME`, `TAMS_PASSWORD`
+- **Cleanup Empty Mode**: `--cleanup-empty` flag to find and delete all empty sources and flows
+
+### Usage
+```bash
+# Delete specific ID with confirmation
+python mgmt/cascade_delete.py <id> --server http://localhost:8000 --username admin --password secret
+
+# Delete specific ID with auto-confirm
+python mgmt/cascade_delete.py <id> --server http://localhost:8000 --username admin --password secret --yes
+
+# Cleanup all empty sources and flows
+python mgmt/cascade_delete.py --cleanup-empty --server http://localhost:8000 --username admin --password secret
+
+# Cleanup empty with auto-confirm
+python mgmt/cascade_delete.py --cleanup-empty --server http://localhost:8000 --username admin --password secret --yes
+
+# Using env vars
+export TAMS_SERVER=http://localhost:8000
+export TAMS_USERNAME=admin
+export TAMS_PASSWORD=secret
+python mgmt/cascade_delete.py <id> --yes
+python mgmt/cascade_delete.py --cleanup-empty --yes
+```
+
+### Implementation
+- Uses `TAMSClient` from `vasttamsclient` for connection
+- Counts segments via flow segments endpoint
+- Counts unique objects (handles shared references)
+- Shows detailed breakdown before deletion
+- Performs cascade delete with `cascade=True`
+- **Cleanup Mode**: Scans all sources/flows, identifies empty ones, deletes flows first then sources
+
+### Files Created
+- `mgmt/cascade_delete.py` - Main script (executable)
+
+### Files Modified
+- `mgmt/cascade_delete.py` - Added `--cleanup-empty` option and `cleanup_empty()` function
+- `mgmt/README.md` - Added documentation and usage examples
+- `mgmt/CASCADE_DELETE_USAGE.md` - Added cleanup mode documentation
+
+**Documentation**: See `notes/edits/2025-11-20.md` for detailed implementation
+
+---
+
+## Edit #57: Auto-Scrolling Video Player (November 20, 2025)
+
+### Summary
+Implemented viewport-based auto-scrolling video player for segments display. Videos auto-play when in viewport, with timed auto-scrolling every 5 seconds.
+
+### Features
+- Toggle button at top of page to enable/disable auto-play mode
+- Videos auto-play when >50% visible in viewport, pause when they leave
+- Auto-scroll to next video every 5 seconds
+- Multiple videos can play simultaneously if both in viewport
+- Blue border highlights videos currently in viewport
+
+### Implementation
+1. **Segments.tsx**: Toggle button at top, `handleAutoScroll()` with 5-second timer, `autoScrollTimeoutRef` for cleanup
+2. **SegmentMediaWidget.tsx**: IntersectionObserver for viewport detection, auto-play/pause based on `isInViewport` state
+3. **VideoPlayer.tsx**: Added `onEnded` callback prop, exposed play/pause methods via forwardRef
+
+### Files Modified
+- `ui/src/pages/Segments.tsx`
+- `ui/src/components/SegmentMediaWidget.tsx`
+- `ui/src/components/VideoPlayer.tsx`
+
+**Documentation**: See `notes/edits/2025-11-20.md`
+
+---
+
+## Edit #56: Fix UI localStorage Error in Dev Mode (November 20, 2025)
+
+### Summary
+Fixed `SecurityError: Cannot initialize local storage without a --localstorage-file path` error that occurred when running the UI in dev mode (`npm start`). Added browser environment checks before accessing `localStorage` API.
+
+### Problem
+- UI crashed when running `npm start` in dev mode
+- Error: `SecurityError: Cannot initialize local storage without a --localstorage-file path`
+- `localStorage` is a browser API not available in Node.js environment
+- Did not occur in container because container runs compiled build in browser
+
+### Solution
+Added guards to check for browser environment:
+```typescript
+if (typeof window !== 'undefined' && window.localStorage) {
+  // Safe to use localStorage
+}
+```
+
+### Files Modified
+1. **ui/src/services/api.ts**: Added browser environment guards for localStorage access
+2. **ui/src/pages/Login.tsx**: Added browser environment guards for localStorage access
+3. **ui/scripts/set-node-options.js**: Added `--localstorage-file` flag for Node 20+ to provide temp file for webpack
+
+### Impact
+- ✅ UI runs successfully in dev mode with `npm start`
+- ✅ No changes to container behavior
+- ✅ Authentication still works correctly in browser
+- ✅ Server-side rendering/module loading no longer crashes
+
+**Documentation**: See `notes/edits/2025-11-20.md` for detailed implementation
+
+---
+
+## Edit #55: Move Vectors to Separate Table in Vast Section (November 20, 2025)
+
+### Summary
+Moved vector-related columns from objects table to separate `object_vector` table managed by vast module. This aligns with vastdbmanager 1.1.10+ automatic query routing and eliminates Trino errors when querying objects table.
+
+### Vector Table Separation
+- **New Table**: Created `object_vector` table with schema in `vast/schemas.py`
+  - Columns: `object_id` (FK), `vector` (768-dim FixedSizeList), `summary`, `embedding_date`, `embedding_model`
+  - Projections: `[["object_id"]]`
+  - Moved `_create_fixed_size_list` helper to vast module (vector-related utility)
+
+- **Objects Table**: Removed vector columns (`vector`, `summary`, `embedding_date`, `embedding_model`)
+  - Objects table now only contains TAMS-compliant fields
+  - No vector columns means Trino queries won't encounter FixedSizeList errors
+
+### Vector Operations
+- **INSERT/UPSERT**: Uses `insert_record("object_vector", ...)` - automatically routes to ADBC
+- **QUERY/SEARCH**: Uses query builder `search()` method - automatically routes to ADBC/vector_client
+- **DELETE**: Standard delete operations
+- **No UPDATE**: Only INSERT (upsert) operations - `insert_record` handles replacements
+
+### Query Pattern
+- Vector search uses `vast_db.search("object_vector").vector(...)` to get object_ids with distances
+- Extracts object_ids from vector search results
+- Uses `execute_sql()` for JOIN query that excludes object_vector table (avoids Trino reading vectors)
+- Combines JOIN results (objects, segments, flows) with distances from vector search
+
+### Files Created
+- `src/server/vasttamsserver/vast/schemas.py` - Vector table schema and projections
+
+### Files Modified
+- `src/server/vasttamsserver/objects/schemas.py` - Removed vector columns and helper function
+- `src/server/vasttamsserver/common/storage/schemas.py` - Registered object_vector schema
+- `src/server/vasttamsserver/common/storage/table_initializer.py` - Added object_vector to table creation order
+- `src/server/vasttamsserver/vast/service.py` - Updated to use object_vector table and query builder search()
+
 ## Edit #54: Performance Optimizations and Object Vectors Design (November 18, 2025)
 
 ### Summary

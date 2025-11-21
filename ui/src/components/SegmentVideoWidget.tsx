@@ -6,14 +6,24 @@ interface SegmentVideoWidgetProps {
   segment: Segment;
   width?: number;
   height?: number;
+  autoPlayEnabled?: boolean;
+  onVideoEnd?: () => void;
+  isCurrentPlaying?: boolean;
+  segmentIndex?: number;
 }
 
 const SegmentVideoWidget: React.FC<SegmentVideoWidgetProps> = ({ 
   segment, 
   width = 240, 
-  height = 135 
+  height = 135,
+  autoPlayEnabled = false,
+  onVideoEnd,
+  isCurrentPlaying = false,
+  segmentIndex
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isIntersecting, setIsIntersecting] = React.useState(false);
   const getFirstPresignedUrl = (seg: Segment) => {
     return seg.get_urls?.find(url => url.presigned && url.url) || seg.get_urls?.[0];
   };
@@ -55,30 +65,81 @@ const SegmentVideoWidget: React.FC<SegmentVideoWidgetProps> = ({
 
   const timeInfo = parseTimerange(timerange);
 
-  // Autoplay video when component mounts
+  // Setup IntersectionObserver to detect when video is leftmost
   useEffect(() => {
-    if (videoRef.current && firstUrl?.presigned && firstUrl?.url) {
-      const video = videoRef.current;
+    if (!cardRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          setIsIntersecting(entry.isIntersecting && entry.intersectionRatio > 0.5);
+        });
+      },
+      {
+        root: null,
+        rootMargin: '0px',
+        threshold: [0, 0.5, 1]
+      }
+    );
+
+    observer.observe(cardRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  // Handle auto-play logic
+  useEffect(() => {
+    if (!videoRef.current || !firstUrl?.presigned || !firstUrl?.url) return;
+
+    const video = videoRef.current;
+
+    if (autoPlayEnabled && isCurrentPlaying) {
+      // Play this video
       const playPromise = video.play();
-      
-      // Handle autoplay promise (browsers may block autoplay without user interaction)
       if (playPromise !== undefined) {
         playPromise.catch((error) => {
-          // Autoplay was prevented, but video will still load
           console.debug('Video autoplay prevented:', error);
         });
       }
+    } else {
+      // Pause if not current or auto-play disabled
+      if (!video.paused) {
+        video.pause();
+      }
     }
-  }, [firstUrl]);
+  }, [autoPlayEnabled, isCurrentPlaying, firstUrl]);
+
+  // Handle video end event
+  useEffect(() => {
+    if (!videoRef.current) return;
+
+    const video = videoRef.current;
+    const handleEnded = () => {
+      if (autoPlayEnabled && onVideoEnd) {
+        onVideoEnd();
+      }
+    };
+
+    video.addEventListener('ended', handleEnded);
+
+    return () => {
+      video.removeEventListener('ended', handleEnded);
+    };
+  }, [autoPlayEnabled, onVideoEnd]);
 
   return (
     <Card 
+      ref={cardRef}
+      data-segment-index={segmentIndex}
       sx={{ 
         width, 
         minWidth: width,
         display: 'flex',
         flexDirection: 'column',
         margin: 1,
+        border: isCurrentPlaying ? '3px solid #1976d2' : 'none',
         '&:hover': {
           boxShadow: 4,
         }
@@ -89,7 +150,6 @@ const SegmentVideoWidget: React.FC<SegmentVideoWidgetProps> = ({
           <video
             ref={videoRef}
             controls
-            autoPlay
             muted
             playsInline
             style={{

@@ -7,7 +7,7 @@ Ingests all files from a folder into TAMS. Each folder becomes one source with s
 - **Automatic Media Detection**: Uses `ffprobe` to detect video and audio files
 - **Multi-Essence Flow Support**: Automatically creates separate flows for each media type and a multi-essence flow to collect them
 - **Media Chunking**: Chunks video/audio files into 30-second segments using `jthaloor-ffmpeg`
-- **Chunk Format Options**: Supports original format (copy codecs, MP4) or HLS format (HLS-compatible TS with H.264/AAC)
+- **Chunk Format Options**: Supports original format (copy codecs, MP4), MP4 format (transcode to H.264/AAC), or HLS format (HLS-compatible TS with H.264/AAC)
 - **Marker-Based Chunking**: Automatically detects and uses metadata files (FFMETADATA1 or JSON) for intelligent chunking
 - **Metadata File Matching**: Heuristically matches metadata files to media files (e.g., `soccer.mp4` + `soccer_metadata.txt`)
 - **Data File Support**: Uploads non-media files as data objects to a dedicated data flow
@@ -85,7 +85,7 @@ python folder_ingestor.py \
 - `--username` (optional): TAMS username (default: `admin`)
 - `--password` (optional): TAMS password (default: `admin`)
 - `--chunk-duration` (optional): Chunk duration in seconds (default: 30)
-- `--chunk-format` (optional): Chunk format - "original" (copy codecs, MP4) or "hls" (HLS-compatible TS with H.264/AAC) (default: original)
+- `--chunk-format` (optional): Chunk format - "original" (copy codecs, MP4), "mp4" (transcode to H.264/AAC MP4), or "hls" (HLS-compatible TS with H.264/AAC) (default: original)
 - `--recursive` (optional): Process subdirectories recursively
 - `--verbose` (optional): Enable verbose logging
 
@@ -124,6 +124,7 @@ python folder_ingestor.py \
    - **Media Files**: Chunked using `jthaloor-ffmpeg`
      - **Format Options**:
        - `original`: Copies original codecs to MP4 container (fast, preserves quality)
+       - `mp4`: Transcodes to MP4 container with H.264/AAC codecs (standardized MP4 output)
        - `hls`: Transcodes to HLS-compatible format (MPEG-TS with H.264/AAC) for streaming
      - **Marker-Based Chunking**: If a matching metadata file is found, uses markers from the file
        - Supports FFMETADATA1 format (`.txt` files with `;FFMETADATA1` header)

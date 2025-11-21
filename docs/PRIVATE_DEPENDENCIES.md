@@ -6,7 +6,30 @@ This project depends on two private packages hosted on GitLab:
 
 These packages are **not publicly available** and require authentication to install.
 
-## Quick Start: Using Pre-built Wheels (Recommended for Docker)
+## Git LFS (Recommended)
+
+The easiest way to handle these dependencies is via **Git LFS**. The wheel files (`.whl`) are tracked in this repository under the `wheels/` directory using Git Large File Storage.
+
+### Setup
+
+1. **Install Git LFS**:
+   ```bash
+   git lfs install
+   ```
+
+2. **Pull Dependencies**:
+   When you clone or pull the repository, Git LFS will automatically download the wheel files.
+   ```bash
+   git lfs pull
+   ```
+
+3. **Install**:
+   The standard `pip install -r requirements.txt` will automatically look for local wheels if configured, or you can install them directly:
+   ```bash
+   pip install wheels/*.whl
+   ```
+
+## Quick Start: Using Pre-built Wheels (Docker)
 
 If you have access to the local GitLab packages, you can build wheel files that are included in the repository:
 

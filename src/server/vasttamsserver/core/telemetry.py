@@ -284,9 +284,24 @@ class TelemetryManager:
         # Log request with user context
         # Only log at INFO level for errors or slow requests (>1s), otherwise use DEBUG
         # For list endpoints, always log at INFO to track UI performance
+        # Health checks are excluded from INFO logging unless failing or very slow (>5s)
         is_list_endpoint = endpoint in ['/flows', '/sources', '/segments', '/objects'] and method == 'GET'
+        is_health_check = endpoint == '/health' and method == 'GET'
         
-        if status_code >= DEFAULT_ERROR_THRESHOLD or duration > 1.0 or is_list_endpoint:
+        # Health checks: only log at INFO if failing or very slow (>5s), otherwise DEBUG
+        if is_health_check:
+            if status_code >= DEFAULT_ERROR_THRESHOLD or duration > 5.0:
+                logger.info(
+                    f"{method} {endpoint} - user={user_info}, duration={duration:.3f}s, status={status_code}",
+                    extra={"user_context": user_context, "api_context": {"endpoint": endpoint, "method": method}}
+                )
+            else:
+                logger.debug(
+                    "%s %s - user=%s, duration=%.3fs, status=%d",
+                    method, endpoint, user_info, duration, status_code,
+                    extra={"user_context": user_context, "api_context": {"endpoint": endpoint, "method": method}}
+                )
+        elif status_code >= DEFAULT_ERROR_THRESHOLD or duration > 1.0 or is_list_endpoint:
             log_level_msg = (
                 f"{method} {endpoint} - user={user_info}, duration={duration:.3f}s, status={status_code}"
             )

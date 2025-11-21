@@ -33,6 +33,75 @@ notes/
 
 ## 🎯 **CURRENT STATUS**
 
+### **🧹 CASCADE DELETE MANAGEMENT SCRIPT** (November 20, 2025)
+**Date**: November 20, 2025  
+**Task**: Create management script to cascade delete sources or flows by ID  
+**Status**: ✅ **COMPLETED**
+
+#### **Features**
+- **Remote Server Support**: Connect to any TAMS server with authentication
+- **Auto-Detection**: Automatically determines if ID is a source or flow
+- **Detailed Analysis**: Shows count of all sub-elements (flows, segments, objects)
+- **Flow-by-Flow Breakdown**: For sources, lists each flow with segment/object counts
+- **User Confirmation**: Interactive confirmation with detailed preview of what will be deleted
+- **Auto-Confirmation**: `--yes` flag for scripted/automated use
+- **Environment Variables**: Support for `TAMS_SERVER`, `TAMS_USERNAME`, `TAMS_PASSWORD`
+
+#### **Implementation**
+- `mgmt/cascade_delete.py`: Main script using TAMSClient library
+- Uses flow segments endpoint to count segments
+- Counts unique objects (handles shared references)
+- Shows detailed breakdown before deletion
+- Performs cascade delete with proper error handling
+
+#### **Usage**
+```bash
+# With confirmation
+python mgmt/cascade_delete.py <id> --server http://localhost:8000 --username admin --password secret
+
+# Auto-confirm
+python mgmt/cascade_delete.py <id> --yes --server http://localhost:8000 --username admin --password secret
+```
+
+### **🎬 AUTO-SCROLLING VIDEO PLAYER** (November 20, 2025)
+**Date**: November 20, 2025  
+**Task**: Implement viewport-based auto-scrolling video player for segments  
+**Status**: ✅ **COMPLETED**
+
+#### **Features**
+- **Toggle Button**: At top of page to enable/disable auto-play mode
+- **Viewport-Based Playback**: Videos auto-play when >50% visible, pause when they leave viewport
+- **Timed Auto-Scroll**: Scrolls to next video every 5 seconds automatically
+- **Multiple Playback**: Multiple videos can play simultaneously if both in viewport
+- **Manual Control**: Users can scroll anytime
+- **Visual Indicator**: Blue border highlights videos currently in viewport (playing)
+
+#### **Implementation**
+- `Segments.tsx`: Toggle at top, `handleAutoScroll()` with 5-second recursive timer, cleanup on disable
+- `SegmentMediaWidget.tsx`: IntersectionObserver for viewport detection (>50%), play/pause based on visibility
+- `VideoPlayer.tsx`: Added `onEnded` prop, exposed play/pause methods via forwardRef
+- Smooth scrolling with `scrollTo()` for better UX
+- Auto-disables when reaching end of segments list
+
+### **🔧 VECTOR TABLE SEPARATION** (November 20, 2025)
+**Date**: November 20, 2025  
+**Task**: Move vector columns from objects table to separate object_vector table  
+**Status**: ✅ **COMPLETED**
+
+#### **Vector Table Architecture**
+- **Separate Table**: Vectors moved to `object_vector` table managed by vast module
+- **Rationale**: Vectors are not part of TAMS specification, managed separately
+- **vastdbmanager 1.1.10+**: Automatic query routing - vector operations use ADBC/vector_client, regular queries use Trino
+- **Operations**: INSERT (upsert), QUERY (vector search), DELETE only - no UPDATE operations
+- **Benefits**: Eliminates Trino errors when querying objects table (no vector columns in schema)
+
+#### **Implementation Details**
+- Created `vast/schemas.py` with `object_vector` table schema
+- Removed vector columns from `objects` table schema
+- Updated vector service to use `insert_record()` for upserts
+- Updated vector search to use query builder `search()` method
+- JOIN queries exclude object_vector table to avoid Trino reading vector columns
+
 ### **🧹 CODEBASE CLEANUP AND OBSERVABILITY FIXES** (January 27, 2025)
 **Date**: January 27, 2025  
 **Task**: Remove legacy client folder, fix observability stack integration, update K8s to Helm-only  

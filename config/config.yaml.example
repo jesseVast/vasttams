@@ -19,6 +19,9 @@ database:
     # Must be set or application will fail to start
     # Format: http://hostname:port
     endpoint: "http://docker1:4003"
+    # Optional: Separate endpoint for vector operations (vastdbmanager 1.1.10+)
+    # If not set, vector operations will use the main endpoint
+    # vector_endpoint: "http://docker1:4004"
     access_key: "SRSPW0DQT9T70Y787U68"
     secret_key: "WkKLxvG7YkAdSMuHjFsZG5/BhDk9Ou7BS1mDQGnr"
     bucket: "jthaloor-db"

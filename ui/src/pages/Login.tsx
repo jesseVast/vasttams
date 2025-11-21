@@ -25,14 +25,16 @@ const Login: React.FC = () => {
       const response = await authService.login(username, password);
       
       // Store token and user info
-      if (response.access_token) {
-        localStorage.setItem('token', response.access_token);
+      if (typeof window !== 'undefined' && window.localStorage) {
+        if (response.access_token) {
+          localStorage.setItem('token', response.access_token);
+        }
+        localStorage.setItem('user', JSON.stringify({
+          user_id: response.user_id,
+          username: response.username,
+          role: response.role,
+        }));
       }
-      localStorage.setItem('user', JSON.stringify({
-        user_id: response.user_id,
-        username: response.username,
-        role: response.role,
-      }));
 
       navigate('/');
     } catch (err: any) {

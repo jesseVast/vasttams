@@ -11,11 +11,20 @@ import {
   Paper,
   IconButton,
   LinearProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Link,
+  Tooltip,
 } from '@mui/material';
 import ClearIcon from '@mui/icons-material/Clear';
 import SearchIcon from '@mui/icons-material/Search';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
+import DownloadIcon from '@mui/icons-material/Download';
 import { Segment, Flow } from '../types';
 import { segmentService, flowService } from '../services/api';
 import SegmentMediaWidget from '../components/SegmentMediaWidget';
@@ -570,7 +579,7 @@ const Segments: React.FC = () => {
               </Button>
             )}
             <Box sx={{ flexGrow: 1 }} />
-            {segments.length > 0 && (
+            {segments.length > 0 && filteredFlow?.format !== 'urn:x-nmos:format:data' && (
               <Button
                 variant={autoPlayEnabled ? "contained" : "outlined"}
                 size="small"
@@ -636,14 +645,15 @@ const Segments: React.FC = () => {
         </Box>
       ) : (
         <Box>
-          {/* Segments Section - Show scroll bar immediately */}
-          {(segments.length > 0 || loadingMore) && (
+          {/* Check if this is a data flow */}
+          {filteredFlow?.format === 'urn:x-nmos:format:data' ? (
+            /* Data Flow - Show table with downloadable files */
             <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
                 <Typography variant="body2" color="text.secondary">
                   {totalSegments !== null 
-                    ? `${segments.length}/${totalSegments} segments`
-                    : `${segments.length} segment${segments.length !== 1 ? 's' : ''}${loadingMore ? '...' : ''}`
+                    ? `${segments.length}/${totalSegments} data files`
+                    : `${segments.length} data file${segments.length !== 1 ? 's' : ''}${loadingMore ? '...' : ''}`
                   }
                 </Typography>
                 {loadingMore && totalSegments !== null && (
@@ -659,53 +669,148 @@ const Segments: React.FC = () => {
                   </Box>
                 )}
               </Box>
-          
-              {/* Individual segment widgets */}
-              {segments.length > 0 && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'row', // Left to right layout
-                    overflowX: 'auto',
-                    overflowY: 'hidden',
-                    pb: 2,
-                    gap: 0,
-                    scrollBehavior: 'smooth', // CSS smooth scrolling
-                    // Ensure first video stays on the left
-                    justifyContent: 'flex-start',
-                    alignItems: 'flex-start',
-                    '&::-webkit-scrollbar': {
-                      height: 8,
-                    },
-                    '&::-webkit-scrollbar-track': {
-                      backgroundColor: '#f1f1f1',
-                      borderRadius: 4,
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                      backgroundColor: '#888',
-                      borderRadius: 4,
-                      '&:hover': {
-                        backgroundColor: '#555',
-                      },
-                    },
-                  }}
-                  id="segments-container"
-                >
-                  {segments.map((segment, index) => (
-                    <SegmentMediaWidget
-                      key={`${segment.object_id}-${index}`}
-                      segment={segment}
-                      flow={filteredFlow}
-                      width={280}
-                      height={157.5} // 16:9 aspect ratio
-                      isFirst={index === 0} // Pass flag to indicate first video
-                      autoPlayEnabled={autoPlayEnabled}
-                      segmentIndex={index}
-                    />
-                  ))}
-                </Box>
+
+              {segments.length > 0 ? (
+                <TableContainer component={Paper}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Object ID</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Timerange</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Sample Offset</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Sample Count</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Download</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {segments.map((segment, index) => (
+                        <TableRow key={`${segment.object_id}-${index}`} hover>
+                          <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                            {segment.object_id}
+                          </TableCell>
+                          <TableCell>
+                            {segment.timerange?.value || '-'}
+                          </TableCell>
+                          <TableCell>
+                            {segment.sample_offset !== undefined && segment.sample_offset !== null ? segment.sample_offset.toLocaleString() : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {segment.sample_count !== undefined && segment.sample_count !== null ? segment.sample_count.toLocaleString() : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {segment.get_urls && segment.get_urls.length > 0 ? (
+                              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                {segment.get_urls.map((urlInfo, urlIndex) => (
+                                  <Tooltip 
+                                    key={urlIndex} 
+                                    title={urlInfo.label || urlInfo.url || 'Download'}
+                                  >
+                                    <Button
+                                      variant="outlined"
+                                      size="small"
+                                      startIcon={<DownloadIcon />}
+                                      href={urlInfo.url}
+                                      download
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      sx={{ minWidth: 'auto' }}
+                                    >
+                                      {urlInfo.label || `Download ${urlIndex + 1}`}
+                                    </Button>
+                                  </Tooltip>
+                                ))}
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">
+                                No download URL available
+                              </Typography>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Paper sx={{ p: 3, textAlign: 'center' }}>
+                  <Typography variant="body1" color="text.secondary">
+                    No data files found
+                  </Typography>
+                </Paper>
               )}
             </Box>
+          ) : (
+            /* Standard Media Flow - Show segment widgets */
+            (segments.length > 0 || loadingMore) && (
+              <Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {totalSegments !== null 
+                      ? `${segments.length}/${totalSegments} segments`
+                      : `${segments.length} segment${segments.length !== 1 ? 's' : ''}${loadingMore ? '...' : ''}`
+                    }
+                  </Typography>
+                  {loadingMore && totalSegments !== null && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <LinearProgress 
+                        variant="determinate"
+                        value={(segments.length / totalSegments) * 100}
+                        sx={{ width: 150, height: 6 }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {Math.round((segments.length / totalSegments) * 100)}%
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+            
+                {/* Individual segment widgets */}
+                {segments.length > 0 && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'row', // Left to right layout
+                      overflowX: 'auto',
+                      overflowY: 'hidden',
+                      pb: 2,
+                      gap: 0,
+                      scrollBehavior: 'smooth', // CSS smooth scrolling
+                      // Ensure first video stays on the left
+                      justifyContent: 'flex-start',
+                      alignItems: 'flex-start',
+                      '&::-webkit-scrollbar': {
+                        height: 8,
+                      },
+                      '&::-webkit-scrollbar-track': {
+                        backgroundColor: '#f1f1f1',
+                        borderRadius: 4,
+                      },
+                      '&::-webkit-scrollbar-thumb': {
+                        backgroundColor: '#888',
+                        borderRadius: 4,
+                        '&:hover': {
+                          backgroundColor: '#555',
+                        },
+                      },
+                    }}
+                    id="segments-container"
+                  >
+                    {segments.map((segment, index) => (
+                      <SegmentMediaWidget
+                        key={`${segment.object_id}-${index}`}
+                        segment={segment}
+                        flow={filteredFlow}
+                        width={280}
+                        height={157.5} // 16:9 aspect ratio
+                        isFirst={index === 0} // Pass flag to indicate first video
+                        autoPlayEnabled={autoPlayEnabled}
+                        segmentIndex={index}
+                      />
+                    ))}
+                  </Box>
+                )}
+              </Box>
+            )
           )}
 
         </Box>

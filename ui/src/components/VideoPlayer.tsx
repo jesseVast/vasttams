@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, IconButton } from '@mui/material';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import PauseIcon from '@mui/icons-material/Pause';
 // Import CSS for video players (only loaded when used)
 import 'video.js/dist/video-js.css';
 import '@videojs/themes/dist/sea/index.css';
@@ -66,6 +68,8 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
   }));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
 
   // Validate src prop
   const isValidSrc = src && src.trim().length > 0;
@@ -427,6 +431,42 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
     }
   }, [playerType, MpegtsJS, src, isValidSrc, onReady, onError, onLoadStart]);
 
+  // Sync playing state with video element
+  useEffect(() => {
+    if (!videoRef.current) return;
+    
+    const video = videoRef.current;
+    
+    const updatePlayingState = () => {
+      setIsPlaying(!video.paused);
+    };
+    
+    // Initial state
+    updatePlayingState();
+    
+    // Listen to play/pause events
+    video.addEventListener('play', updatePlayingState);
+    video.addEventListener('pause', updatePlayingState);
+    
+    return () => {
+      video.removeEventListener('play', updatePlayingState);
+      video.removeEventListener('pause', updatePlayingState);
+    };
+  }, [playerType, src]);
+
+  // Auto-hide overlay after delay when playing, show when paused
+  useEffect(() => {
+    if (isPlaying && showOverlay) {
+      const timer = setTimeout(() => {
+        setShowOverlay(false);
+      }, 2000); // Hide after 2 seconds when playing
+      return () => clearTimeout(timer);
+    } else if (!isPlaying) {
+      // Show overlay when paused
+      setShowOverlay(true);
+    }
+  }, [isPlaying, showOverlay]);
+
   // Native HTML5 video player (default, always works)
   if (playerType === 'native') {
     // Show error message if src is invalid
@@ -536,10 +576,22 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
             setError(null);
             if (onLoadStart) onLoadStart();
           }}
+          onPlay={() => {
+            setIsPlaying(true);
+            setShowOverlay(true);
+          }}
+          onPause={() => {
+            setIsPlaying(false);
+            setShowOverlay(true);
+          }}
           onEnded={() => {
             console.debug('[VideoPlayer] onEnded fired');
+            setIsPlaying(false);
+            setShowOverlay(true);
             if (onEnded) onEnded();
           }}
+          onMouseEnter={() => setShowOverlay(true)}
+          onMouseLeave={() => setShowOverlay(false)}
           onError={(e) => {
             console.error('[VideoPlayer] onError fired:', e);
             setLoading(false);
@@ -657,10 +709,22 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
             display: 'block',
             backgroundColor: '#000',
           }}
+          onPlay={() => {
+            setIsPlaying(true);
+            setShowOverlay(true);
+          }}
+          onPause={() => {
+            setIsPlaying(false);
+            setShowOverlay(true);
+          }}
           onEnded={() => {
             console.debug('[VideoPlayer] mpegts.js video ended');
+            setIsPlaying(false);
+            setShowOverlay(true);
             if (onEnded) onEnded();
           }}
+          onMouseEnter={() => setShowOverlay(true)}
+          onMouseLeave={() => setShowOverlay(false)}
           onError={(e) => {
             // Suppress native video element errors when using mpegts.js
             // mpegts.js handles all loading and errors, so native errors are expected
@@ -701,6 +765,62 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
             }
           }}
         />
+        {/* Play/Pause Overlay Button - Centered */}
+        {!loading && !error && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10,
+              pointerEvents: 'none',
+              opacity: showOverlay ? 1 : 0,
+              transition: 'opacity 0.3s ease-in-out',
+            }}
+          >
+            <IconButton
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isPlaying) {
+                  if (mpegtsPlayerRef.current) {
+                    mpegtsPlayerRef.current.pause();
+                  } else if (videoRef.current) {
+                    videoRef.current.pause();
+                  }
+                } else {
+                  if (mpegtsPlayerRef.current) {
+                    mpegtsPlayerRef.current.play();
+                  } else if (videoRef.current) {
+                    videoRef.current.play();
+                  }
+                }
+              }}
+              sx={{
+                pointerEvents: 'auto',
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                color: '#fff',
+                width: 64,
+                height: 64,
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                  transform: 'scale(1.1)',
+                },
+                transition: 'all 0.2s ease-in-out',
+              }}
+            >
+              {isPlaying ? (
+                <PauseIcon sx={{ fontSize: 40 }} />
+              ) : (
+                <PlayArrowIcon sx={{ fontSize: 40 }} />
+              )}
+            </IconButton>
+          </Box>
+        )}
       </Box>
     );
   }

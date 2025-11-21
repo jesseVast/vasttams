@@ -123,34 +123,53 @@ async def update_flow_by_id(
         # Check if flow is read-only
         await _check_flow_not_read_only(flow_id, storage)
         
+        # Get the existing flow to preserve required fields
+        existing_flow = await storage.get_flow(flow_id)
+        if not existing_flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
         # Get username for metadata
         username = user_session.username if user_session else "system"
         
-        # Ensure the flow_id in the path matches the id in the request body
-        flow_data["id"] = flow_id
+        # Convert existing flow to dict to merge with update data
+        import json
+        from datetime import datetime
+        
+        # Convert existing flow to dict, handling datetime objects
+        existing_dict = existing_flow.model_dump(mode='json')
+        
+        # Merge update data with existing flow data (update data takes precedence)
+        merged_data = {**existing_dict, **flow_data}
+        
+        # Ensure the flow_id in the path matches the id in the merged data
+        merged_data["id"] = flow_id
         
         # Set updated_by from authenticated user (don't overwrite created_by)
-        if "updated_by" not in flow_data or not flow_data.get("updated_by"):
-            flow_data["updated_by"] = username
+        if "updated_by" not in merged_data or not merged_data.get("updated_by"):
+            merged_data["updated_by"] = username
         
-        # Create Flow object from the data based on format
-        format_type = flow_data.get("format")
+        # Ensure format is preserved from existing flow if not provided
+        if "format" not in merged_data or not merged_data.get("format"):
+            merged_data["format"] = existing_flow.format
+        
+        # Create Flow object from the merged data based on format
+        format_type = merged_data.get("format")
         
         if format_type == "urn:x-nmos:format:video":
             from .models import VideoFlow
-            flow = VideoFlow(**flow_data)
+            flow = VideoFlow(**merged_data)
         elif format_type == "urn:x-nmos:format:audio":
             from .models import AudioFlow
-            flow = AudioFlow(**flow_data)
+            flow = AudioFlow(**merged_data)
         elif format_type == "urn:x-tam:format:image":
             from .models import ImageFlow
-            flow = ImageFlow(**flow_data)
+            flow = ImageFlow(**merged_data)
         elif format_type == "urn:x-nmos:format:data":
             from .models import DataFlow
-            flow = DataFlow(**flow_data)
+            flow = DataFlow(**merged_data)
         elif format_type == "urn:x-nmos:format:multi":
             from .models import MultiFlow
-            flow = MultiFlow(**flow_data)
+            flow = MultiFlow(**merged_data)
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported flow format: {format_type}")
         
@@ -553,7 +572,7 @@ async def get_flow_collection(
     flow_id: str,
     storage: StorageInterface = Depends(get_storage_service)
 ):
-    """Get flow collection"""
+    """Get flow collection, filtering out any non-existent flows"""
     try:
         flow = await storage.get_flow(flow_id)
         if not flow:
@@ -561,10 +580,22 @@ async def get_flow_collection(
         # Return collection data if available
         if flow.flow_collection is not None:
             # FlowCollection is a RootModel, so we need to get the root value
-            if hasattr(flow.flow_collection, 'root'):
-                return flow.flow_collection.root
-            else:
-                return flow.flow_collection
+            collection_items = flow.flow_collection.root if hasattr(flow.flow_collection, 'root') else flow.flow_collection
+            
+            # Filter out any flows that no longer exist (cleanup dangling references)
+            if isinstance(collection_items, list):
+                valid_items = []
+                for item in collection_items:
+                    if isinstance(item, dict) and 'id' in item:
+                        referenced_flow_id = item.get('id')
+                        # Check if the referenced flow exists
+                        referenced_flow = await storage.get_flow(referenced_flow_id)
+                        if referenced_flow:
+                            valid_items.append(item)
+                        else:
+                            logger.warning(f"Flow {flow_id}'s flow_collection references non-existent flow {referenced_flow_id}, filtering out")
+                return valid_items
+            return collection_items
         return []
     except HTTPException:
         raise

@@ -508,8 +508,11 @@ async def telemetry_middleware(request: Request, call_next):
     
     # Set request timeout - longer for segment endpoints that generate URLs
     # Segment listing can be slow when generating presigned URLs for many segments
+    # Source deletion with cascade can be slow when deleting many flows/segments
     if request.url.path.endswith("/segments") and request.method == "GET":
         REQUEST_TIMEOUT = 120.0  # 2 minutes for segment listing
+    elif "/sources/" in request.url.path and request.method == "DELETE":
+        REQUEST_TIMEOUT = 180.0  # 3 minutes for source cascade delete (can be slow with many flows/segments)
     else:
         REQUEST_TIMEOUT = 30.0  # 30 seconds default for other endpoints
     

@@ -33,6 +33,30 @@ notes/
 
 ## 🎯 **CURRENT STATUS**
 
+### **⚡ CASCADE DELETE PERFORMANCE FIX** (November 21, 2025)
+**Date**: November 21, 2025  
+**Task**: Fix blocking cascade delete operations causing request timeouts  
+**Status**: ✅ **COMPLETED**
+
+#### **Problem**
+- Cascade delete operations were blocking the event loop with synchronous database operations
+- Object cleanup was taking too long (52+ seconds) causing 503 timeouts
+- Default 30-second timeout was insufficient for large deletions
+
+#### **Solution**
+- **Async Database Operations**: Converted all blocking database operations to async using `asyncio.to_thread`
+- **Batch Segment Deletion**: Optimized to delete all segments in a single batch query instead of per-flow
+- **Background Object Cleanup**: Moved unreferenced object cleanup to background task to avoid blocking response
+- **Increased Timeout**: Extended timeout for DELETE operations on sources from 30s to 180s (3 minutes)
+
+#### **Implementation**
+- `src/server/vasttamsserver/sources/service.py`: Made all database operations async, batch segment deletion, background object cleanup
+- `src/server/vasttamsserver/core/telemetry.py`: Increased timeout for source DELETE operations
+
+**Files Modified**:
+- `src/server/vasttamsserver/sources/service.py` - Async operations, batch deletion, background cleanup
+- `src/server/vasttamsserver/core/telemetry.py` - Increased timeout for source deletions
+
 ### **🎥 VIDEO PLAYER IMPROVEMENTS** (November 21, 2025)
 **Date**: November 21, 2025  
 **Task**: Fix video playback issues, add mpegts.js support, improve error handling  

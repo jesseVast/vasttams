@@ -372,7 +372,7 @@ class ObjectStorageService:
                 # Delete object (will handle instances and S3 deletion)
                 await self.delete_object(object_id)
                 deleted_count += 1
-                logger.debug("Deleted unreferenced object %s and S3 files", object_id)
+                logger.info("Deleted unreferenced object %s and S3 files", object_id)
             except Exception as e:
                 logger.error("Failed to delete unreferenced object %s: %s", object_id, e)
                 # Continue with other objects
@@ -811,11 +811,11 @@ class ObjectStorageService:
             # Check if s3_client has delete_object method
             if hasattr(s3_client, 'delete_object'):
                 s3_client.delete_object(key=relative_storage_path)
-                logger.debug("Deleted S3 object: %s", storage_path)
+                logger.info("Deleted S3 object: %s", storage_path)
                 return True
             elif hasattr(s3_client, 'delete'):
                 s3_client.delete(key=relative_storage_path)
-                logger.debug("Deleted S3 object: %s", storage_path)
+                logger.info("Deleted S3 object: %s", storage_path)
                 return True
             else:
                 # Fallback: try using boto3 directly if available
@@ -855,7 +855,7 @@ class ObjectStorageService:
                     bucket = s3_resource.Bucket(bucket_name)
                     # Use relative_storage_path (root_path already stripped if needed)
                     bucket.Object(relative_storage_path).delete()
-                    logger.debug("Deleted S3 object via boto3: %s", relative_storage_path)
+                    logger.info("Deleted S3 object via boto3: %s", relative_storage_path)
                     return True
                 except ImportError:
                     logger.error("boto3 not available, cannot delete S3 object")

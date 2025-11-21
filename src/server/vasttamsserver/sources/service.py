@@ -5,6 +5,7 @@ This module handles all source-related storage operations including
 CRUD operations, filtering, and collection management.
 """
 
+import asyncio
 import logging
 import time
 from typing import List, Optional
@@ -505,8 +506,9 @@ class SourceStorageService:
             
             # Check for dependencies if cascade is False
             if not cascade:
-                # Check if source has flows
-                flows_result = self.vast_db.query("flows").select("id").where(f"source_id = '{source_id}'").execute()
+                # Check if source has flows (async to avoid blocking)
+                query = self.vast_db.query("flows").select("id").where(f"source_id = '{source_id}'")
+                flows_result = await asyncio.to_thread(lambda: query.execute())
                 if flows_result and len(flows_result) > 0:
                     raise ValueError("Cannot delete source with existing flows. Use cascade=True to delete flows first.")
             
@@ -516,8 +518,9 @@ class SourceStorageService:
                 await self._cascade_delete_flows(source_id)
                 logger.debug("_cascade_delete_flows completed for source %s", source_id)
             
-            # Delete source
-            self.vast_db.query("sources").delete().where(f"id = '{source_id}'").execute()
+            # Delete source (async to avoid blocking)
+            query = self.vast_db.query("sources").delete().where(f"id = '{source_id}'")
+            await asyncio.to_thread(lambda: query.execute())
             
             # Invalidate cache
             from ..core.dependencies import get_cache_service
@@ -541,8 +544,9 @@ class SourceStorageService:
         Per TAMS 8.0 spec: After deleting segments, unreferenced objects should be cleaned up.
         """
         try:
-            # Get all flow IDs for this source
-            flows_result = self.vast_db.query("flows").select("id").where(f"source_id = '{source_id}'").execute()
+            # Get all flow IDs for this source (async to avoid blocking)
+            query = self.vast_db.query("flows").select("id").where(f"source_id = '{source_id}'")
+            flows_result = await asyncio.to_thread(lambda: query.execute())
             
             if not flows_result or len(flows_result) == 0:
                 return True  # No flows to delete
@@ -569,31 +573,56 @@ class SourceStorageService:
             
             logger.debug("Found %d flows to delete for source %s", len(flow_ids), source_id)
             
-            # Delete segments for each flow
-            for flow_id in flow_ids:
+            # Batch delete all segments for all flows at once (more efficient than per-flow)
+            if flow_ids:
                 try:
-                    self.vast_db.query("segments").delete().where(f"flow_id = '{flow_id}'").execute()
-                    logger.debug("Deleted segments for flow %s", flow_id)
+                    # Build WHERE IN clause for batch deletion
+                    escaped_flow_ids = [fid.replace("'", "''") for fid in flow_ids]
+                    flow_ids_str = "', '".join(escaped_flow_ids)
+                    where_clause = f"flow_id IN ('{flow_ids_str}')"
+                    
+                    query = self.vast_db.query("segments").delete().where(where_clause)
+                    await asyncio.to_thread(lambda: query.execute())
+                    logger.debug("Batch deleted segments for %d flows", len(flow_ids))
                 except Exception as e:
-                    logger.warning("Failed to delete segments for flow %s: %s", flow_id, e)
-                    # Continue with other flows
+                    logger.warning("Failed to batch delete segments for flows: %s", e)
+                    # Fallback to per-flow deletion if batch fails
+                    for flow_id in flow_ids:
+                        try:
+                            query = self.vast_db.query("segments").delete().where(f"flow_id = '{flow_id}'")
+                            await asyncio.to_thread(lambda: query.execute())
+                            logger.debug("Deleted segments for flow %s", flow_id)
+                        except Exception as e2:
+                            logger.warning("Failed to delete segments for flow %s: %s", flow_id, e2)
+                            # Continue with other flows
+            
+            # Delete all flows for this source (async to avoid blocking)
+            if flow_ids:
+                query = self.vast_db.query("flows").delete().where(f"source_id = '{source_id}'")
+                await asyncio.to_thread(lambda: query.execute())
+                logger.debug("Deleted %d flows for source %s", len(flow_ids), source_id)
             
             # Clean up unreferenced objects after deleting segments (TAMS 8.0 spec requirement)
+            # Run this in background to avoid blocking the response - it can be slow with many objects
             try:
                 from ..objects.service import ObjectStorageService
                 object_service = ObjectStorageService(self.vast_db, self.s3_client)
-                unreferenced = await object_service.get_unreferenced_objects()
-                if unreferenced:
-                    deleted_count = await object_service.delete_unreferenced_objects(unreferenced)
-                    logger.info("Cleaned up %d unreferenced objects after cascade deleting source %s", deleted_count, source_id)
+                # Run cleanup in background task to avoid blocking the response
+                async def cleanup_objects():
+                    try:
+                        unreferenced = await object_service.get_unreferenced_objects()
+                        if unreferenced:
+                            deleted_count = await object_service.delete_unreferenced_objects(unreferenced)
+                            logger.info("Cleaned up %d unreferenced objects after cascade deleting source %s", deleted_count, source_id)
+                    except Exception as e:
+                        logger.warning("Failed to cleanup unreferenced objects after cascade delete for source %s: %s", source_id, e)
+                
+                # Schedule cleanup as background task (don't await - let it run async)
+                asyncio.create_task(cleanup_objects())
+                logger.debug("Scheduled background cleanup of unreferenced objects for source %s", source_id)
             except Exception as e:
-                logger.warning("Failed to cleanup unreferenced objects after cascade delete for source %s: %s", source_id, e)
-                # Don't fail the deletion if cleanup fails
-            
-            # Delete all flows for this source
-            if flow_ids:
-                self.vast_db.query("flows").delete().where(f"source_id = '{source_id}'").execute()
-                logger.debug("Deleted %d flows for source %s", len(flow_ids), source_id)
+                logger.warning("Failed to schedule object cleanup after cascade delete for source %s: %s", source_id, e)
+                # Don't fail the deletion if cleanup scheduling fails
             
             return True
         except Exception as e:

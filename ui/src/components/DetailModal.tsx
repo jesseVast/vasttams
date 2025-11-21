@@ -184,141 +184,211 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
         </Box>
       </DialogTitle>
       <DialogContent>
-        <Box sx={{ mt: 1 }}>
-          <Stack spacing={2}>
-            {/* Basic Information */}
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+        <Box sx={{ mt: 0.5 }}>
+          <Stack spacing={1.5}>
+            {/* Basic Information - Compact */}
+            <Paper sx={{ p: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '0.9rem' }}>
                 Basic Information
               </Typography>
               <Divider sx={{ mb: 1 }} />
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                  <Typography variant="body2" color="text.secondary">
-                    ID:
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                    {data.id}
-                  </Typography>
-                </Box>
-                {data.label && (
-                  <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Label:
-                    </Typography>
-                    <Typography variant="body2">{data.label}</Typography>
-                  </Box>
-                )}
-                {data.description && (
-                  <Box sx={{ flex: '1 1 100%' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Description:
-                    </Typography>
-                    <Typography variant="body2">{data.description}</Typography>
-                  </Box>
-                )}
-                <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Format:
-                  </Typography>
-                  <Typography variant="body2">{data.format}</Typography>
-                </Box>
-                {isFlow && (
-                  <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Source ID:
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                      {(data as Flow).source_id}
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
+              <TableContainer>
+                <Table size="small">
+                  <TableBody>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>ID</TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5, borderBottom: 'none' }}>
+                        {data.id}
+                      </TableCell>
+                    </TableRow>
+                    {data.label && (
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Label</TableCell>
+                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{data.label}</TableCell>
+                      </TableRow>
+                    )}
+                    {data.description && (
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Description</TableCell>
+                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{data.description}</TableCell>
+                      </TableRow>
+                    )}
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Format</TableCell>
+                      <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{data.format}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </Paper>
 
-            {/* Flow-specific Information */}
+            {/* Flow-specific Information - Comprehensive */}
             {isFlow && (
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  Flow Details
-                </Typography>
-                <Divider sx={{ mb: 1 }} />
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                  {(data as Flow).codec && (
-                    <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Codec:
-                      </Typography>
-                      <Typography variant="body2">{(data as Flow).codec}</Typography>
+              <>
+                <Paper sx={{ p: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '0.9rem' }}>
+                    Flow Details
+                  </Typography>
+                  <Divider sx={{ mb: 1 }} />
+                  <TableContainer>
+                    <Table size="small">
+                      <TableBody>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Source ID</TableCell>
+                          <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5, borderBottom: 'none' }}>
+                            {(data as Flow).source_id}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Codec</TableCell>
+                          <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
+                            {(data as Flow).codec || '-'}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Container</TableCell>
+                          <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
+                            {(data as Flow).container || '-'}
+                          </TableCell>
+                        </TableRow>
+                        {(data as Flow).avg_bit_rate !== undefined && (
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Avg Bit Rate</TableCell>
+                            <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
+                              {(data as Flow).avg_bit_rate?.toLocaleString() || '-'} {(data as Flow).avg_bit_rate ? 'bps' : ''}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {(data as Flow).max_bit_rate !== undefined && (
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Max Bit Rate</TableCell>
+                            <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
+                              {(data as Flow).max_bit_rate?.toLocaleString() || '-'} {(data as Flow).max_bit_rate ? 'bps' : ''}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {(data as Flow).generation !== undefined && (
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Generation</TableCell>
+                            <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
+                              {(data as Flow).generation ?? '-'}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {(data as Flow).metadata_version && (
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Metadata Version</TableCell>
+                            <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{(data as Flow).metadata_version}</TableCell>
+                          </TableRow>
+                        )}
+                        {(data as Flow).segment_duration && (
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Segment Duration</TableCell>
+                            <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
+                              {(() => {
+                                const segDur = (data as Flow).segment_duration;
+                                if (segDur?.value) {
+                                  return segDur.value;
+                                }
+                                if (segDur?.numerator !== undefined && segDur?.denominator !== undefined) {
+                                  return `${segDur.numerator}/${segDur.denominator}`;
+                                }
+                                return '-';
+                              })()}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {(data as Flow).timerange && (
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none', verticalAlign: 'top' }}>Timerange</TableCell>
+                            <TableCell sx={{ py: 0.5, borderBottom: 'none', fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                              {(() => {
+                                const tr = (data as Flow).timerange;
+                                if (typeof tr === 'string') return tr;
+                                if (tr?.value) return tr.value;
+                                if (tr?.start && tr?.end) return `${tr.start} to ${tr.end}`;
+                                return JSON.stringify(tr, null, 2);
+                              })()}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {(data as Flow).flow_collection && (
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none', verticalAlign: 'top' }}>Flow Collection</TableCell>
+                            <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
+                              {(() => {
+                                const fc = (data as Flow).flow_collection;
+                                if (Array.isArray(fc)) {
+                                  return (
+                                    <Box>
+                                      {fc.map((item: any, idx: number) => (
+                                        <Chip
+                                          key={idx}
+                                          label={item.label || item.id || JSON.stringify(item)}
+                                          size="small"
+                                          sx={{ mr: 0.5, mb: 0.5 }}
+                                        />
+                                      ))}
+                                    </Box>
+                                  );
+                                }
+                                if (typeof fc === 'object') {
+                                  return (
+                                    <Box component="pre" sx={{ fontFamily: 'monospace', fontSize: '0.75rem', margin: 0, whiteSpace: 'pre-wrap' }}>
+                                      {JSON.stringify(fc, null, 2)}
+                                    </Box>
+                                  );
+                                }
+                                return String(fc);
+                              })()}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {(data as Flow).collected_by && Array.isArray((data as Flow).collected_by) && (data as Flow).collected_by!.length > 0 && (
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none', verticalAlign: 'top' }}>Collected By</TableCell>
+                            <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
+                              <Box>
+                                {(data as Flow).collected_by!.map((flowId: string, idx: number) => (
+                                  <Chip
+                                    key={idx}
+                                    label={flowId}
+                                    size="small"
+                                    sx={{ mr: 0.5, mb: 0.5, fontFamily: 'monospace', fontSize: '0.7rem' }}
+                                  />
+                                ))}
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {(data as Flow).container_mapping && (
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none', verticalAlign: 'top' }}>Container Mapping</TableCell>
+                            <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
+                              <Box component="pre" sx={{ fontFamily: 'monospace', fontSize: '0.75rem', margin: 0, whiteSpace: 'pre-wrap' }}>
+                                {JSON.stringify((data as Flow).container_mapping, null, 2)}
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Paper>
+
+                {/* Essence Parameters - Separate section for better visibility */}
+                {(data as Flow).essence_parameters && (
+                  <Paper sx={{ p: 1.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '0.9rem' }}>
+                      Essence Parameters
+                    </Typography>
+                    <Divider sx={{ mb: 1 }} />
+                    <Box sx={{ mt: 0.5 }}>
+                      {formatEssenceParameters((data as Flow).essence_parameters)}
                     </Box>
-                  )}
-                  {(data as Flow).container && (
-                    <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Container:
-                      </Typography>
-                      <Typography variant="body2">{(data as Flow).container}</Typography>
-                    </Box>
-                  )}
-                  {(data as Flow).avg_bit_rate && (
-                    <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Avg Bit Rate:
-                      </Typography>
-                      <Typography variant="body2">
-                        {(data as Flow).avg_bit_rate?.toLocaleString()} bps
-                      </Typography>
-                    </Box>
-                  )}
-                  {(data as Flow).max_bit_rate && (
-                    <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Max Bit Rate:
-                      </Typography>
-                      <Typography variant="body2">
-                        {(data as Flow).max_bit_rate?.toLocaleString()} bps
-                      </Typography>
-                    </Box>
-                  )}
-                  {(data as Flow).generation && (
-                    <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Generation:
-                      </Typography>
-                      <Typography variant="body2">{(data as Flow).generation}</Typography>
-                    </Box>
-                  )}
-                  {(data as Flow).essence_parameters && (
-                    <Box sx={{ flex: '1 1 100%' }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        Essence Parameters:
-                      </Typography>
-                      <Box sx={{ mt: 0.5 }}>
-                        {formatEssenceParameters((data as Flow).essence_parameters)}
-                      </Box>
-                    </Box>
-                  )}
-                  {(data as Flow).segment_duration && (
-                    <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Segment Duration:
-                      </Typography>
-                      <Typography variant="body2">
-                        {(() => {
-                          const segDur = (data as Flow).segment_duration;
-                          if (segDur?.value) {
-                            return segDur.value;
-                          }
-                          if (segDur?.numerator !== undefined && segDur?.denominator !== undefined) {
-                            return `${segDur.numerator}/${segDur.denominator}`;
-                          }
-                          return '-';
-                        })()}
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-              </Paper>
+                  </Paper>
+                )}
+              </>
             )}
 
             {/* Source-specific Information */}
@@ -336,75 +406,67 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
               </Paper>
             )}
 
-            {/* Tags */}
+            {/* Tags - Compact */}
             {data.tags && Object.keys(data.tags).length > 0 && (
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+              <Paper sx={{ p: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '0.9rem' }}>
                   Tags
                 </Typography>
                 <Divider sx={{ mb: 1 }} />
-                <Box sx={{ mt: 1 }}>
+                <Box sx={{ mt: 0.5 }}>
                   {formatObject(data.tags)}
                 </Box>
               </Paper>
             )}
 
-            {/* Metadata */}
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+            {/* Metadata - Compact */}
+            <Paper sx={{ p: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '0.9rem' }}>
                 Metadata
               </Typography>
               <Divider sx={{ mb: 1 }} />
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                {data.created_by && (
-                  <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Created By:
-                    </Typography>
-                    <Typography variant="body2">{data.created_by}</Typography>
-                  </Box>
-                )}
-                {data.updated_by && (
-                  <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Updated By:
-                    </Typography>
-                    <Typography variant="body2">{data.updated_by}</Typography>
-                  </Box>
-                )}
-                <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Created:
-                  </Typography>
-                  <Typography variant="body2">{formatDate(data.created)}</Typography>
-                </Box>
-                <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Updated:
-                  </Typography>
-                  <Typography variant="body2">{formatDate(data.updated)}</Typography>
-                </Box>
-                {isFlow && (data as Flow).metadata_updated && (
-                  <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Metadata Updated:
-                    </Typography>
-                    <Typography variant="body2">
-                      {formatDate((data as Flow).metadata_updated)}
-                    </Typography>
-                  </Box>
-                )}
-                {isFlow && (data as Flow).segments_updated && (
-                  <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)' } }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Segments Updated:
-                    </Typography>
-                    <Typography variant="body2">
-                      {formatDate((data as Flow).segments_updated)}
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
+              <TableContainer>
+                <Table size="small">
+                  <TableBody>
+                    {data.created_by && (
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Created By</TableCell>
+                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{data.created_by}</TableCell>
+                      </TableRow>
+                    )}
+                    {data.updated_by && (
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Updated By</TableCell>
+                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{data.updated_by}</TableCell>
+                      </TableRow>
+                    )}
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Created</TableCell>
+                      <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{formatDate(data.created)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Updated</TableCell>
+                      <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{formatDate(data.updated)}</TableCell>
+                    </TableRow>
+                    {isFlow && (data as Flow).metadata_updated && (
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Metadata Updated</TableCell>
+                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
+                          {formatDate((data as Flow).metadata_updated)}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {isFlow && (data as Flow).segments_updated && (
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Segments Updated</TableCell>
+                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
+                          {formatDate((data as Flow).segments_updated)}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </Paper>
           </Stack>
         </Box>

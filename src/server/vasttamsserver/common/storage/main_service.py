@@ -120,7 +120,7 @@ class TAMSStorageService(StorageInterface):
                 unreferenced = await self.object_service.get_unreferenced_objects()
                 if unreferenced:
                     deleted_count = await self.object_service.delete_unreferenced_objects(unreferenced)
-                    logger.debug("Cleaned up %d unreferenced objects after segment deletion", deleted_count)
+                    logger.info("Cleaned up %d unreferenced objects after segment deletion", deleted_count)
             except Exception as e:
                 logger.warning("Failed to cleanup unreferenced objects after segment deletion: %s", e)
                 # Don't fail the deletion if cleanup fails

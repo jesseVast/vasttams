@@ -369,6 +369,21 @@ class DeletionRequestService:
                 # Yield to event loop periodically
                 await asyncio.sleep(0.01)
             
+            # Cleanup unreferenced objects after deleting segments (TAMS 8.0 spec requirement)
+            try:
+                from ..objects.service import ObjectStorageService
+                from ..core.dependencies import get_s3_client
+                s3_client = get_s3_client()
+                object_service = ObjectStorageService(self.vast_db, s3_client)
+                unreferenced = await object_service.get_unreferenced_objects()
+                if unreferenced:
+                    deleted_count_objects = await object_service.delete_unreferenced_objects(unreferenced)
+                    logger.info("Deletion request %s: Cleaned up %d unreferenced objects after deleting %d segments", 
+                              request_id, deleted_count_objects, deleted_count)
+            except Exception as e:
+                logger.warning("Deletion request %s: Failed to cleanup unreferenced objects: %s", request_id, e)
+                # Don't fail the deletion if cleanup fails
+            
             # Mark as done
             await self.update_deletion_request_status(request_id, "done", timerange_remaining=None)
             logger.info("Deletion request %s completed - deleted %d segments", request_id, deleted_count)

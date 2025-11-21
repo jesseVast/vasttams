@@ -562,9 +562,30 @@ class FlowStorageService:
                         flow_data['flow_collection'] = json.loads(flow_data['flow_collection'])
                     except (json.JSONDecodeError, TypeError):
                         flow_data['flow_collection'] = None
-                # Convert list to FlowCollection object
+                # Filter out non-existent flows from flow_collection
                 if isinstance(flow_data['flow_collection'], list):
-                    flow_data['flow_collection'] = FlowCollection(flow_data['flow_collection'])
+                    valid_items = []
+                    for item in flow_data['flow_collection']:
+                        if isinstance(item, dict) and 'id' in item:
+                            referenced_flow_id = item.get('id')
+                            # Check if the referenced flow exists
+                            try:
+                                referenced_flow = await self.get_flow(referenced_flow_id)
+                                if referenced_flow:
+                                    valid_items.append(item)
+                                else:
+                                    logger.debug(f"Flow {flow_data.get('id', 'unknown')}'s flow_collection references non-existent flow {referenced_flow_id}, filtering out")
+                            except Exception:
+                                # If we can't check, filter it out to be safe
+                                logger.debug(f"Could not verify flow {referenced_flow_id} in flow_collection, filtering out")
+                        else:
+                            # Invalid item format, skip it
+                            logger.debug(f"Invalid flow_collection item format: {item}")
+                    # Update flow_collection with filtered items (or None if empty)
+                    if valid_items:
+                        flow_data['flow_collection'] = FlowCollection(valid_items)
+                    else:
+                        flow_data['flow_collection'] = None
                 elif flow_data['flow_collection'] is not None:
                     # If it's not a list and not None, set to None (invalid format)
                     flow_data['flow_collection'] = None
@@ -806,6 +827,7 @@ class FlowStorageService:
             # Invalidate list caches for this flow's source (new flow created)
             from ..core.dependencies import get_cache_service
             cache_service = get_cache_service()
+            await cache_service.delete("flows:list:all")
             if flow.source_id:
                 await cache_service.clear_pattern(f"flows:source:{flow.source_id}*")
             
@@ -904,6 +926,8 @@ class FlowStorageService:
                 from ..core.dependencies import get_cache_service
                 cache_service = get_cache_service()
                 await cache_service.delete(f"flow:{flow_id}")
+                # Invalidate all flows list cache
+                await cache_service.delete("flows:list:all")
                 # Also invalidate list caches for this flow's source
                 if flow.source_id:
                     await cache_service.clear_pattern(f"flows:source:{flow.source_id}*")
@@ -940,6 +964,7 @@ class FlowStorageService:
                     from ..core.dependencies import get_cache_service
                     cache_service = get_cache_service()
                     await cache_service.delete(f"flow:{flow_id}")
+                    await cache_service.delete("flows:list:all")
                     # Also invalidate list caches for this flow's source
                     if flow.source_id:
                         await cache_service.clear_pattern(f"flows:source:{flow.source_id}*")
@@ -1031,10 +1056,27 @@ class FlowStorageService:
         
         Args:
             flow_id: Flow ID to delete
-            cascade: If True, delete segments first
+            cascade: If True, delete segments first and clean up multi-flow references.
+                     If False, prevent deletion if flow is referenced in multi-flows.
             object_service: Optional ObjectStorageService for cleanup of unreferenced objects
         """
         try:
+            # Check if flow is referenced in any multi-flow's flow_collection
+            referencing_multi_flows = await self._get_multi_flows_referencing_flow(flow_id)
+            
+            if referencing_multi_flows:
+                if not cascade:
+                    # Prevent deletion if cascade=false and flow is referenced
+                    raise ValueError(
+                        f"Cannot delete flow {flow_id}: it is referenced in {len(referencing_multi_flows)} multi-flow(s). "
+                        f"Use cascade=true to automatically remove references, or manually update the multi-flow(s) first."
+                    )
+                else:
+                    # Remove flow from all multi-flows' flow_collection
+                    updated_count = await self._remove_flow_from_multi_flows(flow_id)
+                    if updated_count > 0:
+                        logger.info(f"Removed flow {flow_id} from {updated_count} multi-flow(s) before deletion")
+            
             # Delete flow segments first if cascade is True
             if cascade:
                 await self._delete_flow_segments(flow_id)
@@ -1067,10 +1109,14 @@ class FlowStorageService:
             from ..core.dependencies import get_cache_service
             cache_service = get_cache_service()
             await cache_service.delete(f"flow:{flow_id}")
+            await cache_service.delete("flows:list:all")
             if source_id:
                 await cache_service.clear_pattern(f"flows:source:{source_id}*")
             
             return True
+        except ValueError:
+            # Re-raise ValueError (dependency violations)
+            raise
         except Exception as e:
             logger.error("Failed to delete flow %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -1117,6 +1163,174 @@ class FlowStorageService:
         except Exception as e:
             logger.error("Failed to delete flow segments for %s: %s", flow_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")
+    
+    async def _get_multi_flows_referencing_flow(self, flow_id: str) -> List[str]:
+        """
+        Find all multi-flows that reference the given flow in their flow_collection.
+        
+        Args:
+            flow_id: Flow ID to check for references
+            
+        Returns:
+            List of multi-flow IDs that reference this flow
+        """
+        try:
+            import json
+            flows_table = self.vast_db.get_qualified_table_name("flows")
+            
+            # Query all flows with format=multi that have a flow_collection
+            sql = f"""
+                SELECT id, flow_collection 
+                FROM {flows_table} 
+                WHERE format = 'urn:x-nmos:format:multi' 
+                AND flow_collection IS NOT NULL
+            """
+            result = self.vast_db.execute_sql(sql)
+            
+            referencing_flows = []
+            
+            # Handle VAST query result format
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
+                if isinstance(data, dict) and data:
+                    # Convert column arrays to row dictionaries
+                    num_rows = len(next(iter(data.values())))
+                    ids = data.get('id', [])
+                    collections = data.get('flow_collection', [])
+                    
+                    for i in range(num_rows):
+                        flow_id_value = ids[i] if i < len(ids) else None
+                        collection_str = collections[i] if i < len(collections) else None
+                        
+                        if flow_id_value and collection_str:
+                            try:
+                                collection = json.loads(collection_str)
+                                if isinstance(collection, list):
+                                    # Check if any item in collection references the flow_id
+                                    for item in collection:
+                                        if isinstance(item, dict) and item.get('id') == flow_id:
+                                            referencing_flows.append(flow_id_value)
+                                            break
+                            except (json.JSONDecodeError, TypeError):
+                                # Skip invalid JSON
+                                continue
+                elif isinstance(data, list):
+                    for row in data:
+                        if isinstance(row, dict):
+                            flow_id_value = row.get('id')
+                            collection_str = row.get('flow_collection')
+                            
+                            if flow_id_value and collection_str:
+                                try:
+                                    collection = json.loads(collection_str)
+                                    if isinstance(collection, list):
+                                        for item in collection:
+                                            if isinstance(item, dict) and item.get('id') == flow_id:
+                                                referencing_flows.append(flow_id_value)
+                                                break
+                                except (json.JSONDecodeError, TypeError):
+                                    continue
+            elif isinstance(result, list):
+                for row in result:
+                    if isinstance(row, dict):
+                        flow_id_value = row.get('id')
+                        collection_str = row.get('flow_collection')
+                        
+                        if flow_id_value and collection_str:
+                            try:
+                                collection = json.loads(collection_str)
+                                if isinstance(collection, list):
+                                    for item in collection:
+                                        if isinstance(item, dict) and item.get('id') == flow_id:
+                                            referencing_flows.append(flow_id_value)
+                                            break
+                            except (json.JSONDecodeError, TypeError):
+                                continue
+            
+            return referencing_flows
+        except Exception as e:
+            logger.error("Failed to get multi-flows referencing flow %s: %s", flow_id, e)
+            # Don't fail the operation if this check fails
+            return []
+    
+    async def _remove_flow_from_multi_flows(self, flow_id: str) -> int:
+        """
+        Remove the given flow from all multi-flows' flow_collection.
+        
+        Args:
+            flow_id: Flow ID to remove from collections
+            
+        Returns:
+            Number of multi-flows updated
+        """
+        try:
+            import json
+            flows_table = self.vast_db.get_qualified_table_name("flows")
+            
+            # Get all multi-flows that reference this flow
+            multi_flow_ids = await self._get_multi_flows_referencing_flow(flow_id)
+            
+            if not multi_flow_ids:
+                return 0
+            
+            updated_count = 0
+            
+            for multi_flow_id in multi_flow_ids:
+                try:
+                    # Get the current flow_collection
+                    sql = f"SELECT flow_collection FROM {flows_table} WHERE id = '{multi_flow_id}'"
+                    result = self.vast_db.execute_sql(sql)
+                    
+                    collection_str = None
+                    if isinstance(result, dict) and 'data' in result:
+                        data = result['data']
+                        if isinstance(data, dict) and data:
+                            collections = data.get('flow_collection', [])
+                            if collections and len(collections) > 0:
+                                collection_str = collections[0]
+                        elif isinstance(data, list) and len(data) > 0:
+                            collection_str = data[0].get('flow_collection')
+                    elif isinstance(result, list) and len(result) > 0:
+                        collection_str = result[0].get('flow_collection')
+                    
+                    if not collection_str:
+                        continue
+                    
+                    # Parse and remove the flow_id
+                    collection = json.loads(collection_str)
+                    if isinstance(collection, list):
+                        # Remove items with matching id
+                        original_length = len(collection)
+                        collection = [item for item in collection if not (isinstance(item, dict) and item.get('id') == flow_id)]
+                        
+                        if len(collection) < original_length:
+                            # Update the flow_collection
+                            updated_collection_json = json.dumps(collection)
+                            escaped_json = updated_collection_json.replace("'", "''")
+                            
+                            update_sql = f"UPDATE {flows_table} SET flow_collection = '{escaped_json}' WHERE id = '{multi_flow_id}'"
+                            self.vast_db.execute_sql(update_sql)
+                            
+                            # Invalidate cache for this multi-flow
+                            from ..core.dependencies import get_cache_service
+                            cache_service = get_cache_service()
+                            await cache_service.delete(f"flow:{multi_flow_id}")
+                            
+                            updated_count += 1
+                            logger.debug(f"Removed flow {flow_id} from multi-flow {multi_flow_id}'s flow_collection")
+                except Exception as e:
+                    logger.warning(f"Failed to update multi-flow {multi_flow_id} when removing flow {flow_id}: {e}")
+                    # Continue with other multi-flows
+                    continue
+            
+            if updated_count > 0:
+                logger.info(f"Removed flow {flow_id} from {updated_count} multi-flow(s)' flow_collection")
+            
+            return updated_count
+        except Exception as e:
+            logger.error("Failed to remove flow %s from multi-flows: %s", flow_id, e)
+            # Don't fail the deletion if cleanup fails
+            return 0
     
     async def get_flow_with_source_details(self, flow_id: str) -> Optional[Dict[str, Any]]:
         """Get flow details with source information using join query"""

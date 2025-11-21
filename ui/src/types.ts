@@ -65,6 +65,24 @@ export interface Flow {
   updated?: string;
   metadata_updated?: string;
   segments_updated?: string;
+  metadata_version?: string;
+  read_only?: boolean;
+  timerange?: {
+    value?: string;
+    start?: string;
+    end?: string;
+  };
+  flow_collection?: Array<{
+    id: string;
+    role?: string;
+    label?: string;
+  }> | {
+    id: string;
+    role?: string;
+    label?: string;
+  };
+  collected_by?: string[];
+  container_mapping?: Record<string, any>;
 }
 
 export interface Segment {

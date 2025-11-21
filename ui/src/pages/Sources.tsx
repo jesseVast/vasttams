@@ -9,8 +9,18 @@ import {
   Link,
   IconButton,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
+  Alert,
+  TextField,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import DeleteIcon from '@mui/icons-material/Delete';
+import InfoIcon from '@mui/icons-material/Info';
 import { Source } from '../types';
 import { sourceService, analyticsService } from '../services/api';
 import DataTable, { Column } from '../components/DataTable';
@@ -31,6 +41,11 @@ const Sources: React.FC = () => {
   const [flowCounts, setFlowCounts] = useState<Record<string, number>>({});
   const [segmentCounts, setSegmentCounts] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sourceToDelete, setSourceToDelete] = useState<Source | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
 
   useEffect(() => {
     loadSources();
@@ -166,6 +181,45 @@ const Sources: React.FC = () => {
     }
   };
 
+  const handleOpenDelete = (source: Source) => {
+    setSourceToDelete(source);
+    setDeleteDialogOpen(true);
+    setDeleteError(null);
+    setDeleteConfirmationText('');
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!sourceToDelete) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      // Delete with cascade=true to delete flows, segments, and S3 objects
+      await sourceService.delete(sourceToDelete.id, true);
+      setDeleteDialogOpen(false);
+      setSourceToDelete(null);
+      // Reload sources after successful deletion
+      loadSources();
+    } catch (error: any) {
+      console.error('Failed to delete source:', error);
+      setDeleteError(
+        error.response?.data?.detail || 
+        error.message || 
+        'Failed to delete source. It may have dependencies that prevent deletion.'
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setSourceToDelete(null);
+    setDeleteError(null);
+    setDeleteConfirmationText('');
+  };
+
   const renderRow = (source: Source, index: number) => {
     // Get flow count and segment count from analytics
     const flowCount = flowCounts[source.id] !== undefined 
@@ -178,18 +232,36 @@ const Sources: React.FC = () => {
     return (
     <>
         <TableCell>
-          <Link
-            component="button"
-            variant="body2"
-            onClick={() => handleOpenDetail(source)}
-            sx={{ cursor: 'pointer' }}
-          >
-            Detail
-          </Link>
+          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+            <Tooltip title="View Details">
+              <IconButton
+                size="small"
+                onClick={() => handleOpenDetail(source)}
+                sx={{ padding: '4px' }}
+              >
+                <InfoIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete Source">
+              <IconButton
+                size="small"
+                onClick={() => handleOpenDelete(source)}
+                sx={{ padding: '4px', color: 'error.main' }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </TableCell>
       <TableCell>{source.label || '-'}</TableCell>
       <TableCell>{source.description || '-'}</TableCell>
-      <TableCell>{source.format}</TableCell>
+      <TableCell>
+        {source.format
+          ? (source.format.includes(':') 
+              ? source.format.split(':').pop() 
+              : source.format)
+          : '-'}
+      </TableCell>
         <TableCell align="right">
           {typeof flowCount === 'number' ? flowCount.toLocaleString() : flowCount}
         </TableCell>
@@ -263,6 +335,101 @@ const Sources: React.FC = () => {
         data={selectedSource}
         title="Source Details"
       />
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={(event, reason) => {
+          // Prevent closing by clicking outside or pressing escape
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+            return;
+          }
+          handleDeleteCancel();
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete Source</DialogTitle>
+        <DialogContent>
+          {deleteError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
+          <DialogContentText>
+            Are you sure you want to delete this source? This action will:
+          </DialogContentText>
+          <Box component="ul" sx={{ mt: 1, mb: 2, pl: 3 }}>
+            <li>Delete the source</li>
+            <li>Delete all associated flows</li>
+            <li>Delete all associated segments</li>
+            <li>Delete all S3 objects referenced by those segments</li>
+          </Box>
+          {sourceToDelete && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                Source Details:
+              </Typography>
+              <Typography variant="body2">
+                <strong>ID:</strong> {sourceToDelete.id}
+              </Typography>
+              {sourceToDelete.label && (
+                <Typography variant="body2">
+                  <strong>Label:</strong> {sourceToDelete.label}
+                </Typography>
+              )}
+              <Typography variant="body2">
+                <strong>Format:</strong> {sourceToDelete.format}
+              </Typography>
+              {flowCounts[sourceToDelete.id] !== undefined && (
+                <Typography variant="body2">
+                  <strong>Flows:</strong> {flowCounts[sourceToDelete.id]}
+                </Typography>
+              )}
+              {segmentCounts[sourceToDelete.id] !== undefined && (
+                <Typography variant="body2">
+                  <strong>Segments:</strong> {segmentCounts[sourceToDelete.id]}
+                </Typography>
+              )}
+            </Box>
+          )}
+          <DialogContentText sx={{ mt: 2, fontWeight: 'bold', color: 'error.main' }}>
+            This action cannot be undone!
+          </DialogContentText>
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold' }}>
+              Type <strong>DELETE</strong> to confirm:
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              value={deleteConfirmationText}
+              onChange={(e) => setDeleteConfirmationText(e.target.value)}
+              placeholder="DELETE"
+              disabled={deleting}
+              error={deleteConfirmationText !== '' && deleteConfirmationText !== 'DELETE'}
+              helperText={
+                deleteConfirmationText !== '' && deleteConfirmationText !== 'DELETE'
+                  ? 'Please type DELETE exactly to confirm'
+                  : ''
+              }
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleting || deleteConfirmationText !== 'DELETE'}
+            startIcon={deleting ? <CircularProgress size={16} /> : null}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

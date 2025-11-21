@@ -177,8 +177,8 @@ export const sourceService = {
     return response.data;
   },
 
-  delete: async (id: string): Promise<void> => {
-    await api.delete(`${API_PREFIX}/sources/${id}`);
+  delete: async (id: string, cascade: boolean = true): Promise<void> => {
+    await api.delete(`${API_PREFIX}/sources/${id}`, { params: { cascade } });
   },
 };
 
@@ -211,8 +211,13 @@ export const flowService = {
     return response.data;
   },
 
-  delete: async (id: string): Promise<void> => {
-    await api.delete(`${API_PREFIX}/flows/${id}`);
+  update: async (id: string, flow: Partial<Flow>): Promise<Flow> => {
+    const response = await api.put(`${API_PREFIX}/flows/${id}`, flow);
+    return response.data;
+  },
+
+  delete: async (id: string, cascade: boolean = true): Promise<void> => {
+    await api.delete(`${API_PREFIX}/flows/${id}`, { params: { cascade } });
   },
 };
 

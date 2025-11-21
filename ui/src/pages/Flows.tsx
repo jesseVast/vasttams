@@ -17,11 +17,19 @@ import {
   Button,
   IconButton,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Alert,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import InfoIcon from '@mui/icons-material/Info';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -30,6 +38,7 @@ import { Flow, Source } from '../types';
 import { flowService, sourceService, analyticsService } from '../services/api';
 import DataTable, { Column } from '../components/DataTable';
 import DetailModal from '../components/DetailModal';
+import EditFlowModal from '../components/EditFlowModal';
 
 type SortableField = 'label' | 'format' | 'created';
 
@@ -61,6 +70,13 @@ const Flows: React.FC = () => {
   const [flowDurations, setFlowDurations] = useState<Record<string, number>>({});
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [flowToEdit, setFlowToEdit] = useState<Flow | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [flowToDelete, setFlowToDelete] = useState<Flow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   // Filter values loaded independently for dropdowns
   const [uniqueCodecsForFilters, setUniqueCodecsForFilters] = useState<string[]>([]);
   const [uniqueResolutionsForFilters, setUniqueResolutionsForFilters] = useState<string[]>([]);
@@ -376,7 +392,7 @@ const Flows: React.FC = () => {
   };
 
   const columns: Column<Flow>[] = [
-    { id: 'detail', label: 'Detail', sortable: false },
+    { id: 'actions', label: 'Actions', sortable: false },
     { id: 'label', label: 'Label', sortable: true },
     { id: 'description', label: 'Description', sortable: false },
     { id: 'format', label: 'Format', sortable: true },
@@ -386,7 +402,6 @@ const Flows: React.FC = () => {
     { id: 'segments', label: 'Segments', sortable: false, align: 'right' },
     { id: 'duration', label: 'Total Time', sortable: false },
     { id: 'created', label: 'Created (Date/Time)', sortable: true },
-    { id: 'actions', label: 'Actions', sortable: false },
   ];
 
   const handleOpenDetail = async (flow: Flow) => {
@@ -401,6 +416,64 @@ const Flows: React.FC = () => {
       setSelectedFlow(flow);
       setDetailModalOpen(true);
     }
+  };
+
+  const handleOpenEdit = async (flow: Flow) => {
+    // Fetch full flow data for editing
+    try {
+      const fullFlow = await flowService.get(flow.id);
+      setFlowToEdit(fullFlow);
+      setEditModalOpen(true);
+    } catch (error) {
+      console.error('Failed to load flow for editing:', error);
+      // Fallback to list data if fetch fails
+      setFlowToEdit(flow);
+      setEditModalOpen(true);
+    }
+  };
+
+  const handleEditSave = () => {
+    // Reload flows after successful edit
+    loadFlows();
+  };
+
+  const handleOpenDelete = (flow: Flow) => {
+    setFlowToDelete(flow);
+    setDeleteDialogOpen(true);
+    setDeleteError(null);
+    setDeleteConfirmationText('');
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!flowToDelete) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      // Delete with cascade=true to delete segments and clean up S3 objects
+      await flowService.delete(flowToDelete.id, true);
+      setDeleteDialogOpen(false);
+      setFlowToDelete(null);
+      // Reload flows after successful deletion
+      loadFlows();
+    } catch (error: any) {
+      console.error('Failed to delete flow:', error);
+      setDeleteError(
+        error.response?.data?.detail || 
+        error.message || 
+        'Failed to delete flow. It may be read-only or have dependencies that prevent deletion.'
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setFlowToDelete(null);
+    setDeleteError(null);
+    setDeleteConfirmationText('');
   };
 
   const renderRow = (flow: Flow, index: number) => {
@@ -418,15 +491,44 @@ const Flows: React.FC = () => {
     return (
     <>
         <TableCell>
-          <Tooltip title="View Details">
-            <IconButton
-              size="small"
-              onClick={() => handleOpenDetail(flow)}
-              sx={{ padding: '4px' }}
-            >
-              <InfoIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+            <Tooltip title="View Details">
+              <IconButton
+                size="small"
+                onClick={() => handleOpenDetail(flow)}
+                sx={{ padding: '4px' }}
+              >
+                <InfoIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Edit Flow">
+              <IconButton
+                size="small"
+                onClick={() => handleOpenEdit(flow)}
+                sx={{ padding: '4px' }}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="View Segments">
+              <IconButton
+                size="small"
+                onClick={() => navigate(`/segments?flow_id=${flow.id}`)}
+                sx={{ padding: '4px' }}
+              >
+                <PlayArrowIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete Flow">
+              <IconButton
+                size="small"
+                onClick={() => handleOpenDelete(flow)}
+                sx={{ padding: '4px', color: 'error.main' }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </TableCell>
       <TableCell>{flow.label || '-'}</TableCell>
       <TableCell>{flow.description || '-'}</TableCell>
@@ -443,17 +545,6 @@ const Flows: React.FC = () => {
         </TableCell>
         <TableCell>{formattedDuration}</TableCell>
       <TableCell>{flow.created ? new Date(flow.created).toLocaleString() : '-'}</TableCell>
-      <TableCell>
-        <Tooltip title="View Segments">
-          <IconButton
-            size="small"
-            onClick={() => navigate(`/segments?flow_id=${flow.id}`)}
-            sx={{ padding: '4px' }}
-          >
-            <PlayArrowIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </TableCell>
     </>
   );
   };
@@ -593,148 +684,6 @@ const Flows: React.FC = () => {
         </Box>
       </Box>
 
-      {filteredSource && (
-        <Card sx={{ mb: 2, backgroundColor: '#e8e8e8' }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                Source Information:
-              </Typography>
-              
-              {/* Basic Info */}
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
-                  Basic Information:
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Chip label={`ID: ${filteredSource.id}`} size="small" variant="outlined" />
-                  {filteredSource.label && (
-                    <Chip label={`Label: ${filteredSource.label}`} size="small" variant="outlined" />
-                  )}
-                  <Chip label={`Format: ${filteredSource.format}`} size="small" variant="outlined" color="primary" />
-                </Box>
-              </Box>
-
-              {/* Description */}
-              {filteredSource.description && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
-                    Description:
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {filteredSource.description}
-                  </Typography>
-                </Box>
-              )}
-
-              {/* Source Collection */}
-              {filteredSource.source_collection && filteredSource.source_collection.length > 0 && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
-                    Source Collection:
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {filteredSource.source_collection.map((item, index) => (
-                      <Chip
-                        key={index}
-                        label={item.label || item.id}
-                        size="small"
-                        variant="outlined"
-                        color="secondary"
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-
-              {/* Collected By */}
-              {filteredSource.collected_by && filteredSource.collected_by.length > 0 && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
-                    Collected By:
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {filteredSource.collected_by.map((sourceId, index) => (
-                      <Chip
-                        key={index}
-                        label={sourceId}
-                        size="small"
-                        variant="outlined"
-                        color="info"
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-
-              {/* Metadata */}
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                {filteredSource.created_by && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', display: 'block' }}>
-                      Created by:
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {filteredSource.created_by}
-                    </Typography>
-                  </Box>
-                )}
-                {filteredSource.updated_by && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', display: 'block' }}>
-                      Updated by:
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {filteredSource.updated_by}
-                    </Typography>
-                  </Box>
-                )}
-                {filteredSource.created && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', display: 'block' }}>
-                      Created:
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {new Date(filteredSource.created).toLocaleString()}
-                    </Typography>
-                  </Box>
-                )}
-                {filteredSource.updated && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', display: 'block' }}>
-                      Updated:
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {new Date(filteredSource.updated).toLocaleString()}
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-
-              {/* Tags */}
-              {filteredSource.tags && Object.keys(filteredSource.tags).length > 0 && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
-                    Tags:
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                    {Object.entries(filteredSource.tags).map(([key, value]) => (
-                      <Chip 
-                        key={key} 
-                        label={`${key}: ${typeof value === 'object' ? JSON.stringify(value) : String(value)}`} 
-                        size="small" 
-                        variant="outlined"
-                        color="primary"
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-            </Box>
-          </CardContent>
-        </Card>
-      )}
-
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
           <CircularProgress />
@@ -763,6 +712,115 @@ const Flows: React.FC = () => {
         data={selectedFlow}
         title="Flow Details"
       />
+      
+      <EditFlowModal
+        open={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setFlowToEdit(null);
+        }}
+        flow={flowToEdit}
+        onSave={handleEditSave}
+      />
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={(event, reason) => {
+          // Prevent closing by clicking outside or pressing escape
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+            return;
+          }
+          handleDeleteCancel();
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete Flow</DialogTitle>
+        <DialogContent>
+          {deleteError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
+          <DialogContentText>
+            Are you sure you want to delete this flow? This action will:
+          </DialogContentText>
+          <Box component="ul" sx={{ mt: 1, mb: 2, pl: 3 }}>
+            <li>Delete the flow</li>
+            <li>Delete all associated segments</li>
+            <li>Delete all S3 objects referenced by those segments</li>
+          </Box>
+          {flowToDelete && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                Flow Details:
+              </Typography>
+              <Typography variant="body2">
+                <strong>ID:</strong> {flowToDelete.id}
+              </Typography>
+              {flowToDelete.label && (
+                <Typography variant="body2">
+                  <strong>Label:</strong> {flowToDelete.label}
+                </Typography>
+              )}
+              <Typography variant="body2">
+                <strong>Format:</strong> {getShortFormat(flowToDelete.format)}
+              </Typography>
+              {flowToDelete.codec && (
+                <Typography variant="body2">
+                  <strong>Codec:</strong> {flowToDelete.codec}
+                </Typography>
+              )}
+              {flowToDelete.container && (
+                <Typography variant="body2">
+                  <strong>Container:</strong> {flowToDelete.container}
+                </Typography>
+              )}
+              {segmentCounts[flowToDelete.id] !== undefined && (
+                <Typography variant="body2">
+                  <strong>Segments:</strong> {segmentCounts[flowToDelete.id]}
+                </Typography>
+              )}
+            </Box>
+          )}
+          <DialogContentText sx={{ mt: 2, fontWeight: 'bold', color: 'error.main' }}>
+            This action cannot be undone!
+          </DialogContentText>
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold' }}>
+              Type <strong>DELETE</strong> to confirm:
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              value={deleteConfirmationText}
+              onChange={(e) => setDeleteConfirmationText(e.target.value)}
+              placeholder="DELETE"
+              disabled={deleting}
+              error={deleteConfirmationText !== '' && deleteConfirmationText !== 'DELETE'}
+              helperText={
+                deleteConfirmationText !== '' && deleteConfirmationText !== 'DELETE'
+                  ? 'Please type DELETE exactly to confirm'
+                  : ''
+              }
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleting || deleteConfirmationText !== 'DELETE'}
+            startIcon={deleting ? <CircularProgress size={16} /> : null}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
     </LocalizationProvider>
   );

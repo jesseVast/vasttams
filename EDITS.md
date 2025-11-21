@@ -30,6 +30,47 @@ notes/
 
 ## 📝 **RECENT EDITS**
 
+## Edit #59: Video Player Improvements and HLS Flow Container Fix (November 21, 2025)
+
+### Summary
+Fixed video playback issues, improved error handling, added mpegts.js support for MPEG-TS files, and fixed HLS flow container to be `video/mp2t` instead of `mp4`.
+
+### Video Player Improvements
+- **mpegts.js Integration**: Added support for `mpegts.js` player to handle `.ts` (MPEG-TS) files
+- **Auto-Detection**: Automatically detects `.ts` files based on URL, flow container, or format
+- **CORS Support**: Always uses proxy URLs for mpegts.js to handle CORS issues
+- **Error Suppression**: Suppresses native video element errors when mpegts.js is active
+- **Smart Retry Logic**: Automatically retries with mpegts.js if native player fails with format not supported error
+- **Better Error Logging**: Enhanced error messages with detailed information (error code, name, message, container, format)
+
+### Code Cleanup
+- **Removed Unused Variables**: Cleaned up unused state variables (`videoLoading`, `estimatedTotal`, `parseTimerange`, `timeInfo`)
+- **Removed Unused Imports**: Removed unused Material-UI imports (`CardContent`, `Tooltip`, `IconButton`, `InfoIcon`, `Link`, `Dialog`, etc.)
+- **Fixed TypeScript Errors**: Removed `name` property from MediaError (not part of MediaError interface)
+
+### HLS Flow Container Fix
+- **Fixed Container Detection**: When `chunk_format="hls"`, flow container is now set to `video/mp2t` (MPEG-TS) instead of detecting from original file
+- **Proper HLS Support**: HLS flows now correctly have `video/mp2t` container, matching HLS requirements
+
+### Files Modified
+- `ui/src/components/VideoPlayer.tsx`: Added mpegts.js support, improved error handling
+- `ui/src/components/SegmentMediaWidget.tsx`: Auto-detection of TS files, improved error logging, removed unused code
+- `ui/src/pages/Segments.tsx`: Removed unused imports and variables
+- `ui/src/pages/Flows.tsx`: Removed unused imports
+- `apps/folder_ingestor/folder_ingestor/flow_manager.py`: Added `chunk_format` parameter, override container for HLS
+- `apps/folder_ingestor/folder_ingestor/ingestor.py`: Pass `chunk_format` to flow manager
+
+### Files Added
+- `ui/package.json`: Added `mpegts.js` dependency
+
+### Technical Details
+- **mpegts.js Configuration**: Uses `cors: true`, `withCredentials: false`, `enableWorker: true`
+- **Proxy URL Logic**: Always proxies when using mpegts.js or when TS file detected
+- **Error Handling**: Distinguishes between network errors, format errors, and expected errors (MKV files)
+- **Format Detection**: Checks URL extension, flow container, and flow format for TS detection
+
+---
+
 ## Edit #58: Cascade Delete Management Script (November 20, 2025)
 
 ### Summary

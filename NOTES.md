@@ -33,6 +33,29 @@ notes/
 
 ## 🎯 **CURRENT STATUS**
 
+### **🎥 VIDEO PLAYER IMPROVEMENTS** (November 21, 2025)
+**Date**: November 21, 2025  
+**Task**: Fix video playback issues, add mpegts.js support, improve error handling  
+**Status**: ✅ **COMPLETED**
+
+#### **Features**
+- **mpegts.js Integration**: Added support for playing MPEG-TS (`.ts`) files using `mpegts.js` library
+- **Auto-Detection**: Automatically detects TS files based on URL extension, flow container (`video/mp2t`), or format
+- **CORS Support**: Always uses proxy URLs for mpegts.js to handle CORS issues
+- **Error Suppression**: Suppresses native video element errors when mpegts.js is active (expected behavior)
+- **Smart Retry**: Automatically retries with mpegts.js if native player fails with format not supported
+- **Enhanced Error Logging**: Detailed error information including error code, name, message, container, format
+
+#### **Implementation**
+- `VideoPlayer.tsx`: Added mpegts.js player type, lazy loading, proper cleanup
+- `SegmentMediaWidget.tsx`: Auto-detection logic, improved error handling, removed unused code
+- Proxy URL always used for mpegts.js to ensure CORS compatibility
+- Native video errors suppressed when mpegts.js is handling playback
+
+#### **HLS Flow Container Fix**
+- Fixed flow container detection: when `chunk_format="hls"`, container is set to `video/mp2t` (MPEG-TS)
+- Ensures HLS flows have correct container type matching HLS requirements
+
 ### **🧹 CASCADE DELETE MANAGEMENT SCRIPT** (November 20, 2025)
 **Date**: November 20, 2025  
 **Task**: Create management script to cascade delete sources or flows by ID  

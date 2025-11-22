@@ -406,22 +406,134 @@ const Segments: React.FC = () => {
       }
     }
     
-    // Scroll to next video (loop back to start if at end)
-    const nextIndex = (currentVisibleIndex + 1) % videoCards.length;
-    const nextCard = videoCards[nextIndex];
+    const currentCard = videoCards[currentVisibleIndex];
+    const isCurrentVideoPlaying = currentCard?.getAttribute('data-video-playing') === 'true';
     
-    // Smooth scroll using scrollLeft (CSS smooth scroll-behavior will handle animation)
-    container.scrollLeft = nextCard.offsetLeft - parseInt(window.getComputedStyle(nextCard).marginLeft || '0');
-    
-    // Schedule next auto-scroll (continuous loop)
-    if (autoScrollTimeoutRef.current !== null) {
-      clearTimeout(autoScrollTimeoutRef.current);
+    // If current video is not playing yet, wait for it to start
+    if (!isCurrentVideoPlaying) {
+      console.debug(`[AutoScroll] Waiting for video ${currentVisibleIndex} to start playing...`);
+      
+      // Poll for video to start playing (check every 200ms, max 10 seconds)
+      let pollCount = 0;
+      const maxPolls = 50; // 50 * 200ms = 10 seconds max wait
+      
+      const checkVideoPlaying = () => {
+        if (!autoPlayEnabled) return;
+        
+        const card = videoCards[currentVisibleIndex];
+        const isPlaying = card?.getAttribute('data-video-playing') === 'true';
+        const isCompleted = card?.getAttribute('data-video-completed') === 'true';
+        
+        if (isCompleted) {
+          // Video completed, wait a moment then scroll to next video
+          console.debug(`[AutoScroll] Video ${currentVisibleIndex} completed, will scroll to next in 500ms`);
+          if (autoScrollTimeoutRef.current !== null) {
+            clearTimeout(autoScrollTimeoutRef.current);
+          }
+          autoScrollTimeoutRef.current = setTimeout(() => {
+            const nextIndex = (currentVisibleIndex + 1) % videoCards.length;
+            const nextCard = videoCards[nextIndex];
+            container.scrollLeft = nextCard.offsetLeft - parseInt(window.getComputedStyle(nextCard).marginLeft || '0');
+            
+            // Schedule next auto-scroll after scroll completes
+            if (autoScrollTimeoutRef.current !== null) {
+              clearTimeout(autoScrollTimeoutRef.current);
+            }
+            autoScrollTimeoutRef.current = setTimeout(() => {
+              handleAutoScroll();
+            }, 500); // Small delay before checking next video
+          }, 500); // Delay before scrolling to next video
+        } else if (isPlaying) {
+          // Video is playing, wait for it to complete
+          console.debug(`[AutoScroll] Video ${currentVisibleIndex} is playing, waiting for completion...`);
+          if (autoScrollTimeoutRef.current !== null) {
+            clearTimeout(autoScrollTimeoutRef.current);
+          }
+          autoScrollTimeoutRef.current = setTimeout(checkVideoPlaying, 200);
+        } else if (pollCount < maxPolls) {
+          pollCount++;
+          if (autoScrollTimeoutRef.current !== null) {
+            clearTimeout(autoScrollTimeoutRef.current);
+          }
+          autoScrollTimeoutRef.current = setTimeout(checkVideoPlaying, 200);
+        } else {
+          // Timeout - video didn't start, wait 5 seconds then scroll anyway
+          console.warn(`[AutoScroll] Video ${currentVisibleIndex} didn't start playing within timeout, will scroll in 5 seconds`);
+          if (autoScrollTimeoutRef.current !== null) {
+            clearTimeout(autoScrollTimeoutRef.current);
+          }
+          autoScrollTimeoutRef.current = setTimeout(() => {
+            // Add delay before scrolling
+            setTimeout(() => {
+              const nextIndex = (currentVisibleIndex + 1) % videoCards.length;
+              const nextCard = videoCards[nextIndex];
+              container.scrollLeft = nextCard.offsetLeft - parseInt(window.getComputedStyle(nextCard).marginLeft || '0');
+              
+              if (autoScrollTimeoutRef.current !== null) {
+                clearTimeout(autoScrollTimeoutRef.current);
+              }
+              autoScrollTimeoutRef.current = setTimeout(() => {
+                handleAutoScroll();
+              }, 500);
+            }, 500); // Delay before scrolling
+          }, 5000); // Wait 5 seconds before scrolling
+        }
+      };
+      
+      checkVideoPlaying();
+      return;
     }
-    autoScrollTimeoutRef.current = setTimeout(() => {
-      handleAutoScroll();
-    }, 5000); // 5 seconds per video
+    
+    // Check if current video is completed
+    const isCurrentCompleted = currentCard?.getAttribute('data-video-completed') === 'true';
+    
+    if (isCurrentCompleted) {
+      // Video completed, wait a moment then scroll to next video
+      console.debug(`[AutoScroll] Video ${currentVisibleIndex} completed, will scroll to next in 500ms`);
+      if (autoScrollTimeoutRef.current !== null) {
+        clearTimeout(autoScrollTimeoutRef.current);
+      }
+      autoScrollTimeoutRef.current = setTimeout(() => {
+        const nextIndex = (currentVisibleIndex + 1) % videoCards.length;
+        const nextCard = videoCards[nextIndex];
+        
+        // Smooth scroll using scrollLeft (CSS smooth scroll-behavior will handle animation)
+        container.scrollLeft = nextCard.offsetLeft - parseInt(window.getComputedStyle(nextCard).marginLeft || '0');
+        
+        // Schedule next auto-scroll after scroll completes
+        if (autoScrollTimeoutRef.current !== null) {
+          clearTimeout(autoScrollTimeoutRef.current);
+        }
+        autoScrollTimeoutRef.current = setTimeout(() => {
+          handleAutoScroll();
+        }, 500); // Small delay before checking next video
+      }, 500); // Delay before scrolling to next video
+    } else {
+      // Video not completed yet, wait for it to complete
+      console.debug(`[AutoScroll] Video ${currentVisibleIndex} not completed yet, waiting...`);
+      if (autoScrollTimeoutRef.current !== null) {
+        clearTimeout(autoScrollTimeoutRef.current);
+      }
+      autoScrollTimeoutRef.current = setTimeout(() => {
+        handleAutoScroll();
+      }, 200); // Poll every 200ms for completion
+    }
   }, [autoPlayEnabled]);
   
+  // Reset scroll position to 0 when segments first load
+  useEffect(() => {
+    if (segments.length > 0) {
+      // Reset scroll to 0 when segments are first loaded
+      const container = document.getElementById('segments-container');
+      if (container) {
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+          container.scrollLeft = 0;
+        });
+      }
+    }
+  }, [segments.length]); // Only run when segments.length changes from 0 to >0
+
   // Start auto-scroll when auto-play is enabled
   useEffect(() => {
     if (autoPlayEnabled && segments.length > 0) {
@@ -430,20 +542,72 @@ const Segments: React.FC = () => {
         clearTimeout(autoScrollTimeoutRef.current);
       }
       
-      // Start by scrolling to first video smoothly
+      // Reset scroll to 0 (leftmost position) first, then ensure first video is visible
       const container = document.getElementById('segments-container');
       if (container) {
-        const videoCards = Array.from(container.querySelectorAll('[data-segment-index]')) as HTMLElement[];
-        if (videoCards.length > 0) {
-          const firstCard = videoCards[0];
-          // Scroll to first video smoothly
-          container.scrollLeft = firstCard.offsetLeft - parseInt(window.getComputedStyle(firstCard).marginLeft || '0');
-          
-          // Start auto-scroll loop after 5 seconds
-          autoScrollTimeoutRef.current = setTimeout(() => {
-            handleAutoScroll();
-          }, 5000);
-        }
+        // First, reset scroll to 0 to ensure we start at the beginning
+        container.scrollLeft = 0;
+        
+        // Wait a bit for DOM to settle, then ensure first video is visible
+        setTimeout(() => {
+          const videoCards = Array.from(container.querySelectorAll('[data-segment-index]')) as HTMLElement[];
+          if (videoCards.length > 0) {
+            const firstCard = videoCards[0];
+            // Ensure first video is at the left edge (scrollLeft = 0)
+            container.scrollLeft = 0;
+            
+            // Wait for first video to start playing before starting auto-scroll
+            let pollCount = 0;
+            const maxPolls = 50; // 50 * 200ms = 10 seconds max wait
+            
+            const checkFirstVideoPlaying = () => {
+              if (!autoPlayEnabled) return;
+              
+              const isPlaying = firstCard?.getAttribute('data-video-playing') === 'true';
+              
+              if (isPlaying) {
+                console.debug('[AutoScroll] First video started playing, waiting for completion...');
+                // Wait for video to complete, then start auto-scroll
+                const checkFirstVideoCompleted = () => {
+                  if (!autoPlayEnabled) return;
+                  const isCompleted = firstCard?.getAttribute('data-video-completed') === 'true';
+                  if (isCompleted) {
+                    console.debug('[AutoScroll] First video completed, starting auto-scroll');
+                    if (autoScrollTimeoutRef.current !== null) {
+                      clearTimeout(autoScrollTimeoutRef.current);
+                    }
+                    autoScrollTimeoutRef.current = setTimeout(() => {
+                      handleAutoScroll();
+                    }, 500);
+                  } else {
+                    if (autoScrollTimeoutRef.current !== null) {
+                      clearTimeout(autoScrollTimeoutRef.current);
+                    }
+                    autoScrollTimeoutRef.current = setTimeout(checkFirstVideoCompleted, 200);
+                  }
+                };
+                checkFirstVideoCompleted();
+              } else if (pollCount < maxPolls) {
+                pollCount++;
+                if (autoScrollTimeoutRef.current !== null) {
+                  clearTimeout(autoScrollTimeoutRef.current);
+                }
+                autoScrollTimeoutRef.current = setTimeout(checkFirstVideoPlaying, 200);
+              } else {
+                // Timeout - video didn't start, wait 5 seconds then start auto-scroll anyway
+                console.warn('[AutoScroll] First video didn\'t start playing within timeout, will start auto-scroll in 5 seconds');
+                if (autoScrollTimeoutRef.current !== null) {
+                  clearTimeout(autoScrollTimeoutRef.current);
+                }
+                autoScrollTimeoutRef.current = setTimeout(() => {
+                  handleAutoScroll();
+                }, 5000);
+              }
+            };
+            
+            checkFirstVideoPlaying();
+          }
+        }, 100); // Small delay to ensure DOM is ready
       }
     } else {
       // Clear timeout when disabled

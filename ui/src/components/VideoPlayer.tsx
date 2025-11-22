@@ -6,7 +6,7 @@ import PauseIcon from '@mui/icons-material/Pause';
 import 'video.js/dist/video-js.css';
 import '@videojs/themes/dist/sea/index.css';
 
-export type VideoPlayerType = 'videojs' | 'react-player' | 'native' | 'mpegts';
+export type VideoPlayerType = 'videojs' | 'react-player' | 'native' | 'mpegts' | 'hls';
 
 interface VideoPlayerProps {
   src: string;
@@ -20,6 +20,7 @@ interface VideoPlayerProps {
   onReady?: () => void;
   onError?: (error: unknown) => void; // More flexible error type
   onLoadStart?: () => void;
+  onPlay?: () => void; // Called when video actually starts playing
   onEnded?: () => void;
   light?: boolean; // For react-player light mode (thumbnail preview)
   playIcon?: React.ReactNode; // For react-player light mode
@@ -37,21 +38,47 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
   onReady,
   onError,
   onLoadStart,
+  onPlay,
   onEnded,
   light = false,
   playIcon,
 }, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   
-  // Expose play/pause methods via ref
+  // Expose play/pause/stop methods via ref
   React.useImperativeHandle(ref, () => ({
     play: () => {
       if (playerType === 'native' && videoRef.current) {
         return videoRef.current.play();
       } else if (playerType === 'videojs' && videojsRef.current) {
         return videojsRef.current.play();
-      } else if (playerType === 'mpegts' && mpegtsPlayerRef.current) {
-        return mpegtsPlayerRef.current.play();
+      } else if (playerType === 'hls' && videoRef.current) {
+        // For hls.js, just call play() on the video element - let it handle everything
+        return videoRef.current.play();
+      } else if (playerType === 'mpegts' && videoRef.current) {
+        // For mpegts.js, ensure player is ready before playing
+        const video = videoRef.current;
+        if (mpegtsPlayerRef.current && video.readyState >= 2) {
+          return video.play();
+        } else if (video.readyState >= 2) {
+          // Try to play even if player ref isn't set (might still work)
+          return video.play();
+        } else {
+          console.debug('[VideoPlayer] mpegts video not ready yet, waiting for canplay');
+          // Wait for video to be ready
+          return new Promise<void>((resolve, reject) => {
+            const handleCanPlay = () => {
+              video.removeEventListener('canplay', handleCanPlay);
+              video.play().then(resolve).catch(reject);
+            };
+            video.addEventListener('canplay', handleCanPlay, { once: true });
+            // Timeout after 5 seconds
+            setTimeout(() => {
+              video.removeEventListener('canplay', handleCanPlay);
+              reject(new Error('mpegts video play timeout'));
+            }, 5000);
+          });
+        }
       }
       return Promise.resolve();
     },
@@ -60,8 +87,27 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
         videoRef.current.pause();
       } else if (playerType === 'videojs' && videojsRef.current) {
         videojsRef.current.pause();
-      } else if (playerType === 'mpegts' && mpegtsPlayerRef.current) {
-        mpegtsPlayerRef.current.pause();
+      } else if (playerType === 'hls' && videoRef.current) {
+        videoRef.current.pause();
+      } else if (playerType === 'mpegts' && videoRef.current) {
+        // For mpegts.js, call pause() on the video element
+        videoRef.current.pause();
+      }
+    },
+    stop: () => {
+      if (playerType === 'native' && videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+      } else if (playerType === 'videojs' && videojsRef.current) {
+        videojsRef.current.pause();
+        videojsRef.current.currentTime(0);
+      } else if (playerType === 'hls' && videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+      } else if (playerType === 'mpegts' && videoRef.current) {
+        // For mpegts.js, call pause() and reset currentTime on the video element
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
       }
     },
     getVideoElement: () => videoRef.current
@@ -78,7 +124,10 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
   const [ReactPlayerComponent, setReactPlayerComponent] = useState<React.ComponentType<any> | null>(null);
   const [VideoJS, setVideoJS] = useState<any>(null);
   const [MpegtsJS, setMpegtsJS] = useState<any>(null);
+  const [HlsJSLoaded, setHlsJSLoaded] = useState<boolean>(false);
   const mpegtsPlayerRef = useRef<any>(null);
+  const hlsPlayerRef = useRef<any>(null);
+  const hlsJSRef = useRef<any>(null); // Store Hls class in ref to avoid React state reducer issues
 
   // Clear loading state immediately if src is invalid
   useEffect(() => {
@@ -116,6 +165,18 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
       });
     }
   }, [playerType, MpegtsJS]);
+
+  // Lazy load hls.js
+  useEffect(() => {
+    if (playerType === 'hls' && !hlsJSRef.current) {
+      import('hls.js').then((hlsModule) => {
+        // hls.js exports Hls class as default export
+        // Store in ref to avoid React state reducer processing the class
+        hlsJSRef.current = hlsModule.default || hlsModule;
+        setHlsJSLoaded(true);
+      });
+    }
+  }, [playerType]);
 
   // Video.js player initialization
   const videojsRef = useRef<any>(null);
@@ -303,7 +364,7 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
     }
   }, [playerType, src, isValidSrc, loading, onReady]);
 
-  // Initialize mpegts.js player for .ts files
+  // Initialize mpegts.js player for .ts files - SIMPLIFIED VERSION
   useEffect(() => {
     if (playerType !== 'mpegts' || !MpegtsJS || !videoRef.current || !isValidSrc) {
       // Cleanup if switching away from mpegts
@@ -338,71 +399,113 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
       if (onLoadStart) onLoadStart();
 
       try {
+        // Minimal mpegts.js configuration
         const player = MpegtsJS.createPlayer({
           type: 'mpegts',
           url: src,
           isLive: false,
           cors: true,
-          withCredentials: false, // Don't send credentials for CORS
+          withCredentials: false,
         }, {
           enableWorker: true,
-          enableStashBuffer: false,
-          stashInitialSize: 128,
-          autoCleanupSourceBuffer: true,
         });
 
         player.attachMediaElement(video);
         player.load();
-
         mpegtsPlayerRef.current = player;
 
-        // Handle player events
+        // Only handle fatal errors
         player.on(MpegtsJS.Events.ERROR, (errorType: string, errorDetail: any, errorInfo: any) => {
           console.error('[VideoPlayer] mpegts.js error:', {
             errorType,
             errorDetail,
-            errorInfo,
             src: src.substring(0, 150),
-            isProxyUrl: src.includes('/hls/flows/'),
           });
-          setLoading(false);
           
-          // Provide more helpful error messages
           let errorMessage = `mpegts.js error: ${errorType}`;
           if (errorDetail) {
             if (errorDetail.msg) {
               errorMessage += ` - ${errorDetail.msg}`;
             } else if (typeof errorDetail === 'string') {
               errorMessage += ` - ${errorDetail}`;
-            } else {
-              errorMessage += ` - ${JSON.stringify(errorDetail)}`;
             }
           }
           
-          // Check if it's a network/CORS error
-          if (errorType === 'NetworkError' || (errorDetail && errorDetail.msg && errorDetail.msg.includes('fetch'))) {
-            errorMessage += ' (This may be a CORS issue. Ensure the video URL is proxied correctly.)';
-          }
-          
+          setLoading(false);
           setError(errorMessage);
           if (onError) {
             onError(new Error(errorMessage));
           }
         });
 
-        // When video metadata is loaded
+        // Autoplay function for mpegts player
+        const attemptAutoplay = () => {
+          if (video && video.readyState >= 2 && video.paused) {
+            console.debug('[VideoPlayer] Attempting autoplay for mpegts player');
+            video.play()
+              .then(() => {
+                console.debug('[VideoPlayer] mpegts player autoplay successful');
+              })
+              .catch((error: any) => {
+                // Autoplay may be blocked by browser - this is expected in some cases
+                console.debug('[VideoPlayer] mpegts player autoplay prevented (may require user interaction):', error);
+              });
+          }
+        };
+
+        // Event handlers for mpegts player to ensure onPlay/onEnded callbacks fire
+        const handlePlaying = () => {
+          console.debug('[VideoPlayer] mpegts.js video playing event');
+          setIsPlaying(true);
+          setShowOverlay(true);
+          if (onPlay) onPlay();
+        };
+
+        const handlePause = () => {
+          console.debug('[VideoPlayer] mpegts.js video pause event');
+          setIsPlaying(false);
+          setShowOverlay(true);
+        };
+
+        const handleEnded = () => {
+          console.debug('[VideoPlayer] mpegts.js video ended event');
+          setIsPlaying(false);
+          setShowOverlay(true);
+          if (onEnded) onEnded();
+        };
+
+        // Simple ready handler - clear loading and autoplay for mpegts
         const handleLoadedMetadata = () => {
           console.debug('[VideoPlayer] mpegts.js metadata loaded');
           setLoading(false);
           setError(null);
           if (onReady) onReady();
+          
+          // Autoplay for mpegts player - attempt to play when ready
+          // This is specifically for mpegts as requested (native HTML5 is fine)
+          attemptAutoplay();
         };
 
+        // Also try autoplay on canplay event as fallback
+        const handleCanPlay = () => {
+          console.debug('[VideoPlayer] mpegts.js canplay event');
+          attemptAutoplay();
+        };
+
+        // Add event listeners for mpegts player
         video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
+        video.addEventListener('canplay', handleCanPlay, { once: true });
+        video.addEventListener('playing', handlePlaying);
+        video.addEventListener('pause', handlePause);
+        video.addEventListener('ended', handleEnded);
 
         // Cleanup on unmount
         return () => {
           video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+          video.removeEventListener('canplay', handleCanPlay);
+          video.removeEventListener('playing', handlePlaying);
+          video.removeEventListener('pause', handlePause);
+          video.removeEventListener('ended', handleEnded);
           if (mpegtsPlayerRef.current) {
             try {
               mpegtsPlayerRef.current.destroy();
@@ -431,28 +534,156 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
     }
   }, [playerType, MpegtsJS, src, isValidSrc, onReady, onError, onLoadStart]);
 
-  // Sync playing state with video element
+  // Initialize hls.js player for .ts files - SIMPLIFIED VERSION
+  useEffect(() => {
+    const HlsJS = hlsJSRef.current;
+    
+    if (playerType !== 'hls' || !HlsJS || !videoRef.current || !isValidSrc) {
+      // Cleanup if switching away from hls
+      if (hlsPlayerRef.current) {
+        try {
+          hlsPlayerRef.current.destroy();
+        } catch (err) {
+          console.debug('Error destroying hls player:', err);
+        }
+        hlsPlayerRef.current = null;
+      }
+      return;
+    }
+
+    const video = videoRef.current;
+    
+    // Cleanup existing player
+    if (hlsPlayerRef.current) {
+      try {
+        hlsPlayerRef.current.destroy();
+      } catch (err) {
+        console.debug('Error destroying hls player:', err);
+      }
+      hlsPlayerRef.current = null;
+    }
+    
+    // Check if hls.js is supported
+    // HlsJS is the Hls class from hls.js, stored in ref
+    if (HlsJS && typeof HlsJS.isSupported === 'function' && HlsJS.isSupported()) {
+      console.debug('[VideoPlayer] Initializing hls.js player');
+      setLoading(true);
+      setError(null);
+      if (onLoadStart) onLoadStart();
+
+      try {
+        // Minimal hls.js configuration - let it use defaults
+        // HlsJS is the Hls class from hls.js, must use 'new' keyword
+        const Hls = HlsJS;
+        const hls = new Hls({
+          enableWorker: true,
+        });
+
+        hls.loadSource(src);
+        hls.attachMedia(video);
+        hlsPlayerRef.current = hls;
+
+        // Only handle fatal errors
+        // Use Hls.Events for event constants
+        hls.on(Hls.Events.ERROR, (event: any, data: any) => {
+          if (data.fatal) {
+            console.error('[VideoPlayer] hls.js fatal error:', {
+              type: data.type,
+              details: data.details,
+              src: src.substring(0, 150),
+            });
+            
+            let errorMessage = `hls.js error: ${data.type}`;
+            if (data.details) {
+              errorMessage += ` - ${data.details}`;
+            }
+            
+            setLoading(false);
+            setError(errorMessage);
+            if (onError) {
+              onError(new Error(errorMessage));
+            }
+          }
+          // Ignore non-fatal errors - let hls.js handle them
+        });
+
+        // Simple ready handler - just clear loading
+        const handleLoadedMetadata = () => {
+          console.debug('[VideoPlayer] hls.js metadata loaded');
+          setLoading(false);
+          setError(null);
+          if (onReady) onReady();
+        };
+
+        video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
+
+        // Cleanup on unmount
+        return () => {
+          video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+          if (hlsPlayerRef.current) {
+            try {
+              hlsPlayerRef.current.destroy();
+            } catch (err) {
+              console.debug('Error destroying hls player on cleanup:', err);
+            }
+            hlsPlayerRef.current = null;
+          }
+        };
+      } catch (err) {
+        console.error('[VideoPlayer] Failed to initialize hls.js:', err);
+        setLoading(false);
+        const errorMessage = `Failed to initialize hls.js: ${err instanceof Error ? err.message : 'Unknown error'}`;
+        setError(errorMessage);
+        if (onError) {
+          onError(err);
+        }
+      }
+    } else {
+      console.warn('[VideoPlayer] hls.js is not supported in this browser');
+      setLoading(false);
+      setError('hls.js is not supported in this browser');
+      if (onError) {
+        onError(new Error('hls.js is not supported'));
+      }
+    }
+  }, [playerType, HlsJSLoaded, src, isValidSrc, onReady, onError, onLoadStart]);
+
+  // Sync playing state with video element - SIMPLIFIED for mpegts
+  // Only sync for native and hls players, let mpegts handle its own state
   useEffect(() => {
     if (!videoRef.current) return;
+    // Skip sync for mpegts - let it handle playback state naturally
+    if (playerType === 'mpegts') return;
     
     const video = videoRef.current;
     
     const updatePlayingState = () => {
-      setIsPlaying(!video.paused);
+      // Only update if video is actually playing (not just showing first frame)
+      const actuallyPlaying = !video.paused && (video.readyState >= 2);
+      if (actuallyPlaying !== isPlaying) {
+        setIsPlaying(actuallyPlaying);
+      }
     };
     
     // Initial state
     updatePlayingState();
     
-    // Listen to play/pause events
-    video.addEventListener('play', updatePlayingState);
-    video.addEventListener('pause', updatePlayingState);
+    // Listen to playing/pause events (use 'playing' not 'play' to detect actual playback)
+    const handlePlaying = () => {
+      setIsPlaying(true);
+    };
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+    
+    video.addEventListener('playing', handlePlaying);
+    video.addEventListener('pause', handlePause);
     
     return () => {
-      video.removeEventListener('play', updatePlayingState);
-      video.removeEventListener('pause', updatePlayingState);
+      video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener('pause', handlePause);
     };
-  }, [playerType, src]);
+  }, [playerType, src, isPlaying]);
 
   // Auto-hide overlay after delay when playing, show when paused
   useEffect(() => {
@@ -466,6 +697,112 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
       setShowOverlay(true);
     }
   }, [isPlaying, showOverlay]);
+
+  // Shared video element props and handlers for both native and mpegts players
+  const sharedVideoProps = {
+    ref: videoRef,
+    controls: false, // Always false - we use custom controls widget
+    muted,
+    playsInline,
+    style: {
+      width: '100%',
+      height: '100%',
+      display: 'block' as const,
+      backgroundColor: '#000',
+    },
+    onPlaying: () => {
+      // Use 'playing' event which fires when playback actually starts (not just when play() is called)
+      console.debug('[VideoPlayer] Video actually playing');
+      setIsPlaying(true);
+      setShowOverlay(true);
+      if (onPlay) onPlay();
+    },
+    onPause: () => {
+      setIsPlaying(false);
+      setShowOverlay(true);
+    },
+    onEnded: () => {
+      console.debug('[VideoPlayer] Video ended');
+      setIsPlaying(false);
+      setShowOverlay(true);
+      if (onEnded) onEnded();
+    },
+  };
+
+  // Shared error handler for native player
+  const handleNativeError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    const video = e.currentTarget;
+    const videoError = video.error;
+    let errorMessage = 'Video failed to load';
+    if (videoError) {
+      switch (videoError.code) {
+        case videoError.MEDIA_ERR_ABORTED:
+          errorMessage = 'Video loading aborted';
+          break;
+        case videoError.MEDIA_ERR_NETWORK:
+          errorMessage = 'Network error while loading video';
+          break;
+        case videoError.MEDIA_ERR_DECODE:
+          errorMessage = 'Video decoding error';
+          break;
+        case videoError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+          errorMessage = 'Video format not supported';
+          break;
+        default:
+          errorMessage = `Video error: ${videoError.message || 'Unknown error'}`;
+      }
+    }
+    setError(errorMessage);
+    if (onError) {
+      onError(videoError || e);
+    }
+  };
+
+  // Shared loading/error overlay component
+  const renderOverlays = () => (
+    <>
+      {loading && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            zIndex: 1,
+          }}
+        >
+          <Typography variant="caption" sx={{ color: '#fff' }}>
+            Loading...
+          </Typography>
+        </Box>
+      )}
+      {error && !loading && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            zIndex: 1,
+          }}
+        >
+          <Typography variant="body2" sx={{ color: '#fff', textAlign: 'center', p: 2 }}>
+            {error}
+          </Typography>
+        </Box>
+      )}
+    </>
+  );
 
   // Native HTML5 video player (default, always works)
   if (playerType === 'native') {
@@ -497,59 +834,11 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
     
     return (
       <Box sx={{ position: 'relative', width, height, backgroundColor: '#000' }}>
-        {loading && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              zIndex: 1,
-            }}
-          >
-            <Typography variant="caption" sx={{ color: '#fff' }}>
-              Loading...
-            </Typography>
-          </Box>
-        )}
-        {error && !loading && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              zIndex: 1,
-            }}
-          >
-            <Typography variant="body2" sx={{ color: '#fff', textAlign: 'center', p: 2 }}>
-              {error}
-            </Typography>
-          </Box>
-        )}
+        {renderOverlays()}
         <video
-          ref={videoRef}
+          {...sharedVideoProps}
           src={src}
-          controls={controls}
-          muted={muted}
-          playsInline={playsInline}
           preload={preload}
-          style={{
-            width: '100%',
-            height: '100%',
-            display: 'block',
-            backgroundColor: '#000',
-          }}
           onLoadedMetadata={() => {
             console.debug('[VideoPlayer] onLoadedMetadata fired');
             setLoading(false);
@@ -576,50 +865,10 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
             setError(null);
             if (onLoadStart) onLoadStart();
           }}
-          onPlay={() => {
-            setIsPlaying(true);
-            setShowOverlay(true);
-          }}
-          onPause={() => {
-            setIsPlaying(false);
-            setShowOverlay(true);
-          }}
-          onEnded={() => {
-            console.debug('[VideoPlayer] onEnded fired');
-            setIsPlaying(false);
-            setShowOverlay(true);
-            if (onEnded) onEnded();
-          }}
-          onMouseEnter={() => setShowOverlay(true)}
-          onMouseLeave={() => setShowOverlay(false)}
           onError={(e) => {
             console.error('[VideoPlayer] onError fired:', e);
             setLoading(false);
-            const video = e.currentTarget;
-            const videoError = video.error;
-            let errorMessage = 'Video failed to load';
-            if (videoError) {
-              switch (videoError.code) {
-                case videoError.MEDIA_ERR_ABORTED:
-                  errorMessage = 'Video loading aborted';
-                  break;
-                case videoError.MEDIA_ERR_NETWORK:
-                  errorMessage = 'Network error while loading video';
-                  break;
-                case videoError.MEDIA_ERR_DECODE:
-                  errorMessage = 'Video decoding error';
-                  break;
-                case videoError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                  errorMessage = 'Video format not supported';
-                  break;
-                default:
-                  errorMessage = `Video error: ${videoError.message || 'Unknown error'}`;
-              }
-            }
-            setError(errorMessage);
-            if (onError) {
-              onError(videoError || e);
-            }
+            handleNativeError(e);
           }}
         />
       </Box>
@@ -657,27 +906,29 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
 
     return (
       <Box sx={{ position: 'relative', width, height, backgroundColor: '#000' }}>
-        {loading && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              zIndex: 1,
-            }}
-          >
-            <Typography variant="caption" sx={{ color: '#fff' }}>
-              Loading...
-            </Typography>
-          </Box>
-        )}
-        {error && !loading && (
+        {renderOverlays()}
+        <video
+          {...sharedVideoProps}
+          preload="none"
+          onError={(e) => {
+            // Suppress native video element errors when using mpegts.js
+            // mpegts.js handles all loading and errors, so native errors are expected
+            // and should be ignored (mpegts.js will report its own errors via its event handlers)
+            const video = e.currentTarget;
+            // mpegts.js is being used, ignore native video errors
+            // The video element doesn't have src set, so errors are expected
+            console.debug('[VideoPlayer] Ignoring native video error (mpegts.js is handling playback):', video.error?.code || 'unknown');
+          }}
+        />
+      </Box>
+    );
+  }
+
+  // hls.js player rendering - use shared props like native player
+  if (playerType === 'hls') {
+    if (!isValidSrc) {
+      return (
+        <Box sx={{ position: 'relative', width, height, backgroundColor: '#000' }}>
           <Box
             sx={{
               position: 'absolute',
@@ -693,134 +944,25 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
             }}
           >
             <Typography variant="body2" sx={{ color: '#fff', textAlign: 'center', p: 2 }}>
-              {error}
+              {error || 'No video source provided'}
             </Typography>
           </Box>
-        )}
+        </Box>
+      );
+    }
+
+    return (
+      <Box sx={{ position: 'relative', width, height, backgroundColor: '#000' }}>
+        {renderOverlays()}
         <video
-          ref={videoRef}
-          controls={controls}
-          muted={muted}
-          playsInline={playsInline}
+          {...sharedVideoProps}
           preload="none"
-          style={{
-            width: '100%',
-            height: '100%',
-            display: 'block',
-            backgroundColor: '#000',
-          }}
-          onPlay={() => {
-            setIsPlaying(true);
-            setShowOverlay(true);
-          }}
-          onPause={() => {
-            setIsPlaying(false);
-            setShowOverlay(true);
-          }}
-          onEnded={() => {
-            console.debug('[VideoPlayer] mpegts.js video ended');
-            setIsPlaying(false);
-            setShowOverlay(true);
-            if (onEnded) onEnded();
-          }}
-          onMouseEnter={() => setShowOverlay(true)}
-          onMouseLeave={() => setShowOverlay(false)}
           onError={(e) => {
-            // Suppress native video element errors when using mpegts.js
-            // mpegts.js handles all loading and errors, so native errors are expected
-            // and should be ignored (mpegts.js will report its own errors via its event handlers)
-            const video = e.currentTarget;
-            if (playerType === 'mpegts') {
-              // mpegts.js is being used, ignore native video errors
-              // The video element doesn't have src set, so errors are expected
-              console.debug('[VideoPlayer] Ignoring native video error (mpegts.js is handling playback):', video.error?.code || 'unknown');
-              return;
-            }
-            // If mpegts.js is not active, handle the error normally
-            console.error('[VideoPlayer] Native video error (mpegts.js not active):', e);
-            setLoading(false);
-            const videoError = video.error;
-            let errorMessage = 'Video failed to load';
-            if (videoError) {
-              switch (videoError.code) {
-                case videoError.MEDIA_ERR_ABORTED:
-                  errorMessage = 'Video loading aborted';
-                  break;
-                case videoError.MEDIA_ERR_NETWORK:
-                  errorMessage = 'Network error while loading video';
-                  break;
-                case videoError.MEDIA_ERR_DECODE:
-                  errorMessage = 'Video decoding error';
-                  break;
-                case videoError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                  errorMessage = 'Video format not supported';
-                  break;
-                default:
-                  errorMessage = `Video error: ${videoError.message || 'Unknown error'}`;
-              }
-            }
-            setError(errorMessage);
-            if (onError) {
-              onError(videoError || e);
-            }
+            // Suppress native video element errors when using hls.js
+            // hls.js handles all loading and errors
+            console.debug('[VideoPlayer] Ignoring native video error (hls.js is handling playback)');
           }}
         />
-        {/* Play/Pause Overlay Button - Centered */}
-        {!loading && !error && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10,
-              pointerEvents: 'none',
-              opacity: showOverlay ? 1 : 0,
-              transition: 'opacity 0.3s ease-in-out',
-            }}
-          >
-            <IconButton
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isPlaying) {
-                  if (mpegtsPlayerRef.current) {
-                    mpegtsPlayerRef.current.pause();
-                  } else if (videoRef.current) {
-                    videoRef.current.pause();
-                  }
-                } else {
-                  if (mpegtsPlayerRef.current) {
-                    mpegtsPlayerRef.current.play();
-                  } else if (videoRef.current) {
-                    videoRef.current.play();
-                  }
-                }
-              }}
-              sx={{
-                pointerEvents: 'auto',
-                backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                color: '#fff',
-                width: 64,
-                height: 64,
-                '&:hover': {
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                  transform: 'scale(1.1)',
-                },
-                transition: 'all 0.2s ease-in-out',
-              }}
-            >
-              {isPlaying ? (
-                <PauseIcon sx={{ fontSize: 40 }} />
-              ) : (
-                <PlayArrowIcon sx={{ fontSize: 40 }} />
-              )}
-            </IconButton>
-          </Box>
-        )}
       </Box>
     );
   }
@@ -857,13 +999,9 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
       return (
         <Box sx={{ position: 'relative', width, height, backgroundColor: '#000' }}>
           <video
-            ref={videoRef}
+            {...sharedVideoProps}
             src={src}
-            controls={controls}
-            muted={muted}
-            playsInline={playsInline}
             preload={preload}
-            style={{ width: '100%', height: '100%', display: 'block', backgroundColor: '#000' }}
           />
         </Box>
       );
@@ -1057,3 +1195,4 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
 VideoPlayer.displayName = 'VideoPlayer';
 
 export default VideoPlayer;
+

@@ -453,27 +453,6 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
           }
         };
 
-        // Event handlers for mpegts player to ensure onPlay/onEnded callbacks fire
-        const handlePlaying = () => {
-          console.debug('[VideoPlayer] mpegts.js video playing event');
-          setIsPlaying(true);
-          setShowOverlay(true);
-          if (onPlay) onPlay();
-        };
-
-        const handlePause = () => {
-          console.debug('[VideoPlayer] mpegts.js video pause event');
-          setIsPlaying(false);
-          setShowOverlay(true);
-        };
-
-        const handleEnded = () => {
-          console.debug('[VideoPlayer] mpegts.js video ended event');
-          setIsPlaying(false);
-          setShowOverlay(true);
-          if (onEnded) onEnded();
-        };
-
         // Simple ready handler - clear loading and autoplay for mpegts
         const handleLoadedMetadata = () => {
           console.debug('[VideoPlayer] mpegts.js metadata loaded');
@@ -492,20 +471,13 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
           attemptAutoplay();
         };
 
-        // Add event listeners for mpegts player
         video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
         video.addEventListener('canplay', handleCanPlay, { once: true });
-        video.addEventListener('playing', handlePlaying);
-        video.addEventListener('pause', handlePause);
-        video.addEventListener('ended', handleEnded);
 
         // Cleanup on unmount
         return () => {
           video.removeEventListener('loadedmetadata', handleLoadedMetadata);
           video.removeEventListener('canplay', handleCanPlay);
-          video.removeEventListener('playing', handlePlaying);
-          video.removeEventListener('pause', handlePause);
-          video.removeEventListener('ended', handleEnded);
           if (mpegtsPlayerRef.current) {
             try {
               mpegtsPlayerRef.current.destroy();

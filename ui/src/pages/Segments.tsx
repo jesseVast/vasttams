@@ -407,7 +407,16 @@ const Segments: React.FC = () => {
     }
     
     const currentCard = videoCards[currentVisibleIndex];
-    const isCurrentVideoPlaying = currentCard?.getAttribute('data-video-playing') === 'true';
+    const isCurrentVideoPlayingAttr = currentCard?.getAttribute('data-video-playing') === 'true';
+    
+    // Also check video element directly (more reliable for mpegts)
+    let isCurrentVideoPlayingElement = false;
+    const currentVideoElement = currentCard?.querySelector('video') as HTMLVideoElement;
+    if (currentVideoElement) {
+      isCurrentVideoPlayingElement = !currentVideoElement.paused && currentVideoElement.readyState >= 2;
+    }
+    
+    const isCurrentVideoPlaying = isCurrentVideoPlayingAttr || isCurrentVideoPlayingElement;
     
     // If current video is not playing yet, wait for it to start
     if (!isCurrentVideoPlaying) {
@@ -421,8 +430,21 @@ const Segments: React.FC = () => {
         if (!autoPlayEnabled) return;
         
         const card = videoCards[currentVisibleIndex];
-        const isPlaying = card?.getAttribute('data-video-playing') === 'true';
-        const isCompleted = card?.getAttribute('data-video-completed') === 'true';
+        const isPlayingAttr = card?.getAttribute('data-video-playing') === 'true';
+        const isCompletedAttr = card?.getAttribute('data-video-completed') === 'true';
+        
+        // Also check video element directly for mpegts
+        let isPlayingElement = false;
+        let isCompletedElement = false;
+        const videoElement = card?.querySelector('video') as HTMLVideoElement;
+        if (videoElement) {
+          isPlayingElement = !videoElement.paused && videoElement.readyState >= 2;
+          const hasDuration = Boolean(videoElement.duration && !isNaN(videoElement.duration) && isFinite(videoElement.duration));
+          isCompletedElement = videoElement.ended || (hasDuration && videoElement.currentTime >= videoElement.duration - 0.1);
+        }
+        
+        const isPlaying = isPlayingAttr || isPlayingElement;
+        const isCompleted = isCompletedAttr || isCompletedElement;
         
         if (isCompleted) {
           // Video completed, wait a moment then scroll to next video
@@ -484,8 +506,14 @@ const Segments: React.FC = () => {
       return;
     }
     
-    // Check if current video is completed
-    const isCurrentCompleted = currentCard?.getAttribute('data-video-completed') === 'true';
+    // Check if current video is completed - check both attribute and element
+    const isCurrentCompletedAttr = currentCard?.getAttribute('data-video-completed') === 'true';
+    let isCurrentCompletedElement = false;
+    if (currentVideoElement) {
+      const hasDuration = Boolean(currentVideoElement.duration && !isNaN(currentVideoElement.duration) && isFinite(currentVideoElement.duration));
+      isCurrentCompletedElement = currentVideoElement.ended || (hasDuration && currentVideoElement.currentTime >= currentVideoElement.duration - 0.1);
+    }
+    const isCurrentCompleted = isCurrentCompletedAttr || isCurrentCompletedElement;
     
     if (isCurrentCompleted) {
       // Video completed, wait a moment then scroll to next video
@@ -548,7 +576,7 @@ const Segments: React.FC = () => {
         // First, reset scroll to 0 to ensure we start at the beginning
         container.scrollLeft = 0;
         
-        // Wait a bit for DOM to settle, then ensure first video is visible
+        // Wait a bit for DOM to settle and videos to initialize, then ensure first video is visible
         setTimeout(() => {
           const videoCards = Array.from(container.querySelectorAll('[data-segment-index]')) as HTMLElement[];
           if (videoCards.length > 0) {
@@ -556,56 +584,13 @@ const Segments: React.FC = () => {
             // Ensure first video is at the left edge (scrollLeft = 0)
             container.scrollLeft = 0;
             
-            // Wait for first video to start playing before starting auto-scroll
-            let pollCount = 0;
-            const maxPolls = 50; // 50 * 200ms = 10 seconds max wait
-            
-            const checkFirstVideoPlaying = () => {
-              if (!autoPlayEnabled) return;
-              
-              const isPlaying = firstCard?.getAttribute('data-video-playing') === 'true';
-              
-              if (isPlaying) {
-                console.debug('[AutoScroll] First video started playing, waiting for completion...');
-                // Wait for video to complete, then start auto-scroll
-                const checkFirstVideoCompleted = () => {
-                  if (!autoPlayEnabled) return;
-                  const isCompleted = firstCard?.getAttribute('data-video-completed') === 'true';
-                  if (isCompleted) {
-                    console.debug('[AutoScroll] First video completed, starting auto-scroll');
-                    if (autoScrollTimeoutRef.current !== null) {
-                      clearTimeout(autoScrollTimeoutRef.current);
-                    }
-                    autoScrollTimeoutRef.current = setTimeout(() => {
-                      handleAutoScroll();
-                    }, 500);
-                  } else {
-                    if (autoScrollTimeoutRef.current !== null) {
-                      clearTimeout(autoScrollTimeoutRef.current);
-                    }
-                    autoScrollTimeoutRef.current = setTimeout(checkFirstVideoCompleted, 200);
-                  }
-                };
-                checkFirstVideoCompleted();
-              } else if (pollCount < maxPolls) {
-                pollCount++;
-                if (autoScrollTimeoutRef.current !== null) {
-                  clearTimeout(autoScrollTimeoutRef.current);
-                }
-                autoScrollTimeoutRef.current = setTimeout(checkFirstVideoPlaying, 200);
-              } else {
-                // Timeout - video didn't start, wait 5 seconds then start auto-scroll anyway
-                console.warn('[AutoScroll] First video didn\'t start playing within timeout, will start auto-scroll in 5 seconds');
-                if (autoScrollTimeoutRef.current !== null) {
-                  clearTimeout(autoScrollTimeoutRef.current);
-                }
-                autoScrollTimeoutRef.current = setTimeout(() => {
-                  handleAutoScroll();
-                }, 5000);
-              }
-            };
-            
-            checkFirstVideoPlaying();
+            // Wait a bit for DOM to settle, then start auto-scroll
+            // For the first segment, just start the auto-scroll loop directly
+            // The handleAutoScroll function will handle detecting when the first video completes
+            setTimeout(() => {
+              console.debug('[AutoScroll] Starting auto-scroll for first segment');
+              handleAutoScroll();
+            }, 1000); // Give time for mpegts player to initialize and start playing
           }
         }, 100); // Small delay to ensure DOM is ready
       }

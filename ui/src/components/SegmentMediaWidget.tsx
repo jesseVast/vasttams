@@ -335,6 +335,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
 
   // Periodically sync video playing state with actual video element state
   // This is important for mpegts videos which might show first frame but not actually play
+  // Also detects when video ends by checking currentTime vs duration
   useEffect(() => {
     if (mediaType !== 'video' || !shouldLoadVideo || shouldUnloadVideo) return;
     
@@ -343,16 +344,32 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
         const videoElement = videoPlayerRef.current.getVideoElement?.();
         if (videoElement) {
           const actuallyPlaying = !videoElement.paused && videoElement.readyState >= 2;
+          const hasDuration = Boolean(videoElement.duration && !isNaN(videoElement.duration) && isFinite(videoElement.duration));
+          const isAtEnd = hasDuration && videoElement.currentTime >= videoElement.duration - 0.1; // Within 0.1s of end
+          const actuallyCompleted = isAtEnd || videoElement.ended;
+          
+          // Sync playing state
           if (actuallyPlaying !== isVideoPlaying) {
             console.debug(`[Segment ${segmentIndex}] Syncing playing state: ${isVideoPlaying} -> ${actuallyPlaying} (paused: ${videoElement.paused}, readyState: ${videoElement.readyState})`);
             setIsVideoPlaying(actuallyPlaying);
           }
+          
+          // Sync completed state - check if video has ended
+          if (actuallyCompleted && !isVideoCompleted) {
+            console.debug(`[Segment ${segmentIndex}] Video detected as completed (currentTime: ${videoElement.currentTime}, duration: ${videoElement.duration}, ended: ${videoElement.ended})`);
+            setIsVideoCompleted(true);
+            setIsVideoPlaying(false);
+          } else if (!actuallyCompleted && isVideoCompleted && actuallyPlaying) {
+            // Video restarted or resumed
+            console.debug(`[Segment ${segmentIndex}] Video resumed after completion`);
+            setIsVideoCompleted(false);
+          }
         }
       }
-    }, 500); // Check every 500ms
+    }, 200); // Check more frequently (every 200ms) for better responsiveness
     
     return () => clearInterval(syncInterval);
-  }, [mediaType, shouldLoadVideo, shouldUnloadVideo, segmentIndex, isVideoPlaying]);
+  }, [mediaType, shouldLoadVideo, shouldUnloadVideo, segmentIndex, isVideoPlaying, isVideoCompleted]);
 
   const renderMediaContent = () => {
     // Check if we have URLs available

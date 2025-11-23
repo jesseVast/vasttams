@@ -64,7 +64,7 @@ storage:
   get_urls_max_count: 5
   flow_storage_default_limit: 10
   segment_storage_default_limit: 10
-  async_deletion_threshold: 1000  # Threshold for switching to async deletion (segments)
+  async_deletion_threshold: 10  # Threshold for switching to async deletion (segments)
 
 vector_search:
   default_num_matches: 10

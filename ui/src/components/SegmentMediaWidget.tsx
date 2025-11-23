@@ -21,7 +21,7 @@ import {
 import VideoPlayer, { VideoPlayerType } from './VideoPlayer';
 import VideoControlsWidget from './VideoControlsWidget';
 import { Segment, Flow } from '../types';
-import { API_BASE_URL, API_PREFIX } from '../services/api';
+import { API_BASE_URL } from '../services/api';
 
 interface SegmentMediaWidgetProps {
   segment: Segment;
@@ -70,30 +70,12 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
       return originalUrl;
     }
     
-    // Always use proxy endpoint for CORS support when proxying
-    // This is especially important for mpegts.js which needs to fetch the video data
-    let baseUrl = API_BASE_URL.replace(/\/$/, '');
-    let apiPrefix = API_PREFIX.replace(/\/$/, '');
-    
-    // Handle different deployment scenarios:
-    // 1. Docker: API_BASE_URL='/api', API_PREFIX='/api/tams/v8.0'
-    //    - Result: '/api/api/tams/v8.0/...' -> nginx proxies '/api/tams/v8.0/...' to backend
-    // 2. Local: API_BASE_URL='http://docker1:8000', API_PREFIX='/api/tams/v8.0'
-    //    - Result: 'http://docker1:8000/api/tams/v8.0/...' -> direct connection
-    // Fix double /api/api/ issue when API_BASE_URL is /api and API_PREFIX starts with /api
-    if (baseUrl === '/api' && apiPrefix.startsWith('/api/')) {
-      // Remove /api from API_PREFIX since it's already in baseUrl
-      // This creates '/api/tams/v8.0/...' which nginx will proxy correctly
-      apiPrefix = apiPrefix.replace(/^\/api/, '');
-    }
-    // For local development with full URL, keep API_PREFIX as-is
-    // baseUrl is like 'http://docker1:8000', apiPrefix is '/api/tams/v8.0'
-    // Result: 'http://docker1:8000/api/tams/v8.0/...'
-    
+    // API_BASE_URL already includes the full path: /api/tams/v8.0 (Docker) or http://docker1:8000/api/tams/v8.0 (local)
+    const baseUrl = API_BASE_URL.replace(/\/$/, '');
     const encodedUrl = encodeURIComponent(originalUrl);
     
     // Include token in query parameter for authentication (like HLS playlists)
-    let proxyUrl = `${baseUrl}${apiPrefix}/hls/flows/${flow.id}/segments/${segment.object_id}?url=${encodedUrl}`;
+    let proxyUrl = `${baseUrl}/hls/flows/${flow.id}/segments/${segment.object_id}?url=${encodedUrl}`;
     
     if (typeof window !== 'undefined' && window.localStorage) {
       const token = localStorage.getItem('token');
@@ -105,8 +87,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     console.debug(`[Segment ${segmentIndex}] Proxying URL:`, {
       original: originalUrl.substring(0, 100),
       proxy: proxyUrl.substring(0, 150),
-      baseUrl,
-      apiPrefix
+      baseUrl
     });
     
     return proxyUrl;

@@ -1,13 +1,21 @@
 import axios from 'axios';
 import { User, Source, Flow, Segment, AuthResponse, AnalyticsSummary } from '../types';
 
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://docker1:8000';
-export const API_PREFIX = '/api/tams/v8.0';
+// Single API base URL that includes the full path to the API
+// Docker: REACT_APP_API_URL=/api -> API_BASE_URL=/api/tams/v8.0
+// Local: REACT_APP_API_URL=http://docker1:8000 -> API_BASE_URL=http://docker1:8000/api/tams/v8.0
+const REACT_APP_API_URL = process.env.REACT_APP_API_URL || 'http://docker1:8000';
+const API_VERSION_PATH = '/tams/v8.0';
+
+// Construct full API base URL
+export const API_BASE_URL = REACT_APP_API_URL === '/api'
+  ? `${REACT_APP_API_URL}${API_VERSION_PATH}`  // Docker: /api/tams/v8.0
+  : `${REACT_APP_API_URL}/api${API_VERSION_PATH}`;  // Local: http://docker1:8000/api/tams/v8.0
 
 // Log the API URL being used (only in development)
 if (process.env.NODE_ENV === 'development') {
   console.log('[API Config] API_BASE_URL:', API_BASE_URL);
-  console.log('[API Config] REACT_APP_API_URL env var:', process.env.REACT_APP_API_URL || 'not set (using default)');
+  console.log('[API Config] REACT_APP_API_URL env var:', REACT_APP_API_URL);
 }
 
 const api = axios.create({
@@ -110,7 +118,7 @@ api.interceptors.response.use(
 export const authService = {
   login: async (username: string, password: string): Promise<AuthResponse> => {
     try {
-      const response = await api.post(`${API_PREFIX}/auth/login`, {
+      const response = await api.post('/auth/login', {
         username,
         password,
       });
@@ -139,12 +147,12 @@ export const authService = {
 
 export const userService = {
   list: async (): Promise<User[]> => {
-    const response = await api.get(`${API_PREFIX}/users`);
+    const response = await api.get('/users');
     return response.data || [];
   },
 
   create: async (username: string, role: string, password: string): Promise<User> => {
-    const response = await api.post(`${API_PREFIX}/users`, {
+    const response = await api.post('/users', {
       username,
       password,
       role,
@@ -153,15 +161,15 @@ export const userService = {
   },
 
   delete: async (username: string): Promise<void> => {
-    await api.delete(`${API_PREFIX}/users/${username}`);
+    await api.delete(`/users/${username}`);
   },
 
   updateRole: async (username: string, role: string): Promise<void> => {
-    await api.put(`${API_PREFIX}/users/${username}/role`, { role });
+    await api.put(`/users/${username}/role`, { role });
   },
 
   updatePassword: async (username: string, password: string): Promise<void> => {
-    await api.put(`${API_PREFIX}/users/${username}/password`, { password });
+    await api.put(`/users/${username}/password`, { password });
   },
 };
 
@@ -169,22 +177,22 @@ export const sourceService = {
   list: async (): Promise<Source[]> => {
     // source_collection is computed on-demand in get_source() only
     // List operations return empty source_collection for performance
-    const response = await api.get(`${API_PREFIX}/sources`);
+    const response = await api.get('/sources');
     return response.data?.data || response.data || [];
   },
 
   get: async (id: string): Promise<Source> => {
-    const response = await api.get(`${API_PREFIX}/sources/${id}`);
+    const response = await api.get(`/sources/${id}`);
     return response.data;
   },
 
   create: async (source: Partial<Source>): Promise<Source> => {
-    const response = await api.post(`${API_PREFIX}/sources`, source);
+    const response = await api.post('/sources', source);
     return response.data;
   },
 
   delete: async (id: string, cascade: boolean = true): Promise<void> => {
-    await api.delete(`${API_PREFIX}/sources/${id}`, { params: { cascade } });
+    await api.delete(`/sources/${id}`, { params: { cascade } });
   },
 };
 
@@ -194,12 +202,12 @@ export const flowService = {
     if (includeStatistics) {
       params.include_statistics = true;
     }
-    const response = await api.get(`${API_PREFIX}/flows`, { params });
+    const response = await api.get('/flows', { params });
     return response.data?.data || response.data || [];
   },
 
   getStatistics: async (): Promise<any[]> => {
-    const response = await api.get(`${API_PREFIX}/analytics/flows`);
+    const response = await api.get('/analytics/flows');
     return response.data || [];
   },
 
@@ -208,22 +216,22 @@ export const flowService = {
     if (includeTimerange) {
       params.include_timerange = true;
     }
-    const response = await api.get(`${API_PREFIX}/flows/${id}`, { params });
+    const response = await api.get(`/flows/${id}`, { params });
     return response.data;
   },
 
   create: async (flow: Partial<Flow>): Promise<Flow> => {
-    const response = await api.post(`${API_PREFIX}/flows`, flow);
+    const response = await api.post('/flows', flow);
     return response.data;
   },
 
   update: async (id: string, flow: Partial<Flow>): Promise<Flow> => {
-    const response = await api.put(`${API_PREFIX}/flows/${id}`, flow);
+    const response = await api.put(`/flows/${id}`, flow);
     return response.data;
   },
 
   delete: async (id: string, cascade: boolean = true): Promise<void> => {
-    await api.delete(`${API_PREFIX}/flows/${id}`, { params: { cascade } });
+    await api.delete(`/flows/${id}`, { params: { cascade } });
   },
 };
 
@@ -241,67 +249,67 @@ export const segmentService = {
     }
     // Request get_urls by not setting accept_get_urls to empty string
     // The server will generate get_urls by default unless accept_get_urls="" is set
-    const response = await api.get(`${API_PREFIX}/flows/${flowId}/segments`, { params });
+    const response = await api.get(`/flows/${flowId}/segments`, { params });
     return response.data?.data || response.data || [];
   },
 };
 
 export const webhookService = {
   list: async (): Promise<any[]> => {
-    const response = await api.get(`${API_PREFIX}/service/webhooks`);
+    const response = await api.get('/service/webhooks');
     return response.data?.data || response.data || [];
   },
 
   create: async (webhook: any): Promise<any> => {
-    const response = await api.post(`${API_PREFIX}/service/webhooks`, webhook);
+    const response = await api.post('/service/webhooks', webhook);
     return response.data;
   },
 
   delete: async (id: string): Promise<void> => {
-    await api.delete(`${API_PREFIX}/service/webhooks/${id}`);
+    await api.delete(`/service/webhooks/${id}`);
   },
 };
 
 export const storageBackendService = {
   list: async (): Promise<any[]> => {
-    const response = await api.get(`${API_PREFIX}/service/storage-backends`);
+    const response = await api.get('/service/storage-backends');
     return response.data?.data || response.data || [];
   },
 
   get: async (id: string): Promise<any> => {
-    const response = await api.get(`${API_PREFIX}/service/storage-backends/${id}`);
+    const response = await api.get(`/service/storage-backends/${id}`);
     return response.data;
   },
 
   create: async (backend: any): Promise<any> => {
-    const response = await api.post(`${API_PREFIX}/service/storage-backends`, backend);
+    const response = await api.post('/service/storage-backends', backend);
     return response.data;
   },
 
   update: async (id: string, backend: any): Promise<any> => {
-    const response = await api.put(`${API_PREFIX}/service/storage-backends/${id}`, backend);
+    const response = await api.put(`/service/storage-backends/${id}`, backend);
     return response.data;
   },
 
   delete: async (id: string): Promise<void> => {
-    await api.delete(`${API_PREFIX}/service/storage-backends/${id}`);
+    await api.delete(`/service/storage-backends/${id}`);
   },
 };
 
 export const analyticsService = {
   getSummary: async (refresh: boolean = false): Promise<AnalyticsSummary> => {
     const params = refresh ? { refresh: 'true' } : {};
-    const response = await api.get(`${API_PREFIX}/analytics/summary`, { params });
+    const response = await api.get('/analytics/summary', { params });
     return response.data;
   },
 
   getSourceAnalytics: async (): Promise<any[]> => {
-    const response = await api.get(`${API_PREFIX}/analytics/sources`);
+    const response = await api.get('/analytics/sources');
     return response.data || [];
   },
 
   getFlowAnalytics: async (): Promise<any[]> => {
-    const response = await api.get(`${API_PREFIX}/analytics/flows`);
+    const response = await api.get('/analytics/flows');
     return response.data || [];
   },
 };

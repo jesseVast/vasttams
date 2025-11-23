@@ -5,7 +5,6 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { CheckCircle, Error, Warning } from '@mui/icons-material';
-import api from '../services/api';
 
 interface BackendStatusProps {
   size?: 'small' | 'medium';
@@ -36,7 +35,12 @@ const BackendStatus: React.FC<BackendStatusProps> = ({ size = 'small' }) => {
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        throw new Error(`Health check failed: ${response.status}`);
+        // Create error object manually to avoid TypeScript construct signature issue
+        const err: Error = {
+          name: 'Error',
+          message: `Health check failed: ${response.status}`,
+        } as Error;
+        throw err;
       }
       
       setStatus('online');

@@ -18,8 +18,27 @@ const BackendStatus: React.FC<BackendStatusProps> = ({ size = 'small' }) => {
   const checkBackendStatus = useCallback(async () => {
     try {
       // Use the /health endpoint which doesn't require authentication
-      // Increased timeout to 10s to handle server load during video playback
-      await api.get('/health', { timeout: 10000 });
+      // Health endpoint is at root level, not under API path
+      // Always use absolute URL for health check
+      const healthUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}/health`
+        : '/health';
+      
+      // Use fetch directly to bypass axios baseURL
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch(healthUrl, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Health check failed: ${response.status}`);
+      }
+      
       setStatus('online');
       setLastChecked(new Date());
     } catch (error: any) {

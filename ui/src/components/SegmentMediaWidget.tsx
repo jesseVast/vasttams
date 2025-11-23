@@ -71,7 +71,14 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     }
     
     // API_BASE_URL already includes the full path: /api/tams/v8.0 (Docker) or http://docker1:8000/api/tams/v8.0 (local)
-    const baseUrl = API_BASE_URL.replace(/\/$/, '');
+    let baseUrl = API_BASE_URL.replace(/\/$/, '');
+    
+    // Web Workers (used by mpegts.js) require absolute URLs
+    // If baseUrl is relative (starts with /), convert it to absolute using window.location.origin
+    if (typeof window !== 'undefined' && baseUrl.startsWith('/')) {
+      baseUrl = `${window.location.origin}${baseUrl}`;
+    }
+    
     const encodedUrl = encodeURIComponent(originalUrl);
     
     // Include token in query parameter for authentication (like HLS playlists)
@@ -87,7 +94,8 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     console.debug(`[Segment ${segmentIndex}] Proxying URL:`, {
       original: originalUrl.substring(0, 100),
       proxy: proxyUrl.substring(0, 150),
-      baseUrl
+      baseUrl,
+      isAbsolute: proxyUrl.startsWith('http')
     });
     
     return proxyUrl;

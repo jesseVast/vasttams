@@ -75,13 +75,20 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     let baseUrl = API_BASE_URL.replace(/\/$/, '');
     let apiPrefix = API_PREFIX.replace(/\/$/, '');
     
+    // Handle different deployment scenarios:
+    // 1. Docker: API_BASE_URL='/api', API_PREFIX='/api/tams/v8.0'
+    //    - Result: '/api/api/tams/v8.0/...' -> nginx proxies '/api/tams/v8.0/...' to backend
+    // 2. Local: API_BASE_URL='http://docker1:8000', API_PREFIX='/api/tams/v8.0'
+    //    - Result: 'http://docker1:8000/api/tams/v8.0/...' -> direct connection
     // Fix double /api/api/ issue when API_BASE_URL is /api and API_PREFIX starts with /api
-    // When REACT_APP_API_URL=/api, API_BASE_URL=/api and API_PREFIX=/api/tams/v8.0
-    // We need to avoid duplicating /api
-    if (baseUrl.endsWith('/api') && apiPrefix.startsWith('/api/')) {
+    if (baseUrl === '/api' && apiPrefix.startsWith('/api/')) {
       // Remove /api from API_PREFIX since it's already in baseUrl
+      // This creates '/api/tams/v8.0/...' which nginx will proxy correctly
       apiPrefix = apiPrefix.replace(/^\/api/, '');
     }
+    // For local development with full URL, keep API_PREFIX as-is
+    // baseUrl is like 'http://docker1:8000', apiPrefix is '/api/tams/v8.0'
+    // Result: 'http://docker1:8000/api/tams/v8.0/...'
     
     const encodedUrl = encodeURIComponent(originalUrl);
     

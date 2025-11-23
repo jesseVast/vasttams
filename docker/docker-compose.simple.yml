@@ -26,25 +26,25 @@ services:
     networks:
       - tams-network
 
-  # # TAMS UI
-  # tams-ui:
-  #   build:
-  #     context: ..
-  #     dockerfile: docker/ui/Dockerfile.ui
-  #   container_name: tams-ui
-  #   ports:
-  #     - "80:80"
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 10s
-  #   networks:
-  #     - tams-network
-  #   depends_on:
-  #     - tams-api
+  # TAMS UI
+  tams-ui:
+    build:
+      context: ..
+      dockerfile: docker/ui/Dockerfile.ui
+    container_name: tams-ui
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - tams-network
+    depends_on:
+      - tams-api
 
 volumes:
   vast_data:

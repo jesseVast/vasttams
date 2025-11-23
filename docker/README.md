@@ -48,6 +48,50 @@ cd docker
 docker-compose --profile full up
 ```
 
+## Git LFS Requirements
+
+This repository uses **Git LFS (Large File Storage)** for wheel files in the `wheels/` directory. These are required for Docker builds.
+
+### Setup Git LFS
+
+Before building Docker images, ensure Git LFS is installed and configured:
+
+```bash
+# Install Git LFS (if not already installed)
+git lfs install
+
+# Pull LFS objects (wheel files)
+git lfs pull
+```
+
+### Why Git LFS?
+
+The repository contains pre-built wheel files for private dependencies (`vastdbmanager` and `vasts3`) in the `wheels/` directory. These are stored via Git LFS to:
+- Keep repository size manageable
+- Enable faster clone operations
+- Allow Docker builds without GitLab authentication
+
+### Docker Build with Git LFS
+
+The Dockerfile automatically installs wheels from the `wheels/` directory if available:
+
+1. **With wheels (recommended)**: If `wheels/*.whl` files exist, they are installed automatically
+2. **Without wheels**: Docker build will attempt to install from `requirements.txt` (requires GitLab authentication)
+
+To ensure wheels are available:
+```bash
+# Pull LFS objects before building
+git lfs pull
+
+# Verify wheels are present
+ls wheels/*.whl
+
+# Build Docker image
+docker-compose build
+```
+
+See `wheels/README.md` for more information about building and updating wheels.
+
 ## Management Scripts in Container
 
 All management scripts from the `mgmt/` directory are available inside the container at `/app/mgmt/`.

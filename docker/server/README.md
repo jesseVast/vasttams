@@ -15,6 +15,20 @@ This directory contains Docker configuration files for the TAMS FastAPI server.
 
 ## Building the Server Container
 
+### Prerequisites: Git LFS
+
+⚠️ **IMPORTANT**: This repository uses Git LFS for wheel files. Before building, ensure Git LFS is set up:
+
+```bash
+# Install Git LFS (if not already installed)
+git lfs install
+
+# Pull LFS objects (wheel files) - REQUIRED before building
+git lfs pull
+```
+
+See `BUILD.md` for detailed Git LFS setup and troubleshooting.
+
 ### Using docker-compose (Recommended)
 
 ```bash

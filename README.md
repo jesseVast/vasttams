@@ -405,25 +405,88 @@ Soft delete functionality is enabled by default and cannot be disabled through c
 - VAST Database server (optional, can use mock for development)
 - S3-compatible storage (MinIO, AWS S3, etc.)
 - Docker (optional)
-- Git LFS (required for wheel files)
+- **Git LFS** (required for wheel files) - See [Git LFS Setup](#git-lfs-setup) below
+
+### Git LFS Setup
+
+This repository uses **Git LFS (Large File Storage)** to store wheel files for private dependencies. These are required for both local development and Docker builds.
+
+#### Installation
+
+```bash
+# Install Git LFS (one-time setup per machine)
+git lfs install
+```
+
+#### After Cloning
+
+```bash
+# Pull LFS objects (wheel files) - REQUIRED
+git lfs pull
+```
+
+#### What is Stored in Git LFS?
+
+The `wheels/` directory contains pre-built wheel files:
+- `vastdbmanager-*.whl` - VAST database management library
+- `vasts3-*.whl` - VAST S3 client library
+
+These are binary distributions stored via Git LFS to:
+- Keep repository size manageable
+- Enable faster clone operations
+- Allow Docker builds without GitLab authentication
+
+#### Verifying Git LFS
+
+```bash
+# Check if wheels are downloaded
+ls wheels/*.whl
+
+# Should show:
+# wheels/vastdbmanager-*.whl
+# wheels/vasts3-*.whl
+```
+
+#### Troubleshooting
+
+**Wheels directory is empty:**
+```bash
+# Make sure Git LFS is installed
+git lfs install
+
+# Pull LFS objects
+git lfs pull
+
+# Verify
+ls wheels/*.whl
+```
+
+**Git LFS not installed:**
+- Install from: https://git-lfs.github.com/
+- Or via package manager: `brew install git-lfs` (macOS), `apt-get install git-lfs` (Linux)
+
+For more details, see:
+- `wheels/README.md` - Building and updating wheels
+- `docs/PRIVATE_DEPENDENCIES.md` - Private dependency management
+- `docker/server/BUILD.md` - Docker build with Git LFS
 
 ### Local Development
 
 1. **Clone the repository**
    ```bash
-   # Install Git LFS first
+   # Install Git LFS first (if not already installed)
    git lfs install
    
    git clone <repository-url>
    cd bbctams
    
-   # Pull LFS objects (wheels)
+   # Pull LFS objects (wheels) - REQUIRED
    git lfs pull
    ```
 
 2. **Install dependencies**
    
-   ⚠️ **Note**: This project requires private dependencies (`vastdbmanager` and `vasts3`) which are managed via Git LFS in the `wheels/` directory.
+   ⚠️ **Note**: This project requires private dependencies (`vastdbmanager` and `vasts3`) which are managed via Git LFS in the `wheels/` directory. If wheels are present, they will be installed automatically. Otherwise, GitLab authentication is required (see `docs/PRIVATE_DEPENDENCIES.md`).
    
    ```bash
    # First, configure GitLab authentication (see docs/PRIVATE_DEPENDENCIES.md)

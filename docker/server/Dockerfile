@@ -25,6 +25,7 @@ COPY src/server/requirements.txt /app/requirements.txt
 
 # Copy private dependency wheels (vastdbmanager and vasts3)
 # These are built from local GitLab packages using scripts/build_private_wheels.sh
+# Wheel files are stored via Git LFS - ensure 'git lfs pull' is run before building
 # If wheels directory exists and contains .whl files, they will be installed
 COPY wheels/ /tmp/wheels/
 

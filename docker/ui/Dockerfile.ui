@@ -26,7 +26,6 @@ ENV REACT_APP_API_URL=${REACT_APP_API_URL}
 
 # Build the React application
 RUN npm run build
-RUN npm audit fix
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine

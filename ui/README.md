@@ -20,7 +20,12 @@ The app will open at http://localhost:3000
 
 ## Environment Variables
 
-Set `REACT_APP_API_URL` to point to your TAMS API instance (default: http://localhost:8000)
+Set `REACT_APP_API_URL` to point to your TAMS API instance (default: http://docker1:8000)
+
+For local development, you can create a `.env` file in the `ui/` directory:
+```
+REACT_APP_API_URL=http://docker1:8000
+```
 
 ## Default Users
 

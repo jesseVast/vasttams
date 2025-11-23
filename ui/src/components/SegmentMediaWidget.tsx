@@ -72,8 +72,17 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     
     // Always use proxy endpoint for CORS support when proxying
     // This is especially important for mpegts.js which needs to fetch the video data
-    const baseUrl = API_BASE_URL.replace(/\/$/, '');
-    const apiPrefix = API_PREFIX.replace(/\/$/, '');
+    let baseUrl = API_BASE_URL.replace(/\/$/, '');
+    let apiPrefix = API_PREFIX.replace(/\/$/, '');
+    
+    // Fix double /api/api/ issue when API_BASE_URL is /api and API_PREFIX starts with /api
+    // When REACT_APP_API_URL=/api, API_BASE_URL=/api and API_PREFIX=/api/tams/v8.0
+    // We need to avoid duplicating /api
+    if (baseUrl.endsWith('/api') && apiPrefix.startsWith('/api/')) {
+      // Remove /api from API_PREFIX since it's already in baseUrl
+      apiPrefix = apiPrefix.replace(/^\/api/, '');
+    }
+    
     const encodedUrl = encodeURIComponent(originalUrl);
     
     // Include token in query parameter for authentication (like HLS playlists)
@@ -88,7 +97,9 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     
     console.debug(`[Segment ${segmentIndex}] Proxying URL:`, {
       original: originalUrl.substring(0, 100),
-      proxy: proxyUrl.substring(0, 150)
+      proxy: proxyUrl.substring(0, 150),
+      baseUrl,
+      apiPrefix
     });
     
     return proxyUrl;

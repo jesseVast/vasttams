@@ -35,7 +35,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import { Flow, Source } from '../types';
-import { flowService, sourceService, analyticsService } from '../services/api';
+import { flowService, sourceService, analyticsService, authService } from '../services/api';
 import DataTable, { Column } from '../components/DataTable';
 import DetailModal from '../components/DetailModal';
 import EditFlowModal from '../components/EditFlowModal';
@@ -419,6 +419,13 @@ const Flows: React.FC = () => {
   };
 
   const handleOpenEdit = async (flow: Flow) => {
+    // Prevent viewers from editing
+    const user = authService.getCurrentUser();
+    if (user?.role === 'viewer') {
+      console.warn('Viewers cannot edit flows');
+      return;
+    }
+    
     // Fetch full flow data for editing
     try {
       const fullFlow = await flowService.get(flow.id);
@@ -438,6 +445,13 @@ const Flows: React.FC = () => {
   };
 
   const handleOpenDelete = (flow: Flow) => {
+    // Prevent viewers from deleting
+    const user = authService.getCurrentUser();
+    if (user?.role === 'viewer') {
+      console.warn('Viewers cannot delete flows');
+      return;
+    }
+    
     setFlowToDelete(flow);
     setDeleteDialogOpen(true);
     setDeleteError(null);
@@ -446,6 +460,14 @@ const Flows: React.FC = () => {
 
   const handleDeleteConfirm = async () => {
     if (!flowToDelete) return;
+    
+    // Prevent viewers from deleting
+    const user = authService.getCurrentUser();
+    if (user?.role === 'viewer') {
+      console.warn('Viewers cannot delete flows');
+      setDeleteError('Viewers do not have permission to delete flows');
+      return;
+    }
 
     setDeleting(true);
     setDeleteError(null);
@@ -488,6 +510,10 @@ const Flows: React.FC = () => {
       : null;
     const formattedDuration = formatDuration(duration);
     
+    // Check if user is viewer (should not see edit/delete options)
+    const user = authService.getCurrentUser();
+    const isViewer = user?.role === 'viewer';
+    
     return (
     <>
         <TableCell>
@@ -501,15 +527,17 @@ const Flows: React.FC = () => {
                 <InfoIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Edit Flow">
-              <IconButton
-                size="small"
-                onClick={() => handleOpenEdit(flow)}
-                sx={{ padding: '4px' }}
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            {!isViewer && (
+              <Tooltip title="Edit Flow">
+                <IconButton
+                  size="small"
+                  onClick={() => handleOpenEdit(flow)}
+                  sx={{ padding: '4px' }}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
             <Tooltip title="View Segments">
               <IconButton
                 size="small"
@@ -519,15 +547,17 @@ const Flows: React.FC = () => {
                 <PlayArrowIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Delete Flow">
-              <IconButton
-                size="small"
-                onClick={() => handleOpenDelete(flow)}
-                sx={{ padding: '4px', color: 'error.main' }}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            {!isViewer && (
+              <Tooltip title="Delete Flow">
+                <IconButton
+                  size="small"
+                  onClick={() => handleOpenDelete(flow)}
+                  sx={{ padding: '4px', color: 'error.main' }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
         </TableCell>
       <TableCell>{flow.label || '-'}</TableCell>

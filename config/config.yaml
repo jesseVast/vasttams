@@ -11,7 +11,7 @@ server:
   host: "0.0.0.0"  # Listen on all interfaces (use 127.0.0.1 for localhost only)
   port: 8000
   debug: false  # Should be false in production for security and performance
-  workers: 1  # Set to 1 for single-process mode (development), higher for production (default: 4)
+  workers: 2  # Set to 1 for single-process mode (development), higher for production (default: 4)
 
 database:
   vast:

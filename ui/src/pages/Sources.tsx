@@ -22,7 +22,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/Info';
 import { Source } from '../types';
-import { sourceService, analyticsService } from '../services/api';
+import { sourceService, analyticsService, authService } from '../services/api';
 import DataTable, { Column } from '../components/DataTable';
 import DetailModal from '../components/DetailModal';
 
@@ -182,6 +182,13 @@ const Sources: React.FC = () => {
   };
 
   const handleOpenDelete = (source: Source) => {
+    // Prevent viewers from deleting
+    const user = authService.getCurrentUser();
+    if (user?.role === 'viewer') {
+      console.warn('Viewers cannot delete sources');
+      return;
+    }
+    
     setSourceToDelete(source);
     setDeleteDialogOpen(true);
     setDeleteError(null);
@@ -190,6 +197,14 @@ const Sources: React.FC = () => {
 
   const handleDeleteConfirm = async () => {
     if (!sourceToDelete) return;
+    
+    // Prevent viewers from deleting
+    const user = authService.getCurrentUser();
+    if (user?.role === 'viewer') {
+      console.warn('Viewers cannot delete sources');
+      setDeleteError('Viewers do not have permission to delete sources');
+      return;
+    }
 
     setDeleting(true);
     setDeleteError(null);
@@ -229,6 +244,10 @@ const Sources: React.FC = () => {
       ? segmentCounts[source.id] 
       : loading ? '...' : '-';
     
+    // Check if user is viewer (should not see delete option)
+    const user = authService.getCurrentUser();
+    const isViewer = user?.role === 'viewer';
+    
     return (
     <>
         <TableCell>
@@ -242,15 +261,17 @@ const Sources: React.FC = () => {
                 <InfoIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Delete Source">
-              <IconButton
-                size="small"
-                onClick={() => handleOpenDelete(source)}
-                sx={{ padding: '4px', color: 'error.main' }}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            {!isViewer && (
+              <Tooltip title="Delete Source">
+                <IconButton
+                  size="small"
+                  onClick={() => handleOpenDelete(source)}
+                  sx={{ padding: '4px', color: 'error.main' }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
         </TableCell>
       <TableCell>{source.label || '-'}</TableCell>

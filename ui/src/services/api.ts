@@ -1,8 +1,14 @@
 import axios from 'axios';
 import { User, Source, Flow, Segment, AuthResponse, AnalyticsSummary } from '../types';
 
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://docker1:8000';
 export const API_PREFIX = '/api/tams/v8.0';
+
+// Log the API URL being used (only in development)
+if (process.env.NODE_ENV === 'development') {
+  console.log('[API Config] API_BASE_URL:', API_BASE_URL);
+  console.log('[API Config] REACT_APP_API_URL env var:', process.env.REACT_APP_API_URL || 'not set (using default)');
+}
 
 const api = axios.create({
   baseURL: API_BASE_URL,

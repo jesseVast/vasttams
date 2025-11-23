@@ -1,25 +1,13 @@
 const { spawn } = require('node:child_process');
-const os = require('os');
-const path = require('path');
 
-// Disable localStorage for webpack builds
-const nodeVersion = process.version.match(/^v(\d+)/)?.[1];
-const args = [];
-
-if (nodeVersion && parseInt(nodeVersion) >= 20) {
-  // Node 20+ requires a file path for localStorage or we need to disable it
-  // Use a temp file that gets cleaned up
-  const tempFile = path.join(os.tmpdir(), '.localstorage-webpack-temp');
-  args.push(`--localstorage-file=${tempFile}`);
-}
-
+// Run react-scripts without custom Node.js options
+// The --localstorage-file option was invalid and caused build failures
 module.exports = function runReactScript(scriptName) {
   const scriptPath = require.resolve(`react-scripts/scripts/${scriptName}`);
-  args.push(scriptPath);
-
+  
   const child = spawn(
     process.execPath,
-    args,
+    [scriptPath],
     {
       stdio: 'inherit',
       env: process.env,

@@ -17,6 +17,9 @@ def get_objects_schema() -> pa.Schema:
     
     Note: Vector data is stored in a separate object_vector table (not part of TAMS spec).
     See vast.schemas for vector table schema.
+    
+    Note: summary is a VAST-specific extension managed by /api/vast/objects endpoints,
+    not part of TAMS specification.
     """
     return pa.schema([
         pa.field("id", pa.string(), nullable=True),  # VAST requires nullable strings
@@ -25,6 +28,7 @@ def get_objects_schema() -> pa.Schema:
         pa.field("size", pa.int64(), nullable=True),
         pa.field("metadata", pa.string(), nullable=True),  # JSON metadata (storage_id, storage_path, etc.)
         pa.field("created", pa.timestamp("ns"), nullable=True),
+        pa.field("summary", pa.string(), nullable=True),  # VAST extension: text summary (managed by /api/vast/objects endpoints)
     ])
 
 

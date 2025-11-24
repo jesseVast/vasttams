@@ -16,6 +16,7 @@ from .models import (
 )
 from .service import VastObjectVectorService
 from ..core.dependencies import get_vast_db, get_s3_client
+from ..objects.service import ObjectStorageService
 from ..auth.rbac import require_viewer, require_editor
 from ..auth.middleware import UserSession
 
@@ -27,6 +28,14 @@ router = APIRouter(prefix="/api/vast/objects", tags=["vast"])
 def get_vast_object_vector_service() -> VastObjectVectorService:
     """Get VAST object vector service instance"""
     return VastObjectVectorService(
+        vast_db=get_vast_db(),
+        s3_client=get_s3_client()
+    )
+
+
+def get_object_storage_service() -> ObjectStorageService:
+    """Get object storage service instance"""
+    return ObjectStorageService(
         vast_db=get_vast_db(),
         s3_client=get_s3_client()
     )
@@ -187,5 +196,58 @@ async def search_by_text(
         raise
     except Exception as e:
         logger.error(f"Failed to search by text: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{object_id}/summary")
+async def get_object_summary(
+    object_id: str,
+    service: ObjectStorageService = Depends(get_object_storage_service),
+    user_session: UserSession = Depends(require_viewer)
+):
+    """
+    Get summary for an object (VAST extension, not part of TAMS spec).
+    
+    This endpoint retrieves the summary field which is managed separately
+    from TAMS-compliant object endpoints.
+    """
+    try:
+        summary = await service.get_object_summary(object_id)
+        return {"object_id": object_id, "summary": summary}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get summary for object {object_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.put("/{object_id}/summary")
+async def update_object_summary(
+    object_id: str,
+    request_body: dict = Body(...),
+    service: ObjectStorageService = Depends(get_object_storage_service),
+    user_session: UserSession = Depends(require_editor)
+):
+    """
+    Update summary for an object (VAST extension, not part of TAMS spec).
+    
+    This endpoint allows setting or clearing the summary field which is
+    managed separately from TAMS-compliant object endpoints.
+    
+    Body:
+        {
+            "summary": "optional string"  // If provided, sets the summary. If null or omitted, clears it.
+        }
+    """
+    try:
+        summary = request_body.get("summary") if isinstance(request_body, dict) else None
+        success = await service.update_object_summary(object_id, summary)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update object summary")
+        return {"message": "Summary updated successfully", "object_id": object_id, "summary": summary}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update summary for object {object_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 

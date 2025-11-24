@@ -45,6 +45,7 @@ class ObjectStorageService:
                     o.created,
                     o.first_referenced_by_flow,
                     o.metadata,
+                    o.summary,
                     s.flow_id,
                     s.created as segment_created
                 FROM {objects_table} o
@@ -89,6 +90,7 @@ class ObjectStorageService:
                         return None
                     
                     # Get object data from first row
+                    # Note: summary is included in database but excluded from TAMS Object model
                     object_data = {
                         'id': data.get('id', [None])[0] if data.get('id') else None,
                         'size': data.get('size', [None])[0] if data.get('size') else None,
@@ -96,6 +98,7 @@ class ObjectStorageService:
                         'created': data.get('created', [None])[0] if data.get('created') else None,
                         'first_referenced_by_flow': data.get('first_referenced_by_flow', [None])[0] if data.get('first_referenced_by_flow') else None,
                         'metadata': data.get('metadata', [None])[0] if data.get('metadata') else None,
+                        'summary': data.get('summary', [None])[0] if data.get('summary') else None,  # VAST extension
                     }
                     
                     # Collect all flow_ids from all rows
@@ -964,5 +967,125 @@ class ObjectStorageService:
                            object_id, label, storage_id, delete_error)
                 return True
         except Exception as e:
+            logger.error("Failed to delete object instance for %s: %s", object_id, e)
+            raise HTTPException(status_code=500, detail="Internal server error")
+    
+    async def get_object_summary(self, object_id: str) -> Optional[str]:
+        """
+        Get summary for an object (VAST extension, not part of TAMS spec).
+        
+        Args:
+            object_id: Object ID
+            
+        Returns:
+            Summary string or None if not set
+        """
+        try:
+            objects_table = self.vast_db.get_qualified_table_name("objects")
+            query = f"SELECT summary FROM {objects_table} WHERE id = '{object_id}'"
+            result = self.vast_db.execute_sql(query)
+            
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
+                if isinstance(data, dict) and 'summary' in data:
+                    summary_list = data['summary']
+                    if summary_list and len(summary_list) > 0:
+                        return summary_list[0]
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get summary for object {object_id}: {e}")
+            return None
+    
+    async def update_object_summary(self, object_id: str, summary: Optional[str]) -> bool:
+        """
+        Update summary for an object (VAST extension, not part of TAMS spec).
+        
+        Args:
+            object_id: Object ID
+            summary: Summary text (None to clear)
+            
+        Returns:
+            True if successful
+        """
+        try:
+            # Verify object exists
+            obj = await self.get_object(object_id)
+            if not obj:
+                raise HTTPException(status_code=404, detail="Object not found")
+            
+            # Use query builder for safer updates
+            try:
+                # Try UPDATE first using query builder
+                query_builder = self.vast_db.query("objects")
+                if summary is None:
+                    # Clear summary - set to None
+                    update_data = {'summary': [None]}
+                else:
+                    # Set summary
+                    update_data = {'summary': [summary]}
+                
+                # Use update method if available, otherwise use delete+insert approach
+                try:
+                    query_builder.update(update_data).where(f"id = '{object_id}'").execute()
+                    logger.debug(f"Updated summary for object {object_id} using query builder")
+                except (AttributeError, Exception) as update_error:
+                    # Fallback to delete+insert approach
+                    logger.debug(f"Query builder update failed, using delete+insert: {update_error}")
+                    
+                    # Get existing object data
+                    existing_data = await self.get_object(object_id)
+                    if not existing_data:
+                        raise HTTPException(status_code=404, detail="Object not found")
+                    
+                    # Get raw data from database (including summary)
+                    objects_table = self.vast_db.get_qualified_table_name("objects")
+                    select_query = f"SELECT * FROM {objects_table} WHERE id = '{object_id}'"
+                    result = self.vast_db.execute_sql(select_query)
+                    
+                    if isinstance(result, dict) and 'data' in result:
+                        data = result['data']
+                        if not data or not any(data.values()):
+                            raise HTTPException(status_code=404, detail="Object not found")
+                        
+                        # Reconstruct object data with updated summary
+                        from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
+                        updated_data = {}
+                        for key in ['id', 'size', 'timerange', 'created', 'first_referenced_by_flow', 'metadata']:
+                            if key in data and data[key]:
+                                updated_data[key] = data[key][0]
+                        
+                        # Set summary
+                        updated_data['summary'] = summary
+                        
+                        # Delete existing record
+                        self.vast_db.query("objects").delete().where(f"id = '{object_id}'").execute()
+                        
+                        # Insert updated record
+                        pyarrow_data = prepare_data_for_pyarrow(updated_data)
+                        self.vast_db.insert_record("objects", pyarrow_data)
+                        logger.debug(f"Updated summary for object {object_id} using delete+insert")
+                
+                return True
+                
+            except Exception as query_error:
+                logger.error(f"Query builder approach failed: {query_error}")
+                # Fallback to direct SQL (with proper escaping)
+                objects_table = self.vast_db.get_qualified_table_name("objects")
+                if summary is None:
+                    update_query = f"UPDATE {objects_table} SET summary = NULL WHERE id = '{object_id}'"
+                else:
+                    # Escape single quotes for SQL
+                    summary_escaped = summary.replace("'", "''")
+                    update_query = f"UPDATE {objects_table} SET summary = '{summary_escaped}' WHERE id = '{object_id}'"
+                
+                self.vast_db.execute_sql(update_query)
+                logger.debug(f"Updated summary for object {object_id} using direct SQL")
+                return True
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to update summary for object {object_id}: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to update object summary: {str(e)}")
             logger.error("Failed to delete object instance for %s: %s", object_id, e)
             raise HTTPException(status_code=500, detail="Internal server error")

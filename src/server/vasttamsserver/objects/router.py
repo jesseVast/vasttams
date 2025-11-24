@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks
 from typing import List, Optional
 from pydantic import ValidationError
 from .models import Object, ObjectInstance, ObjectInstancePost
@@ -69,7 +69,8 @@ async def get_object_by_id(
 async def delete_object_by_id(
     object_id: str,
     storage: StorageInterface = Depends(get_storage_service),
-    user_session: UserSession = Depends(require_admin)
+    user_session: UserSession = Depends(require_admin),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Delete an object (hard delete only - TAMS compliant)"""
     try:
@@ -93,6 +94,21 @@ async def delete_object_by_id(
                 await event_manager.emit_object_event('objects/deleted', obj)
             except Exception as e:
                 logger.warning("Failed to emit object deleted event: %s", e)
+        
+        # Delete vector in background (non-blocking)
+        try:
+            from ..vast.entity_vectorization import EntityVectorizationService
+            from ..core.dependencies import get_s3_client
+            vast_db = get_vast_db()
+            s3_client = get_s3_client()
+            vectorization_service = EntityVectorizationService(vast_db, s3_client)
+            background_tasks.add_task(
+                vectorization_service.delete_entity_vector,
+                object_id,
+                "object"
+            )
+        except Exception as e:
+            logger.warning("Failed to schedule object vector deletion: %s", e)
         
         return {"message": "Object hard deleted successfully"}
         

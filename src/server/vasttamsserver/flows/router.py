@@ -5,7 +5,7 @@ This is a minimal working flows router that can be imported without errors.
 It provides basic endpoint structure that can be expanded later.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, Response, BackgroundTasks
 from typing import List, Optional, Union
 from .models import Flow
 from ..common.filters import FlowFilters, FlowDetailFilters
@@ -116,7 +116,8 @@ async def update_flow_by_id(
     flow_id: str,
     flow_data: dict,
     storage: StorageInterface = Depends(get_storage_service),
-    user_session: UserSession = Depends(require_editor)
+    user_session: UserSession = Depends(require_editor),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Update a flow"""
     try:
@@ -190,6 +191,23 @@ async def update_flow_by_id(
         except Exception as e:
             logger.warning("Failed to emit flow updated event: %s", e)
         
+        # Vectorize flow in background (non-blocking)
+        try:
+            from ..vast.entity_vectorization import EntityVectorizationService
+            from ..core.dependencies import get_s3_client
+            vast_db = get_vast_db()
+            s3_client = get_s3_client()
+            vectorization_service = EntityVectorizationService(vast_db, s3_client)
+            flow_dict = updated_flow.model_dump()
+            background_tasks.add_task(
+                vectorization_service.vectorize_entity,
+                flow_dict,
+                flow_id,
+                "flow"
+            )
+        except Exception as e:
+            logger.warning("Failed to schedule flow vectorization: %s", e)
+        
         return updated_flow
     except HTTPException:
         raise
@@ -203,7 +221,8 @@ async def delete_flow_by_id(
     flow_id: str,
     user_session: UserSession = Depends(require_admin),
     cascade: bool = Query(True, description="Cascade delete related segments"),
-    storage: StorageInterface = Depends(get_storage_service)
+    storage: StorageInterface = Depends(get_storage_service),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Delete a flow (hard delete only - TAMS compliant)"""
     try:
@@ -226,6 +245,21 @@ async def delete_flow_by_id(
             except Exception as e:
                 logger.warning("Failed to emit flow deleted event: %s", e)
         
+        # Delete vector in background (non-blocking)
+        try:
+            from ..vast.entity_vectorization import EntityVectorizationService
+            from ..core.dependencies import get_s3_client
+            vast_db = get_vast_db()
+            s3_client = get_s3_client()
+            vectorization_service = EntityVectorizationService(vast_db, s3_client)
+            background_tasks.add_task(
+                vectorization_service.delete_entity_vector,
+                flow_id,
+                "flow"
+            )
+        except Exception as e:
+            logger.warning("Failed to schedule flow vector deletion: %s", e)
+        
         return {"message": "Flow hard deleted successfully"}
         
     except ValueError as e:
@@ -244,7 +278,8 @@ async def delete_flow_by_id(
 async def create_new_flow(
     flow: Flow,
     storage: StorageInterface = Depends(get_storage_service),
-    user_session: UserSession = Depends(require_editor)
+    user_session: UserSession = Depends(require_editor),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Create a new flow"""
     try:
@@ -275,6 +310,23 @@ async def create_new_flow(
             await event_manager.emit_flow_event('flows/created', flow)
         except Exception as e:
             logger.warning("Failed to emit flow created event: %s", e)
+        
+        # Vectorize flow in background (non-blocking)
+        try:
+            from ..vast.entity_vectorization import EntityVectorizationService
+            from ..core.dependencies import get_s3_client
+            vast_db = get_vast_db()
+            s3_client = get_s3_client()
+            vectorization_service = EntityVectorizationService(vast_db, s3_client)
+            flow_dict = flow.model_dump()
+            background_tasks.add_task(
+                vectorization_service.vectorize_entity,
+                flow_dict,
+                flow.id,
+                "flow"
+            )
+        except Exception as e:
+            logger.warning("Failed to schedule flow vectorization: %s", e)
         
         return flow
     except HTTPException:

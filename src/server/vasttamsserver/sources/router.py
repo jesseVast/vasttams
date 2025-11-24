@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, BackgroundTasks
 from typing import List, Optional
 import uuid
 from pydantic import ValidationError
@@ -97,7 +97,8 @@ async def get_source_by_id(
 async def create_new_source(
     source: Source,
     storage: StorageInterface = Depends(get_storage_service),
-    user_session: UserSession = Depends(require_editor)
+    user_session: UserSession = Depends(require_editor),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Create a new source"""
     try:
@@ -132,6 +133,23 @@ async def create_new_source(
             await event_manager.emit_source_event('sources/created', source)
         except Exception as e:
             logger.warning("User %s: Failed to emit source created event: %s", username, e)
+        
+        # Vectorize source in background (non-blocking)
+        try:
+            from ..vast.entity_vectorization import EntityVectorizationService
+            from ..core.dependencies import get_s3_client
+            vast_db = get_vast_db()
+            s3_client = get_s3_client()
+            vectorization_service = EntityVectorizationService(vast_db, s3_client)
+            source_dict = source.model_dump()
+            background_tasks.add_task(
+                vectorization_service.vectorize_entity,
+                source_dict,
+                source.id,
+                "source"
+            )
+        except Exception as e:
+            logger.warning("Failed to schedule source vectorization: %s", e)
         
         logger.debug("User %s successfully created source: %s", username, source.id)
         return source
@@ -207,7 +225,8 @@ async def delete_source_by_id(
     source_id: str,
     cascade: bool = Query(True, description="Cascade delete related flows"),
     storage: StorageInterface = Depends(get_storage_service),
-    user_session: UserSession = Depends(require_admin)
+    user_session: UserSession = Depends(require_admin),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Delete a source (hard delete only - TAMS compliant)"""
     try:
@@ -236,6 +255,21 @@ async def delete_source_by_id(
                 await event_manager.emit_source_event('sources/deleted', source)
             except Exception as e:
                 logger.warning("Failed to emit source deleted event: %s", e)
+        
+        # Delete vector in background (non-blocking)
+        try:
+            from ..vast.entity_vectorization import EntityVectorizationService
+            from ..core.dependencies import get_s3_client
+            vast_db = get_vast_db()
+            s3_client = get_s3_client()
+            vectorization_service = EntityVectorizationService(vast_db, s3_client)
+            background_tasks.add_task(
+                vectorization_service.delete_entity_vector,
+                source_id,
+                "source"
+            )
+        except Exception as e:
+            logger.warning("Failed to schedule source vector deletion: %s", e)
         
         return {"message": "Source hard deleted successfully"}
         

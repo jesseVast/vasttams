@@ -191,8 +191,12 @@ export const sourceService = {
     return response.data;
   },
 
-  delete: async (id: string, cascade: boolean = true): Promise<void> => {
-    await api.delete(`/sources/${id}`, { params: { cascade } });
+  delete: async (id: string, cascade: boolean = true): Promise<{ status: number; message: string }> => {
+    const response = await api.delete(`/sources/${id}`, { params: { cascade } });
+    return {
+      status: response.status,
+      message: response.data?.message || 'Source deletion started'
+    };
   },
 };
 
@@ -230,8 +234,12 @@ export const flowService = {
     return response.data;
   },
 
-  delete: async (id: string, cascade: boolean = true): Promise<void> => {
-    await api.delete(`/flows/${id}`, { params: { cascade } });
+  delete: async (id: string, cascade: boolean = true): Promise<{ status: number; message: string }> => {
+    const response = await api.delete(`/flows/${id}`, { params: { cascade } });
+    return {
+      status: response.status,
+      message: response.data?.message || 'Flow deletion started'
+    };
   },
 };
 

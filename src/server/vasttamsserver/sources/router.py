@@ -219,33 +219,20 @@ async def create_sources_batch(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# DELETE endpoint
-@router.delete("/{source_id}")
-async def delete_source_by_id(
+async def _delete_source_background(
     source_id: str,
-    cascade: bool = Query(True, description="Cascade delete related flows"),
-    storage: StorageInterface = Depends(get_storage_service),
-    user_session: UserSession = Depends(require_admin),
-    background_tasks: BackgroundTasks = BackgroundTasks()
+    cascade: bool,
+    storage: StorageInterface
 ):
-    """Delete a source (hard delete only - TAMS compliant)"""
+    """Background task to delete a source"""
     try:
-        # Validate UUID format
-        from ..common.models import validate_tams_uuid
-        try:
-            validate_tams_uuid(source_id)
-        except ValueError as e:
-            raise HTTPException(status_code=422, detail=f"Invalid source ID format: {str(e)}")
-        
-        # Log the cascade parameter for debugging
-        logger.debug("Deleting source %s with cascade=%s", source_id, cascade)
-        
         # Get source before deletion for event emission
         source = await storage.get_source(source_id)
         
         success = await storage.delete_source(source_id, cascade)
         if not success:
-            raise HTTPException(status_code=404, detail="Source not found")
+            logger.warning("Source %s not found during background deletion", source_id)
+            return
         
         # Emit source deleted event
         if source:
@@ -263,24 +250,70 @@ async def delete_source_by_id(
             vast_db = get_vast_db()
             s3_client = get_s3_client()
             vectorization_service = EntityVectorizationService(vast_db, s3_client)
-            background_tasks.add_task(
-                vectorization_service.delete_entity_vector,
-                source_id,
-                "source"
-            )
+            await vectorization_service.delete_entity_vector(source_id, "source")
         except Exception as e:
-            logger.warning("Failed to schedule source vector deletion: %s", e)
+            logger.warning("Failed to delete source vector: %s", e)
         
-        return {"message": "Source hard deleted successfully"}
+        logger.info("Successfully deleted source %s in background", source_id)
+    except ValueError as e:
+        logger.error("Dependency violation deleting source %s: %s", source_id, e)
+    except Exception as e:
+        logger.error("Failed to delete source %s in background: %s", source_id, e)
+
+
+# DELETE endpoint
+@router.delete("/{source_id}")
+async def delete_source_by_id(
+    source_id: str,
+    cascade: bool = Query(True, description="Cascade delete related flows"),
+    storage: StorageInterface = Depends(get_storage_service),
+    user_session: UserSession = Depends(require_admin),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """Delete a source (hard delete only - TAMS compliant)
+    
+    Returns 202 Accepted immediately and processes deletion in background.
+    """
+    try:
+        # Validate UUID format
+        from ..common.models import validate_tams_uuid
+        try:
+            validate_tams_uuid(source_id)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=f"Invalid source ID format: {str(e)}")
+        
+        # Log the cascade parameter for debugging
+        logger.debug("Initiating deletion of source %s with cascade=%s", source_id, cascade)
+        
+        # Quick check: validate source exists before background task
+        source = await storage.get_source(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        # Schedule deletion in background
+        background_tasks.add_task(
+            _delete_source_background,
+            source_id,
+            cascade,
+            storage
+        )
+        
+        # Return 202 Accepted immediately
+        from fastapi import Response
+        return Response(
+            status_code=202,
+            content='{"message": "Source deletion started", "source_id": "' + source_id + '"}',
+            media_type="application/json"
+        )
         
     except ValueError as e:
-        # ✅ NEW: Handle dependency violations with 409 Conflict
+        # Handle dependency violations with 409 Conflict
         logger.warning("Dependency violation deleting source %s: %s", source_id, e)
         raise HTTPException(status_code=409, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to delete source %s: %s", source_id, e)
+        logger.error("Failed to initiate source deletion %s: %s", source_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

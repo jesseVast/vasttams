@@ -211,11 +211,17 @@ const Sources: React.FC = () => {
 
     try {
       // Delete with cascade=true to delete flows, segments, and S3 objects
-      await sourceService.delete(sourceToDelete.id, true);
-      setDeleteDialogOpen(false);
-      setSourceToDelete(null);
-      // Reload sources after successful deletion
-      loadSources();
+      const result = await sourceService.delete(sourceToDelete.id, true);
+      
+      // Handle 202 Accepted (background deletion) or 200 OK (immediate deletion)
+      if (result.status === 202 || result.status === 200) {
+        setDeleteDialogOpen(false);
+        setSourceToDelete(null);
+        // Reload sources after successful deletion (with small delay for 202 to allow background task to start)
+        setTimeout(() => {
+          loadSources();
+        }, 500);
+      }
     } catch (error: any) {
       console.error('Failed to delete source:', error);
       setDeleteError(

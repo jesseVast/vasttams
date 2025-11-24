@@ -216,15 +216,12 @@ async def update_flow_by_id(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # DELETE endpoint
-@router.delete("/{flow_id}")
-async def delete_flow_by_id(
+async def _delete_flow_background(
     flow_id: str,
-    user_session: UserSession = Depends(require_admin),
-    cascade: bool = Query(True, description="Cascade delete related segments"),
-    storage: StorageInterface = Depends(get_storage_service),
-    background_tasks: BackgroundTasks = BackgroundTasks()
+    cascade: bool,
+    storage: StorageInterface
 ):
-    """Delete a flow (hard delete only - TAMS compliant)"""
+    """Background task to delete a flow"""
     try:
         # Check if flow is read-only
         await _check_flow_not_read_only(flow_id, storage)
@@ -234,7 +231,8 @@ async def delete_flow_by_id(
         
         success = await storage.delete_flow(flow_id, cascade)
         if not success:
-            raise HTTPException(status_code=404, detail="Flow not found")
+            logger.warning("Flow %s not found during background deletion", flow_id)
+            return
         
         # Emit flow deleted event
         if flow:
@@ -252,15 +250,52 @@ async def delete_flow_by_id(
             vast_db = get_vast_db()
             s3_client = get_s3_client()
             vectorization_service = EntityVectorizationService(vast_db, s3_client)
-            background_tasks.add_task(
-                vectorization_service.delete_entity_vector,
-                flow_id,
-                "flow"
-            )
+            await vectorization_service.delete_entity_vector(flow_id, "flow")
         except Exception as e:
-            logger.warning("Failed to schedule flow vector deletion: %s", e)
+            logger.warning("Failed to delete flow vector: %s", e)
         
-        return {"message": "Flow hard deleted successfully"}
+        logger.info("Successfully deleted flow %s in background", flow_id)
+    except ValueError as e:
+        logger.error("Dependency violation deleting flow %s: %s", flow_id, e)
+    except Exception as e:
+        logger.error("Failed to delete flow %s in background: %s", flow_id, e)
+
+
+@router.delete("/{flow_id}")
+async def delete_flow_by_id(
+    flow_id: str,
+    user_session: UserSession = Depends(require_admin),
+    cascade: bool = Query(True, description="Cascade delete related segments"),
+    storage: StorageInterface = Depends(get_storage_service),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """Delete a flow (hard delete only - TAMS compliant)
+    
+    Returns 202 Accepted immediately and processes deletion in background.
+    """
+    try:
+        # Validate flow exists and is not read-only (quick check before background task)
+        flow = await storage.get_flow(flow_id)
+        if not flow:
+            raise HTTPException(status_code=404, detail="Flow not found")
+        
+        await _check_flow_not_read_only(flow_id, storage)
+        
+        # Schedule deletion in background
+        background_tasks.add_task(
+            _delete_flow_background,
+            flow_id,
+            cascade,
+            storage
+        )
+        
+        # Return 202 Accepted immediately
+        from fastapi import Response
+        return Response(
+            status_code=202,
+            content='{"message": "Flow deletion started", "flow_id": "' + flow_id + '"}',
+            media_type="application/json"
+        )
         
     except ValueError as e:
         # Handle dependency violations with 409 Conflict
@@ -270,7 +305,7 @@ async def delete_flow_by_id(
         # Re-raise HTTP exceptions (including 409 Conflict from constraint violations)
         raise
     except Exception as e:
-        logger.error("Failed to delete flow %s: %s", flow_id, e)
+        logger.error("Failed to initiate flow deletion %s: %s", flow_id, e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # POST endpoint

@@ -474,11 +474,17 @@ const Flows: React.FC = () => {
 
     try {
       // Delete with cascade=true to delete segments and clean up S3 objects
-      await flowService.delete(flowToDelete.id, true);
-      setDeleteDialogOpen(false);
-      setFlowToDelete(null);
-      // Reload flows after successful deletion
-      loadFlows();
+      const result = await flowService.delete(flowToDelete.id, true);
+      
+      // Handle 202 Accepted (background deletion) or 200 OK (immediate deletion)
+      if (result.status === 202 || result.status === 200) {
+        setDeleteDialogOpen(false);
+        setFlowToDelete(null);
+        // Reload flows after successful deletion (with small delay for 202 to allow background task to start)
+        setTimeout(() => {
+          loadFlows();
+        }, 500);
+      }
     } catch (error: any) {
       console.error('Failed to delete flow:', error);
       setDeleteError(

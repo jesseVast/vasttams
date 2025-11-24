@@ -112,3 +112,57 @@ redis:
   max_connections: 50
   health_check_interval: 30  # seconds
 
+vector_search:
+  default_num_matches: 10  # Default number of matches to return for vector search
+  default_distance_metric: "cosine"  # Options: cosine, euclidean, dot_product
+  default_distance_numerical_value: 0.75  # Default distance threshold (0.75 for cosine)
+
+embedding:
+  # Embedding provider configuration
+  # Use jthaloor-ai embedder library for embedding generation
+  # See ~/Developer/gitlab/jthaloor-ai for supported providers and options
+  # Supported providers via jthaloor-ai: ollama, nim, openai, gemini, nvidia
+  provider: "jthaloor-ai"  # Use jthaloor-ai library (maps to actual provider via endpoint/model)
+  endpoint: "http://10.143.2.16:11434"  # Base URL for embedding service (Ollama example)
+  model_name: "bge-m3:latest"  # Embedding model name (provider-specific)
+  model_dimension: 1024  # Embedding model dimension (vector size) - depends on model
+  distance_algorithm: "cosine"  # Default distance algorithm (cosine, euclidean, dot_product)
+  default_distance_threshold: 0.8  # Default distance threshold for embedding-based search
+  api_key_env: "EMBEDDING_API_KEY"  # Environment variable name for embedding API key
+  timeout: 120  # Embedding request timeout in seconds
+  retry_count: 3  # Number of retry attempts for embedding requests
+  # Provider-specific settings (optional)
+  provider_config:
+    # Provider type is inferred from endpoint URL, but can be explicitly set:
+    # provider: "ollama"  # Options: ollama, nim, openai, gemini, nvidia
+    # 
+    # Example configurations:
+    # 
+    # Ollama (local):
+    #   endpoint: "http://10.143.2.16:11434"
+    #   model_name: "bge-m3:latest"
+    #   provider: "ollama"
+    # 
+    # NVIDIA NIM:
+    #   endpoint: "http://10.143.2.16:8000"
+    #   model_name: "bge-m3"
+    #   provider: "nim"
+    # 
+    # OpenAI:
+    #   endpoint: "https://api.openai.com"
+    #   model_name: "text-embedding-ada-002"
+    #   provider: "openai"
+    #   api_key_env: "OPENAI_API_KEY"
+    # 
+    # Google Gemini:
+    #   endpoint: "https://generativelanguage.googleapis.com"
+    #   model_name: "text-embedding-004"
+    #   provider: "gemini"
+    #   api_key_env: "GEMINI_API_KEY"
+    # 
+    # NVIDIA DGX Cloud:
+    #   endpoint: "https://integrate.api.nvidia.com"
+    #   model_name: "bge-m3"
+    #   provider: "nvidia"
+    #   api_key_env: "NVIDIA_API_KEY"
+

@@ -55,7 +55,7 @@ class TAMSTableInitializer:
             table_order = [
                 "users", "api_tokens", "refresh_tokens", "auth_logs", "auth_provider_configs",  # Auth tables first
                 "storage_backends",  # Storage configuration tables
-                "sources", "flows", "objects", "object_instances", "object_vector",  # Core entity tables (include instances and vectors)
+                "sources", "flows", "objects", "object_instances", "vectors",  # Core entity tables (include instances and vectors)
                 "segments", "flow_object_references",  # Relationship tables
                 "flow_collections", "source_collections",  # Collection tables
                 "webhooks", "deletion_requests",  # Utility tables
@@ -117,7 +117,12 @@ class TAMSTableInitializer:
                 logger.error(f"No schema found for table: {table_name}")
                 return False
             
-            schema = self.table_schemas[table_name]
+            # Get schema - for vectors table, use dimension from config
+            if table_name == "vectors":
+                from ...vast.schemas import get_vectors_schema
+                schema = get_vectors_schema(self.settings.embedding_model_dimension)
+            else:
+                schema = self.table_schemas[table_name]
             projections_list = self.table_projections.get(table_name, [])
             
             # Convert projections from List[List[str]] to Dict[str, List[str]]

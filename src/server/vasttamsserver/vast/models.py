@@ -6,37 +6,54 @@ This module contains models for vector embedding operations.
 
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ObjectVectorPut(BaseModel):
     """Request model for updating/inserting object vector"""
-    vector: List[float] = Field(..., description="768-dimensional vector embedding")
+    vector: List[float] = Field(..., description="Vector embedding (dimension determined by configured model)")
     summary: Optional[str] = Field(None, description="Text summary of the object")
-    embedding_model: Optional[str] = Field(default="nomic-embed-1.5", description="Embedding model name")
+    embedding_model: Optional[str] = Field(default=None, description="Embedding model name (defaults to configured model)")
     
     @field_validator('vector')
     @classmethod
-    def validate_vector_length(cls, v: List[float]) -> List[float]:
-        if len(v) != 768:
-            raise ValueError(f"Vector must be exactly 768 dimensions, got {len(v)}")
+    def validate_vector(cls, v: List[float]) -> List[float]:
+        """Validate vector contains only numeric values"""
+        if not v:
+            raise ValueError("Vector cannot be empty")
         if not all(isinstance(x, (int, float)) for x in v):
             raise ValueError("Vector must contain only numeric values")
         return v
+    
+    @model_validator(mode='after')
+    def validate_vector_dimension(self) -> 'ObjectVectorPut':
+        """Validate vector dimension matches configured embedding model dimension"""
+        from ..core.config import get_settings
+        settings = get_settings()
+        expected_dim = settings.embedding_model_dimension
+        
+        if len(self.vector) != expected_dim:
+            raise ValueError(
+                f"Vector must be exactly {expected_dim} dimensions (configured for model '{settings.embedding_model_name}'), "
+                f"got {len(self.vector)} dimensions"
+            )
+        return self
 
 
 class VectorSearchRequest(BaseModel):
     """Request model for vector similarity search"""
-    vector: List[float] = Field(..., description="768-dimensional query vector")
+    vector: List[float] = Field(..., description="Query vector (dimension determined by configured model)")
     num_matches: Optional[int] = Field(None, description="Number of matches to return (defaults to config)")
     distance_metric: Optional[str] = Field(None, description="Distance metric (cosine, euclidean, dot_product) (defaults to config)")
-    distance_numerical_value: Optional[float] = Field(None, description="Distance numerical value/threshold (defaults to config, 0.75 for cosine)")
+    distance_numerical_value: Optional[float] = Field(None, description="Distance numerical value/threshold (defaults to config)")
+    entity_types: Optional[List[str]] = Field(None, description="Optional list of entity types to filter by (object, flow, source, segment)")
     
     @field_validator('vector')
     @classmethod
-    def validate_vector_length(cls, v: List[float]) -> List[float]:
-        if len(v) != 768:
-            raise ValueError(f"Vector must be exactly 768 dimensions, got {len(v)}")
+    def validate_vector(cls, v: List[float]) -> List[float]:
+        """Validate vector contains only numeric values (dimension validation done in service/router)"""
+        if not v:
+            raise ValueError("Vector cannot be empty")
         if not all(isinstance(x, (int, float)) for x in v):
             raise ValueError("Vector must contain only numeric values")
         return v
@@ -44,10 +61,12 @@ class VectorSearchRequest(BaseModel):
 
 class VectorSearchMatch(BaseModel):
     """Individual match result from vector search"""
-    object_id: str = Field(..., description="Matching object ID")
-    segment_id: Optional[str] = Field(None, description="Segment ID associated with this object")
-    flow_id: Optional[str] = Field(None, description="Flow ID associated with this segment")
-    source_id: Optional[str] = Field(None, description="Source ID associated with this flow")
+    entity_id: str = Field(..., description="Matching entity ID")
+    entity_type: str = Field(..., description="Type of entity (object, flow, source, segment)")
+    object_id: Optional[str] = Field(None, description="Object ID (if entity is object or segment)")
+    segment_id: Optional[str] = Field(None, description="Segment ID (if entity is segment)")
+    flow_id: Optional[str] = Field(None, description="Flow ID (if entity is flow or segment)")
+    source_id: Optional[str] = Field(None, description="Source ID (if entity is source or flow)")
     distance: Optional[float] = Field(None, description="Distance score for this match")
 
 

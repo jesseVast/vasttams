@@ -24,27 +24,34 @@ def _create_fixed_size_list(value_type, size: int):
     return pa.list_(item_field, size)
 
 
-def get_object_vector_schema() -> pa.Schema:
-    """Get object_vector table schema - Separate table for vector embeddings
+def get_vectors_schema(model_dimension: int = 1536) -> pa.Schema:
+    """Get vectors table schema - Universal table for vector embeddings
     
+    This table supports vectors for any entity type (objects, flows, sources, segments).
     With vastdbmanager 1.1.10+, vectors are stored in a separate table to allow
     automatic query routing. Vector operations use ADBC (via vector_client),
     while regular queries use Trino.
     
     Note: Vectors are not part of the TAMS specification and are managed by the vast module.
+    
+    Args:
+        model_dimension: Dimension of the embedding vector (default: 1536)
     """
     return pa.schema([
-        pa.field("object_id", pa.string(), nullable=True),  # Foreign key to objects.id
-        pa.field("vector", _create_fixed_size_list(pa.float32(), 768), nullable=True),  # 768-dim vector embedding
+        pa.field("entity_id", pa.string(), nullable=True),  # ID of the entity (object, flow, source, segment)
+        pa.field("entity_type", pa.string(), nullable=True),  # Type of entity: "object", "flow", "source", "segment"
+        pa.field("vector", _create_fixed_size_list(pa.float32(), model_dimension), nullable=True),  # Vector embedding
         pa.field("summary", pa.string(), nullable=True),  # Text summary
         pa.field("embedding_date", pa.timestamp("ns"), nullable=True),  # Date of embedding
         pa.field("embedding_model", pa.string(), nullable=True),  # Embedding model name
     ])
 
 
-def get_object_vector_projections() -> List[List[str]]:
-    """Get object_vector table projection definitions"""
+def get_vectors_projections() -> List[List[str]]:
+    """Get vectors table projection definitions"""
     return [
-        ["object_id"]
+        ["entity_id"],
+        ["entity_type"],
+        ["entity_id", "entity_type"]
     ]
 

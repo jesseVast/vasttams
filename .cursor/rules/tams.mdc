@@ -1,9 +1,0 @@
----
-alwaysApply: true
----
-- consult the TAMS API specification for all decisions
-- TAMS entire specification is available at ./tams-8.0/api/
-- TAMS API app notes are available at ./tams-8.0/docs/appnotes/
-- TAMS API examples are available at ./tams-8.0/api/examples/
-- AWS example: https://aws-solutions-library-samples.github.io/media-entertainment/cloud-native-fast-turnaround-media-workflows-on-aws/1_what_is_TAMS.html
-- AWS GIT: https://github.com/aws-samples/time-addressable-media-store-tools

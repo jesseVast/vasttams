@@ -38,20 +38,16 @@ async def update_object_vector(
     """
     Update or insert vector data for an object.
     
-    This endpoint allows storing 768-dimensional vector embeddings along with
+    This endpoint allows storing vector embeddings along with
     optional summary and embedding model information.
+    Vector dimension is determined by configured embedding model.
     """
     try:
-        # Validate vector length (already validated in model, but double-check)
-        if len(vector_data.vector) != 768:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Vector must be exactly 768 dimensions, got {len(vector_data.vector)}"
-            )
-        
+        # Vector dimension is validated in ObjectVectorPut model
         # Update vector
-        success = await service.update_object_vector(
-            object_id=object_id,
+        success = await service.update_vector(
+            entity_id=object_id,
+            entity_type="object",
             vector=vector_data.vector,
             summary=vector_data.summary,
             embedding_model=vector_data.embedding_model
@@ -82,11 +78,15 @@ async def search_vectors(
     related object_ids, segment_ids, flow_ids, and source_ids.
     """
     try:
+        from ..core.config import get_settings
+        settings = get_settings()
+        expected_dim = settings.embedding_model_dimension
+        
         # Validate vector length (already validated in model, but double-check)
-        if len(search_request.vector) != 768:
+        if len(search_request.vector) != expected_dim:
             raise HTTPException(
                 status_code=400,
-                detail=f"Query vector must be exactly 768 dimensions, got {len(search_request.vector)}"
+                detail=f"Query vector must be exactly {expected_dim} dimensions, got {len(search_request.vector)}"
             )
         
         # Perform search
@@ -94,7 +94,8 @@ async def search_vectors(
             query_vector=search_request.vector,
             num_matches=search_request.num_matches,
             distance_metric=search_request.distance_metric,
-            distance_numerical_value=search_request.distance_numerical_value
+            distance_numerical_value=search_request.distance_numerical_value,
+            entity_types=search_request.entity_types
         )
         
         return VectorSearchResult(**results)

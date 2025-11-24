@@ -141,6 +141,26 @@ class Settings(BaseSettings):
     vector_search_default_distance_numerical_value: float = Field(default=0.75,
         description="Default distance numerical value/threshold for vector search (default: 0.75 for cosine)")
     
+    # Embedding configuration
+    embedding_provider: Optional[str] = Field(default="jthaloor-ai",
+        description="Embedding provider name (e.g., jthaloor-ai, openai, custom)")
+    embedding_endpoint: Optional[str] = Field(default=None,
+        description="Embedding endpoint URL (if using custom provider)")
+    embedding_model_name: str = Field(default="text-embedding-ada-002",
+        description="Embedding model name")
+    embedding_model_dimension: int = Field(default=1536,
+        description="Embedding model dimension (vector size)")
+    embedding_distance_algorithm: str = Field(default="cosine",
+        description="Default distance algorithm for embedding-based search (cosine, euclidean, dot_product)")
+    embedding_default_distance_threshold: float = Field(default=0.8,
+        description="Default distance threshold for embedding-based search")
+    embedding_api_key_env: Optional[str] = Field(default="EMBEDDING_API_KEY",
+        description="Environment variable name for embedding API key")
+    embedding_timeout: int = Field(default=30,
+        description="Embedding request timeout in seconds")
+    embedding_retry_count: int = Field(default=3,
+        description="Number of retry attempts for embedding requests")
+    
     # Table projections settings
     enable_table_projections: bool = Field(default=False,
         description="Enable table projections for improved query performance. Creates projections for: source(id), flow(id), segment(id,flow_id,object_id), object(id), flow_object_references(id)")
@@ -241,6 +261,8 @@ class Settings(BaseSettings):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # Initialize embedding provider config
+        self._embedding_provider_config = {}
         # Load configuration from mounted file if it exists
         self._load_mounted_config()
         # Validate TAMS-specific settings
@@ -519,6 +541,33 @@ class Settings(BaseSettings):
                         self.vector_search_default_distance_metric = vector_search['default_distance_metric']
                     if 'default_distance_numerical_value' in vector_search:
                         self.vector_search_default_distance_numerical_value = vector_search['default_distance_numerical_value']
+                
+                # Load embedding configuration
+                if 'embedding' in config_data:
+                    embedding = config_data['embedding']
+                    if 'provider' in embedding:
+                        self.embedding_provider = embedding['provider']
+                    if 'endpoint' in embedding:
+                        self.embedding_endpoint = embedding['endpoint']
+                    if 'model_name' in embedding:
+                        self.embedding_model_name = embedding['model_name']
+                    if 'model_dimension' in embedding:
+                        self.embedding_model_dimension = embedding['model_dimension']
+                    if 'distance_algorithm' in embedding:
+                        self.embedding_distance_algorithm = embedding['distance_algorithm']
+                    if 'default_distance_threshold' in embedding:
+                        self.embedding_default_distance_threshold = embedding['default_distance_threshold']
+                    if 'api_key_env' in embedding:
+                        self.embedding_api_key_env = embedding['api_key_env']
+                    if 'timeout' in embedding:
+                        self.embedding_timeout = embedding['timeout']
+                    if 'retry_count' in embedding:
+                        self.embedding_retry_count = embedding['retry_count']
+                    # Store provider_config as dict for provider-specific settings
+                    if 'provider_config' in embedding:
+                        self._embedding_provider_config = embedding['provider_config']
+                    else:
+                        self._embedding_provider_config = {}
                         
             except (yaml.YAMLError, IOError) as e:
                 # Log error but continue with default values
@@ -543,6 +592,11 @@ class Settings(BaseSettings):
     def storage_backends_config(self) -> Optional[List[dict]]:
         """Get storage backends configuration array"""
         return getattr(self, '_storage_backends_config', None)
+    
+    @property
+    def embedding_provider_config(self) -> dict:
+        """Get embedding provider-specific configuration"""
+        return getattr(self, '_embedding_provider_config', {})
 
 
 # Global settings instance

@@ -8,6 +8,7 @@ import StopIcon from '@mui/icons-material/Stop';
 import { Segment, Flow } from '../types';
 import VideoTextOverlay from './VideoTextOverlay';
 import VideoInfoButton from './VideoInfoButton';
+import { API_BASE_URL } from '../services/api';
 
 interface SegmentPlayerProps {
   segments: Segment[];
@@ -56,9 +57,17 @@ const SegmentPlayer = React.forwardRef<any, SegmentPlayerProps>(({
                  (flow?.container && flow.container.toLowerCase().includes('mp2t'));
     
     if (isTS) {
-      const baseUrl = window.location.origin;
+      // API_BASE_URL already includes the full path: /api/tams/v8.0 (Docker) or http://docker1:8000/api/tams/v8.0 (local)
+      let baseUrl = API_BASE_URL.replace(/\/$/, '');
+      
+      // Web Workers (used by mpegts.js) require absolute URLs
+      // If baseUrl is relative (starts with /), convert it to absolute using window.location.origin
+      if (typeof window !== 'undefined' && baseUrl.startsWith('/')) {
+        baseUrl = `${window.location.origin}${baseUrl}`;
+      }
+      
       const encodedUrl = encodeURIComponent(originalUrl);
-      let proxyUrl = `/api/tams/v8.0/hls/flows/${flow.id}/segments/${segment.object_id}?url=${encodedUrl}`;
+      let proxyUrl = `${baseUrl}/hls/flows/${flow.id}/segments/${segment.object_id}?url=${encodedUrl}`;
       
       if (typeof window !== 'undefined' && window.localStorage) {
         const token = localStorage.getItem('token');
@@ -66,6 +75,15 @@ const SegmentPlayer = React.forwardRef<any, SegmentPlayerProps>(({
           proxyUrl += `&access_token=${encodeURIComponent(token)}`;
         }
       }
+      
+      // Debug logging to verify absolute URLs for Web Workers
+      console.debug(`[SegmentPlayer] Proxy URL generated:`, {
+        original: originalUrl.substring(0, 100),
+        proxy: proxyUrl.substring(0, 150),
+        baseUrl,
+        isAbsolute: proxyUrl.startsWith('http'),
+        willWorkInWorker: proxyUrl.startsWith('http')
+      });
       
       return proxyUrl;
     }

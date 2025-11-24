@@ -6,10 +6,14 @@ Routes are under /api/vast/objects to clearly distinguish from TAMS-compliant en
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Body
-from typing import Optional
+from typing import Optional, cast, List
 import logging
 
-from .models import ObjectVectorPut, VectorSearchRequest, VectorSearchResult
+from .models import (
+    ObjectVectorPut, VectorSearchRequest, VectorSearchResult,
+    TextIngestionRequest, TextIngestionResponse,
+    TextSearchRequest, TextSearchResult
+)
 from .service import VastObjectVectorService
 from ..core.dependencies import get_vast_db, get_s3_client
 from ..auth.rbac import require_viewer, require_editor
@@ -90,12 +94,18 @@ async def search_vectors(
             )
         
         # Perform search
+        # Cast entity_types to EntityType list if provided
+        from .service import EntityType
+        entity_types: Optional[List[EntityType]] = None
+        if search_request.entity_types:
+            entity_types = cast(List[EntityType], search_request.entity_types)
+        
         results = await service.search_vectors(
             query_vector=search_request.vector,
             num_matches=search_request.num_matches,
             distance_metric=search_request.distance_metric,
             distance_numerical_value=search_request.distance_numerical_value,
-            entity_types=search_request.entity_types
+            entity_types=entity_types
         )
         
         return VectorSearchResult(**results)
@@ -104,5 +114,78 @@ async def search_vectors(
         raise
     except Exception as e:
         logger.error(f"Failed to perform vector search: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/ingest", response_model=TextIngestionResponse)
+async def ingest_text(
+    ingestion_request: TextIngestionRequest = Body(...),
+    service: VastObjectVectorService = Depends(get_vast_object_vector_service),
+    user_session: UserSession = Depends(require_editor)
+):
+    """
+    Ingest text, convert to embedding vector, and store in VAST database.
+    
+    This endpoint accepts text input, converts it to an embedding vector using
+    the configured embedding service, and stores it in the vectors table
+    associated with the specified entity.
+    """
+    try:
+        # Ingest text and create vector
+        # Cast entity_type to EntityType
+        from .service import EntityType
+        entity_type = cast(EntityType, ingestion_request.entity_type)
+        
+        result = await service.ingest_text(
+            text=ingestion_request.text,
+            entity_id=ingestion_request.entity_id,
+            entity_type=entity_type,
+            embedding_model=ingestion_request.embedding_model
+        )
+        
+        return TextIngestionResponse(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to ingest text: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/search/text", response_model=TextSearchResult)
+async def search_by_text(
+    search_request: TextSearchRequest = Body(...),
+    service: VastObjectVectorService = Depends(get_vast_object_vector_service),
+    user_session: UserSession = Depends(require_viewer)
+):
+    """
+    Search vectors by text query.
+    
+    This endpoint accepts text input, converts it to an embedding vector,
+    performs vector similarity search, and returns matching entities with
+    similarity scores.
+    """
+    try:
+        # Perform text-based vector search
+        # Cast entity_types to EntityType list if provided
+        from .service import EntityType
+        entity_types: Optional[List[EntityType]] = None
+        if search_request.entity_types:
+            entity_types = cast(List[EntityType], search_request.entity_types)
+        
+        result = await service.search_by_text(
+            text=search_request.text,
+            entity_types=entity_types,
+            limit=search_request.limit,
+            distance_threshold=search_request.distance_threshold,
+            distance_metric=search_request.distance_metric
+        )
+        
+        return TextSearchResult(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to search by text: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 

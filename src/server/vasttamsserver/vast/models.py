@@ -74,3 +74,64 @@ class VectorSearchResult(BaseModel):
     """Response model for vector search results"""
     matches: List[VectorSearchMatch] = Field(..., description="List of matches with object-segment-flow-source relationships")
 
+
+class TextIngestionRequest(BaseModel):
+    """Request model for ingesting text and converting to vector"""
+    text: str = Field(..., description="Text to embed and store")
+    entity_id: str = Field(..., description="Entity ID to associate with the vector (object, flow, source, or segment ID)")
+    entity_type: str = Field(..., description="Type of entity (object, flow, source, segment)")
+    embedding_model: Optional[str] = Field(None, description="Embedding model name (defaults to configured model)")
+    
+    @field_validator('text')
+    @classmethod
+    def validate_text(cls, v: str) -> str:
+        """Validate text is not empty"""
+        if not v or not v.strip():
+            raise ValueError("Text cannot be empty")
+        return v.strip()
+    
+    @field_validator('entity_type')
+    @classmethod
+    def validate_entity_type(cls, v: str) -> str:
+        """Validate entity type is one of the supported types"""
+        valid_types = ["object", "flow", "source", "segment"]
+        if v not in valid_types:
+            raise ValueError(f"entity_type must be one of: {', '.join(valid_types)}")
+        return v
+
+
+class TextIngestionResponse(BaseModel):
+    """Response model for text ingestion"""
+    entity_id: str = Field(..., description="Entity ID associated with the vector")
+    entity_type: str = Field(..., description="Type of entity")
+    embedding_model: str = Field(..., description="Embedding model used")
+    embedding_date: datetime = Field(..., description="Date when embedding was created")
+    dimension: int = Field(..., description="Vector dimension")
+
+
+class TextSearchRequest(BaseModel):
+    """Request model for text-based vector search"""
+    text: str = Field(..., description="Search query text")
+    entity_types: Optional[List[str]] = Field(None, description="Optional list of entity types to filter by (object, flow, source, segment)")
+    limit: Optional[int] = Field(None, description="Number of results to return (defaults to config)")
+    distance_threshold: Optional[float] = Field(None, description="Distance threshold (defaults to config)")
+    distance_metric: Optional[str] = Field(None, description="Distance metric (cosine, euclidean, dot_product) (defaults to config)")
+    
+    @field_validator('text')
+    @classmethod
+    def validate_text(cls, v: str) -> str:
+        """Validate text is not empty"""
+        if not v or not v.strip():
+            raise ValueError("Search text cannot be empty")
+        return v.strip()
+
+
+class TextSearchResult(BaseModel):
+    """Response model for text search results"""
+    query_text: str = Field(..., description="Original search query text")
+    embedding_model: str = Field(..., description="Embedding model used")
+    distance_algorithm: str = Field(..., description="Distance algorithm used")
+    distance_threshold: float = Field(..., description="Distance threshold used")
+    results: List[VectorSearchMatch] = Field(..., description="Search results")
+    total: int = Field(..., description="Total number of results found")
+

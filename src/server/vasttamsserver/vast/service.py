@@ -394,4 +394,189 @@ class VastObjectVectorService:
         except Exception as e:
             logger.error(f"Failed to perform vector search: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Internal server error")
+    
+    async def ingest_text(
+        self,
+        text: str,
+        entity_id: str,
+        entity_type: EntityType,
+        embedding_model: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Ingest text, convert to embedding vector, and store in VAST database.
+        
+        Args:
+            text: Text to embed
+            entity_id: Entity ID to associate with the vector
+            entity_type: Type of entity ("object", "flow", "source", "segment")
+            embedding_model: Optional embedding model name (defaults to configured model)
+            
+        Returns:
+            Dictionary with ingestion results including entity_id, entity_type, embedding_model, embedding_date, dimension
+            
+        Raises:
+            HTTPException: If ingestion fails
+        """
+        try:
+            # Validate entity type
+            if entity_type not in ["object", "flow", "source", "segment"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid entity_type: {entity_type}. Must be one of: object, flow, source, segment"
+                )
+            
+            # Import embedding service
+            from .embedding_service import EmbeddingService
+            
+            # Create embedding service
+            embedding_service = EmbeddingService()
+            
+            # Check if embedding service is available (check if embedder is initialized)
+            if not hasattr(embedding_service, '_embedder') or embedding_service._embedder is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Embedding service is not available. Please configure embedding provider in settings."
+                )
+            
+            # Use text as summary (stored in database for reference, but not returned in response)
+            # The actual text is already stored in the text column
+            summary = text[:500]  # Limit summary length for database storage
+            
+            # Get embedding model name
+            model_name = embedding_model or self.settings.embedding_model_name
+            
+            # Create embedding from text
+            logger.debug(f"Creating embedding for entity {entity_type}:{entity_id}")
+            vector = await embedding_service.create_embedding(text, model_name=model_name)
+            
+            # Validate vector dimension
+            if len(vector) != self.model_dimension:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Embedding dimension mismatch: expected {self.model_dimension}, got {len(vector)}"
+                )
+            
+            # Store vector in database
+            logger.debug(f"Storing vector for entity {entity_type}:{entity_id}")
+            success = await self.update_vector(
+                entity_id=entity_id,
+                entity_type=entity_type,
+                vector=vector,
+                summary=summary,
+                embedding_model=model_name
+            )
+            
+            if not success:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to store vector in database"
+                )
+            
+            # Get embedding date
+            embedding_date = get_tams_timestamp()
+            
+            # Return response (without summary - it will come from the entity if needed)
+            return {
+                'entity_id': entity_id,
+                'entity_type': entity_type,
+                'embedding_model': model_name,
+                'embedding_date': embedding_date,
+                'dimension': len(vector)
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to ingest text for entity {entity_type}:{entity_id}: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    
+    async def search_by_text(
+        self,
+        text: str,
+        entity_types: Optional[List[EntityType]] = None,
+        limit: Optional[int] = None,
+        distance_threshold: Optional[float] = None,
+        distance_metric: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Search vectors by text query.
+        
+        Converts text to embedding vector, then performs vector similarity search.
+        
+        Args:
+            text: Search query text
+            entity_types: Optional list of entity types to filter by
+            limit: Number of results to return (defaults to config)
+            distance_threshold: Distance threshold (defaults to config)
+            distance_metric: Distance metric (defaults to config)
+            
+        Returns:
+            Dictionary with search results including query_text, embedding_model, distance_algorithm, 
+            distance_threshold, results, and total count
+            
+        Raises:
+            HTTPException: If search fails
+        """
+        try:
+            # Import embedding service
+            from .embedding_service import EmbeddingService
+            
+            # Create embedding service
+            embedding_service = EmbeddingService()
+            
+            # Check if embedding service is available
+            if not hasattr(embedding_service, '_embedder') or embedding_service._embedder is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Embedding service is not available. Please configure embedding provider in settings."
+                )
+            
+            # Get embedding model name
+            model_name = self.settings.embedding_model_name
+            
+            # Create embedding from text
+            logger.debug(f"Creating embedding for text search: {text[:50]}...")
+            query_vector = await embedding_service.create_embedding(text, model_name=model_name)
+            
+            # Validate vector dimension
+            if len(query_vector) != self.model_dimension:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Embedding dimension mismatch: expected {self.model_dimension}, got {len(query_vector)}"
+                )
+            
+            # Get defaults from config
+            num_matches = limit or self.settings.vector_search_default_num_matches
+            distance_metric_used = distance_metric or self.settings.embedding_distance_algorithm or self.settings.vector_search_default_distance_metric
+            distance_threshold_used = distance_threshold or self.settings.embedding_default_distance_threshold or self.settings.vector_search_default_distance_numerical_value
+            
+            # Perform vector search
+            logger.debug(f"Performing vector search with {num_matches} matches, threshold={distance_threshold_used}")
+            search_results = await self.search_vectors(
+                query_vector=query_vector,
+                num_matches=num_matches,
+                distance_metric=distance_metric_used,
+                distance_numerical_value=distance_threshold_used,
+                entity_types=entity_types
+            )
+            
+            # Get matches and total count
+            matches = search_results.get('matches', [])
+            total = len(matches)
+            
+            # Return formatted response
+            return {
+                'query_text': text,
+                'embedding_model': model_name,
+                'distance_algorithm': distance_metric_used,
+                'distance_threshold': distance_threshold_used,
+                'results': matches,
+                'total': total
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to search by text: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 

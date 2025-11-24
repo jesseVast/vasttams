@@ -107,6 +107,18 @@ class VastObjectVectorService:
                 self.vast_db.insert_record(self.VECTORS_TABLE, vector_data)
                 
                 logger.debug(f"Successfully inserted/updated vector for {entity_type} {entity_id} using insert_record (ADBC routing)")
+                
+                # If entity is an object, also sync the summary to the object's summary field
+                # This keeps the object summary in sync with the vector summary
+                if entity_type == "object":
+                    try:
+                        # Update object's summary field to match vector summary (can be None to clear)
+                        await self.object_service.update_object_summary(entity_id, summary)
+                        logger.debug(f"Synced object summary for {entity_id} from vector summary")
+                    except Exception as summary_error:
+                        # Non-blocking: log but don't fail vector update
+                        logger.warning(f"Failed to sync object summary for {entity_id}: {summary_error}")
+                
                 return True
                 
             except Exception as upsert_error:

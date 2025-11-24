@@ -19,7 +19,7 @@ def _create_fixed_size_list(value_type, size: int):
     item_field = pa.field(name="item", type=value_type, nullable=False)
     # Try fixed_size_list first (PyArrow 16.2.0+)
     if hasattr(pa, 'fixed_size_list'):
-        return pa.fixed_size_list(item_field, size)
+        return pa.fixed_size_list(item_field, size)  # type: ignore[attr-defined]
     # Fallback to list_ with field and size parameter (PyArrow 16.1.0+)
     return pa.list_(item_field, size)
 

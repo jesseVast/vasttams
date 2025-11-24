@@ -265,12 +265,16 @@ class ObjectStorageService:
                             # Log other errors at debug level - object will be returned with NULL size
                             logger.debug("Failed to update size from S3 for object %s: %s", object_id, e)
             
-            obj = Object(**object_data)
+            # At this point, object_data should have all required fields:
+            # - id: checked on line 171
+            # - referenced_by_flows: set on line 180 (defaults to [])
+            # - timerange: set on lines 195-212 (defaults to TimeRange(value="0:0"))
+            obj = Object(**object_data)  # type: ignore[arg-type]
             
             # Store metadata internally on the object instance for internal use only
             # (not exposed via API, stored as private attribute)
             if internal_metadata:
-                obj._internal_metadata = internal_metadata
+                setattr(obj, '_internal_metadata', internal_metadata)  # type: ignore[attr-defined]
             
             return obj
         except Exception as e:
@@ -452,9 +456,11 @@ class ObjectStorageService:
             await self._delete_object_instances_s3(object_id)
             
             # Get object metadata to try to delete main storage path
-            if obj and hasattr(obj, '_internal_metadata') and obj._internal_metadata:
-                storage_path = obj._internal_metadata.get('storage_path')
-                storage_id = obj._internal_metadata.get('storage_id')
+            if obj and hasattr(obj, '_internal_metadata'):
+                internal_metadata = getattr(obj, '_internal_metadata', None)  # type: ignore[attr-defined]
+                if internal_metadata:
+                    storage_path = internal_metadata.get('storage_path') if isinstance(internal_metadata, dict) else None
+                    storage_id = internal_metadata.get('storage_id') if isinstance(internal_metadata, dict) else None
                 if storage_path:
                     await self._delete_s3_object(storage_path, storage_id=storage_id)
             
@@ -686,16 +692,22 @@ class ObjectStorageService:
                 elif isinstance(data, list):
                     # Row-oriented format
                     for row in data:
-                        instance_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
+                        if isinstance(row, str):
+                            continue
+                        instance_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else {}
                         # Create ObjectInstance without object_id field (not part of model)
-                        instance_dict = {k: v for k, v in instance_data.items() if k in ['label', 'storage_id', 'url', 'controlled', 'metadata']}
-                        instances.append(ObjectInstance(**instance_dict))
+                        if isinstance(instance_data, dict):
+                            instance_dict = {k: v for k, v in instance_data.items() if k in ['label', 'storage_id', 'url', 'controlled', 'metadata']}
+                            instances.append(ObjectInstance(**instance_dict))
             elif isinstance(result, list):
                 # Direct list result
                 for row in result:
-                    instance_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else row
+                    if isinstance(row, str):
+                        continue
+                    instance_data = dict(row) if hasattr(row, '__iter__') and not isinstance(row, str) else {}
                     # Create ObjectInstance without object_id field (not part of model)
-                    instance_dict = {k: v for k, v in instance_data.items() if k in ['label', 'storage_id', 'url', 'controlled', 'metadata']}
+                    if isinstance(instance_data, dict):
+                        instance_dict = {k: v for k, v in instance_data.items() if k in ['label', 'storage_id', 'url', 'controlled', 'metadata']}
                     instances.append(ObjectInstance(**instance_dict))
             
             return instances
@@ -777,7 +789,7 @@ class ObjectStorageService:
                                 relative_storage_path = ""
                         
                         # Create backend-specific S3Client
-                        key_prefix = backend_root_path.strip('/') if backend_root_path else None
+                        key_prefix = backend_root_path.strip('/') if backend_root_path else ""
                         cfg = S3Config(
                             endpoint_url=backend.endpoint_url or settings.s3_endpoint_url,
                             bucket_name=backend.bucket_name or settings.s3_bucket_name,
@@ -817,7 +829,7 @@ class ObjectStorageService:
                 logger.info("Deleted S3 object: %s", storage_path)
                 return True
             elif hasattr(s3_client, 'delete'):
-                s3_client.delete(key=relative_storage_path)
+                s3_client.delete(key=relative_storage_path)  # type: ignore[attr-defined]
                 logger.info("Deleted S3 object: %s", storage_path)
                 return True
             else:
@@ -855,9 +867,9 @@ class ObjectStorageService:
                         use_ssl=settings.s3_use_ssl
                     )
                     
-                    bucket = s3_resource.Bucket(bucket_name)
+                    bucket = s3_resource.Bucket(bucket_name)  # type: ignore[attr-defined]
                     # Use relative_storage_path (root_path already stripped if needed)
-                    bucket.Object(relative_storage_path).delete()
+                    bucket.Object(relative_storage_path).delete()  # type: ignore[attr-defined]
                     logger.info("Deleted S3 object via boto3: %s", relative_storage_path)
                     return True
                 except ImportError:

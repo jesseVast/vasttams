@@ -254,6 +254,13 @@ export const segmentService = {
   },
 };
 
+export const objectService = {
+  get: async (id: string): Promise<any> => {
+    const response = await api.get(`/objects/${id}`);
+    return response.data;
+  },
+};
+
 export const webhookService = {
   list: async (): Promise<any[]> => {
     const response = await api.get('/service/webhooks');

@@ -21,7 +21,7 @@ import {
 import VideoPlayer, { VideoPlayerType } from './VideoPlayer';
 import VideoControlsWidget from './VideoControlsWidget';
 import { Segment, Flow } from '../types';
-import { API_BASE_URL } from '../services/api';
+import { API_BASE_URL, objectService } from '../services/api';
 
 interface SegmentMediaWidgetProps {
   segment: Segment;
@@ -58,6 +58,60 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   const [retryWithMpegts, setRetryWithMpegts] = useState(false); // Track if we should retry with mpegts.js after native player error
   const [isVideoPlaying, setIsVideoPlaying] = useState(false); // Track if video is actually playing
   const [isVideoCompleted, setIsVideoCompleted] = useState(false); // Track if video has completed
+  const [objectData, setObjectData] = useState<any>(null); // Store object data for tags
+  const [loadingObject, setLoadingObject] = useState(false); // Track object loading state
+  
+  // Fetch object data when modal opens to get tags
+  useEffect(() => {
+    if (infoModalOpen && segment.object_id && !objectData && !loadingObject) {
+      setLoadingObject(true);
+      objectService.get(segment.object_id)
+        .then((obj) => {
+          setObjectData(obj);
+          setLoadingObject(false);
+        })
+        .catch((error) => {
+          console.error('Failed to fetch object data:', error);
+          setLoadingObject(false);
+        });
+    }
+  }, [infoModalOpen, segment.object_id, objectData, loadingObject]);
+  
+  // Format object for display (similar to DetailModal)
+  const formatObject = (obj: any, depth = 0): React.ReactNode => {
+    if (obj === null || obj === undefined) return '-';
+    if (typeof obj === 'string') return obj;
+    if (typeof obj === 'number' || typeof obj === 'boolean') return String(obj);
+    if (Array.isArray(obj)) {
+      if (obj.length === 0) return '-';
+      return (
+        <Box>
+          {obj.map((item, idx) => (
+            <Box key={idx} sx={{ mb: 0.5 }}>
+              {formatObject(item, depth + 1)}
+            </Box>
+          ))}
+        </Box>
+      );
+    }
+    if (typeof obj === 'object') {
+      return (
+        <Box sx={{ pl: depth > 0 ? 2 : 0 }}>
+          {Object.entries(obj).map(([key, value]) => (
+            <Box key={key} sx={{ mb: 0.5 }}>
+              <Typography variant="body2" component="span" sx={{ fontWeight: 'bold' }}>
+                {key}:
+              </Typography>{' '}
+              <Typography variant="body2" component="span">
+                {formatObject(value, depth + 1)}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      );
+    }
+    return String(obj);
+  };
   
   const getFirstPresignedUrl = (seg: Segment) => {
     return seg.get_urls?.find(url => url.presigned && url.url) || seg.get_urls?.[0];
@@ -1057,6 +1111,19 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                     </TableBody>
                   </Table>
                 </TableContainer>
+              </Paper>
+            )}
+
+            {/* Tags from Object */}
+            {objectData?.tags && Object.keys(objectData.tags).length > 0 && (
+              <Paper sx={{ p: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '0.9rem' }}>
+                  Tags (from Object)
+                </Typography>
+                <Divider sx={{ mb: 1 }} />
+                <Box sx={{ mt: 0.5 }}>
+                  {formatObject(objectData.tags)}
+                </Box>
               </Paper>
             )}
 

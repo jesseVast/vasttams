@@ -542,6 +542,7 @@ class SourceStorageService:
         """Delete all flows and their segments for a source (cascade delete)
         
         Per TAMS 8.0 spec: After deleting segments, unreferenced objects should be cleaned up.
+        Uses segment service to ensure proper cleanup and cache invalidation.
         """
         try:
             # Get all flow IDs for this source (async to avoid blocking)
@@ -573,28 +574,22 @@ class SourceStorageService:
             
             logger.debug("Found %d flows to delete for source %s", len(flow_ids), source_id)
             
-            # Batch delete all segments for all flows at once (more efficient than per-flow)
+            # Delete segments for each flow using segment service (ensures proper cleanup)
+            # This is more reliable than batch deletion and ensures cache invalidation
             if flow_ids:
-                try:
-                    # Build WHERE IN clause for batch deletion
-                    escaped_flow_ids = [fid.replace("'", "''") for fid in flow_ids]
-                    flow_ids_str = "', '".join(escaped_flow_ids)
-                    where_clause = f"flow_id IN ('{flow_ids_str}')"
-                    
-                    query = self.vast_db.query("segments").delete().where(where_clause)
-                    await asyncio.to_thread(lambda: query.execute())
-                    logger.debug("Batch deleted segments for %d flows", len(flow_ids))
-                except Exception as e:
-                    logger.warning("Failed to batch delete segments for flows: %s", e)
-                    # Fallback to per-flow deletion if batch fails
-                    for flow_id in flow_ids:
-                        try:
-                            query = self.vast_db.query("segments").delete().where(f"flow_id = '{flow_id}'")
-                            await asyncio.to_thread(lambda: query.execute())
-                            logger.debug("Deleted segments for flow %s", flow_id)
-                        except Exception as e2:
-                            logger.warning("Failed to delete segments for flow %s: %s", flow_id, e2)
-                            # Continue with other flows
+                from ..segments.service import SegmentStorageService
+                from ..core.dependencies import get_settings
+                settings = get_settings()
+                segment_service = SegmentStorageService(self.vast_db, self.s3_client, settings)
+                
+                for flow_id in flow_ids:
+                    try:
+                        # Use segment service to delete segments (handles cache invalidation)
+                        await segment_service.delete_flow_segments(flow_id)
+                        logger.debug("Deleted segments for flow %s", flow_id)
+                    except Exception as e:
+                        logger.warning("Failed to delete segments for flow %s: %s", flow_id, e)
+                        # Continue with other flows
             
             # Delete all flows for this source (async to avoid blocking)
             if flow_ids:

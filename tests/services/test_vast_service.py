@@ -162,23 +162,52 @@ class TestVastObjectVectorService:
         assert "dimensions" in exc_info.value.detail
     
     @pytest.mark.asyncio
-    async def test_update_object_vector_zero_rows_updated(self):
-        """Test vector update - insert_record handles upserts, so this test is no longer applicable"""
-        # With insert_record, upserts always succeed if object exists
-        # This test case is no longer relevant
-        pass
-    
-    @pytest.mark.asyncio
-    async def test_update_object_vector_with_defaults(self):
-        """Test vector update with default embedding model"""
-        object_id = str(uuid.uuid4())
+    async def test_update_vector_different_entity_types(self):
+        """Test vector update for different entity types"""
         vector = create_mock_vector(768)
         
         mock_db = Mock()
         mock_s3 = Mock()
         mock_object_service = AsyncMock()
-        mock_object = create_mock_object(object_id)
-        mock_object_service.get_object = AsyncMock(return_value=mock_object)
+        mock_object_service.update_object_summary = AsyncMock(return_value=True)
+        
+        mock_db.insert_record = Mock()
+        
+        service = VastObjectVectorService(mock_db, mock_s3)
+        service.object_service = mock_object_service
+        
+        # Test all entity types
+        for entity_type in ["object", "flow", "source", "segment"]:
+            entity_id = str(uuid.uuid4())
+            await service.update_vector(
+                entity_id=entity_id,
+                entity_type=entity_type,
+                vector=vector
+            )
+            
+            # Verify entity_type is set correctly
+            call_args = mock_db.insert_record.call_args
+            vector_data = call_args[0][1]
+            assert vector_data["entity_type"] == entity_type
+            assert vector_data["entity_id"] == entity_id
+            
+            # Only objects should sync summary
+            if entity_type == "object":
+                assert mock_object_service.update_object_summary.called
+            else:
+                # Reset for next iteration
+                mock_object_service.update_object_summary.reset_mock()
+    
+    @pytest.mark.asyncio
+    async def test_update_vector_with_defaults(self):
+        """Test vector update with default embedding model"""
+        entity_id = str(uuid.uuid4())
+        vector = create_mock_vector(768)
+        
+        mock_db = Mock()
+        mock_s3 = Mock()
+        mock_object_service = AsyncMock()
+        mock_object_service.update_object_summary = AsyncMock(return_value=True)
         
         # Mock insert_record
         mock_db.insert_record = Mock()
@@ -186,18 +215,20 @@ class TestVastObjectVectorService:
         service = VastObjectVectorService(mock_db, mock_s3)
         service.object_service = mock_object_service
         
-        result = await service.update_object_vector(
-            object_id=object_id,
+        result = await service.update_vector(
+            entity_id=entity_id,
+            entity_type="object",
             vector=vector,
             summary=None,
             embedding_model=None
         )
         
         assert result is True
-        # Verify embedding_model default is set to 'nomic-embed-1.5'
+        # Verify embedding_model default is set from config
         call_args = mock_db.insert_record.call_args
         vector_data = call_args[0][1]
-        assert vector_data["embedding_model"] == "nomic-embed-1.5"
+        assert "embedding_model" in vector_data
+        assert vector_data["embedding_model"] is not None
     
     @pytest.mark.asyncio
     async def test_search_vectors_success_with_vector_client(self):

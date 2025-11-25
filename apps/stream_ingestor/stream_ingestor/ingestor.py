@@ -36,7 +36,8 @@ class StreamIngestor:
         input_source: str = None,
         input_type: str = "stream",
         label: Optional[str] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        tags: Optional[dict] = None
     ):
         """
         Initialize stream ingestor.
@@ -66,6 +67,7 @@ class StreamIngestor:
         self.input_type = input_type
         self.label = label or "Stream Ingestor"
         self.description = description or "Live stream ingestion"
+        self.tags = tags or {}
         
         self.client: Optional[TAMSClient] = None
         self.source: Optional[Any] = None
@@ -169,6 +171,10 @@ class StreamIngestor:
             await self.source.set_tag("chunk_duration", str(self.chunk_duration))
             await self.source.set_tag("chunk_format", self.chunk_format)
             await self.source.set_tag("ingest_started", datetime.now().isoformat())
+            
+            # Set user-provided tags
+            for key, value in self.tags.items():
+                await self.source.set_tag(key, str(value))
         
         # Try to find existing flow with matching video specs
         logger.info(f"🔍 Looking for existing flow with matching specs (codec={codec}, container={container})...")
@@ -212,6 +218,10 @@ class StreamIngestor:
             await self.flow.set_tag("chunk_duration", str(self.chunk_duration))
             await self.flow.set_tag("chunk_format", self.chunk_format)
             await self.flow.set_tag("stream_input_type", self.input_type)
+            
+            # Set user-provided tags
+            for key, value in self.tags.items():
+                await self.flow.set_tag(key, str(value))
         
         # Set/update loop_recorder_duration tag (always update in case it changed)
         logger.info(f"🏷️  Setting loop_recorder_duration tag to {self.loop_recorder_duration}s ({self.loop_recorder_duration/60:.1f} minutes)")

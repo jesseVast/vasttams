@@ -155,7 +155,8 @@ class FolderIngestor:
         folder_path: str,
         source_format: Optional[str] = None,
         source_label: Optional[str] = None,
-        source_description: Optional[str] = None
+        source_description: Optional[str] = None,
+        tags: Optional[dict] = None
     ) -> Tuple[str, Dict[str, str], Optional[str]]:
         """
         Ingest all files from a folder into TAMS.
@@ -288,6 +289,11 @@ class FolderIngestor:
                 await source.set_tag("ingest_state", "in_progress")
                 await source.set_tag("ingest_started", datetime.now().isoformat())
                 await source.set_tag("files_total", str(len(files)))
+                
+                # Set user-provided tags
+                if tags:
+                    for key, value in tags.items():
+                        await source.set_tag(key, str(value))
         
         # Update ingest state
         if not self.dry_run and source:
@@ -322,7 +328,8 @@ class FolderIngestor:
             source_label,
             folder_path_str,
             folder.name,
-            existing_multi_flow_id=multi_flow_id
+            existing_multi_flow_id=multi_flow_id,
+            tags=tags
         )
         
         # Process files

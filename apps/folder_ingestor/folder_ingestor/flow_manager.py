@@ -330,7 +330,8 @@ class FlowManager:
         source_label: Optional[str],
         folder_path_str: str,
         folder_name: str,
-        existing_multi_flow_id: Optional[str] = None
+        existing_multi_flow_id: Optional[str] = None,
+        tags: Optional[dict] = None
     ) -> Tuple[Dict[str, Any], Optional[str]]:
         """
         Create or get flows for each media type.
@@ -503,6 +504,11 @@ class FlowManager:
                 await flow.set_tag("chunking_enabled", "true" if is_chunked else "false")
                 if is_original:
                     await flow.set_tag("flow_type", "original")
+                
+                # Set user-provided tags
+                if tags:
+                    for key, value in tags.items():
+                        await flow.set_tag(key, str(value))
         
         # Create multi-flow if multiple types detected
         multi_flow_id: Optional[str] = existing_multi_flow_id
@@ -537,6 +543,11 @@ class FlowManager:
             # Set flow tags
             logger.debug("🏷️  Setting multi-flow tags...")
             await multi_flow.set_tag("ingest_folder", folder_path_str)
+            
+            # Set user-provided tags
+            if tags:
+                for key, value in tags.items():
+                    await multi_flow.set_tag(key, str(value))
             
             # Set flow_collection
             collection_items = []

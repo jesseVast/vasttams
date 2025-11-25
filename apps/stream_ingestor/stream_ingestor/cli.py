@@ -23,6 +23,54 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def parse_tags(tags_str: str) -> dict:
+    """
+    Parse tags from CLI string format.
+    
+    Supports both ':' and '=' as key-value separators.
+    Format: 'key1:value1,key2=value2,key3:value with spaces'
+    Values can contain spaces and will be preserved as-is.
+    
+    Args:
+        tags_str: Comma-separated tags string
+        
+    Returns:
+        Dictionary of tag key-value pairs
+    """
+    tags = {}
+    if not tags_str:
+        return tags
+    
+    # Split by comma to get individual tags
+    tag_pairs = tags_str.split(',')
+    
+    for tag_pair in tag_pairs:
+        tag_pair = tag_pair.strip()
+        if not tag_pair:
+            continue
+        
+        # Try to split by ':' first, then '=' if ':' not found
+        if ':' in tag_pair:
+            # Split by ':' - take first occurrence as separator
+            parts = tag_pair.split(':', 1)
+            key = parts[0].strip()
+            value = parts[1].strip() if len(parts) > 1 else ''
+        elif '=' in tag_pair:
+            # Split by '=' - take first occurrence as separator
+            parts = tag_pair.split('=', 1)
+            key = parts[0].strip()
+            value = parts[1].strip() if len(parts) > 1 else ''
+        else:
+            # No separator found, treat as key with empty value
+            logger.warning(f"Tag '{tag_pair}' has no separator (':' or '='), skipping")
+            continue
+        
+        if key:
+            tags[key] = value
+    
+    return tags
+
+
 async def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -74,6 +122,10 @@ async def main():
         help="Source description"
     )
     parser.add_argument(
+        "--tags",
+        help="Comma-separated tags in format 'key1:value1,key2=value2'. Values can contain spaces. Both ':' and '=' are supported as separators."
+    )
+    parser.add_argument(
         "--config",
         help="Path to JSON config file"
     )
@@ -110,6 +162,12 @@ async def main():
     srt_url = args.srt_url or config.get("srt_url")
     label = args.label or config.get("label") or "Stream Ingestor"
     description = args.description or config.get("description") or "Live stream ingestion"
+    tags_str = args.tags or config.get("tags")
+    
+    # Parse tags if provided
+    tags = {}
+    if tags_str:
+        tags = parse_tags(tags_str)
     
     # Validate SRT URL is provided
     if not srt_url:
@@ -148,7 +206,8 @@ async def main():
             input_source=input_source,
             input_type=input_type,
             label=label,
-            description=description
+            description=description,
+            tags=tags
         ) as ingestor:
             # Set up signal handlers for clean shutdown using asyncio
             shutdown_event = asyncio.Event()

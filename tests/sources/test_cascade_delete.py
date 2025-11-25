@@ -47,19 +47,19 @@ class TestSourceCascadeDelete:
             return_value=mock_flows_result
         )
         
-        # Mock segment service
-        with patch('vasttamsserver.sources.service.SegmentStorageService') as mock_segment_service_class:
+        # Mock segment service - patch where it's imported (inside _cascade_delete_flows)
+        with patch('vasttamsserver.segments.service.SegmentStorageService') as mock_segment_service_class:
             mock_segment_service = Mock()
             mock_segment_service.delete_flow_segments = AsyncMock(return_value=True)
             mock_segment_service_class.return_value = mock_segment_service
             
-            # Mock settings
-            with patch('vasttamsserver.sources.service.get_settings') as mock_get_settings:
+            # Mock settings - patch where it's imported
+            with patch('vasttamsserver.core.dependencies.get_settings') as mock_get_settings:
                 mock_settings = Mock()
                 mock_get_settings.return_value = mock_settings
                 
-                # Mock S3 client
-                with patch('vasttamsserver.sources.service.get_s3_client') as mock_get_s3:
+                # Mock S3 client - patch where it's imported
+                with patch('vasttamsserver.core.dependencies.get_s3_client') as mock_get_s3:
                     mock_s3_client = Mock()
                     mock_get_s3.return_value = mock_s3_client
                     
@@ -113,29 +113,38 @@ class TestSourceCascadeDelete:
             return_value=mock_flows_result
         )
         
-        # Mock segment service with one failure
-        with patch('vasttamsserver.sources.service.SegmentStorageService') as mock_segment_service_class:
+        # Mock segment service - patch where it's imported (inside _cascade_delete_flows)
+        with patch('vasttamsserver.segments.service.SegmentStorageService') as mock_segment_service_class:
             mock_segment_service = Mock()
-            mock_segment_service.delete_flow_segments = AsyncMock(side_effect=[
-                Exception("Segment deletion failed"),
-                True  # Second one succeeds
-            ])
+            # Use a callable to track calls and raise on first call only
+            call_tracker = {'count': 0}
+            async def delete_side_effect(*args, **kwargs):
+                call_tracker['count'] += 1
+                if call_tracker['count'] == 1:
+                    raise Exception("Segment deletion failed")
+                return True
+            mock_segment_service.delete_flow_segments = AsyncMock(side_effect=delete_side_effect)
             mock_segment_service_class.return_value = mock_segment_service
             
-            with patch('vasttamsserver.sources.service.get_settings'):
-                with patch('vasttamsserver.sources.service.get_s3_client') as mock_get_s3:
+            with patch('vasttamsserver.core.dependencies.get_settings'):
+                with patch('vasttamsserver.core.dependencies.get_s3_client') as mock_get_s3:
                     mock_s3_client = Mock()
                     mock_get_s3.return_value = mock_s3_client
                     
                     mock_service.vast_db.query.return_value.delete.return_value.where.return_value.execute = Mock(
                         return_value=True
                     )
-                    
-                    # Should not raise exception, should continue
-                    result = await mock_service._cascade_delete_flows(source_id)
-                    
-                    # Should still return True (flows were deleted)
-                    assert result is True
-                    # Both flows should have been attempted
-                    assert mock_segment_service.delete_flow_segments.call_count == 2
+                    # Mock asyncio.to_thread for async execution
+                    # First call gets flows, second call deletes flows
+                    import asyncio
+                    with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+                        mock_to_thread.side_effect = [mock_flows_result, True]
+                        
+                        # Should not raise exception, should continue
+                        result = await mock_service._cascade_delete_flows(source_id)
+                        
+                        # Should still return True (flows were deleted)
+                        assert result is True
+                        # Both flows should have been attempted
+                        assert mock_segment_service.delete_flow_segments.call_count == 2
 

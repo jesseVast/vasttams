@@ -223,8 +223,153 @@
     "integration/test_server_comprehensive.py::TestReadOnlyFlows::test_read_only_flow_update": {
       "timestamp": "2025-11-20T16:31:34.392905+00:00",
       "source_files": []
+    },
+    "vast/test_text_ingestion_search.py::TestTextIngestion::test_ingest_text_long_summary": {
+      "timestamp": "2025-11-25T13:54:31.696618+00:00",
+      "source_files": []
+    },
+    "vast/test_text_ingestion_search.py::TestTextIngestion::test_ingest_text_different_entity_types": {
+      "timestamp": "2025-11-25T13:54:31.828722+00:00",
+      "source_files": []
+    },
+    "vast/test_text_ingestion_search.py::TestTextSearch::test_search_by_text_with_entity_types_filter": {
+      "timestamp": "2025-11-25T13:54:31.875287+00:00",
+      "source_files": []
+    },
+    "vast/test_text_ingestion_search.py::TestTextSearch::test_search_by_text_with_limit": {
+      "timestamp": "2025-11-25T13:54:31.888271+00:00",
+      "source_files": []
+    },
+    "vast/test_text_ingestion_search.py::TestTextSearch::test_search_by_text_with_distance_threshold": {
+      "timestamp": "2025-11-25T13:54:31.901720+00:00",
+      "source_files": []
+    },
+    "vast/test_object_summary.py::TestObjectSummary::test_get_object_summary_success": {
+      "timestamp": "2025-11-25T13:54:31.921088+00:00",
+      "source_files": []
+    },
+    "vast/test_object_summary.py::TestObjectSummary::test_get_object_summary_not_found": {
+      "timestamp": "2025-11-25T13:54:31.923011+00:00",
+      "source_files": []
+    },
+    "vast/test_object_summary.py::TestObjectSummary::test_get_object_summary_none": {
+      "timestamp": "2025-11-25T13:54:31.925358+00:00",
+      "source_files": []
+    },
+    "sources/test_cascade_delete.py::TestSourceCascadeDelete::test_cascade_delete_no_flows": {
+      "timestamp": "2025-11-25T13:54:32.402686+00:00",
+      "source_files": []
+    },
+    "vast/test_object_summary.py::TestObjectSummary::test_update_object_summary_success": {
+      "timestamp": "2025-11-25T13:58:10.814562+00:00",
+      "source_files": []
+    },
+    "vast/test_object_summary.py::TestObjectSummary::test_update_object_summary_clear": {
+      "timestamp": "2025-11-25T13:58:10.817459+00:00",
+      "source_files": []
+    },
+    "vast/test_object_summary.py::TestObjectSummary::test_update_object_summary_empty_string": {
+      "timestamp": "2025-11-25T13:58:10.819929+00:00",
+      "source_files": []
+    },
+    "vast/test_entity_vectorization.py::TestEntityVectorization::test_vectorize_flow": {
+      "timestamp": "2025-11-25T13:58:10.822496+00:00",
+      "source_files": []
+    },
+    "vast/test_entity_vectorization.py::TestEntityVectorization::test_vectorize_source": {
+      "timestamp": "2025-11-25T13:58:10.824958+00:00",
+      "source_files": []
+    },
+    "vast/test_entity_vectorization.py::TestEntityVectorization::test_vectorize_object": {
+      "timestamp": "2025-11-25T13:58:10.827095+00:00",
+      "source_files": []
+    },
+    "vast/test_entity_vectorization.py::TestEntityVectorization::test_entity_to_text_excludes_internal_fields": {
+      "timestamp": "2025-11-25T13:58:10.856183+00:00",
+      "source_files": []
+    },
+    "apps/test_cli_tags.py::test_parse_tags_colon_separator": {
+      "timestamp": "2025-11-25T13:58:10.861279+00:00",
+      "source_files": []
+    },
+    "apps/test_cli_tags.py::test_parse_tags_equals_separator": {
+      "timestamp": "2025-11-25T13:58:10.864621+00:00",
+      "source_files": []
+    },
+    "apps/test_cli_tags.py::test_parse_tags_mixed_separators": {
+      "timestamp": "2025-11-25T13:58:10.866156+00:00",
+      "source_files": []
+    },
+    "apps/test_cli_tags.py::test_parse_tags_with_spaces": {
+      "timestamp": "2025-11-25T13:58:10.867273+00:00",
+      "source_files": []
+    },
+    "apps/test_cli_tags.py::test_parse_tags_empty_string": {
+      "timestamp": "2025-11-25T13:58:10.868299+00:00",
+      "source_files": []
+    },
+    "apps/test_cli_tags.py::test_parse_tags_none": {
+      "timestamp": "2025-11-25T13:58:10.869267+00:00",
+      "source_files": []
+    },
+    "apps/test_cli_tags.py::test_parse_tags_whitespace_trimming": {
+      "timestamp": "2025-11-25T13:58:10.870303+00:00",
+      "source_files": []
+    },
+    "apps/test_cli_tags.py::test_parse_tags_empty_value": {
+      "timestamp": "2025-11-25T13:58:10.871341+00:00",
+      "source_files": []
+    },
+    "apps/test_cli_tags.py::test_parse_tags_no_separator": {
+      "timestamp": "2025-11-25T13:58:10.872581+00:00",
+      "source_files": []
+    },
+    "apps/test_cli_tags.py::test_parse_tags_complex_values": {
+      "timestamp": "2025-11-25T13:58:10.873542+00:00",
+      "source_files": []
+    },
+    "vast/test_text_ingestion_search.py::TestTextSearch::test_search_by_text_success": {
+      "timestamp": "2025-11-25T13:59:15.416660+00:00",
+      "source_files": []
+    },
+    "vast/test_entity_vectorization.py::TestEntityVectorization::test_delete_entity_vector": {
+      "timestamp": "2025-11-25T13:59:15.419448+00:00",
+      "source_files": []
+    },
+    "vast/test_entity_vectorization.py::TestEntityVectorization::test_entity_to_text_excludes_id": {
+      "timestamp": "2025-11-25T13:59:15.421875+00:00",
+      "source_files": []
+    },
+    "vast/test_text_ingestion_search.py::TestTextIngestion::test_ingest_text_success": {
+      "timestamp": "2025-11-25T13:59:38.325793+00:00",
+      "source_files": []
+    },
+    "vast/test_text_ingestion_search.py::TestTextIngestion::test_ingest_text_embedding_service_unavailable": {
+      "timestamp": "2025-11-25T13:59:38.328857+00:00",
+      "source_files": []
+    },
+    "vast/test_text_ingestion_search.py::TestTextSearch::test_search_by_text_embedding_service_unavailable": {
+      "timestamp": "2025-11-25T13:59:38.332409+00:00",
+      "source_files": []
+    },
+    "sources/test_cascade_delete.py::TestSourceCascadeDelete::test_cascade_delete_uses_segment_service": {
+      "timestamp": "2025-11-25T13:59:38.346956+00:00",
+      "source_files": []
+    },
+    "sources/test_cascade_delete.py::TestSourceCascadeDelete::test_cascade_delete_handles_segment_service_error": {
+      "timestamp": "2025-11-25T14:01:49.868003+00:00",
+      "source_files": []
     }
   },
-  "failed_tests": {},
+  "failed_tests": {
+    "vast/test_entity_vectorization.py::TestEntityVectorization::test_devectorize_entity": {
+      "timestamp": "2025-11-25T13:54:32.057008+00:00",
+      "last_error": "self = <vast.test_entity_vectorization.TestEntityVectorization object at 0x1280bbfd0>\nmock_service = <vasttamsserver.vast.entity_vectorization.EntityVectorizationService object at 0x128269090>\n\n    @pytest.mark.asyncio\n    async def test_devectorize_entity(self, mock_service):\n        \"\"\"Test removing vector for deleted entity\"\"\"\n        entity_id = str(uuid.uuid4())\n    \n        # Mock vector service delete method\n        mock_service._vector_service.delete_vector = AsyncMock(return_value=True)"
+    },
+    "apps/test_cli_tags.py::test_parse_tags_folder_ingestor": {
+      "timestamp": "2025-11-25T13:54:32.357558+00:00",
+      "last_error": "def test_parse_tags_folder_ingestor():\n        \"\"\"Test that folder_ingestor has the same parse_tags function\"\"\"\n>       from folder_ingestor.folder_ingestor.cli import parse_tags\n\ntests/apps/test_cli_tags.py:134: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \napps/folder_ingestor/folder_ingestor/__init__.py:8: in <module>\n    from .ingestor import FolderIngestor\napps/folder_ingestor/folder_ingestor/ingestor.py:24: in <module>\n    from .file_processor import Fil"
+    }
+  },
   "source_file_hashes": {}
 }

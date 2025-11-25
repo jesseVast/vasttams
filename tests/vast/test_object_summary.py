@@ -91,6 +91,16 @@ class TestObjectSummary:
         object_id = str(uuid.uuid4())
         new_summary = "Updated summary"
         
+        # Mock get_object to return a valid object
+        from vasttamsserver.objects.models import Object
+        from vasttamsserver.common.models import TimeRange
+        mock_object = Object(
+            id=object_id,
+            referenced_by_flows=[],
+            timerange=TimeRange(value="0:0")
+        )
+        mock_service.get_object = AsyncMock(return_value=mock_object)
+        
         # Mock query builder for UPDATE
         mock_query_builder = Mock()
         mock_query_builder.where.return_value = mock_query_builder
@@ -107,6 +117,16 @@ class TestObjectSummary:
         """Test clearing summary by setting to None"""
         object_id = str(uuid.uuid4())
         
+        # Mock get_object to return a valid object
+        from vasttamsserver.objects.models import Object
+        from vasttamsserver.common.models import TimeRange
+        mock_object = Object(
+            id=object_id,
+            referenced_by_flows=[],
+            timerange=TimeRange(value="0:0")
+        )
+        mock_service.get_object = AsyncMock(return_value=mock_object)
+        
         # Mock query builder for UPDATE
         mock_query_builder = Mock()
         mock_query_builder.where.return_value = mock_query_builder
@@ -121,6 +141,16 @@ class TestObjectSummary:
     async def test_update_object_summary_empty_string(self, mock_service):
         """Test updating summary to empty string"""
         object_id = str(uuid.uuid4())
+        
+        # Mock get_object to return a valid object
+        from vasttamsserver.objects.models import Object
+        from vasttamsserver.common.models import TimeRange
+        mock_object = Object(
+            id=object_id,
+            referenced_by_flows=[],
+            timerange=TimeRange(value="0:0")
+        )
+        mock_service.get_object = AsyncMock(return_value=mock_object)
         
         # Mock query builder for UPDATE
         mock_query_builder = Mock()

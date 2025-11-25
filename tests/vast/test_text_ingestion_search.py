@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 import uuid
+from datetime import datetime
 
 # Add src to path for imports
 src_path = Path(__file__).parent.parent.parent / "src"
@@ -36,14 +37,22 @@ class TestTextIngestion:
         mock_s3 = Mock()
         service = VastObjectVectorService(mock_db, mock_s3)
         
-        # Mock embedding service
-        service._embedding_service = Mock()
-        service._embedding_service.create_embedding = AsyncMock(return_value=create_mock_vector(768))
-        
         # Mock update_vector
         service.update_vector = AsyncMock(return_value=True)
         
-        return service
+        # Mock get_tams_timestamp
+        with patch('vasttamsserver.vast.service.get_tams_timestamp') as mock_timestamp:
+            from datetime import datetime
+            mock_timestamp.return_value = datetime.now()
+            
+            # Mock embedding service - patch where it's imported (inside the method)
+            with patch('vasttamsserver.vast.embedding_service.EmbeddingService') as mock_embedding_class:
+                mock_embedding_service = Mock()
+                mock_embedding_service.create_embedding = AsyncMock(return_value=create_mock_vector(768))
+                mock_embedding_service._embedder = Mock()  # Make it available
+                mock_embedding_class.return_value = mock_embedding_service
+                
+                yield service
     
     @pytest.mark.asyncio
     async def test_ingest_text_success(self, mock_service):
@@ -57,8 +66,15 @@ class TestTextIngestion:
             entity_type="object"
         )
         
-        assert result is True
-        mock_service._embedding_service.create_embedding.assert_called_once()
+        # ingest_text returns a dict with results
+        assert isinstance(result, dict)
+        assert result['entity_id'] == entity_id
+        assert result['entity_type'] == "object"
+        assert 'embedding_model' in result
+        assert 'embedding_date' in result
+        assert 'dimension' in result
+        
+        # Verify update_vector was called (embedding service is created inside the method)
         mock_service.update_vector.assert_called_once()
         
         # Verify update_vector was called with correct parameters
@@ -100,19 +116,27 @@ class TestTextIngestion:
             assert call_args[1]['entity_type'] == entity_type
     
     @pytest.mark.asyncio
-    async def test_ingest_text_embedding_service_unavailable(self, mock_service):
+    async def test_ingest_text_embedding_service_unavailable(self):
         """Test text ingestion when embedding service is unavailable"""
-        mock_service._embedding_service = None
+        mock_db = Mock()
+        mock_s3 = Mock()
+        service = VastObjectVectorService(mock_db, mock_s3)
         
-        with pytest.raises(HTTPException) as exc_info:
-            await mock_service.ingest_text(
-                text="Test",
-                entity_id=str(uuid.uuid4()),
-                entity_type="object"
-            )
-        
-        assert exc_info.value.status_code == 503
-        assert "Embedding service is not available" in exc_info.value.detail
+        # Mock embedding service to be unavailable - patch where it's imported
+        with patch('vasttamsserver.vast.embedding_service.EmbeddingService') as mock_embedding_class:
+            mock_embedding_service = Mock()
+            mock_embedding_service._embedder = None  # Not available
+            mock_embedding_class.return_value = mock_embedding_service
+            
+            with pytest.raises(HTTPException) as exc_info:
+                await service.ingest_text(
+                    text="Test",
+                    entity_id=str(uuid.uuid4()),
+                    entity_type="object"
+                )
+            
+            assert exc_info.value.status_code == 503
+            assert "Embedding service is not available" in exc_info.value.detail
 
 
 class TestTextSearch:
@@ -125,10 +149,6 @@ class TestTextSearch:
         mock_s3 = Mock()
         service = VastObjectVectorService(mock_db, mock_s3)
         
-        # Mock embedding service
-        service._embedding_service = Mock()
-        service._embedding_service.create_embedding = AsyncMock(return_value=create_mock_vector(768))
-        
         # Mock search_vectors
         service.search_vectors = AsyncMock(return_value={
             'matches': [
@@ -140,7 +160,14 @@ class TestTextSearch:
             ]
         })
         
-        return service
+        # Mock embedding service - patch where it's imported (inside the method)
+        with patch('vasttamsserver.vast.embedding_service.EmbeddingService') as mock_embedding_class:
+            mock_embedding_service = Mock()
+            mock_embedding_service.create_embedding = AsyncMock(return_value=create_mock_vector(768))
+            mock_embedding_service._embedder = Mock()  # Make it available
+            mock_embedding_class.return_value = mock_embedding_service
+            
+            yield service
     
     @pytest.mark.asyncio
     async def test_search_by_text_success(self, mock_service):
@@ -151,11 +178,11 @@ class TestTextSearch:
             text=query_text
         )
         
-        assert 'matches' in result
-        assert len(result['matches']) == 1
-        
-        # Verify embedding was created
-        mock_service._embedding_service.create_embedding.assert_called_once()
+        # search_by_text returns a dict with query_text, embedding_model, distance_algorithm, results, etc.
+        assert isinstance(result, dict)
+        assert 'query_text' in result
+        assert 'results' in result
+        assert len(result['results']) == 1
         
         # Verify search_vectors was called
         mock_service.search_vectors.assert_called_once()
@@ -203,13 +230,21 @@ class TestTextSearch:
         assert call_args[1]['distance_numerical_value'] == 0.8
     
     @pytest.mark.asyncio
-    async def test_search_by_text_embedding_service_unavailable(self, mock_service):
+    async def test_search_by_text_embedding_service_unavailable(self):
         """Test text search when embedding service is unavailable"""
-        mock_service._embedding_service = None
+        mock_db = Mock()
+        mock_s3 = Mock()
+        service = VastObjectVectorService(mock_db, mock_s3)
         
-        with pytest.raises(HTTPException) as exc_info:
-            await mock_service.search_by_text(text="Test")
-        
-        assert exc_info.value.status_code == 503
-        assert "Embedding service is not available" in exc_info.value.detail
+        # Mock embedding service to be unavailable - patch where it's imported
+        with patch('vasttamsserver.vast.embedding_service.EmbeddingService') as mock_embedding_class:
+            mock_embedding_service = Mock()
+            mock_embedding_service._embedder = None  # Not available
+            mock_embedding_class.return_value = mock_embedding_service
+            
+            with pytest.raises(HTTPException) as exc_info:
+                await service.search_by_text(text="Test")
+            
+            assert exc_info.value.status_code == 503
+            assert "Embedding service is not available" in exc_info.value.detail
 

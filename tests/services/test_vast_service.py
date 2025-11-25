@@ -78,9 +78,10 @@ class TestVastObjectVectorService:
         assert service.vector_client is None
     
     @pytest.mark.asyncio
-    async def test_update_object_vector_success(self):
+    async def test_update_vector_success(self):
         """Test successful vector update using insert_record"""
-        object_id = str(uuid.uuid4())
+        entity_id = str(uuid.uuid4())
+        entity_type = "object"
         vector = create_mock_vector(768)
         summary = "Test summary"
         embedding_model = "test-model"
@@ -88,8 +89,9 @@ class TestVastObjectVectorService:
         mock_db = Mock()
         mock_s3 = Mock()
         mock_object_service = AsyncMock()
-        mock_object = create_mock_object(object_id)
+        mock_object = create_mock_object(entity_id)
         mock_object_service.get_object = AsyncMock(return_value=mock_object)
+        mock_object_service.update_object_summary = AsyncMock(return_value=True)
         
         # Mock insert_record (upsert behavior)
         mock_db.insert_record = Mock()
@@ -97,72 +99,67 @@ class TestVastObjectVectorService:
         service = VastObjectVectorService(mock_db, mock_s3)
         service.object_service = mock_object_service
         
-        result = await service.update_object_vector(
-            object_id=object_id,
+        result = await service.update_vector(
+            entity_id=entity_id,
+            entity_type=entity_type,
             vector=vector,
             summary=summary,
             embedding_model=embedding_model
         )
         
         assert result is True
-        # get_object is called once for validation
-        assert mock_object_service.get_object.call_count == 1
-        # Verify insert_record was called with object_vector table
+        # Verify insert_record was called with vectors table
         mock_db.insert_record.assert_called_once()
         call_args = mock_db.insert_record.call_args
-        assert call_args[0][0] == "object_vector"
+        assert call_args[0][0] == "vectors"
         vector_data = call_args[0][1]
-        assert vector_data["object_id"] == object_id
+        assert vector_data["entity_id"] == entity_id
+        assert vector_data["entity_type"] == entity_type
         assert vector_data["vector"] == vector
         assert vector_data["summary"] == summary
         assert vector_data["embedding_model"] == embedding_model
     
     @pytest.mark.asyncio
-    async def test_update_object_vector_object_not_found(self):
-        """Test vector update when object doesn't exist"""
-        object_id = str(uuid.uuid4())
+    async def test_update_vector_invalid_entity_type(self):
+        """Test vector update with invalid entity type"""
+        entity_id = str(uuid.uuid4())
         vector = create_mock_vector(768)
         
         mock_db = Mock()
         mock_s3 = Mock()
-        mock_object_service = AsyncMock()
-        mock_object_service.get_object = AsyncMock(return_value=None)
         
         service = VastObjectVectorService(mock_db, mock_s3)
-        service.object_service = mock_object_service
         
         with pytest.raises(HTTPException) as exc_info:
-            await service.update_object_vector(
-                object_id=object_id,
-                vector=vector
-            )
-        
-        assert exc_info.value.status_code == 404
-        assert object_id in exc_info.value.detail
-    
-    @pytest.mark.asyncio
-    async def test_update_object_vector_invalid_dimension(self):
-        """Test vector update with invalid vector dimension"""
-        object_id = str(uuid.uuid4())
-        vector = create_mock_vector(512)  # Wrong dimension
-        
-        mock_db = Mock()
-        mock_s3 = Mock()
-        mock_object_service = AsyncMock()
-        mock_object = create_mock_object(object_id)
-        mock_object_service.get_object = AsyncMock(return_value=mock_object)
-        
-        service = VastObjectVectorService(mock_db, mock_s3)
-        service.object_service = mock_object_service
-        
-        with pytest.raises(HTTPException) as exc_info:
-            await service.update_object_vector(
-                object_id=object_id,
+            await service.update_vector(
+                entity_id=entity_id,
+                entity_type="invalid_type",  # Invalid entity type
                 vector=vector
             )
         
         assert exc_info.value.status_code == 400
-        assert "768 dimensions" in exc_info.value.detail
+        assert "Invalid entity_type" in exc_info.value.detail
+    
+    @pytest.mark.asyncio
+    async def test_update_vector_invalid_dimension(self):
+        """Test vector update with invalid vector dimension"""
+        entity_id = str(uuid.uuid4())
+        vector = create_mock_vector(512)  # Wrong dimension
+        
+        mock_db = Mock()
+        mock_s3 = Mock()
+        
+        service = VastObjectVectorService(mock_db, mock_s3)
+        
+        with pytest.raises(HTTPException) as exc_info:
+            await service.update_vector(
+                entity_id=entity_id,
+                entity_type="object",
+                vector=vector
+            )
+        
+        assert exc_info.value.status_code == 400
+        assert "dimensions" in exc_info.value.detail
     
     @pytest.mark.asyncio
     async def test_update_object_vector_zero_rows_updated(self):
@@ -256,7 +253,7 @@ class TestVastObjectVectorService:
         assert result['matches'][0]['source_id'] == source_id1
         
         # Verify query builder search was called with correct parameters
-        mock_db.query.assert_called_once_with("object_vector")
+        mock_db.query.assert_called_once_with("vectors")
         search_call_kwargs = mock_query_builder.search.call_args[1]
         assert search_call_kwargs['query_vector'] == query_vector
         assert search_call_kwargs['vector_column'] == "vector"
@@ -529,16 +526,16 @@ class TestVastObjectVectorService:
         assert result['matches'][0]['segment_id'] == segment_id1
     
     @pytest.mark.asyncio
-    async def test_update_object_vector_insert_record_call(self):
-        """Test that insert_record is called correctly with object_vector table"""
+    async def test_update_vector_syncs_object_summary(self):
+        """Test that updating vector for object also syncs object summary"""
         object_id = str(uuid.uuid4())
         vector = create_mock_vector(768)
+        summary = "Test summary"
         
         mock_db = Mock()
         mock_s3 = Mock()
         mock_object_service = AsyncMock()
-        mock_object = create_mock_object(object_id)
-        mock_object_service.get_object = AsyncMock(return_value=mock_object)
+        mock_object_service.update_object_summary = AsyncMock(return_value=True)
         
         # Mock insert_record
         mock_db.insert_record = Mock()
@@ -546,20 +543,25 @@ class TestVastObjectVectorService:
         service = VastObjectVectorService(mock_db, mock_s3)
         service.object_service = mock_object_service
         
-        await service.update_object_vector(
-            object_id=object_id,
+        await service.update_vector(
+            entity_id=object_id,
+            entity_type="object",
             vector=vector,
-            summary="Test summary"
+            summary=summary
         )
         
-        # Verify insert_record was called with object_vector table
+        # Verify insert_record was called with vectors table
         mock_db.insert_record.assert_called_once()
         call_args = mock_db.insert_record.call_args
-        assert call_args[0][0] == "object_vector"
+        assert call_args[0][0] == "vectors"
         vector_data = call_args[0][1]
-        assert vector_data["object_id"] == object_id
+        assert vector_data["entity_id"] == object_id
+        assert vector_data["entity_type"] == "object"
         assert vector_data["vector"] == vector
-        assert vector_data["summary"] == "Test summary"
+        assert vector_data["summary"] == summary
         assert "embedding_date" in vector_data
         assert "embedding_model" in vector_data
+        
+        # Verify object summary was synced
+        mock_object_service.update_object_summary.assert_called_once_with(object_id, summary)
 

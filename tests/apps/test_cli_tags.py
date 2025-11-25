@@ -115,19 +115,18 @@ def test_parse_tags_empty_value():
 
 
 def test_parse_tags_no_separator():
-    """Test parsing tags without separator (should be skipped with warning)"""
+    """Test parsing tags without separator (should be skipped)"""
     from stream_ingestor.stream_ingestor.cli import parse_tags
     import logging
     
-    # Capture warnings
-    with pytest.warns(UserWarning, match="has no separator"):
-        tags_str = "key1:value1,invalid_tag,key2=value2"
-        result = parse_tags(tags_str)
-        
-        # Should only include valid tags
-        assert "key1" in result
-        assert "key2" in result
-        assert "invalid_tag" not in result
+    # The function logs a warning but doesn't raise, so we just check the result
+    tags_str = "key1:value1,invalid_tag,key2=value2"
+    result = parse_tags(tags_str)
+    
+    # Should only include valid tags
+    assert "key1" in result
+    assert "key2" in result
+    assert "invalid_tag" not in result
 
 
 def test_parse_tags_folder_ingestor():

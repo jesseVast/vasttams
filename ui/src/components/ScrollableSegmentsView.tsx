@@ -67,6 +67,25 @@ const parseTimerangeEnd = (timerange: string | undefined): number | null => {
   }
 };
 
+// Parse M3U8 manifest to extract individual segment URLs
+const parseM3U8Manifest = (manifestText: string): string[] => {
+  const lines = manifestText.split('\n');
+  const segmentUrls: string[] = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    // Skip comments, empty lines, and metadata
+    if (line.startsWith('#') || !line) continue;
+    
+    // Segment URLs are non-comment lines (can be absolute or relative)
+    if (line.startsWith('http://') || line.startsWith('https://') || line.startsWith('/')) {
+      segmentUrls.push(line);
+    }
+  }
+  
+  return segmentUrls;
+};
+
 const ScrollableSegmentsView: React.FC<ScrollableSegmentsViewProps> = ({
   segments,
   flow,
@@ -77,6 +96,7 @@ const ScrollableSegmentsView: React.FC<ScrollableSegmentsViewProps> = ({
   const [hlsManifestUrl, setHlsManifestUrl] = useState<string | null>(null);
   const [hlsManifestLoading, setHlsManifestLoading] = useState(false);
   const [hlsManifestError, setHlsManifestError] = useState<string | null>(null);
+  const [segmentUrlMap, setSegmentUrlMap] = useState<Map<string, string>>(new Map());
 
   // Check if flow is HLS-compatible
   const isHLSFlow = flow?.container === 'video/mp2t';
@@ -114,9 +134,25 @@ const ScrollableSegmentsView: React.FC<ScrollableSegmentsViewProps> = ({
         return response.text();
       })
       .then(manifestText => {
+        // Parse manifest to extract individual segment URLs
+        const segmentUrls = parseM3U8Manifest(manifestText);
+        
+        // Create a map of segment object_id to URL
+        // We match segments by index since the manifest order should match segment order
+        const urlMap = new Map<string, string>();
+        segments.forEach((segment, index) => {
+          if (segmentUrls[index]) {
+            urlMap.set(segment.object_id, segmentUrls[index]);
+          }
+        });
+        
+        setSegmentUrlMap(urlMap);
+        setHlsManifestLoading(false);
+        console.debug(`[ScrollableSegmentsView] Parsed ${segmentUrls.length} segment URLs from HLS manifest, mapped ${urlMap.size} segments`);
+        
+        // Keep the old blob URL approach as fallback (for now, can be removed later)
         let modifiedManifest = manifestText;
         if (useProxyForHLS && token) {
-          // Add access_token to all proxy segment URLs when proxying is enabled
           modifiedManifest = manifestText.replace(
             /(\/segments\/[^?\s]+\?url=[^&\s]+)(&[^\s]*)?/g,
             (match, urlPart, existingParams) => {
@@ -128,20 +164,16 @@ const ScrollableSegmentsView: React.FC<ScrollableSegmentsViewProps> = ({
             }
           );
         }
-        
-        // Create a blob URL from the modified manifest content
         const blob = new Blob([modifiedManifest], { type: 'application/vnd.apple.mpegurl' });
         const blobUrl = URL.createObjectURL(blob);
         setHlsManifestUrl(blobUrl);
-        setHlsManifestLoading(false);
-        console.debug('[ScrollableSegmentsView] HLS manifest fetched once, modified with auth, and cached as blob URL');
       })
       .catch(error => {
         console.error('[ScrollableSegmentsView] Failed to fetch HLS manifest:', error);
         setHlsManifestError(error.message);
         setHlsManifestLoading(false);
       });
-  }, [hlsPlaylistUrl]);
+  }, [hlsPlaylistUrl, segments]);
 
   // Cleanup blob URL when component unmounts or manifest URL changes
   useEffect(() => {
@@ -233,7 +265,7 @@ const ScrollableSegmentsView: React.FC<ScrollableSegmentsViewProps> = ({
         >
           {segments.map((segment, index) => (
             <SegmentMediaWidget
-              key={`${segment.object_id}-${index}-${hlsManifestUrl ? 'hls' : 'normal'}`}
+              key={`${segment.object_id}-${index}-${segmentUrlMap.has(segment.object_id) ? 'hls-segment' : 'normal'}`}
               segment={segment}
               flow={flow}
               width={280}
@@ -241,9 +273,10 @@ const ScrollableSegmentsView: React.FC<ScrollableSegmentsViewProps> = ({
               isFirst={index === 0} // Pass flag to indicate first video
               autoPlayEnabled={autoPlayEnabled}
               segmentIndex={index}
-              // HLS-specific props
-              useHLS={isHLSFlow && !!hlsManifestUrl}
-              hlsManifestUrl={hlsManifestUrl}
+              // HLS-specific props: use direct segment URL if available, otherwise fall back to manifest
+              hlsSegmentUrl={segmentUrlMap.get(segment.object_id) || undefined}
+              useHLS={isHLSFlow && !segmentUrlMap.has(segment.object_id) && !!hlsManifestUrl}
+              hlsManifestUrl={isHLSFlow && !segmentUrlMap.has(segment.object_id) ? hlsManifestUrl : null}
               hlsStartTime={segmentTimeOffsets[index]}
               hlsSegmentDuration={segmentDurations[index] || undefined}
             />

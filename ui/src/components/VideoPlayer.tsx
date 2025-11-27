@@ -439,37 +439,65 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
           }
         });
 
-        // Autoplay function for mpegts player
-        const attemptAutoplay = () => {
-          if (video && video.readyState >= 2 && video.paused) {
-            console.debug('[VideoPlayer] Attempting autoplay for mpegts player');
-            video.play()
-              .then(() => {
-                console.debug('[VideoPlayer] mpegts player autoplay successful');
-              })
-              .catch((error: any) => {
-                // Autoplay may be blocked by browser - this is expected in some cases
-                console.debug('[VideoPlayer] mpegts player autoplay prevented (may require user interaction):', error);
-              });
+        // Track if video has ended to prevent restarting
+        let hasEnded = false;
+
+        // Prevent video from restarting after it ends
+        const handleEnded = () => {
+          hasEnded = true;
+          console.debug('[VideoPlayer] mpegts video ended, preventing restart');
+          // Ensure video stays paused
+          if (!video.paused) {
+            video.pause();
+          }
+          // Unload the mpegts player to prevent it from restarting
+          // This ensures the video doesn't loop
+          if (mpegtsPlayerRef.current) {
+            try {
+              mpegtsPlayerRef.current.unload();
+              console.debug('[VideoPlayer] Unloaded mpegts player after video ended');
+            } catch (err) {
+              console.debug('[VideoPlayer] Error unloading mpegts player:', err);
+            }
           }
         };
 
-        // Simple ready handler - clear loading and autoplay for mpegts
+        video.addEventListener('ended', handleEnded);
+
+        // Listen for timeupdate to catch any restart attempts
+        const handleTimeUpdate = () => {
+          // If video has ended but currentTime is reset, pause it
+          if (hasEnded && video.currentTime < 0.1 && !video.paused) {
+            console.debug('[VideoPlayer] Detected restart attempt, pausing mpegts video');
+            video.pause();
+            // Unload player again if it restarted
+            if (mpegtsPlayerRef.current) {
+              try {
+                mpegtsPlayerRef.current.unload();
+              } catch (err) {
+                console.debug('[VideoPlayer] Error unloading mpegts player on restart prevention:', err);
+              }
+            }
+          }
+        };
+
+        video.addEventListener('timeupdate', handleTimeUpdate);
+
+        // Simple ready handler - clear loading, don't autoplay (autoplay is controlled by SegmentMediaWidget)
         const handleLoadedMetadata = () => {
           console.debug('[VideoPlayer] mpegts.js metadata loaded');
           setLoading(false);
           setError(null);
           if (onReady) onReady();
           
-          // Autoplay for mpegts player - attempt to play when ready
-          // This is specifically for mpegts as requested (native HTML5 is fine)
-          attemptAutoplay();
+          // Don't autoplay here - let SegmentMediaWidget control it via onReady callback
+          // This prevents unwanted autoplay and looping
         };
 
-        // Also try autoplay on canplay event as fallback
+        // Also handle canplay event but don't autoplay
         const handleCanPlay = () => {
           console.debug('[VideoPlayer] mpegts.js canplay event');
-          attemptAutoplay();
+          // Don't autoplay - let SegmentMediaWidget control it
         };
 
         video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
@@ -477,6 +505,8 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
 
         // Cleanup on unmount
         return () => {
+          video.removeEventListener('ended', handleEnded);
+          video.removeEventListener('timeupdate', handleTimeUpdate);
           video.removeEventListener('loadedmetadata', handleLoadedMetadata);
           video.removeEventListener('canplay', handleCanPlay);
           if (mpegtsPlayerRef.current) {
@@ -739,11 +769,11 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
   }, [playerType, src]);
 
   // Auto-hide overlay after delay when playing, show when paused
-  // Skip overlay auto-show/hide for HLS players in multiview to prevent flashing
+  // Skip overlay auto-show/hide for HLS and mpegts players in multiview to prevent flashing
   useEffect(() => {
-    // Don't auto-show overlay for HLS players (used in multiview)
+    // Don't auto-show overlay for HLS or mpegts players (used in multiview)
     // Let the controls widget handle overlay visibility
-    if (playerType === 'hls') {
+    if (playerType === 'hls' || playerType === 'mpegts') {
       return;
     }
     
@@ -774,24 +804,24 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
       // Use 'playing' event which fires when playback actually starts (not just when play() is called)
       console.debug('[VideoPlayer] Video actually playing');
       setIsPlaying(true);
-      // Don't show overlay for HLS players (used in multiview) to prevent flashing
-      if (playerType !== 'hls') {
+      // Don't show overlay for HLS or mpegts players (used in multiview) to prevent flashing
+      if (playerType !== 'hls' && playerType !== 'mpegts') {
         setShowOverlay(true);
       }
       if (onPlay) onPlay();
     },
     onPause: () => {
       setIsPlaying(false);
-      // Don't show overlay for HLS players (used in multiview) to prevent flashing
-      if (playerType !== 'hls') {
+      // Don't show overlay for HLS or mpegts players (used in multiview) to prevent flashing
+      if (playerType !== 'hls' && playerType !== 'mpegts') {
         setShowOverlay(true);
       }
     },
     onEnded: () => {
       console.debug('[VideoPlayer] Video ended');
       setIsPlaying(false);
-      // Don't show overlay for HLS players (used in multiview) to prevent flashing
-      if (playerType !== 'hls') {
+      // Don't show overlay for HLS or mpegts players (used in multiview) to prevent flashing
+      if (playerType !== 'hls' && playerType !== 'mpegts') {
         setShowOverlay(true);
       }
       if (onEnded) onEnded();
@@ -908,6 +938,7 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
           {...sharedVideoProps}
           src={src}
           preload={preload}
+          loop={false}
           onLoadedMetadata={() => {
             console.debug('[VideoPlayer] onLoadedMetadata fired');
             setLoading(false);
@@ -979,6 +1010,17 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
         <video
           {...sharedVideoProps}
           preload="none"
+          loop={false}
+          onPlaying={() => {
+            // Use 'playing' event which fires when playback actually starts
+            // This ensures state is updated even though sync is skipped for mpegts
+            console.debug('[VideoPlayer] mpegts video actually playing');
+            setIsPlaying(true);
+            if (onPlay) onPlay();
+          }}
+          onPause={() => {
+            setIsPlaying(false);
+          }}
           onError={(e) => {
             // Suppress native video element errors when using mpegts.js
             // mpegts.js handles all loading and errors, so native errors are expected
@@ -1026,6 +1068,7 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
         <video
           {...sharedVideoProps}
           preload="none"
+          loop={false}
           onError={(e) => {
             // Suppress native video element errors when using hls.js
             // hls.js handles all loading and errors

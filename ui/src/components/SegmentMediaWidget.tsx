@@ -37,6 +37,7 @@ interface SegmentMediaWidgetProps {
   hlsManifestUrl?: string | null; // HLS manifest blob URL (shared across all players)
   hlsStartTime?: number; // Time offset in seconds to start playback
   hlsSegmentDuration?: number; // Segment duration in seconds (to stop playback at end)
+  hlsSegmentUrl?: string; // Direct segment URL from parsed M3U8 manifest (preferred over manifest)
 }
 
 type MediaType = 'video' | 'image' | 'audio' | 'data' | 'unknown';
@@ -136,7 +137,8 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   useHLS = false, // Use HLS playlist instead of individual segment
   hlsManifestUrl = null, // HLS manifest blob URL (shared across all players)
   hlsStartTime = 0, // Time offset in seconds to start playback
-  hlsSegmentDuration = undefined // Segment duration in seconds (to stop playback at end)
+  hlsSegmentDuration = undefined, // Segment duration in seconds (to stop playback at end)
+  hlsSegmentUrl = undefined // Direct segment URL from parsed M3U8 manifest (preferred over manifest)
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -578,7 +580,130 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
 
     switch (mediaType) {
       case 'video':
-        // If HLS mode and manifest URL available, use HLS player with time offset
+        // If direct segment URL is available (from parsed M3U8), use it directly with mpegts.js
+        if (hlsSegmentUrl) {
+          return (
+            <Box sx={{ position: 'relative', width: '100%', height: height, backgroundColor: '#000' }}>
+              <VideoPlayer
+                ref={videoPlayerRef}
+                src={hlsSegmentUrl}
+                width="100%"
+                height={height}
+                controls
+                muted
+                playsInline
+                preload="metadata"
+                playerType="mpegts" // Use mpegts.js for individual .ts files
+                onReady={() => {
+                  console.debug(`[Segment ${segmentIndex}] Direct segment URL loaded (mpegts.js)`);
+                  // Start playback if autoplay is enabled and video hasn't ended
+                  if (autoPlayEnabled && videoPlayerRef.current && !isVideoCompleted) {
+                    const video = videoPlayerRef.current.getVideoElement?.();
+                    if (video && !video.ended) {
+                      // Wait for video to be ready and have buffer
+                      const attemptPlay = () => {
+                        // Don't play if video has ended or is already playing
+                        if (video.ended || isVideoCompleted) {
+                          console.debug(`[Segment ${segmentIndex}] Skipping autoplay - video has ended`);
+                          return;
+                        }
+                        if (video.paused && !video.ended) {
+                          const hasBuffer = video.buffered.length > 0 && 
+                            video.buffered.end(video.buffered.length - 1) > video.currentTime + 0.5;
+                          const isReady = video.readyState >= 3;
+                          
+                          if (isReady && (hasBuffer || video.readyState >= 4)) {
+                            video.play().then(() => {
+                              console.debug(`[Segment ${segmentIndex}] Direct segment autoplay started`);
+                            }).catch((error: unknown) => {
+                              console.debug(`[Segment ${segmentIndex}] Direct segment autoplay prevented:`, error);
+                            });
+                          } else if (video.readyState < 4 && !video.ended) {
+                            setTimeout(attemptPlay, 100);
+                          }
+                        }
+                      };
+                      // Wait a bit for mpegts.js to load initial data
+                      setTimeout(attemptPlay, 300);
+                    }
+                  }
+                }}
+                onPlay={() => {
+                  // Update state when video starts playing
+                  setIsVideoPlaying(true);
+                  setIsVideoCompleted(false);
+                  console.debug(`[Segment ${segmentIndex}] Direct segment video playing`);
+                }}
+                onEnded={() => {
+                  // Only update state if it actually changed to prevent flickering
+                  if (isVideoPlaying || !isVideoCompleted) {
+                    setIsVideoPlaying(false);
+                    setIsVideoCompleted(true);
+                    console.debug(`[Segment ${segmentIndex}] Direct segment video completed`);
+                  }
+                  // Ensure video stays paused and doesn't restart
+                  if (videoPlayerRef.current) {
+                    const video = videoPlayerRef.current.getVideoElement?.();
+                    if (video && !video.paused) {
+                      video.pause();
+                    }
+                  }
+                }}
+                onError={(error) => {
+                  console.error(`[Segment ${segmentIndex}] Direct segment playback error:`, error);
+                }}
+              />
+              <VideoControlsWidget
+                isPlaying={isVideoPlaying}
+                onPlay={() => {
+                  if (videoPlayerRef.current) {
+                    // Optimistically update state for immediate UI feedback
+                    setIsVideoPlaying(true);
+                    setIsVideoCompleted(false);
+                    videoPlayerRef.current.play()
+                      .then(() => {
+                        // State already updated, but verify
+                        console.debug(`[Segment ${segmentIndex}] Manual play successful`);
+                      })
+                      .catch((error: unknown) => {
+                        // Revert state on error
+                        setIsVideoPlaying(false);
+                        console.debug(`[Segment ${segmentIndex}] Failed to play:`, error);
+                      });
+                  }
+                }}
+                onPause={() => {
+                  if (videoPlayerRef.current) {
+                    videoPlayerRef.current.pause();
+                    // Immediately update state for responsive UI
+                    setIsVideoPlaying(false);
+                  }
+                }}
+                onStop={() => {
+                  if (videoPlayerRef.current) {
+                    videoPlayerRef.current.stop();
+                    setIsVideoPlaying(false);
+                    setIsVideoCompleted(false);
+                  }
+                }}
+                onInfoClick={() => {
+                  if (videoPlayerRef.current) {
+                    const videoElement = videoPlayerRef.current.getVideoElement();
+                    if (videoElement) {
+                      setWasPlayingBeforeModal(!videoElement.paused);
+                      videoPlayerRef.current.pause();
+                    }
+                  }
+                  setInfoModalOpen(true);
+                }}
+                timerange={timerange}
+                segmentIndex={segmentIndex}
+              />
+            </Box>
+          );
+        }
+        
+        // If HLS mode and manifest URL available, use HLS player with time offset (fallback)
         if (useHLS && hlsManifestUrl) {
           return (
             <Box sx={{ position: 'relative', width: '100%', height: height, backgroundColor: '#000' }}>
@@ -745,19 +870,32 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                 isPlaying={isVideoPlaying}
                 onPlay={() => {
                   if (videoPlayerRef.current) {
-                    videoPlayerRef.current.play().catch((error: unknown) => {
-                      console.debug(`[Segment ${segmentIndex}] Failed to play:`, error);
-                    });
+                    // Optimistically update state for immediate UI feedback
+                    setIsVideoPlaying(true);
+                    setIsVideoCompleted(false);
+                    videoPlayerRef.current.play()
+                      .then(() => {
+                        console.debug(`[Segment ${segmentIndex}] Manual play successful`);
+                      })
+                      .catch((error: unknown) => {
+                        // Revert state on error
+                        setIsVideoPlaying(false);
+                        console.debug(`[Segment ${segmentIndex}] Failed to play:`, error);
+                      });
                   }
                 }}
                 onPause={() => {
                   if (videoPlayerRef.current) {
                     videoPlayerRef.current.pause();
+                    // Immediately update state for responsive UI
+                    setIsVideoPlaying(false);
                   }
                 }}
                 onStop={() => {
                   if (videoPlayerRef.current) {
                     videoPlayerRef.current.stop();
+                    setIsVideoPlaying(false);
+                    setIsVideoCompleted(false);
                   }
                 }}
                 onInfoClick={() => {
@@ -1099,19 +1237,32 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
               isPlaying={isVideoPlaying}
               onPlay={() => {
                 if (videoPlayerRef.current) {
-                  videoPlayerRef.current.play().catch((error: unknown) => {
-                    console.debug(`[Segment ${segmentIndex}] Failed to play:`, error);
-                  });
+                  // Optimistically update state for immediate UI feedback
+                  setIsVideoPlaying(true);
+                  setIsVideoCompleted(false);
+                  videoPlayerRef.current.play()
+                    .then(() => {
+                      console.debug(`[Segment ${segmentIndex}] Manual play successful`);
+                    })
+                    .catch((error: unknown) => {
+                      // Revert state on error
+                      setIsVideoPlaying(false);
+                      console.debug(`[Segment ${segmentIndex}] Failed to play:`, error);
+                    });
                 }
               }}
               onPause={() => {
                 if (videoPlayerRef.current) {
                   videoPlayerRef.current.pause();
+                  // Immediately update state for responsive UI
+                  setIsVideoPlaying(false);
                 }
               }}
               onStop={() => {
                 if (videoPlayerRef.current) {
                   videoPlayerRef.current.stop();
+                  setIsVideoPlaying(false);
+                  setIsVideoCompleted(false);
                 }
               }}
               onInfoClick={() => {
@@ -1511,6 +1662,7 @@ export default memo(SegmentMediaWidget, (prevProps, nextProps) => {
     prevProps.loadImmediately === nextProps.loadImmediately &&
     prevProps.useHLS === nextProps.useHLS &&
     prevProps.hlsManifestUrl === nextProps.hlsManifestUrl &&
+    prevProps.hlsSegmentUrl === nextProps.hlsSegmentUrl &&
     prevProps.hlsStartTime === nextProps.hlsStartTime &&
     prevProps.hlsSegmentDuration === nextProps.hlsSegmentDuration &&
     prevProps.segmentIndex === nextProps.segmentIndex &&

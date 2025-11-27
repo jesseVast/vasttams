@@ -38,6 +38,35 @@ const parseTimerangeStart = (timerange: string | undefined): number => {
   }
 };
 
+// Helper function to parse timerange end time
+const parseTimerangeEnd = (timerange: string | undefined): number | null => {
+  if (!timerange) return null;
+  
+  try {
+    const cleanRange = timerange.trim().replace(/^[[(]|[)\]]+$/g, '');
+    
+    if (cleanRange.includes('_')) {
+      const parts = cleanRange.split('_');
+      if (parts.length >= 2) {
+        const endStr = parts[1];
+        
+        if (endStr.includes(':')) {
+          const [seconds, nanos] = endStr.split(':');
+          const sec = parseInt(seconds || '0', 10) || 0;
+          const nano = parseInt((nanos || '0').padEnd(9, '0').substring(0, 9), 10) || 0;
+          return sec + (nano / 1e9);
+        } else {
+          return parseFloat(endStr) || null;
+        }
+      }
+    }
+    return null;
+  } catch (error) {
+    console.debug('Failed to parse timerange end:', timerange, error);
+    return null;
+  }
+};
+
 const MultiviewSegmentsView: React.FC<MultiviewSegmentsViewProps> = ({
   segments,
   flow,
@@ -127,9 +156,20 @@ const MultiviewSegmentsView: React.FC<MultiviewSegmentsViewProps> = ({
     };
   }, [hlsManifestUrl]);
 
-  // Calculate time offsets for each segment
+  // Calculate time offsets and durations for each segment
   const segmentTimeOffsets = useMemo(() => {
     return segments.map(segment => parseTimerangeStart(segment.timerange?.value));
+  }, [segments]);
+  
+  const segmentDurations = useMemo(() => {
+    return segments.map(segment => {
+      const start = parseTimerangeStart(segment.timerange?.value);
+      const end = parseTimerangeEnd(segment.timerange?.value);
+      if (end !== null && end > start) {
+        return end - start;
+      }
+      return null; // Duration unknown
+    });
   }, [segments]);
   return (
     <Box>
@@ -198,6 +238,7 @@ const MultiviewSegmentsView: React.FC<MultiviewSegmentsViewProps> = ({
               }}
             >
               <SegmentMediaWidget
+                key={`${segment.object_id}-${index}-${hlsManifestUrl ? 'hls' : 'normal'}`}
                 segment={segment}
                 flow={flow}
                 width="100%" // Use 100% width to fit grid cell
@@ -210,6 +251,7 @@ const MultiviewSegmentsView: React.FC<MultiviewSegmentsViewProps> = ({
                 useHLS={isHLSFlow && !!hlsManifestUrl}
                 hlsManifestUrl={hlsManifestUrl}
                 hlsStartTime={segmentTimeOffsets[index]}
+                hlsSegmentDuration={segmentDurations[index] || undefined}
               />
             </Box>
           ))}

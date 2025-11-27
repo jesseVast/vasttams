@@ -617,6 +617,23 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
             if (onReady) onReady();
           }
         });
+
+        // Handle when first fragment is loaded and buffered - video can start playing
+        hls.on(Hls.Events.BUFFER_APPENDED, (event: any, data: any) => {
+          // Check if we have enough buffered data to start playing
+          if (video.buffered.length > 0 && video.readyState >= 3) {
+            const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+            const currentTime = video.currentTime || 0;
+            // If we have at least 1 second of buffered data ahead of current time, video is ready
+            if (bufferedEnd - currentTime >= 1) {
+              console.debug('[VideoPlayer] hls.js buffer ready for playback', {
+                bufferedEnd,
+                currentTime,
+                readyState: video.readyState,
+              });
+            }
+          }
+        });
         
         // Handle when media is attached and ready
         hls.on(Hls.Events.MEDIA_ATTACHED, () => {
@@ -676,6 +693,8 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
 
   // Sync playing state with video element - SIMPLIFIED for mpegts
   // Only sync for native and hls players, let mpegts handle its own state
+  // Use a ref to track previous playing state to avoid unnecessary updates
+  const prevPlayingRef = useRef<boolean>(false);
   useEffect(() => {
     if (!videoRef.current) return;
     // Skip sync for mpegts - let it handle playback state naturally
@@ -686,7 +705,9 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
     const updatePlayingState = () => {
       // Only update if video is actually playing (not just showing first frame)
       const actuallyPlaying = !video.paused && (video.readyState >= 2);
-      if (actuallyPlaying !== isPlaying) {
+      // Only update state if it actually changed to prevent unnecessary re-renders
+      if (actuallyPlaying !== prevPlayingRef.current) {
+        prevPlayingRef.current = actuallyPlaying;
         setIsPlaying(actuallyPlaying);
       }
     };
@@ -696,10 +717,16 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
     
     // Listen to playing/pause events (use 'playing' not 'play' to detect actual playback)
     const handlePlaying = () => {
-      setIsPlaying(true);
+      if (!prevPlayingRef.current) {
+        prevPlayingRef.current = true;
+        setIsPlaying(true);
+      }
     };
     const handlePause = () => {
-      setIsPlaying(false);
+      if (prevPlayingRef.current) {
+        prevPlayingRef.current = false;
+        setIsPlaying(false);
+      }
     };
     
     video.addEventListener('playing', handlePlaying);
@@ -709,10 +736,17 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
       video.removeEventListener('playing', handlePlaying);
       video.removeEventListener('pause', handlePause);
     };
-  }, [playerType, src, isPlaying]);
+  }, [playerType, src]);
 
   // Auto-hide overlay after delay when playing, show when paused
+  // Skip overlay auto-show/hide for HLS players in multiview to prevent flashing
   useEffect(() => {
+    // Don't auto-show overlay for HLS players (used in multiview)
+    // Let the controls widget handle overlay visibility
+    if (playerType === 'hls') {
+      return;
+    }
+    
     if (isPlaying && showOverlay) {
       const timer = setTimeout(() => {
         setShowOverlay(false);
@@ -722,7 +756,7 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
       // Show overlay when paused
       setShowOverlay(true);
     }
-  }, [isPlaying, showOverlay]);
+  }, [isPlaying, showOverlay, playerType]);
 
   // Shared video element props and handlers for both native and mpegts players
   const sharedVideoProps = {
@@ -740,17 +774,26 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
       // Use 'playing' event which fires when playback actually starts (not just when play() is called)
       console.debug('[VideoPlayer] Video actually playing');
       setIsPlaying(true);
-      setShowOverlay(true);
+      // Don't show overlay for HLS players (used in multiview) to prevent flashing
+      if (playerType !== 'hls') {
+        setShowOverlay(true);
+      }
       if (onPlay) onPlay();
     },
     onPause: () => {
       setIsPlaying(false);
-      setShowOverlay(true);
+      // Don't show overlay for HLS players (used in multiview) to prevent flashing
+      if (playerType !== 'hls') {
+        setShowOverlay(true);
+      }
     },
     onEnded: () => {
       console.debug('[VideoPlayer] Video ended');
       setIsPlaying(false);
-      setShowOverlay(true);
+      // Don't show overlay for HLS players (used in multiview) to prevent flashing
+      if (playerType !== 'hls') {
+        setShowOverlay(true);
+      }
       if (onEnded) onEnded();
     },
   };

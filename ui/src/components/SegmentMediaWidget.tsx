@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, memo } from 'react';
 import { 
   Box, 
   Typography, 
@@ -36,9 +36,92 @@ interface SegmentMediaWidgetProps {
   useHLS?: boolean; // Use HLS playlist instead of individual segment
   hlsManifestUrl?: string | null; // HLS manifest blob URL (shared across all players)
   hlsStartTime?: number; // Time offset in seconds to start playback
+  hlsSegmentDuration?: number; // Segment duration in seconds (to stop playback at end)
 }
 
 type MediaType = 'video' | 'image' | 'audio' | 'data' | 'unknown';
+
+// Component to monitor HLS playback and stop at segment end
+interface HLSPlaybackMonitorProps {
+  videoPlayerRef: React.RefObject<any>;
+  startTime: number;
+  duration: number;
+  segmentIndex?: number;
+}
+
+const HLSPlaybackMonitor: React.FC<HLSPlaybackMonitorProps> = ({
+  videoPlayerRef,
+  startTime,
+  duration,
+  segmentIndex,
+}) => {
+  useEffect(() => {
+    const video = videoPlayerRef.current?.getVideoElement?.();
+    if (!video) return;
+
+    const endTime = startTime + duration;
+    let checkInterval: NodeJS.Timeout | null = null;
+    let lastCheckTime = 0;
+    const checkThrottle = 200; // Only check every 200ms to reduce overhead
+    let hasReachedEnd = false; // Track if we've already paused at the end
+
+    const checkPlayback = () => {
+      if (!video || video.paused) return;
+      
+      const now = Date.now();
+      // Throttle checks to reduce overhead
+      if (now - lastCheckTime < checkThrottle) return;
+      lastCheckTime = now;
+      
+      // Check if we've reached or passed the segment end time
+      if (!hasReachedEnd && video.currentTime >= endTime - 0.1) { // 0.1s tolerance
+        hasReachedEnd = true;
+        console.debug(`[Segment ${segmentIndex}] Reached segment end (${endTime}s), pausing playback`);
+        video.pause();
+        // Seek back to start of segment
+        video.currentTime = startTime;
+      } else if (hasReachedEnd && video.currentTime < endTime - 0.5) {
+        // Reset flag if video has been seeked back significantly
+        hasReachedEnd = false;
+      }
+    };
+
+    // Only check when video is playing - use a longer interval to reduce overhead
+    checkInterval = setInterval(() => {
+      if (video && !video.paused) {
+        checkPlayback();
+      }
+    }, 300); // Check every 300ms instead of 100ms
+
+    // Listen to timeupdate events but throttle them
+    let lastTimeUpdate = 0;
+    const handleTimeUpdate = () => {
+      const now = Date.now();
+      if (now - lastTimeUpdate >= checkThrottle) {
+        lastTimeUpdate = now;
+        checkPlayback();
+      }
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    
+    // Reset flag when video starts playing
+    const handlePlay = () => {
+      hasReachedEnd = false;
+    };
+    video.addEventListener('play', handlePlay);
+
+    return () => {
+      if (checkInterval) {
+        clearInterval(checkInterval);
+      }
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('play', handlePlay);
+    };
+  }, [videoPlayerRef, startTime, duration, segmentIndex]);
+
+  return null; // This component doesn't render anything
+};
 
 const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({ 
   segment, 
@@ -52,7 +135,8 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   loadImmediately = false, // Force immediate loading (bypasses IntersectionObserver)
   useHLS = false, // Use HLS playlist instead of individual segment
   hlsManifestUrl = null, // HLS manifest blob URL (shared across all players)
-  hlsStartTime = 0 // Time offset in seconds to start playback
+  hlsStartTime = 0, // Time offset in seconds to start playback
+  hlsSegmentDuration = undefined // Segment duration in seconds (to stop playback at end)
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -262,14 +346,17 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
 
 
   // Setup IntersectionObserver for lazy loading and scroll-based playback
+  // Skip IntersectionObserver in multiview mode (loadImmediately=true) to prevent flickering
   useEffect(() => {
     if (!cardRef.current || mediaType !== 'video') return;
     
     // If loadImmediately is true, skip IntersectionObserver and load immediately
+    // In multiview, all videos are loaded but autoplay logic is disabled
     if (loadImmediately) {
       setShouldLoadVideo(true);
       setIsInViewport(true);
       setIntersectionRatio(1);
+      // Don't set up IntersectionObserver in multiview - videos are controlled manually
       return;
     }
 
@@ -353,8 +440,9 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   }, [mediaType, segmentIndex, shouldLoadVideo]);
 
   // Handle scroll-based playback: play only when highly visible, pause otherwise
+  // Skip this logic in multiview mode (loadImmediately=true) to prevent flickering
   useEffect(() => {
-    if (mediaType !== 'video' || !shouldLoadVideo || shouldUnloadVideo) return;
+    if (mediaType !== 'video' || !shouldLoadVideo || shouldUnloadVideo || loadImmediately) return;
     
     // Small delay to ensure ref is set
     const timer = setTimeout(() => {
@@ -413,8 +501,9 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   // Periodically sync video playing state with actual video element state
   // This is important for mpegts videos which might show first frame but not actually play
   // Also detects when video ends by checking currentTime vs duration
+  // Skip in multiview mode (loadImmediately=true) to prevent unnecessary state updates that cause flickering
   useEffect(() => {
-    if (mediaType !== 'video' || !shouldLoadVideo || shouldUnloadVideo) return;
+    if (mediaType !== 'video' || !shouldLoadVideo || shouldUnloadVideo || loadImmediately) return;
     
     const syncInterval = setInterval(() => {
       if (videoPlayerRef.current) {
@@ -522,6 +611,9 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                         const hlsReady = hlsPlayer.levels && hlsPlayer.levels.length > 0;
                         
                         if (isReady && hlsReady) {
+                          // Store whether video was playing before seeking
+                          const wasPlaying = !video.paused;
+                          
                           // Ensure video is paused before seeking
                           if (!video.paused) {
                             video.pause();
@@ -531,6 +623,32 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                           try {
                             video.currentTime = Math.min(hlsStartTime, video.duration);
                             console.debug(`[Segment ${segmentIndex}] HLS player seeked to ${hlsStartTime}s (duration: ${video.duration}, readyState: ${video.readyState})`);
+                            
+                            // After seeking, resume playback if autoplay is enabled or if it was playing before
+                            if (autoPlayEnabled || wasPlaying) {
+                              // Wait for seek to complete and buffer to be ready, then play
+                              const attemptPlay = () => {
+                                if (video.paused) {
+                                  // Check if we have enough buffered data
+                                  const hasBuffer = video.buffered.length > 0 && 
+                                    video.buffered.end(video.buffered.length - 1) > video.currentTime + 0.5;
+                                  const isReady = video.readyState >= 3;
+                                  
+                                  if (isReady && (hasBuffer || video.readyState >= 4)) {
+                                    video.play().then(() => {
+                                      console.debug(`[Segment ${segmentIndex}] HLS playback started after seek`);
+                                    }).catch((error: unknown) => {
+                                      console.debug(`[Segment ${segmentIndex}] Autoplay after seek prevented:`, error);
+                                    });
+                                  } else if (video.readyState < 4) {
+                                    // Wait a bit more for buffer to fill
+                                    setTimeout(attemptPlay, 100);
+                                  }
+                                }
+                              };
+                              // Start attempting to play after a short delay
+                              setTimeout(attemptPlay, 300);
+                            }
                           } catch (err) {
                             console.warn(`[Segment ${segmentIndex}] Seek failed:`, err);
                           }
@@ -548,16 +666,63 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                       console.warn(`[Segment ${segmentIndex}] HLS player reference not available, using direct seek`);
                       const seekToTime = () => {
                         if (video.readyState >= 2 && video.duration > 0 && video.duration > hlsStartTime) {
+                          const wasPlaying = !video.paused;
                           if (!video.paused) {
                             video.pause();
                           }
                           video.currentTime = Math.min(hlsStartTime, video.duration);
                           console.debug(`[Segment ${segmentIndex}] HLS player seeked to ${hlsStartTime}s (fallback method)`);
+                          
+                          // Resume playback if autoplay is enabled or if it was playing before
+                          if (autoPlayEnabled || wasPlaying) {
+                            const attemptPlay = () => {
+                              if (video.paused) {
+                                const hasBuffer = video.buffered.length > 0 && 
+                                  video.buffered.end(video.buffered.length - 1) > video.currentTime + 0.5;
+                                const isReady = video.readyState >= 3;
+                                
+                                if (isReady && (hasBuffer || video.readyState >= 4)) {
+                                  video.play().then(() => {
+                                    console.debug(`[Segment ${segmentIndex}] HLS playback started after seek (fallback)`);
+                                  }).catch((error: unknown) => {
+                                    console.debug(`[Segment ${segmentIndex}] Autoplay after seek prevented:`, error);
+                                  });
+                                } else if (video.readyState < 4) {
+                                  setTimeout(attemptPlay, 100);
+                                }
+                              }
+                            };
+                            setTimeout(attemptPlay, 300);
+                          }
                         } else {
                           setTimeout(seekToTime, 100);
                         }
                       };
                       setTimeout(seekToTime, 300);
+                    }
+                  } else if (videoPlayerRef.current && autoPlayEnabled) {
+                    // If no start time offset, just start playback if autoplay is enabled
+                    const video = videoPlayerRef.current.getVideoElement?.();
+                    if (video) {
+                      const attemptPlay = () => {
+                        if (video.paused) {
+                          const hasBuffer = video.buffered.length > 0 && 
+                            video.buffered.end(video.buffered.length - 1) > video.currentTime + 0.5;
+                          const isReady = video.readyState >= 3;
+                          
+                          if (isReady && (hasBuffer || video.readyState >= 4)) {
+                            video.play().then(() => {
+                              console.debug(`[Segment ${segmentIndex}] HLS playback started (no offset)`);
+                            }).catch((error: unknown) => {
+                              console.debug(`[Segment ${segmentIndex}] Autoplay prevented:`, error);
+                            });
+                          } else if (video.readyState < 4) {
+                            setTimeout(attemptPlay, 100);
+                          }
+                        }
+                      };
+                      // Wait a bit for hls.js to load initial segments
+                      setTimeout(attemptPlay, 500);
                     }
                   }
                 }}
@@ -565,6 +730,17 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                   console.error(`[Segment ${segmentIndex}] HLS playback error:`, error);
                 }}
               />
+              {/* Monitor playback and stop at segment end for HLS */}
+              {/* Only enable monitor in multiview mode (loadImmediately) or when autoplay is enabled */}
+              {/* This prevents flickering in scrollview when autoplay is off */}
+              {useHLS && hlsSegmentDuration !== undefined && hlsStartTime !== undefined && (loadImmediately || autoPlayEnabled) && (
+                <HLSPlaybackMonitor
+                  videoPlayerRef={videoPlayerRef}
+                  startTime={hlsStartTime}
+                  duration={hlsSegmentDuration}
+                  segmentIndex={segmentIndex}
+                />
+              )}
               <VideoControlsWidget
                 isPlaying={isVideoPlaying}
                 onPlay={() => {
@@ -776,10 +952,12 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                   }
                 }}
                 onEnded={() => {
-                  // Video completed
-                  setIsVideoPlaying(false);
-                  setIsVideoCompleted(true);
-                  console.debug(`[Segment ${segmentIndex}] Video completed`);
+                  // Video completed - only update state if it actually changed to prevent flashing
+                  if (isVideoPlaying || !isVideoCompleted) {
+                    setIsVideoPlaying(false);
+                    setIsVideoCompleted(true);
+                    console.debug(`[Segment ${segmentIndex}] Video completed`);
+                  }
                 }}
               onError={(error) => {
                 // Only log errors if video should be loaded (not during unload/load transitions)
@@ -1322,5 +1500,23 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   );
 };
 
-export default SegmentMediaWidget;
+// Memoize component to prevent unnecessary re-renders when other videos play
+// Only re-render if relevant props actually change
+export default memo(SegmentMediaWidget, (prevProps, nextProps) => {
+  // Return true if props are equal (skip re-render), false if different (re-render)
+  const propsEqual = 
+    prevProps.segment.object_id === nextProps.segment.object_id &&
+    prevProps.flow?.id === nextProps.flow?.id &&
+    prevProps.autoPlayEnabled === nextProps.autoPlayEnabled &&
+    prevProps.loadImmediately === nextProps.loadImmediately &&
+    prevProps.useHLS === nextProps.useHLS &&
+    prevProps.hlsManifestUrl === nextProps.hlsManifestUrl &&
+    prevProps.hlsStartTime === nextProps.hlsStartTime &&
+    prevProps.hlsSegmentDuration === nextProps.hlsSegmentDuration &&
+    prevProps.segmentIndex === nextProps.segmentIndex &&
+    prevProps.width === nextProps.width &&
+    prevProps.height === nextProps.height;
+  
+  return propsEqual;
+});
 

@@ -29,9 +29,10 @@ interface DetailModalProps {
   data: Flow | Source | null;
   title: string;
   onRefresh?: () => void; // Optional callback to refresh data after tag changes
+  showTagEdit?: boolean; // Optional prop to show/hide tag edit button (default: true for flows, false for sources)
 }
 
-const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title, onRefresh }) => {
+const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title, onRefresh, showTagEdit }) => {
   const [tagEditModalOpen, setTagEditModalOpen] = useState(false);
   const [localData, setLocalData] = useState<Flow | Source | null>(data);
   
@@ -464,19 +465,27 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title, o
               const hasTags = tagsToDisplay && typeof tagsToDisplay === 'object' 
                 && Object.keys(tagsToDisplay).length > 0;
               
+              // Determine if tag edit should be shown
+              // Default: show for flows, hide for sources (unless explicitly set)
+              const shouldShowTagEdit = showTagEdit !== undefined 
+                ? showTagEdit 
+                : isFlow;
+              
               return (
                 <Paper sx={{ p: 1.5 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: '0.9rem' }}>
                       Tags
                     </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={handleTagEdit}
-                      title="Edit tags"
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
+                    {shouldShowTagEdit && (
+                      <IconButton
+                        size="small"
+                        onClick={handleTagEdit}
+                        title="Edit tags"
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    )}
                   </Box>
                   <Divider sx={{ mb: 1 }} />
                   {hasTags ? (

@@ -22,10 +22,12 @@ import {
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/Info';
+import EditIcon from '@mui/icons-material/Edit';
 import { Source } from '../types';
 import { sourceService, analyticsService, authService } from '../services/api';
 import DataTable, { Column } from '../components/DataTable';
 import DetailModal from '../components/DetailModal';
+import TagEditModal from '../components/TagEditModal';
 
 type SortableField = 'label' | 'format' | 'created';
 
@@ -39,6 +41,8 @@ const Sources: React.FC = () => {
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedSource, setSelectedSource] = useState<Source | null>(null);
+  const [tagEditModalOpen, setTagEditModalOpen] = useState(false);
+  const [sourceForTagEdit, setSourceForTagEdit] = useState<Source | null>(null);
   const [flowCounts, setFlowCounts] = useState<Record<string, number>>({});
   const [segmentCounts, setSegmentCounts] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
@@ -183,6 +187,22 @@ const Sources: React.FC = () => {
     }
   };
 
+  const handleOpenTagEdit = (source: Source) => {
+    setSourceForTagEdit(source);
+    setTagEditModalOpen(true);
+  };
+
+  const handleTagEditClose = () => {
+    setTagEditModalOpen(false);
+    setSourceForTagEdit(null);
+  };
+
+  const handleTagSave = async () => {
+    // Reload sources to refresh tag display
+    await loadSources();
+    handleTagEditClose();
+  };
+
   const handleOpenDelete = (source: Source) => {
     // Prevent viewers from deleting
     const user = authService.getCurrentUser();
@@ -267,6 +287,15 @@ const Sources: React.FC = () => {
                 sx={{ padding: '4px' }}
               >
                 <InfoIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Edit Tags">
+              <IconButton
+                size="small"
+                onClick={() => handleOpenTagEdit(source)}
+                sx={{ padding: '4px' }}
+              >
+                <EditIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             {!isViewer && (
@@ -408,7 +437,19 @@ const Sources: React.FC = () => {
         data={selectedSource}
         title="Source Details"
         onRefresh={loadSources}
+        showTagEdit={false}
       />
+
+      {sourceForTagEdit && (
+        <TagEditModal
+          open={tagEditModalOpen}
+          onClose={handleTagEditClose}
+          entityType="source"
+          entityId={sourceForTagEdit.id}
+          entityLabel={sourceForTagEdit.label}
+          onSave={handleTagSave}
+        />
+      )}
 
       <Dialog
         open={deleteDialogOpen}

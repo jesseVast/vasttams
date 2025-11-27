@@ -630,34 +630,78 @@ const Segments: React.FC = () => {
       </Box>
 
       {filteredFlow && (
-        <Paper sx={{ p: 1, mb: 1, backgroundColor: '#f5f5f5' }}>
-          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Chip label={filteredFlow.format} size="small" variant="outlined" color="primary" />
-            {filteredFlow.label && (
-              <Chip label={filteredFlow.label} size="small" variant="outlined" />
-            )}
-            {filteredFlow.codec && (
-              <Chip label={filteredFlow.codec} size="small" variant="outlined" color="secondary" />
-            )}
-            {filteredFlow.essence_parameters?.frame_width && filteredFlow.essence_parameters?.frame_height && (
-              <Chip 
-                label={`${filteredFlow.essence_parameters.frame_width}x${filteredFlow.essence_parameters.frame_height}`} 
-                size="small" 
-                variant="outlined"
-              />
-            )}
-            {filteredFlow.essence_parameters?.frame_rate && (
-              <Chip 
-                label={`${filteredFlow.essence_parameters.frame_rate.value || 
-                  (filteredFlow.essence_parameters.frame_rate.numerator && filteredFlow.essence_parameters.frame_rate.denominator
-                    ? `${filteredFlow.essence_parameters.frame_rate.numerator}/${filteredFlow.essence_parameters.frame_rate.denominator}`
-                    : 'N/A')} fps`} 
-                size="small" 
-                variant="outlined"
-              />
-            )}
-          </Box>
-        </Paper>
+        <>
+          {/* Tags Section */}
+          {(() => {
+            const tags = filteredFlow.tags;
+            const tagsToDisplay = tags?.root && typeof tags.root === 'object' 
+              ? tags.root 
+              : tags;
+            const hasTags = tagsToDisplay && typeof tagsToDisplay === 'object' 
+              && Object.keys(tagsToDisplay).length > 0;
+            
+            if (hasTags) {
+              const allowedTags = ['year', 'genre', 'sport'];
+              const filteredTags = Object.entries(tagsToDisplay).filter(([key]) => allowedTags.includes(key));
+              
+              if (filteredTags.length > 0) {
+                return (
+                  <Paper sx={{ p: 1, mb: 1, backgroundColor: '#e3f2fd' }}>
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <Typography variant="caption" sx={{ fontWeight: 'bold', mr: 0.5 }}>Tags:</Typography>
+                      {filteredTags.map(([key, value]) => {
+                        const displayValue = Array.isArray(value) 
+                          ? value.join(', ')
+                          : String(value);
+                        const chipLabel = `${key}: ${displayValue}`;
+                        return (
+                          <Chip
+                            key={key}
+                            label={chipLabel}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                          />
+                        );
+                      })}
+                    </Box>
+                  </Paper>
+                );
+              }
+            }
+            return null;
+          })()}
+          
+          {/* Flow Info Section */}
+          <Paper sx={{ p: 1, mb: 1, backgroundColor: '#f5f5f5' }}>
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Chip label={filteredFlow.format} size="small" variant="outlined" color="primary" />
+              {filteredFlow.label && (
+                <Chip label={filteredFlow.label} size="small" variant="outlined" />
+              )}
+              {filteredFlow.codec && (
+                <Chip label={filteredFlow.codec} size="small" variant="outlined" color="secondary" />
+              )}
+              {filteredFlow.essence_parameters?.frame_width && filteredFlow.essence_parameters?.frame_height && (
+                <Chip 
+                  label={`${filteredFlow.essence_parameters.frame_width}x${filteredFlow.essence_parameters.frame_height}`} 
+                  size="small" 
+                  variant="outlined"
+                />
+              )}
+              {filteredFlow.essence_parameters?.frame_rate && (
+                <Chip 
+                  label={`${filteredFlow.essence_parameters.frame_rate.value || 
+                    (filteredFlow.essence_parameters.frame_rate.numerator && filteredFlow.essence_parameters.frame_rate.denominator
+                      ? `${filteredFlow.essence_parameters.frame_rate.numerator}/${filteredFlow.essence_parameters.frame_rate.denominator}`
+                      : 'N/A')} fps`} 
+                  size="small" 
+                  variant="outlined"
+                />
+              )}
+            </Box>
+          </Paper>
+        </>
       )}
 
       {/* Time Interval Search */}

@@ -52,7 +52,6 @@ const Flows: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [flows, setFlows] = useState<Flow[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
-  const [filterSourceId, setFilterSourceId] = useState<string>(searchParams.get('source_id') || '');
   const [filterCodec, setFilterCodec] = useState<string>('');
   const [filterResolution, setFilterResolution] = useState<string>('');
   const [filterFrameRate, setFilterFrameRate] = useState<string>('');
@@ -86,14 +85,6 @@ const Flows: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    // Update URL when filter changes
-    if (filterSourceId) {
-      setSearchParams({ source_id: filterSourceId }, { replace: true });
-    } else {
-      setSearchParams({}, { replace: true });
-    }
-  }, [filterSourceId, setSearchParams, sources]);
 
   const loadSources = async () => {
     try {
@@ -284,11 +275,6 @@ const Flows: React.FC = () => {
   // Apply all filters
   const filteredFlows = useMemo(() => {
     return flows.filter(flow => {
-      // Source ID filter
-      if (filterSourceId && flow.source_id !== filterSourceId) {
-        return false;
-      }
-      
       // Codec filter
       if (filterCodec && flow.codec !== filterCodec) {
         return false;
@@ -332,7 +318,7 @@ const Flows: React.FC = () => {
       
       return true;
     });
-  }, [flows, filterSourceId, filterCodec, filterResolution, filterFrameRate, filterDateFrom, filterDateTo]);
+  }, [flows, filterCodec, filterResolution, filterFrameRate, filterDateFrom, filterDateTo]);
 
   // Sort filtered flows
   const sortedFlows = useMemo(() => {
@@ -688,14 +674,6 @@ const Flows: React.FC = () => {
               },
             }}
           />
-          <TextField
-            label="Source ID"
-            value={filterSourceId}
-            onChange={(e) => setFilterSourceId(e.target.value)}
-            placeholder="Source ID"
-            size="small"
-            sx={{ width: 160 }}
-          />
           <FormControl size="small" sx={{ width: 130 }}>
             <InputLabel>Codec</InputLabel>
             <Select
@@ -786,6 +764,7 @@ const Flows: React.FC = () => {
         data={selectedFlow}
         title="Flow Details"
         onRefresh={loadFlows}
+        showTagEdit={false}
       />
       
       <EditFlowModal

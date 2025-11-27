@@ -5,19 +5,29 @@
 
 ## ✅ Recent Updates (November 27, 2025)
 
-1. **Flow & Source Tag Editing**
-   - Added `TagEditModal` with add/remove support.
-   - Integrated into `DetailModal` flows and sources; API helpers now cover tag CRUD.
+1. **Flow & Source Tag Editing UI Improvements**
+   - **Sources**: Separated tag editing into dedicated edit icon next to info icon
+     - Info icon opens read-only DetailModal
+     - Edit icon opens TagEditModal directly
+   - **Flows**: Combined tag and flow property editing into single modal
+     - Single edit icon opens EditFlowModal with tabs (Properties and Tags)
+     - Tag editing integrated directly into modal (no separate modal)
+     - Compact layout with reduced spacing and side-by-side fields
 
-2. **Tag Visibility Improvements**
-   - Sources and flows tables display `type` and `sport` tags (chips with values).
+2. **UI Cleanup**
+   - Removed source ID filter from flows table
+   - Added tags display at top of segments page (year, genre, sport)
+   - Made EditFlowModal more compact with tabbed interface
+
+3. **Tag Visibility Improvements**
+   - Sources and flows tables display `year`, `genre`, and `sport` tags (chips with values).
    - Backend list endpoints now enrich responses with tags (including cache hits).
 
-3. **HLS Direct URL Testing**
+4. **HLS Direct URL Testing**
    - Playlist endpoint accepts `use_proxy`; UI requests direct presigned URLs while testing VAST-side CORS.
    - Manifest rewriting only appends auth tokens when proxying is enabled.
 
-4. **Multiview Autoplay**
+5. **Multiview Autoplay**
    - Multiview player respects the global Auto-Play toggle (previously forced off).
    - Keeps scrollable and multiview behavior consistent for operators.
 

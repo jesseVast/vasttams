@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build wheel files for private dependencies (vastdbmanager and vasts3)
+# Build wheel files for private dependencies (vastdbmanager, vasts3, and jthaloor-ai)
 # This script builds wheels from local GitLab packages and places them in wheels/
 
 set -e
@@ -7,6 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 VASTSTORE_DIR="$HOME/Developer/gitlab/vaststore"
+JTHALOOR_AI_DIR="$HOME/Developer/gitlab/jthaloor-ai"
 WHEELS_DIR="$PROJECT_ROOT/wheels"
 
 echo "🔨 Building wheel files for private dependencies..."
@@ -54,6 +55,23 @@ if [ -d "$VASTSTORE_DIR/vasts3" ]; then
     echo "✅ vasts3 wheel built and copied to $WHEELS_DIR"
 else
     echo "❌ Error: vasts3 directory not found at $VASTSTORE_DIR/vasts3"
+    exit 1
+fi
+
+# Build jthaloor-ai wheel
+if [ -d "$JTHALOOR_AI_DIR" ]; then
+    echo ""
+    echo "📦 Building jthaloor-ai wheel..."
+    cd "$JTHALOOR_AI_DIR"
+    python3 -m pip install --upgrade build wheel
+    python3 -m build --wheel
+    # Remove old jthaloor-ai wheels before copying new one
+    rm -f "$WHEELS_DIR"/jthaloor-ai-*.whl
+    # Copy wheel to wheels directory
+    cp dist/*.whl "$WHEELS_DIR/"
+    echo "✅ jthaloor-ai wheel built and copied to $WHEELS_DIR"
+else
+    echo "❌ Error: jthaloor-ai directory not found at $JTHALOOR_AI_DIR"
     exit 1
 fi
 

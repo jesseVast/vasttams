@@ -82,8 +82,12 @@ class SourceStorageService:
             if cached:
                 try:
                     # Reconstruct Source objects from cached data
+                    # Note: Tags are not cached, fetch them fresh for each source
                     sources = []
                     for source_data in cached:
+                        source_id = source_data.get('id')
+                        if source_id:
+                            await self._fetch_and_add_tags(source_data, source_id)
                         sources.append(Source(**source_data))
                     logger.info(f"Cache hit: {cache_key} ({len(sources)} sources)")
                     return sources
@@ -233,11 +237,15 @@ class SourceStorageService:
             
             # source_collection is computed on-demand in get_source() only
             # For list operations, set it to empty list to avoid expensive JOIN queries
+            # Fetch tags for each source
             sources = []
             for source_data in sources_data:
                 # Set source_collection to empty list for list operations
                 # It will be computed on-demand when retrieving a single source via get_source()
                 source_data['source_collection'] = []
+                source_id = source_data.get('id')
+                if source_id:
+                    await self._fetch_and_add_tags(source_data, source_id)
                 sources.append(Source(**source_data))
             
             json_parse_duration = time.time() - json_parse_start

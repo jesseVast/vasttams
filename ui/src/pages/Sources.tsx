@@ -17,6 +17,7 @@ import {
   Button,
   Alert,
   TextField,
+  Chip,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -161,6 +162,7 @@ const Sources: React.FC = () => {
     { id: 'label', label: 'Label', sortable: true },
     { id: 'description', label: 'Description', sortable: false },
     { id: 'format', label: 'Format', sortable: true },
+    { id: 'tags', label: 'Tags', sortable: false },
     { id: 'flows', label: 'Flows', sortable: false, align: 'right' },
     { id: 'segments', label: 'Segments', sortable: false, align: 'right' },
     { id: 'created', label: 'Created (Date/Time)', sortable: true },
@@ -288,6 +290,50 @@ const Sources: React.FC = () => {
               ? source.format.split(':').pop() 
               : source.format)
           : '-'}
+      </TableCell>
+      <TableCell>
+        {(() => {
+          // Handle tags that might be nested under 'root' or at top level
+          const tags = source.tags;
+          if (!tags) return <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>-</Typography>;
+          
+          // Check if tags has a 'root' property with content
+          const tagsToDisplay = tags.root && typeof tags.root === 'object' 
+            ? tags.root 
+            : tags;
+          
+          // Filter to only show 'type' and 'sport' tags
+          const allowedTags = ['type', 'sport'];
+          const filteredTags = tagsToDisplay && typeof tagsToDisplay === 'object'
+            ? Object.entries(tagsToDisplay).filter(([key]) => allowedTags.includes(key))
+            : [];
+          
+          if (filteredTags.length === 0) {
+            return <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>-</Typography>;
+          }
+          
+          // Display filtered tags as chips with values
+          return (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 300 }}>
+              {filteredTags.map(([key, value]) => {
+                const displayValue = Array.isArray(value) 
+                  ? value.join(', ')
+                  : String(value);
+                const chipLabel = `${key}: ${displayValue}`;
+                return (
+                  <Tooltip key={key} title={chipLabel} arrow>
+                    <Chip
+                      label={chipLabel}
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: '0.7rem', height: 24 }}
+                    />
+                  </Tooltip>
+                );
+              })}
+            </Box>
+          );
+        })()}
       </TableCell>
         <TableCell align="right">
           {typeof flowCount === 'number' ? flowCount.toLocaleString() : flowCount}

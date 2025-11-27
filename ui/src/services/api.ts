@@ -198,6 +198,32 @@ export const sourceService = {
       message: response.data?.message || 'Source deletion started'
     };
   },
+
+  getTags: async (id: string): Promise<Record<string, any>> => {
+    const response = await api.get(`/sources/${id}/tags`);
+    // Tags might be wrapped in a root object
+    const tags = response.data;
+    return tags?.root || tags || {};
+  },
+
+  updateTag: async (id: string, name: string, value: string | string[]): Promise<void> => {
+    const headers: any = {};
+    let body: string;
+    
+    if (Array.isArray(value)) {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(value);
+    } else {
+      headers['Content-Type'] = 'text/plain';
+      body = value;
+    }
+    
+    await api.put(`/sources/${id}/tags/${name}`, body, { headers });
+  },
+
+  deleteTag: async (id: string, name: string): Promise<void> => {
+    await api.delete(`/sources/${id}/tags/${name}`);
+  },
 };
 
 export const flowService = {
@@ -240,6 +266,32 @@ export const flowService = {
       status: response.status,
       message: response.data?.message || 'Flow deletion started'
     };
+  },
+
+  getTags: async (id: string): Promise<Record<string, any>> => {
+    const response = await api.get(`/flows/${id}/tags`);
+    // Tags might be wrapped in a root object
+    const tags = response.data;
+    return tags?.root || tags || {};
+  },
+
+  updateTag: async (id: string, name: string, value: string | string[]): Promise<void> => {
+    const headers: any = {};
+    let body: string;
+    
+    if (Array.isArray(value)) {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(value);
+    } else {
+      headers['Content-Type'] = 'text/plain';
+      body = value;
+    }
+    
+    await api.put(`/flows/${id}/tags/${name}`, body, { headers });
+  },
+
+  deleteTag: async (id: string, name: string): Promise<void> => {
+    await api.delete(`/flows/${id}/tags/${name}`);
   },
 };
 

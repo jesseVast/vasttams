@@ -399,6 +399,7 @@ const Flows: React.FC = () => {
     { id: 'codec', label: 'Codec', sortable: false },
     { id: 'container', label: 'Container', sortable: false },
     { id: 'resolution', label: 'Resolution', sortable: false },
+    { id: 'tags', label: 'Tags', sortable: false },
     { id: 'segments', label: 'Segments', sortable: false, align: 'right' },
     { id: 'duration', label: 'Total Time', sortable: false },
     { id: 'created', label: 'Created (Date/Time)', sortable: true },
@@ -575,6 +576,50 @@ const Flows: React.FC = () => {
         {flow.essence_parameters?.frame_width && flow.essence_parameters?.frame_height
           ? `${flow.essence_parameters.frame_width}x${flow.essence_parameters.frame_height}`
           : '-'}
+      </TableCell>
+      <TableCell>
+        {(() => {
+          // Handle tags that might be nested under 'root' or at top level
+          const tags = flow.tags;
+          if (!tags) return <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>-</Typography>;
+          
+          // Check if tags has a 'root' property with content
+          const tagsToDisplay = tags.root && typeof tags.root === 'object' 
+            ? tags.root 
+            : tags;
+          
+          // Filter to only show 'type' and 'sport' tags
+          const allowedTags = ['type', 'sport'];
+          const filteredTags = tagsToDisplay && typeof tagsToDisplay === 'object'
+            ? Object.entries(tagsToDisplay).filter(([key]) => allowedTags.includes(key))
+            : [];
+          
+          if (filteredTags.length === 0) {
+            return <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>-</Typography>;
+          }
+          
+          // Display filtered tags as chips with values
+          return (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 300 }}>
+              {filteredTags.map(([key, value]) => {
+                const displayValue = Array.isArray(value) 
+                  ? value.join(', ')
+                  : String(value);
+                const chipLabel = `${key}: ${displayValue}`;
+                return (
+                  <Tooltip key={key} title={chipLabel} arrow>
+                    <Chip
+                      label={chipLabel}
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: '0.7rem', height: 24 }}
+                    />
+                  </Tooltip>
+                );
+              })}
+            </Box>
+          );
+        })()}
       </TableCell>
         <TableCell align="right">
           {typeof segmentCount === 'number' ? segmentCount.toLocaleString() : segmentCount}

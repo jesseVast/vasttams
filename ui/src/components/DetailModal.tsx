@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -16,21 +16,65 @@ import {
   TableCell,
   TableContainer,
   TableRow,
+  IconButton,
 } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
 import { Flow, Source } from '../types';
+import TagEditModal from './TagEditModal';
+import { sourceService, flowService } from '../services/api';
 
 interface DetailModalProps {
   open: boolean;
   onClose: () => void;
   data: Flow | Source | null;
   title: string;
+  onRefresh?: () => void; // Optional callback to refresh data after tag changes
 }
 
-const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title }) => {
-  if (!data) return null;
+const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title, onRefresh }) => {
+  const [tagEditModalOpen, setTagEditModalOpen] = useState(false);
+  const [localData, setLocalData] = useState<Flow | Source | null>(data);
+  
+  // Update local data when prop changes
+  React.useEffect(() => {
+    setLocalData(data);
+  }, [data]);
+  
+  if (!localData) return null;
 
-  const isFlow = 'source_id' in data;
+  const isFlow = 'source_id' in localData;
 
+  const handleTagEdit = () => {
+    setTagEditModalOpen(true);
+  };
+
+  const handleTagEditClose = () => {
+    setTagEditModalOpen(false);
+  };
+
+  const handleTagSave = async () => {
+    // Tags are saved immediately in TagEditModal
+    // Reload the entity data to refresh tags display
+    if (localData) {
+      try {
+        const service = isFlow ? flowService : sourceService;
+        const refreshed = await service.get(localData.id);
+        setLocalData(refreshed);
+        
+        // Also trigger parent refresh if callback provided
+        if (onRefresh) {
+          onRefresh();
+        }
+      } catch (error) {
+        console.error('Failed to refresh data after tag update:', error);
+      }
+    }
+    setTagEditModalOpen(false);
+  };
+
+  // Use localData instead of data throughout the component
+  const displayData = localData;
+  
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleString();
@@ -178,8 +222,8 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
       <DialogTitle>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h6">{title}</Typography>
-          {data.label && (
-            <Chip label={data.label} color="primary" size="small" />
+          {displayData.label && (
+            <Chip label={displayData.label} color="primary" size="small" />
           )}
         </Box>
       </DialogTitle>
@@ -198,24 +242,24 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
                     <TableRow>
                       <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>ID</TableCell>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5, borderBottom: 'none' }}>
-                        {data.id}
+                        {displayData.id}
                       </TableCell>
                     </TableRow>
-                    {data.label && (
+                    {displayData.label && (
                       <TableRow>
                         <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Label</TableCell>
-                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{data.label}</TableCell>
+                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{displayData.label}</TableCell>
                       </TableRow>
                     )}
-                    {data.description && (
+                    {displayData.description && (
                       <TableRow>
                         <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Description</TableCell>
-                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{data.description}</TableCell>
+                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{displayData.description}</TableCell>
                       </TableRow>
                     )}
                     <TableRow>
                       <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Format</TableCell>
-                      <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{data.format}</TableCell>
+                      <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{displayData.format}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -236,57 +280,57 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
                         <TableRow>
                           <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Source ID</TableCell>
                           <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5, borderBottom: 'none' }}>
-                            {(data as Flow).source_id}
+                            {(displayData as Flow).source_id}
                           </TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Codec</TableCell>
                           <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
-                            {(data as Flow).codec || '-'}
+                            {(displayData as Flow).codec || '-'}
                           </TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Container</TableCell>
                           <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
-                            {(data as Flow).container || '-'}
+                            {(displayData as Flow).container || '-'}
                           </TableCell>
                         </TableRow>
-                        {(data as Flow).avg_bit_rate !== undefined && (
+                        {(displayData as Flow).avg_bit_rate !== undefined && (
                           <TableRow>
                             <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Avg Bit Rate</TableCell>
                             <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
-                              {(data as Flow).avg_bit_rate?.toLocaleString() || '-'} {(data as Flow).avg_bit_rate ? 'bps' : ''}
+                              {(displayData as Flow).avg_bit_rate?.toLocaleString() || '-'} {(displayData as Flow).avg_bit_rate ? 'bps' : ''}
                             </TableCell>
                           </TableRow>
                         )}
-                        {(data as Flow).max_bit_rate !== undefined && (
+                        {(displayData as Flow).max_bit_rate !== undefined && (
                           <TableRow>
                             <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Max Bit Rate</TableCell>
                             <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
-                              {(data as Flow).max_bit_rate?.toLocaleString() || '-'} {(data as Flow).max_bit_rate ? 'bps' : ''}
+                              {(displayData as Flow).max_bit_rate?.toLocaleString() || '-'} {(displayData as Flow).max_bit_rate ? 'bps' : ''}
                             </TableCell>
                           </TableRow>
                         )}
-                        {(data as Flow).generation !== undefined && (
+                        {(displayData as Flow).generation !== undefined && (
                           <TableRow>
                             <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Generation</TableCell>
                             <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
-                              {(data as Flow).generation ?? '-'}
+                              {(displayData as Flow).generation ?? '-'}
                             </TableCell>
                           </TableRow>
                         )}
-                        {(data as Flow).metadata_version && (
+                        {(displayData as Flow).metadata_version && (
                           <TableRow>
                             <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Metadata Version</TableCell>
-                            <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{(data as Flow).metadata_version}</TableCell>
+                            <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{(displayData as Flow).metadata_version}</TableCell>
                           </TableRow>
                         )}
-                        {(data as Flow).segment_duration && (
+                        {(displayData as Flow).segment_duration && (
                           <TableRow>
                             <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Segment Duration</TableCell>
                             <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
                               {(() => {
-                                const segDur = (data as Flow).segment_duration;
+                                const segDur = (displayData as Flow).segment_duration;
                                 if (segDur?.value) {
                                   return segDur.value;
                                 }
@@ -298,12 +342,12 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
                             </TableCell>
                           </TableRow>
                         )}
-                        {(data as Flow).timerange && (
+                        {(displayData as Flow).timerange && (
                           <TableRow>
                             <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none', verticalAlign: 'top' }}>Timerange</TableCell>
                             <TableCell sx={{ py: 0.5, borderBottom: 'none', fontFamily: 'monospace', fontSize: '0.75rem' }}>
                               {(() => {
-                                const tr = (data as Flow).timerange;
+                                const tr = (displayData as Flow).timerange;
                                 if (typeof tr === 'string') return tr;
                                 if (tr?.value) return tr.value;
                                 if (tr?.start && tr?.end) return `${tr.start} to ${tr.end}`;
@@ -312,12 +356,12 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
                             </TableCell>
                           </TableRow>
                         )}
-                        {(data as Flow).flow_collection && (
+                        {(displayData as Flow).flow_collection && (
                           <TableRow>
                             <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none', verticalAlign: 'top' }}>Flow Collection</TableCell>
                             <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
                               {(() => {
-                                const fc = (data as Flow).flow_collection;
+                                const fc = (displayData as Flow).flow_collection;
                                 if (Array.isArray(fc)) {
                                   return (
                                     <Box>
@@ -344,12 +388,12 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
                             </TableCell>
                           </TableRow>
                         )}
-                        {(data as Flow).collected_by && Array.isArray((data as Flow).collected_by) && (data as Flow).collected_by!.length > 0 && (
+                        {(displayData as Flow).collected_by && Array.isArray((displayData as Flow).collected_by) && (displayData as Flow).collected_by!.length > 0 && (
                           <TableRow>
                             <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none', verticalAlign: 'top' }}>Collected By</TableCell>
                             <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
                               <Box>
-                                {(data as Flow).collected_by!.map((flowId: string, idx: number) => (
+                                {(displayData as Flow).collected_by!.map((flowId: string, idx: number) => (
                                   <Chip
                                     key={idx}
                                     label={flowId}
@@ -361,12 +405,12 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
                             </TableCell>
                           </TableRow>
                         )}
-                        {(data as Flow).container_mapping && (
+                        {(displayData as Flow).container_mapping && (
                           <TableRow>
                             <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none', verticalAlign: 'top' }}>Container Mapping</TableCell>
                             <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
                               <Box component="pre" sx={{ fontFamily: 'monospace', fontSize: '0.75rem', margin: 0, whiteSpace: 'pre-wrap' }}>
-                                {JSON.stringify((data as Flow).container_mapping, null, 2)}
+                                {JSON.stringify((displayData as Flow).container_mapping, null, 2)}
                               </Box>
                             </TableCell>
                           </TableRow>
@@ -377,14 +421,14 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
                 </Paper>
 
                 {/* Essence Parameters - Separate section for better visibility */}
-                {(data as Flow).essence_parameters && (
+                {(displayData as Flow).essence_parameters && (
                   <Paper sx={{ p: 1.5 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '0.9rem' }}>
                       Essence Parameters
                     </Typography>
                     <Divider sx={{ mb: 1 }} />
                     <Box sx={{ mt: 0.5 }}>
-                      {formatEssenceParameters((data as Flow).essence_parameters)}
+                      {formatEssenceParameters((displayData as Flow).essence_parameters)}
                     </Box>
                   </Paper>
                 )}
@@ -392,14 +436,14 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
             )}
 
             {/* Source-specific Information */}
-            {!isFlow && (data as Source).source_collection && (
+            {!isFlow && (displayData as Source).source_collection && (
               <Paper sx={{ p: 2 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
                   Collections
                 </Typography>
                 <Divider sx={{ mb: 1 }} />
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {(data as Source).source_collection?.map((item, idx) => (
+                  {(displayData as Source).source_collection?.map((item, idx) => (
                     <Chip key={idx} label={item.label || item.id} size="small" />
                   ))}
                 </Box>
@@ -409,11 +453,10 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
             {/* Tags - Compact */}
             {(() => {
               // Handle tags that might be nested under 'root' or at top level
-              const tags = data.tags;
-              if (!tags) return null;
+              const tags = displayData.tags;
               
               // Check if tags has a 'root' property with content
-              const tagsToDisplay = tags.root && typeof tags.root === 'object' 
+              const tagsToDisplay = tags?.root && typeof tags.root === 'object' 
                 ? tags.root 
                 : tags;
               
@@ -421,17 +464,30 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
               const hasTags = tagsToDisplay && typeof tagsToDisplay === 'object' 
                 && Object.keys(tagsToDisplay).length > 0;
               
-              if (!hasTags) return null;
-              
               return (
                 <Paper sx={{ p: 1.5 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '0.9rem' }}>
-                    Tags
-                  </Typography>
-                  <Divider sx={{ mb: 1 }} />
-                  <Box sx={{ mt: 0.5 }}>
-                    {formatObject(tagsToDisplay)}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: '0.9rem' }}>
+                      Tags
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={handleTagEdit}
+                      title="Edit tags"
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
                   </Box>
+                  <Divider sx={{ mb: 1 }} />
+                  {hasTags ? (
+                    <Box sx={{ mt: 0.5 }}>
+                      {formatObject(tagsToDisplay)}
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mt: 0.5 }}>
+                      No tags defined
+                    </Typography>
+                  )}
                 </Paper>
               );
             })()}
@@ -445,39 +501,39 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
               <TableContainer>
                 <Table size="small">
                   <TableBody>
-                    {data.created_by && (
+                    {displayData.created_by && (
                       <TableRow>
                         <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Created By</TableCell>
-                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{data.created_by}</TableCell>
+                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{displayData.created_by}</TableCell>
                       </TableRow>
                     )}
-                    {data.updated_by && (
+                    {displayData.updated_by && (
                       <TableRow>
                         <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Updated By</TableCell>
-                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{data.updated_by}</TableCell>
+                        <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{displayData.updated_by}</TableCell>
                       </TableRow>
                     )}
                     <TableRow>
                       <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Created</TableCell>
-                      <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{formatDate(data.created)}</TableCell>
+                      <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{formatDate(displayData.created)}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Updated</TableCell>
-                      <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{formatDate(data.updated)}</TableCell>
+                      <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>{formatDate(displayData.updated)}</TableCell>
                     </TableRow>
-                    {isFlow && (data as Flow).metadata_updated && (
+                    {isFlow && (displayData as Flow).metadata_updated && (
                       <TableRow>
                         <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Metadata Updated</TableCell>
                         <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
-                          {formatDate((data as Flow).metadata_updated)}
+                          {formatDate((displayData as Flow).metadata_updated)}
                         </TableCell>
                       </TableRow>
                     )}
-                    {isFlow && (data as Flow).segments_updated && (
+                    {isFlow && (displayData as Flow).segments_updated && (
                       <TableRow>
                         <TableCell sx={{ fontWeight: 'bold', width: '30%', py: 0.5, borderBottom: 'none' }}>Segments Updated</TableCell>
                         <TableCell sx={{ py: 0.5, borderBottom: 'none' }}>
-                          {formatDate((data as Flow).segments_updated)}
+                          {formatDate((displayData as Flow).segments_updated)}
                         </TableCell>
                       </TableRow>
                     )}
@@ -491,6 +547,18 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
       </DialogActions>
+      
+      {/* Tag Edit Modal */}
+      {displayData && (
+        <TagEditModal
+          open={tagEditModalOpen}
+          onClose={handleTagEditClose}
+          entityType={isFlow ? 'flow' : 'source'}
+          entityId={displayData.id}
+          entityLabel={displayData.label}
+          onSave={handleTagSave}
+        />
+      )}
     </Dialog>
   );
 };

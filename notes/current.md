@@ -1,7 +1,25 @@
 # TAMS Project - Current Status & TODO
 
-**Last Updated**: November 23, 2025  
-**Status**: Vector Table Separation Complete
+**Last Updated**: November 27, 2025  
+**Status**: Search & Tags Enhancements in Progress
+
+## ✅ Recent Updates (November 27, 2025)
+
+1. **Flow & Source Tag Editing**
+   - Added `TagEditModal` with add/remove support.
+   - Integrated into `DetailModal` flows and sources; API helpers now cover tag CRUD.
+
+2. **Tag Visibility Improvements**
+   - Sources and flows tables display `type` and `sport` tags (chips with values).
+   - Backend list endpoints now enrich responses with tags (including cache hits).
+
+3. **HLS Direct URL Testing**
+   - Playlist endpoint accepts `use_proxy`; UI requests direct presigned URLs while testing VAST-side CORS.
+   - Manifest rewriting only appends auth tokens when proxying is enabled.
+
+4. **Multiview Autoplay**
+   - Multiview player respects the global Auto-Play toggle (previously forced off).
+   - Keeps scrollable and multiview behavior consistent for operators.
 
 ## 🎯 **CURRENT FOCUS: SEARCH AND TAGS ENHANCEMENT** (November 23, 2025)
 

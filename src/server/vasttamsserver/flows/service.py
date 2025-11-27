@@ -180,8 +180,12 @@ class FlowStorageService:
             if cached:
                 try:
                     # Reconstruct Flow objects from cached data
+                    # Note: Tags are not cached, fetch them fresh for each flow
                     flows = []
                     for flow_data in cached:
+                        flow_id = flow_data.get('id')
+                        if flow_id:
+                            await self._fetch_and_add_tags(flow_data, flow_id)
                         flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
                         flow_data = self._ensure_required_flow_fields(flow_data, flow_class)
                         flows.append(flow_class(**flow_data))
@@ -283,6 +287,11 @@ class FlowStorageService:
                         # For list operations, set it to None to avoid expensive JSON parsing
                         flow_data['flow_collection'] = None
                         
+                        # Fetch tags for this flow
+                        flow_id = flow_data.get('id')
+                        if flow_id:
+                            await self._fetch_and_add_tags(flow_data, flow_id)
+                        
                         # Get the appropriate flow class based on format
                         # Safety check: ensure flow_data is a dict
                         if not isinstance(flow_data, dict):
@@ -336,6 +345,11 @@ class FlowStorageService:
                         # For list operations, set it to None to avoid expensive JSON parsing
                         flow_data['flow_collection'] = None
                         
+                        # Fetch tags for this flow
+                        flow_id = flow_data.get('id')
+                        if flow_id:
+                            await self._fetch_and_add_tags(flow_data, flow_id)
+                        
                         # Get the appropriate flow class based on format
                         # Additional safety check before calling .get()
                         if not isinstance(flow_data, dict):
@@ -382,6 +396,11 @@ class FlowStorageService:
                     # flow_collection is computed on-demand in get_flow() only
                     # For list operations, set it to None to avoid expensive JSON parsing
                     flow_data['flow_collection'] = None
+                    
+                    # Fetch tags for this flow
+                    flow_id = flow_data.get('id')
+                    if flow_id:
+                        await self._fetch_and_add_tags(flow_data, flow_id)
                     
                     # Get the appropriate flow class based on format
                     # Additional safety check before calling .get()

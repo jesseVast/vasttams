@@ -9,6 +9,7 @@ interface MultiviewSegmentsViewProps {
   flow: Flow | null;
   totalSegments: number | null;
   loadingMore: boolean;
+  autoPlayEnabled: boolean;
 }
 
 // Helper function to parse timerange start time
@@ -42,6 +43,7 @@ const MultiviewSegmentsView: React.FC<MultiviewSegmentsViewProps> = ({
   flow,
   totalSegments,
   loadingMore,
+  autoPlayEnabled,
 }) => {
   const [hlsManifestUrl, setHlsManifestUrl] = useState<string | null>(null);
   const [hlsManifestLoading, setHlsManifestLoading] = useState(false);
@@ -49,9 +51,10 @@ const MultiviewSegmentsView: React.FC<MultiviewSegmentsViewProps> = ({
 
   // Check if flow is HLS-compatible
   const isHLSFlow = flow?.container === 'video/mp2t';
-  // Use proxy URLs since VAST S3 does not support CORS headers
+  // Temporarily disable proxy usage to test direct presigned URLs / CORS fixes
+  const useProxyForHLS = false;
   const hlsPlaylistUrl = isHLSFlow && flow?.id 
-    ? `${API_BASE_URL}/hls/flows/${flow.id}/playlist.m3u8`
+    ? `${API_BASE_URL}/hls/flows/${flow.id}/playlist.m3u8${useProxyForHLS ? '' : '?use_proxy=false'}`
     : null;
 
   // Fetch HLS manifest once when flow changes
@@ -82,20 +85,15 @@ const MultiviewSegmentsView: React.FC<MultiviewSegmentsViewProps> = ({
         return response.text();
       })
       .then(manifestText => {
-        // Add access_token to all segment URLs in the manifest
-        // Proxy URLs require authentication via query parameter
         let modifiedManifest = manifestText;
-        if (token) {
-          // Replace segment URLs to include access_token parameter
-          // Pattern: /segments/{object_id}?url=... -> /segments/{object_id}?url=...&access_token=...
+        if (useProxyForHLS && token) {
+          // Add access_token to all proxy segment URLs when proxying is enabled
           modifiedManifest = manifestText.replace(
             /(\/segments\/[^?\s]+\?url=[^&\s]+)(&[^\s]*)?/g,
             (match, urlPart, existingParams) => {
-              // Check if access_token already exists
               if (match.includes('access_token=')) {
                 return match;
               }
-              // Add access_token parameter
               const separator = existingParams ? '&' : (urlPart.includes('?') ? '&' : '?');
               return `${urlPart}${separator}access_token=${encodeURIComponent(token)}${existingParams || ''}`;
             }
@@ -204,8 +202,8 @@ const MultiviewSegmentsView: React.FC<MultiviewSegmentsViewProps> = ({
                 flow={flow}
                 width="100%" // Use 100% width to fit grid cell
                 height="auto" // Auto height to maintain aspect ratio
-                isFirst={false} // No autoplay in multiview
-                autoPlayEnabled={false} // Multiview does not autoplay
+                isFirst={false}
+                autoPlayEnabled={autoPlayEnabled}
                 segmentIndex={index}
                 loadImmediately={true} // Load all videos immediately in multiview
                 // HLS-specific props

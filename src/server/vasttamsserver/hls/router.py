@@ -43,6 +43,11 @@ def _get_requests_session():
 async def get_hls_playlist(
     flow_id: str,
     request: Request,
+    use_proxy: bool = Query(
+        True,
+        description="If true, return proxy URLs via TAMS API (default). "
+                    "Set to false to return direct presigned URLs for testing CORS fixes."
+    ),
     vast_db=Depends(get_vast_db),
     s3_client=Depends(get_s3_client),
     user_session: UserSession = Depends(require_viewer)
@@ -67,16 +72,15 @@ async def get_hls_playlist(
         # Get flow container for HLS validation
         flow_container = getattr(flow, 'container', None) if flow else None
         
-        # Get base URL for generating absolute proxy URLs
-        # VAST S3 does not support CORS, so we always use proxy URLs
-        base_url = str(request.base_url).rstrip('/')
+        # Get base URL for generating absolute proxy URLs when proxying
+        base_url = str(request.base_url).rstrip('/') if use_proxy else None
         
         # Generate HLS playlist with flow container for validation
         hls_manager = HLSManager(vast_db, s3_client)
         playlist = await hls_manager.generate_playlist(
             flow_id, 
             flow_container=flow_container,
-            use_proxy_urls=True,  # Always use proxy for CORS support
+            use_proxy_urls=use_proxy,
             base_url=base_url
         )
         

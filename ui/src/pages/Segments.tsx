@@ -922,6 +922,7 @@ const Segments: React.FC = () => {
                   flow={filteredFlow}
                   totalSegments={totalSegments}
                   loadingMore={loadingMore}
+                  autoPlayEnabled={autoPlayEnabled}
                 />
               ) : (
                 <ScrollableSegmentsView

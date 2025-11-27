@@ -79,6 +79,9 @@ const Flows: React.FC = () => {
   const [uniqueFrameRatesForFilters, setUniqueFrameRatesForFilters] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Read source_id from URL params for filtering
+  const sourceIdFromUrl = searchParams.get('source_id') || '';
+
   useEffect(() => {
     loadSources();
     loadFlows(); // Load flows - filter values will be extracted immediately
@@ -275,6 +278,11 @@ const Flows: React.FC = () => {
   // Apply all filters
   const filteredFlows = useMemo(() => {
     return flows.filter(flow => {
+      // Source ID filter (from URL parameter)
+      if (sourceIdFromUrl && flow.source_id !== sourceIdFromUrl) {
+        return false;
+      }
+      
       // Codec filter
       if (filterCodec && flow.codec !== filterCodec) {
         return false;
@@ -318,7 +326,7 @@ const Flows: React.FC = () => {
       
       return true;
     });
-  }, [flows, filterCodec, filterResolution, filterFrameRate, filterDateFrom, filterDateTo]);
+  }, [flows, sourceIdFromUrl, filterCodec, filterResolution, filterFrameRate, filterDateFrom, filterDateTo]);
 
   // Sort filtered flows
   const sortedFlows = useMemo(() => {

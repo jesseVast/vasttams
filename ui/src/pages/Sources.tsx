@@ -302,8 +302,8 @@ const Sources: React.FC = () => {
             ? tags.root 
             : tags;
           
-          // Filter to only show 'type' and 'sport' tags
-          const allowedTags = ['type', 'sport'];
+          // Filter to only show 'year', 'genre', and 'sport' tags
+          const allowedTags = ['year', 'genre', 'sport'];
           const filteredTags = tagsToDisplay && typeof tagsToDisplay === 'object'
             ? Object.entries(tagsToDisplay).filter(([key]) => allowedTags.includes(key))
             : [];
@@ -407,6 +407,7 @@ const Sources: React.FC = () => {
         onClose={() => setDetailModalOpen(false)}
         data={selectedSource}
         title="Source Details"
+        onRefresh={loadSources}
       />
 
       <Dialog

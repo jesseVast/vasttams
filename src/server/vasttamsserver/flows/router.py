@@ -490,6 +490,19 @@ async def update_flow_tag(
         if not success:
             raise HTTPException(status_code=404, detail="Flow not found")
         
+        # Invalidate cache after tag update
+        try:
+            from ..core.dependencies import get_cache_service
+            cache_service = get_cache_service()
+            await cache_service.delete(f"flow:{flow_id}")
+            await cache_service.delete("flows:list:all")  # Invalidate flows list cache
+            # Get flow to invalidate source-specific cache
+            flow = await storage.get_flow(flow_id)
+            if flow and flow.source_id:
+                await cache_service.clear_pattern(f"flows:source:{flow.source_id}*")
+        except Exception as e:
+            logger.warning("Failed to invalidate cache after tag update: %s", e)
+        
     except HTTPException:
         raise
     except Exception as e:
@@ -510,6 +523,19 @@ async def delete_flow_tag(
         success = await storage.delete_flow_tag(flow_id, name)
         if not success:
             raise HTTPException(status_code=404, detail="Flow or tag not found")
+        
+        # Invalidate cache after tag delete
+        try:
+            from ..core.dependencies import get_cache_service
+            cache_service = get_cache_service()
+            await cache_service.delete(f"flow:{flow_id}")
+            await cache_service.delete("flows:list:all")  # Invalidate flows list cache
+            # Get flow to invalidate source-specific cache
+            flow = await storage.get_flow(flow_id)
+            if flow and flow.source_id:
+                await cache_service.clear_pattern(f"flows:source:{flow.source_id}*")
+        except Exception as e:
+            logger.warning("Failed to invalidate cache after tag delete: %s", e)
         
     except HTTPException:
         raise

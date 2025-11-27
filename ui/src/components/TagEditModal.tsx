@@ -64,6 +64,7 @@ const TagEditModal: React.FC<TagEditModalProps> = ({
       setNewTagIsArray(false);
       setError(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, entityId]);
 
   const loadTags = async () => {

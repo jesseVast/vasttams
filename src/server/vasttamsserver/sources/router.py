@@ -431,6 +431,17 @@ async def update_source_tag(
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update source tag")
         
+        # Invalidate cache after tag update
+        try:
+            from ..core.dependencies import get_cache_service
+            cache_service = get_cache_service()
+            await cache_service.delete(f"source:{source_id}")
+            await cache_service.delete("sources:list:all")  # Invalidate sources list cache
+            # Also invalidate flows list cache for this source
+            await cache_service.clear_pattern(f"flows:source:{source_id}*")
+        except Exception as e:
+            logger.warning("Failed to invalidate cache after tag update: %s", e)
+        
         # Emit source updated event
         try:
             event_manager = EventManager(storage)
@@ -463,6 +474,17 @@ async def delete_source_tag(
         success = await storage.delete_source_tag(source_id, name)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete source tag")
+        
+        # Invalidate cache after tag delete
+        try:
+            from ..core.dependencies import get_cache_service
+            cache_service = get_cache_service()
+            await cache_service.delete(f"source:{source_id}")
+            await cache_service.delete("sources:list:all")  # Invalidate sources list cache
+            # Also invalidate flows list cache for this source
+            await cache_service.clear_pattern(f"flows:source:{source_id}*")
+        except Exception as e:
+            logger.warning("Failed to invalidate cache after tag delete: %s", e)
         
         # Emit source updated event
         try:

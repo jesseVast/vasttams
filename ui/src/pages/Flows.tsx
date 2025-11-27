@@ -8,8 +8,6 @@ import {
   Box,
   TextField,
   Chip,
-  Card,
-  CardContent,
   Select,
   MenuItem,
   FormControl,
@@ -61,7 +59,6 @@ const Flows: React.FC = () => {
   const [filterDateFrom, setFilterDateFrom] = useState<Dayjs | null>(null);
   const [filterDateTo, setFilterDateTo] = useState<Dayjs | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filteredSource, setFilteredSource] = useState<Source | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<SortableField>('created');
@@ -93,12 +90,8 @@ const Flows: React.FC = () => {
     // Update URL when filter changes
     if (filterSourceId) {
       setSearchParams({ source_id: filterSourceId }, { replace: true });
-      // Find the source details
-      const source = sources.find(s => s.id === filterSourceId);
-      setFilteredSource(source || null);
     } else {
       setSearchParams({}, { replace: true });
-      setFilteredSource(null);
     }
   }, [filterSourceId, setSearchParams, sources]);
 
@@ -588,8 +581,8 @@ const Flows: React.FC = () => {
             ? tags.root 
             : tags;
           
-          // Filter to only show 'type' and 'sport' tags
-          const allowedTags = ['type', 'sport'];
+          // Filter to only show 'year', 'genre', and 'sport' tags
+          const allowedTags = ['year', 'genre', 'sport'];
           const filteredTags = tagsToDisplay && typeof tagsToDisplay === 'object'
             ? Object.entries(tagsToDisplay).filter(([key]) => allowedTags.includes(key))
             : [];
@@ -792,6 +785,7 @@ const Flows: React.FC = () => {
         onClose={() => setDetailModalOpen(false)}
         data={selectedFlow}
         title="Flow Details"
+        onRefresh={loadFlows}
       />
       
       <EditFlowModal

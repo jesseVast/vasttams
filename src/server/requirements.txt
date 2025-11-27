@@ -42,7 +42,7 @@ vasts3>=1.1.6  # Private GitLab package - requires authentication (wheel: vasts3
 # Embedding provider
 # NOTE: jthaloor-ai is a PRIVATE dependency from GitLab
 # See ~/Developer/gitlab/jthaloor-ai for installation instructions
-# jthaloor-ai>=1.0.0  # Private GitLab package - requires authentication
+jthaloor-ai>=0.2.1  # Private GitLab package - requires authentication
 ibis-framework>=9.0.0  # Required by vastdbmanager (==9.0.0 in vastdbmanager, using >= for flexibility)
 pyarrow==16.1.0  # Required by vastdbmanager (>=10.0.0 in vastdbmanager)
 numpy>=1.21.0  # Required by vastdbmanager

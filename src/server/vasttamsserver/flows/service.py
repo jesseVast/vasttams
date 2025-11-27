@@ -7,6 +7,7 @@ CRUD operations, filtering, and flow management.
 
 import logging
 import time
+import asyncio
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 
@@ -51,6 +52,23 @@ class FlowStorageService:
     def __init__(self, vast_db, s3_client):
         self.vast_db = vast_db
         self.s3_client = s3_client
+        from ..common.tags.service import TagStorageService
+        self.tag_service = TagStorageService(vast_db, s3_client)
+    
+    async def _fetch_and_add_tags(self, flow_data: dict, flow_id: str):
+        """Helper method to fetch tags from tags table and add to flow_data"""
+        try:
+            tags = await self.tag_service.get_entity_tags("flow", flow_id)
+            if tags:
+                # Tags object is already a Tags instance, use it directly
+                logger.debug(f"Fetched tags for flow {flow_id}: {tags.root if hasattr(tags, 'root') else tags}")
+                flow_data['tags'] = tags
+            else:
+                logger.debug(f"No tags found for flow {flow_id}")
+                flow_data['tags'] = None
+        except Exception as e:
+            logger.warning(f"Failed to fetch tags for flow {flow_id}: {e}", exc_info=True)
+            flow_data['tags'] = None
     
     def _ensure_required_flow_fields(self, flow_data: Dict[str, Any], flow_class) -> Dict[str, Any]:
         """
@@ -419,7 +437,9 @@ class FlowStorageService:
             cached = await cache_service.get(cache_key)
             if cached:
                 try:
-                    # Reconstruct Flow object from cached data
+                    # Always fetch tags even for cached flows (tags are dynamic)
+                    await self._fetch_and_add_tags(cached, flow_id)
+                    # Reconstruct Flow object from cached data with updated tags
                     from ..flows.models import Flow
                     # Determine flow class from format
                     format_urn = cached.get('format', '')
@@ -589,6 +609,9 @@ class FlowStorageService:
                 elif flow_data['flow_collection'] is not None:
                     # If it's not a list and not None, set to None (invalid format)
                     flow_data['flow_collection'] = None
+            
+            # Fetch tags from tags table and include in response
+            await self._fetch_and_add_tags(flow_data, flow_id)
             
             # Get the appropriate flow class based on format
             flow_class = _get_flow_class(flow_data.get('format', 'urn:x-nmos:format:video'))
@@ -1102,8 +1125,9 @@ class FlowStorageService:
                 # If we can't get the flow, just invalidate the flow cache
                 pass
             
-            # Delete flow
-            self.vast_db.query("flows").delete().where(f"id = '{flow_id}'").execute()
+            # Delete flow (async to avoid blocking)
+            query = self.vast_db.query("flows").delete().where(f"id = '{flow_id}'")
+            await asyncio.to_thread(lambda: query.execute())
             
             # Invalidate cache
             from ..core.dependencies import get_cache_service
@@ -1158,7 +1182,9 @@ class FlowStorageService:
     async def _delete_flow_segments(self, flow_id: str) -> bool:
         """Delete flow segments for a flow"""
         try:
-            self.vast_db.query("segments").delete().where(f"flow_id = '{flow_id}'").execute()
+            # Use async to avoid blocking the event loop
+            query = self.vast_db.query("segments").delete().where(f"flow_id = '{flow_id}'")
+            await asyncio.to_thread(lambda: query.execute())
             return True
         except Exception as e:
             logger.error("Failed to delete flow segments for %s: %s", flow_id, e)

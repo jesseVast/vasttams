@@ -45,7 +45,6 @@ class ObjectStorageService:
                     o.created,
                     o.first_referenced_by_flow,
                     o.metadata,
-                    o.summary,
                     s.flow_id,
                     s.created as segment_created
                 FROM {objects_table} o
@@ -90,7 +89,8 @@ class ObjectStorageService:
                         return None
                     
                     # Get object data from first row
-                    # Note: summary is included in database but excluded from TAMS Object model
+                    # Note: summary is a VAST extension and not part of TAMS Object model
+                    # It's managed separately by /api/vast/objects endpoints, not included in TAMS /api/tams/v8.0/objects
                     object_data = {
                         'id': data.get('id', [None])[0] if data.get('id') else None,
                         'size': data.get('size', [None])[0] if data.get('size') else None,
@@ -98,7 +98,6 @@ class ObjectStorageService:
                         'created': data.get('created', [None])[0] if data.get('created') else None,
                         'first_referenced_by_flow': data.get('first_referenced_by_flow', [None])[0] if data.get('first_referenced_by_flow') else None,
                         'metadata': data.get('metadata', [None])[0] if data.get('metadata') else None,
-                        'summary': data.get('summary', [None])[0] if data.get('summary') else None,  # VAST extension
                     }
                     
                     # Collect all flow_ids from all rows
@@ -990,7 +989,7 @@ class ObjectStorageService:
             object_id: Object ID
             
         Returns:
-            Summary string or None if not set
+            Summary string or None if not set or column doesn't exist
         """
         try:
             objects_table = self.vast_db.get_qualified_table_name("objects")
@@ -1005,6 +1004,10 @@ class ObjectStorageService:
                         return summary_list[0]
             return None
         except Exception as e:
+            # Column might not exist in table - this is OK, just return None
+            if 'COLUMN_NOT_FOUND' in str(e) or 'cannot be resolved' in str(e):
+                logger.debug(f"Summary column does not exist for object {object_id} (this is OK)")
+                return None
             logger.error(f"Failed to get summary for object {object_id}: {e}")
             return None
     
@@ -1049,9 +1052,10 @@ class ObjectStorageService:
                     if not existing_data:
                         raise HTTPException(status_code=404, detail="Object not found")
                     
-                    # Get raw data from database (including summary)
+                    # Get raw data from database (excluding summary - it may not exist in table)
                     objects_table = self.vast_db.get_qualified_table_name("objects")
-                    select_query = f"SELECT * FROM {objects_table} WHERE id = '{object_id}'"
+                    # Explicitly list columns to avoid issues if summary column doesn't exist
+                    select_query = f"SELECT id, size, timerange, created, first_referenced_by_flow, metadata FROM {objects_table} WHERE id = '{object_id}'"
                     result = self.vast_db.execute_sql(select_query)
                     
                     if isinstance(result, dict) and 'data' in result:
@@ -1066,7 +1070,7 @@ class ObjectStorageService:
                             if key in data and data[key]:
                                 updated_data[key] = data[key][0]
                         
-                        # Set summary
+                        # Set summary (will be added to schema if it doesn't exist)
                         updated_data['summary'] = summary
                         
                         # Delete existing record
@@ -1082,17 +1086,28 @@ class ObjectStorageService:
             except Exception as query_error:
                 logger.error(f"Query builder approach failed: {query_error}")
                 # Fallback to direct SQL (with proper escaping)
+                # Note: If summary column doesn't exist, this will fail - that's expected
+                # The column should be added via schema migration if summary feature is needed
                 objects_table = self.vast_db.get_qualified_table_name("objects")
-                if summary is None:
-                    update_query = f"UPDATE {objects_table} SET summary = NULL WHERE id = '{object_id}'"
-                else:
-                    # Escape single quotes for SQL
-                    summary_escaped = summary.replace("'", "''")
-                    update_query = f"UPDATE {objects_table} SET summary = '{summary_escaped}' WHERE id = '{object_id}'"
-                
-                self.vast_db.execute_sql(update_query)
-                logger.debug(f"Updated summary for object {object_id} using direct SQL")
-                return True
+                try:
+                    if summary is None:
+                        update_query = f"UPDATE {objects_table} SET summary = NULL WHERE id = '{object_id}'"
+                    else:
+                        # Escape single quotes for SQL
+                        summary_escaped = summary.replace("'", "''")
+                        update_query = f"UPDATE {objects_table} SET summary = '{summary_escaped}' WHERE id = '{object_id}'"
+                    
+                    self.vast_db.execute_sql(update_query)
+                    logger.debug(f"Updated summary for object {object_id} using direct SQL")
+                    return True
+                except Exception as sql_error:
+                    if 'COLUMN_NOT_FOUND' in str(sql_error) or 'cannot be resolved' in str(sql_error):
+                        logger.warning(f"Summary column does not exist in objects table. Cannot update summary for {object_id}. Add summary column via schema migration if needed.")
+                        raise HTTPException(
+                            status_code=400, 
+                            detail="Summary column does not exist in objects table. This feature requires schema migration."
+                        )
+                    raise
             
         except HTTPException:
             raise

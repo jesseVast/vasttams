@@ -407,17 +407,34 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, onClose, data, title })
             )}
 
             {/* Tags - Compact */}
-            {data.tags && Object.keys(data.tags).length > 0 && (
-              <Paper sx={{ p: 1.5 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '0.9rem' }}>
-                  Tags
-                </Typography>
-                <Divider sx={{ mb: 1 }} />
-                <Box sx={{ mt: 0.5 }}>
-                  {formatObject(data.tags)}
-                </Box>
-              </Paper>
-            )}
+            {(() => {
+              // Handle tags that might be nested under 'root' or at top level
+              const tags = data.tags;
+              if (!tags) return null;
+              
+              // Check if tags has a 'root' property with content
+              const tagsToDisplay = tags.root && typeof tags.root === 'object' 
+                ? tags.root 
+                : tags;
+              
+              // Check if there are any actual tag key-value pairs
+              const hasTags = tagsToDisplay && typeof tagsToDisplay === 'object' 
+                && Object.keys(tagsToDisplay).length > 0;
+              
+              if (!hasTags) return null;
+              
+              return (
+                <Paper sx={{ p: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '0.9rem' }}>
+                    Tags
+                  </Typography>
+                  <Divider sx={{ mb: 1 }} />
+                  <Box sx={{ mt: 0.5 }}>
+                    {formatObject(tagsToDisplay)}
+                  </Box>
+                </Paper>
+              );
+            })()}
 
             {/* Metadata - Compact */}
             <Paper sx={{ p: 1.5 }}>

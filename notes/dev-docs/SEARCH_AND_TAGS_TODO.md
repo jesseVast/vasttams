@@ -13,24 +13,27 @@ This document tracks the implementation of search functionality, tag enhancement
 ## UI Tasks
 
 ### 1. Show Tags in Info Modals
-**Status**: Pending  
+**Status**: ✅ **COMPLETED**  
 **Priority**: Medium
 
 **Description**: Display tags information in all info modals throughout the UI.
 
 **Requirements**:
-- Show tags in **flows** info modals
-- Show tags in **sources** info modals
-- For **segments**, use tags from the underlying object (not segment-level tags)
+- ✅ Show tags in **flows** info modals
+- ✅ Show tags in **sources** info modals
+- ✅ For **segments**, use tags from the underlying object (not segment-level tags)
 
-**Files to Modify**:
-- Flow info modal component
-- Source info modal component
-- Segment info modal component
+**Files Modified**:
+- ✅ `ui/src/components/DetailModal.tsx` - Updated to handle tags nested under 'root' or at top level
+- ✅ `ui/src/components/SegmentMediaWidget.tsx` - Updated to properly display tags from objects
 
-**Notes**:
-- Segments should display tags from their associated object
-- Ensure consistent tag display format across all modals
+**Implementation Notes**:
+- Tags can be nested under `root` property or at top level
+- Both components now check for tags in both locations
+- Tags are displayed using the `formatObject` function for consistent formatting
+- Segments display tags from their associated object (fetched when modal opens)
+
+**Date Completed**: January 2025
 
 ---
 

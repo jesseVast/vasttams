@@ -26,12 +26,16 @@ import { API_BASE_URL, objectService } from '../services/api';
 interface SegmentMediaWidgetProps {
   segment: Segment;
   flow?: Flow | null;
-  width?: number;
-  height?: number;
+  width?: number | string;
+  height?: number | string;
   isFirst?: boolean; // Flag to indicate if this is the first video (load immediately)
   videoPlayerType?: VideoPlayerType; // Which video player to use: 'videojs', 'react-player', or 'native'
   autoPlayEnabled?: boolean;
   segmentIndex?: number;
+  loadImmediately?: boolean; // Force immediate loading (bypasses IntersectionObserver)
+  useHLS?: boolean; // Use HLS playlist instead of individual segment
+  hlsManifestUrl?: string | null; // HLS manifest blob URL (shared across all players)
+  hlsStartTime?: number; // Time offset in seconds to start playback
 }
 
 type MediaType = 'video' | 'image' | 'audio' | 'data' | 'unknown';
@@ -44,16 +48,20 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   isFirst = false,
   videoPlayerType = 'native', // Default to native HTML5 for best performance
   autoPlayEnabled = false,
-  segmentIndex
+  segmentIndex,
+  loadImmediately = false, // Force immediate loading (bypasses IntersectionObserver)
+  useHLS = false, // Use HLS playlist instead of individual segment
+  hlsManifestUrl = null, // HLS manifest blob URL (shared across all players)
+  hlsStartTime = 0 // Time offset in seconds to start playback
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const videoPlayerRef = useRef<any>(null);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
-  const [isInViewport, setIsInViewport] = useState(isFirst); // First video loads immediately
+  const [isInViewport, setIsInViewport] = useState(isFirst || loadImmediately); // First video or forced load
   const [intersectionRatio, setIntersectionRatio] = useState(0); // Track how much is visible
   const [wasPlayingBeforeModal, setWasPlayingBeforeModal] = useState<boolean>(false);
-  const [shouldLoadVideo, setShouldLoadVideo] = useState(isFirst); // Track if video should be loaded
+  const [shouldLoadVideo, setShouldLoadVideo] = useState(isFirst || loadImmediately); // Track if video should be loaded
   const [shouldUnloadVideo, setShouldUnloadVideo] = useState(false); // Track if video should be unloaded
   const [retryWithMpegts, setRetryWithMpegts] = useState(false); // Track if we should retry with mpegts.js after native player error
   const [isVideoPlaying, setIsVideoPlaying] = useState(false); // Track if video is actually playing
@@ -256,6 +264,14 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
   // Setup IntersectionObserver for lazy loading and scroll-based playback
   useEffect(() => {
     if (!cardRef.current || mediaType !== 'video') return;
+    
+    // If loadImmediately is true, skip IntersectionObserver and load immediately
+    if (loadImmediately) {
+      setShouldLoadVideo(true);
+      setIsInViewport(true);
+      setIntersectionRatio(1);
+      return;
+    }
 
     const container = document.getElementById('segments-container');
     if (!container) return;
@@ -473,6 +489,118 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
 
     switch (mediaType) {
       case 'video':
+        // If HLS mode and manifest URL available, use HLS player with time offset
+        if (useHLS && hlsManifestUrl) {
+          return (
+            <Box sx={{ position: 'relative', width: '100%', height: height, backgroundColor: '#000' }}>
+              <VideoPlayer
+                ref={videoPlayerRef}
+                src={hlsManifestUrl}
+                width="100%"
+                height={height}
+                controls
+                muted
+                playsInline
+                preload="metadata" // Use metadata instead of auto to avoid auto-play
+                playerType="hls"
+                onReady={() => {
+                  // Seek to the correct time offset when ready
+                  // Wait for hls.js to fully initialize and load segments before seeking
+                  if (videoPlayerRef.current && hlsStartTime !== undefined && hlsStartTime > 0) {
+                    const video = videoPlayerRef.current.getVideoElement?.();
+                    const hlsPlayer = videoPlayerRef.current?.getHlsPlayer?.();
+                    if (video && hlsPlayer) {
+                      // Wait for video to have duration and hls.js to be ready
+                      // Seek BEFORE any playback starts to avoid interruption
+                      let retryCount = 0;
+                      const maxRetries = 100; // 10 seconds max wait
+                      const seekToTime = () => {
+                        retryCount++;
+                        // Check if video is ready and duration is available
+                        const isReady = video.readyState >= 2 && video.duration > 0 && video.duration > hlsStartTime;
+                        // Check if hls.js has loaded at least one level
+                        const hlsReady = hlsPlayer.levels && hlsPlayer.levels.length > 0;
+                        
+                        if (isReady && hlsReady) {
+                          // Ensure video is paused before seeking
+                          if (!video.paused) {
+                            video.pause();
+                          }
+                          
+                          // Seek to the start time
+                          try {
+                            video.currentTime = Math.min(hlsStartTime, video.duration);
+                            console.debug(`[Segment ${segmentIndex}] HLS player seeked to ${hlsStartTime}s (duration: ${video.duration}, readyState: ${video.readyState})`);
+                          } catch (err) {
+                            console.warn(`[Segment ${segmentIndex}] Seek failed:`, err);
+                          }
+                        } else if (retryCount < maxRetries) {
+                          // Retry after a short delay
+                          setTimeout(seekToTime, 100);
+                        } else {
+                          console.warn(`[Segment ${segmentIndex}] Failed to seek to ${hlsStartTime}s after ${maxRetries} retries (readyState: ${video.readyState}, duration: ${video.duration}, hlsReady: ${hlsReady})`);
+                        }
+                      };
+                      // Start seeking after a delay to let hls.js initialize
+                      setTimeout(seekToTime, 300);
+                    } else if (video && !hlsPlayer) {
+                      // Fallback: try without hls.js player reference
+                      console.warn(`[Segment ${segmentIndex}] HLS player reference not available, using direct seek`);
+                      const seekToTime = () => {
+                        if (video.readyState >= 2 && video.duration > 0 && video.duration > hlsStartTime) {
+                          if (!video.paused) {
+                            video.pause();
+                          }
+                          video.currentTime = Math.min(hlsStartTime, video.duration);
+                          console.debug(`[Segment ${segmentIndex}] HLS player seeked to ${hlsStartTime}s (fallback method)`);
+                        } else {
+                          setTimeout(seekToTime, 100);
+                        }
+                      };
+                      setTimeout(seekToTime, 300);
+                    }
+                  }
+                }}
+                onError={(error) => {
+                  console.error(`[Segment ${segmentIndex}] HLS playback error:`, error);
+                }}
+              />
+              <VideoControlsWidget
+                isPlaying={isVideoPlaying}
+                onPlay={() => {
+                  if (videoPlayerRef.current) {
+                    videoPlayerRef.current.play().catch((error: unknown) => {
+                      console.debug(`[Segment ${segmentIndex}] Failed to play:`, error);
+                    });
+                  }
+                }}
+                onPause={() => {
+                  if (videoPlayerRef.current) {
+                    videoPlayerRef.current.pause();
+                  }
+                }}
+                onStop={() => {
+                  if (videoPlayerRef.current) {
+                    videoPlayerRef.current.stop();
+                  }
+                }}
+                onInfoClick={() => {
+                  if (videoPlayerRef.current) {
+                    const videoElement = videoPlayerRef.current.getVideoElement();
+                    if (videoElement) {
+                      setWasPlayingBeforeModal(!videoElement.paused);
+                      videoPlayerRef.current.pause();
+                    }
+                  }
+                  setInfoModalOpen(true);
+                }}
+                timerange={timerange}
+                segmentIndex={segmentIndex}
+              />
+            </Box>
+          );
+        }
+        
         // Auto-detect video format and choose appropriate player
         // Check multiple indicators: URL extension, flow container, and flow format
         const urlLower = firstUrl.url.toLowerCase();
@@ -959,6 +1087,9 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     }
   };
 
+  // Check if width is "100%" to determine if we're in multiview mode
+  const isMultiview = width === "100%" || width === "100%";
+  
   return (
     <>
     <Card 
@@ -967,11 +1098,14 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
       data-video-playing={isVideoPlaying ? 'true' : 'false'}
       data-video-completed={isVideoCompleted ? 'true' : 'false'}
       sx={{ 
-        width, 
-        minWidth: width,
+        width: isMultiview ? '100%' : width, 
+        minWidth: isMultiview ? 0 : width,
+        maxWidth: isMultiview ? '100%' : width,
         display: 'flex',
         flexDirection: 'column',
-        margin: 1,
+        margin: isMultiview ? 0 : 1, // No margin in multiview
+        height: isMultiview ? '100%' : 'auto', // Full height in multiview
+        overflow: 'hidden',
         '&:hover': {
           boxShadow: 4,
         }
@@ -1115,17 +1249,34 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
             )}
 
             {/* Tags from Object */}
-            {objectData?.tags && Object.keys(objectData.tags).length > 0 && (
-              <Paper sx={{ p: 1.5 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '0.9rem' }}>
-                  Tags (from Object)
-                </Typography>
-                <Divider sx={{ mb: 1 }} />
-                <Box sx={{ mt: 0.5 }}>
-                  {formatObject(objectData.tags)}
-                </Box>
-              </Paper>
-            )}
+            {(() => {
+              // Handle tags that might be nested under 'root' or at top level
+              const tags = objectData?.tags;
+              if (!tags) return null;
+              
+              // Check if tags has a 'root' property with content
+              const tagsToDisplay = tags.root && typeof tags.root === 'object' 
+                ? tags.root 
+                : tags;
+              
+              // Check if there are any actual tag key-value pairs
+              const hasTags = tagsToDisplay && typeof tagsToDisplay === 'object' 
+                && Object.keys(tagsToDisplay).length > 0;
+              
+              if (!hasTags) return null;
+              
+              return (
+                <Paper sx={{ p: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5, fontSize: '0.9rem' }}>
+                    Tags (from Object)
+                  </Typography>
+                  <Divider sx={{ mb: 1 }} />
+                  <Box sx={{ mt: 0.5 }}>
+                    {formatObject(tagsToDisplay)}
+                  </Box>
+                </Paper>
+              );
+            })()}
 
             {/* URLs */}
             {segment.get_urls && segment.get_urls.length > 0 && (

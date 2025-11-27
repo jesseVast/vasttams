@@ -199,6 +199,16 @@ class Settings(BaseSettings):
     tams_cache_ttl: int = Field(default=300,
         description="TAMS cache TTL in seconds")
     
+    # CORS settings
+    cors_origins: List[str] = Field(default=DEFAULT_CORS_ORIGINS,
+        description="Allowed CORS origins (use ['*'] for all origins)")
+    cors_methods: List[str] = Field(default=DEFAULT_CORS_METHODS,
+        description="Allowed CORS HTTP methods")
+    cors_headers: List[str] = Field(default=DEFAULT_CORS_HEADERS,
+        description="Allowed CORS headers")
+    cors_allow_credentials: bool = Field(default=True,
+        description="Allow credentials in CORS requests")
+    
     # Redis cache settings
     redis_enabled: bool = Field(default=True,
         description="Enable Redis caching (required for multi-container deployments)")
@@ -349,6 +359,18 @@ class Settings(BaseSettings):
                         self.debug = server['debug']
                     if 'workers' in server:
                         self.workers = server['workers']
+                
+                # Load CORS settings
+                if 'cors' in config_data:
+                    cors = config_data['cors']
+                    if 'origins' in cors:
+                        self.cors_origins = cors['origins'] if isinstance(cors['origins'], list) else [cors['origins']]
+                    if 'methods' in cors:
+                        self.cors_methods = cors['methods'] if isinstance(cors['methods'], list) else [cors['methods']]
+                    if 'headers' in cors:
+                        self.cors_headers = cors['headers'] if isinstance(cors['headers'], list) else [cors['headers']]
+                    if 'allow_credentials' in cors:
+                        self.cors_allow_credentials = cors['allow_credentials']
                 
                 # Load database settings
                 if 'database' in config_data:

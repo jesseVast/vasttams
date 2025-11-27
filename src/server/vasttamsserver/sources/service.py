@@ -33,6 +33,23 @@ class SourceStorageService:
     def __init__(self, vast_db, s3_client):
         self.vast_db = vast_db
         self.s3_client = s3_client
+        from ..common.tags.service import TagStorageService
+        self.tag_service = TagStorageService(vast_db, s3_client)
+    
+    async def _fetch_and_add_tags(self, source_data: dict, source_id: str):
+        """Helper method to fetch tags from tags table and add to source_data"""
+        try:
+            tags = await self.tag_service.get_entity_tags("source", source_id)
+            if tags:
+                # Tags object is already a Tags instance, use it directly
+                logger.debug(f"Fetched tags for source {source_id}: {tags.root if hasattr(tags, 'root') else tags}")
+                source_data['tags'] = tags
+            else:
+                logger.debug(f"No tags found for source {source_id}")
+                source_data['tags'] = None
+        except Exception as e:
+            logger.warning(f"Failed to fetch tags for source {source_id}: {e}", exc_info=True)
+            source_data['tags'] = None
     
     async def get_sources(self, filters: SourceFilters) -> List[Source]:
         """Get sources with filtering (TAMS 8.0 with tag filtering)"""
@@ -263,7 +280,12 @@ class SourceStorageService:
         if cached:
             try:
                 # Source is already imported at module level
-                return Source(**cached)
+                source = Source(**cached)
+                # Always fetch tags even for cached sources (tags are dynamic)
+                await self._fetch_and_add_tags(cached, source_id)
+                # Recreate source with updated tags
+                source = Source(**cached)
+                return source
             except Exception as e:
                 logger.debug(f"Failed to deserialize cached source {source_id}: {e}")
                 # Fall through to DB query
@@ -298,6 +320,10 @@ class SourceStorageService:
                     
                     # Compute source_collection from flow collections
                     source_data['source_collection'] = await self._compute_source_collection(source_id)
+                    
+                    # Fetch tags from tags table and include in response
+                    await self._fetch_and_add_tags(source_data, source_id)
+                    
                     source = Source(**source_data)
                     
                     # Store in cache
@@ -316,6 +342,10 @@ class SourceStorageService:
                     source_data = dict(data[0]) if hasattr(data[0], '__iter__') and not isinstance(data[0], str) else data[0]
                     # Compute source_collection from flow collections
                     source_data['source_collection'] = await self._compute_source_collection(source_id)
+                    
+                    # Fetch tags from tags table and include in response
+                    await self._fetch_and_add_tags(source_data, source_id)
+                    
                     source = Source(**source_data)
                     
                     # Store in cache
@@ -334,6 +364,10 @@ class SourceStorageService:
                 source_data = dict(result[0]) if hasattr(result[0], '__iter__') and not isinstance(result[0], str) else result[0]
                 # Compute source_collection from flow collections
                 source_data['source_collection'] = await self._compute_source_collection(source_id)
+                
+                # Fetch tags from tags table and include in response
+                await self._fetch_and_add_tags(source_data, source_id)
+                
                 source = Source(**source_data)
                 
                 # Store in cache

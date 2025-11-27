@@ -19,15 +19,16 @@ import {
   TableRow,
   Link,
   Tooltip,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import ClearIcon from '@mui/icons-material/Clear';
 import SearchIcon from '@mui/icons-material/Search';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import PauseIcon from '@mui/icons-material/Pause';
 import DownloadIcon from '@mui/icons-material/Download';
 import { Segment, Flow } from '../types';
 import { segmentService, flowService } from '../services/api';
-import SegmentMediaWidget from '../components/SegmentMediaWidget';
+import ScrollableSegmentsView from '../components/ScrollableSegmentsView';
+import MultiviewSegmentsView from '../components/MultiviewSegmentsView';
 
 // Normalize time input to TAMS format (seconds:nanoseconds)
 // Accepts formats like: "10", "10:0", "10:500000000" (for half a second in nanoseconds)
@@ -70,7 +71,8 @@ const Segments: React.FC = () => {
   const [endTime, setEndTime] = useState<string>('');
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [totalSegments, setTotalSegments] = useState<number | null>(null);
-  const [autoPlayEnabled, setAutoPlayEnabled] = useState<boolean>(true);
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'scrollable' | 'multiview'>('multiview');
   const autoScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -615,8 +617,6 @@ const Segments: React.FC = () => {
     if (filterFlowId) {
       loadFlowDetails();
       loadSegments();
-      // Enable auto-play when segments are loaded for a flow
-      setAutoPlayEnabled(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterFlowId]);
@@ -729,23 +729,48 @@ const Segments: React.FC = () => {
             )}
             <Box sx={{ flexGrow: 1 }} />
             {segments.length > 0 && filteredFlow?.format !== 'urn:x-nmos:format:data' && (
-              <Button
-                variant={autoPlayEnabled ? "contained" : "outlined"}
-                size="small"
-                startIcon={autoPlayEnabled ? <PauseIcon /> : <PlayArrowIcon />}
-                onClick={() => {
-                  const newValue = !autoPlayEnabled;
-                  setAutoPlayEnabled(newValue);
-                  if (newValue) {
-                    const container = document.getElementById('segments-container');
-                    if (container) {
-                      container.scrollTo({ left: 0, behavior: 'smooth' });
-                    }
+              <>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={viewMode === 'multiview'}
+                      onChange={(e) => {
+                        setViewMode(e.target.checked ? 'multiview' : 'scrollable');
+                      }}
+                      size="small"
+                    />
                   }
-                }}
-              >
-                {autoPlayEnabled ? 'Stop' : 'Auto-Play'}
-              </Button>
+                  label={
+                    <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                      {viewMode === 'multiview' ? 'Multiview' : 'Scrollable'}
+                    </Typography>
+                  }
+                  sx={{ mr: 1 }}
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={autoPlayEnabled}
+                      onChange={(e) => {
+                        const newValue = e.target.checked;
+                        setAutoPlayEnabled(newValue);
+                        if (newValue && viewMode === 'scrollable') {
+                          const container = document.getElementById('segments-container');
+                          if (container) {
+                            container.scrollTo({ left: 0, behavior: 'smooth' });
+                          }
+                        }
+                      }}
+                      size="small"
+                    />
+                  }
+                  label={
+                    <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                      Auto-Play
+                    </Typography>
+                  }
+                />
+              </>
             )}
           </Box>
         </Paper>
@@ -891,74 +916,22 @@ const Segments: React.FC = () => {
           ) : (
             /* Standard Media Flow - Show segment widgets */
             (segments.length > 0 || loadingMore) && (
-              <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {totalSegments !== null 
-                      ? `${segments.length}/${totalSegments} segments`
-                      : `${segments.length} segment${segments.length !== 1 ? 's' : ''}${loadingMore ? '...' : ''}`
-                    }
-                  </Typography>
-                  {loadingMore && totalSegments !== null && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <LinearProgress 
-                        variant="determinate"
-                        value={(segments.length / totalSegments) * 100}
-                        sx={{ width: 150, height: 6 }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {Math.round((segments.length / totalSegments) * 100)}%
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-            
-                {/* Individual segment widgets */}
-                {segments.length > 0 && (
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      flexDirection: 'row', // Left to right layout
-                      overflowX: 'auto',
-                      overflowY: 'hidden',
-                      pb: 2,
-                      gap: 0,
-                      scrollBehavior: 'smooth', // CSS smooth scrolling
-                      // Ensure first video stays on the left
-                      justifyContent: 'flex-start',
-                      alignItems: 'flex-start',
-                      '&::-webkit-scrollbar': {
-                        height: 8,
-                      },
-                      '&::-webkit-scrollbar-track': {
-                        backgroundColor: '#f1f1f1',
-                        borderRadius: 4,
-                      },
-                      '&::-webkit-scrollbar-thumb': {
-                        backgroundColor: '#888',
-                        borderRadius: 4,
-                        '&:hover': {
-                          backgroundColor: '#555',
-                        },
-                      },
-                    }}
-                    id="segments-container"
-                  >
-                    {segments.map((segment, index) => (
-                      <SegmentMediaWidget
-                        key={`${segment.object_id}-${index}`}
-                        segment={segment}
-                        flow={filteredFlow}
-                        width={280}
-                        height={157.5} // 16:9 aspect ratio
-                        isFirst={index === 0} // Pass flag to indicate first video
-                        autoPlayEnabled={autoPlayEnabled}
-                        segmentIndex={index}
-                      />
-                    ))}
-                  </Box>
-                )}
-              </Box>
+              viewMode === 'multiview' ? (
+                <MultiviewSegmentsView
+                  segments={segments}
+                  flow={filteredFlow}
+                  totalSegments={totalSegments}
+                  loadingMore={loadingMore}
+                />
+              ) : (
+                <ScrollableSegmentsView
+                  segments={segments}
+                  flow={filteredFlow}
+                  totalSegments={totalSegments}
+                  loadingMore={loadingMore}
+                  autoPlayEnabled={autoPlayEnabled}
+                />
+              )
             )
           )}
 

@@ -51,6 +51,7 @@ async def get_hls_playlist(
     Get HLS playlist for a flow
     
     Returns M3U8 format HLS playlist that can be played in standard HLS players.
+    Uses proxy URLs by default since VAST S3 does not support CORS headers.
     
     Example: GET /hls/flows/{flow_id}/playlist.m3u8
     """
@@ -67,6 +68,7 @@ async def get_hls_playlist(
         flow_container = getattr(flow, 'container', None) if flow else None
         
         # Get base URL for generating absolute proxy URLs
+        # VAST S3 does not support CORS, so we always use proxy URLs
         base_url = str(request.base_url).rstrip('/')
         
         # Generate HLS playlist with flow container for validation
@@ -74,6 +76,7 @@ async def get_hls_playlist(
         playlist = await hls_manager.generate_playlist(
             flow_id, 
             flow_container=flow_container,
+            use_proxy_urls=True,  # Always use proxy for CORS support
             base_url=base_url
         )
         

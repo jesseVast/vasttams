@@ -110,7 +110,8 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
         videoRef.current.currentTime = 0;
       }
     },
-    getVideoElement: () => videoRef.current
+    getVideoElement: () => videoRef.current,
+    getHlsPlayer: () => hlsPlayerRef.current
   }));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -549,11 +550,24 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
         const Hls = HlsJS;
         const hls = new Hls({
           enableWorker: true,
+          // Enable fragment caching to reduce repeated requests
+          maxBufferLength: 30, // Keep 30 seconds of buffer
+          maxMaxBufferLength: 60, // Max 60 seconds
         });
 
+        console.debug('[VideoPlayer] Loading HLS manifest (blob URL, cached in memory):', src.substring(0, 100));
         hls.loadSource(src);
         hls.attachMedia(video);
         hlsPlayerRef.current = hls;
+        
+        // Log when segments are requested (to help debug repeated requests)
+        hls.on(Hls.Events.FRAG_LOADING, (event: any, data: any) => {
+          console.debug('[VideoPlayer] hls.js requesting segment:', {
+            url: data.frag?.url?.substring(0, 100),
+            sn: data.frag?.sn,
+            level: data.frag?.level,
+          });
+        });
 
         // Only handle fatal errors
         // Use Hls.Events for event constants
@@ -579,12 +593,52 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
           // Ignore non-fatal errors - let hls.js handle them
         });
 
-        // Simple ready handler - just clear loading
+        // Handle manifest parsed - this is when we can safely seek
+        hls.on(Hls.Events.MANIFEST_PARSED, (event: any, data: any) => {
+          console.debug('[VideoPlayer] hls.js manifest parsed', {
+            levels: data.levels?.length,
+            firstLevelDuration: data.levels?.[0]?.duration,
+          });
+          setLoading(false);
+          if (onReady) {
+            // Call onReady after manifest is parsed so seeking can happen
+            onReady();
+          }
+        });
+
+        // Also handle LEVEL_LOADED for when segments are ready
+        hls.on(Hls.Events.LEVEL_LOADED, (event: any, data: any) => {
+          console.debug('[VideoPlayer] hls.js level loaded', {
+            level: data.level,
+            details: data.details?.length,
+          });
+          if (loading) {
+            setLoading(false);
+            if (onReady) onReady();
+          }
+        });
+        
+        // Handle when media is attached and ready
+        hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+          console.debug('[VideoPlayer] hls.js media attached');
+        });
+        
+        // Handle when first fragment is loaded (playback can start)
+        hls.on(Hls.Events.FRAG_LOADED, (event: any, data: any) => {
+          console.debug('[VideoPlayer] hls.js fragment loaded', {
+            frag: data.frag?.sn,
+            type: data.frag?.type,
+          });
+        });
+
+        // Simple ready handler - fallback for metadata loaded
         const handleLoadedMetadata = () => {
           console.debug('[VideoPlayer] hls.js metadata loaded');
-          setLoading(false);
-          setError(null);
-          if (onReady) onReady();
+          if (loading) {
+            setLoading(false);
+            setError(null);
+            if (onReady) onReady();
+          }
         };
 
         video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });

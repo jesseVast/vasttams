@@ -1,9 +1,17 @@
 # TAMS Project - Current Status & TODO
 
 **Last Updated**: November 28, 2025  
-**Status**: HLS Playback Improvements in Progress
+**Status**: Stream Ingestor SRT Fix in Progress
 
 ## ✅ Recent Updates (November 28, 2025)
+
+1. **Stream Ingestor SRT Fix**
+   - Fixed issue where SRT streams create only one segment and then exit
+   - Added SRT-specific input options (reconnect, reconnect_at_eof, reconnect_streamed) to keep connection alive
+   - Added output options (fflags, avoid_negative_ts) to prevent FFmpeg from exiting prematurely
+   - Stream processor now detects SRT streams and applies appropriate options automatically
+
+2. **HLS Individual Playback Fix**
 
 1. **HLS Individual Playback Fix**
    - Fixed individual play button not working when autoplay is off

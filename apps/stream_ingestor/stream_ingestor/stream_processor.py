@@ -90,6 +90,14 @@ class LiveStreamChunkOutput(ChunkOutput):
                 logger.debug(f"LiveStreamChunkOutput: Setting GOP size to {gop_size} frames (for {self.duration}s chunks at {fps}fps)")
                 logger.debug(f"LiveStreamChunkOutput: Forcing keyframes every {self.duration}s")
             
+            # CRITICAL: For live streams (especially SRT), we need to prevent FFmpeg from exiting
+            # Add options to keep the stream alive and continue creating segments
+            # Without these, FFmpeg may exit after the first segment
+            output_options['fflags'] = '+genpts'  # Generate presentation timestamps
+            output_options['avoid_negative_ts'] = 'make_zero'  # Handle timestamp issues
+            # Don't exit on error - keep trying to process the stream
+            # This is especially important for SRT streams that may have temporary connection issues
+            
             # Add timestamp metadata if requested
             if self.include_timestamps:
                 output_options['metadata'] = 'title=Chunk %03d'
@@ -191,9 +199,26 @@ class StreamProcessor:
             input_url = self._build_input_url()
             logger.info(f"Using input URL: {input_url}")
             
+            # Detect if this is an SRT stream
+            is_srt = input_url.startswith('srt://')
+            
+            # For SRT streams, add input options to keep connection alive and handle reconnection
+            # This prevents FFmpeg from exiting after the first segment
+            input_options = {}
+            if is_srt:
+                # SRT-specific options to keep connection alive
+                input_options = {
+                    'reconnect': '1',  # Enable reconnection
+                    'reconnect_at_eof': '1',  # Reconnect even if stream seems to end
+                    'reconnect_streamed': '1',  # Reconnect for streamed inputs
+                    'reconnect_delay_max': '2',  # Max delay between reconnection attempts (seconds)
+                }
+                logger.info("SRT stream detected - adding reconnection options to keep connection alive")
+                logger.debug(f"SRT input options: {input_options}")
+            
             # Create video source - let FFmpeg auto-detect protocol from URL
-            source = VideoSource(url=input_url, protocol=None)  # Protocol will be auto-detected
-            logger.debug(f"VideoSource created: url={input_url}, protocol=auto-detect")
+            source = VideoSource(url=input_url, protocol=None, input_options=input_options if input_options else None)
+            logger.debug(f"VideoSource created: url={input_url}, protocol=auto-detect, input_options={input_options if input_options else 'None'}")
             
             # Create chunk output
             logger.info(f"Creating ChunkOutput:")

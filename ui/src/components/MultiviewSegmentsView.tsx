@@ -173,6 +173,7 @@ const MultiviewSegmentsView: React.FC<MultiviewSegmentsViewProps> = ({
         setHlsManifestError(error.message);
         setHlsManifestLoading(false);
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hlsPlaylistUrl, segments]);
 
   // Cleanup blob URL when component unmounts or manifest URL changes

@@ -49,7 +49,7 @@ const getShortFormat = (format: string | undefined): string => {
 
 const Flows: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [flows, setFlows] = useState<Flow[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [filterCodec, setFilterCodec] = useState<string>('');

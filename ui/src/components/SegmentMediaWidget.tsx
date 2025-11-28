@@ -439,6 +439,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     return () => {
       observer.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mediaType, segmentIndex, shouldLoadVideo]);
 
   // Handle scroll-based playback: play only when highly visible, pause otherwise
@@ -498,6 +499,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     }, 150);
     
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoPlayEnabled, isInViewport, intersectionRatio, mediaType, segmentIndex, shouldLoadVideo, shouldUnloadVideo]);
 
   // Periodically sync video playing state with actual video element state
@@ -537,6 +539,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
     }, 200); // Check more frequently (every 200ms) for better responsiveness
     
     return () => clearInterval(syncInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mediaType, shouldLoadVideo, shouldUnloadVideo, segmentIndex, isVideoPlaying, isVideoCompleted]);
 
   const renderMediaContent = () => {
@@ -583,49 +586,102 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
         // If direct segment URL is available (from parsed M3U8), use it directly with mpegts.js
         if (hlsSegmentUrl) {
           return (
-            <Box sx={{ position: 'relative', width: '100%', height: height, backgroundColor: '#000' }}>
-              <VideoPlayer
-                ref={videoPlayerRef}
-                src={hlsSegmentUrl}
-                width="100%"
-                height={height}
-                controls
-                muted
-                playsInline
-                preload="metadata"
-                playerType="mpegts" // Use mpegts.js for individual .ts files
-                onReady={() => {
-                  console.debug(`[Segment ${segmentIndex}] Direct segment URL loaded (mpegts.js)`);
-                  // Start playback if autoplay is enabled and video hasn't ended
-                  if (autoPlayEnabled && videoPlayerRef.current && !isVideoCompleted) {
+            <Box sx={{ width: '100%' }}>
+              <Box sx={{ position: 'relative', width: '100%', height: height, backgroundColor: '#000' }}>
+                <VideoPlayer
+                  ref={videoPlayerRef}
+                  src={hlsSegmentUrl}
+                  width="100%"
+                  height={height}
+                  controls
+                  muted
+                  playsInline
+                  preload="metadata"
+                  playerType="mpegts" // Use mpegts.js for individual .ts files
+                  onReady={() => {
+                  console.log(`[Segment ${segmentIndex}] ========== onReady CALLED (mpegts.js) ==========`, {
+                    autoPlayEnabled,
+                    isVideoCompleted,
+                    hasPlayerRef: !!videoPlayerRef.current
+                  });
+                  
+                  // Ensure player is ready for manual play even when autoplay is off
+                  // The player needs to load metadata and buffer to be ready for manual playback
+                  if (videoPlayerRef.current && !isVideoCompleted) {
                     const video = videoPlayerRef.current.getVideoElement?.();
                     if (video && !video.ended) {
+                      console.log(`[Segment ${segmentIndex}] Video element state in onReady:`, {
+                        paused: video.paused,
+                        ended: video.ended,
+                        readyState: video.readyState,
+                        currentTime: video.currentTime,
+                        duration: video.duration,
+                        hasBuffer: video.buffered.length > 0,
+                        bufferInfo: video.buffered.length > 0 
+                          ? `${video.buffered.start(0)}-${video.buffered.end(video.buffered.length - 1)}`
+                          : 'none'
+                      });
+                      
+                      // For mpegts.js, the player starts loading when load() is called
+                      // But we need to ensure it has enough data buffered for manual play
                       // Wait for video to be ready and have buffer
-                      const attemptPlay = () => {
-                        // Don't play if video has ended or is already playing
+                      const ensureReady = () => {
+                        // Don't do anything if video has ended
                         if (video.ended || isVideoCompleted) {
-                          console.debug(`[Segment ${segmentIndex}] Skipping autoplay - video has ended`);
+                          console.log(`[Segment ${segmentIndex}] Video has ended, skipping ready check`);
                           return;
                         }
-                        if (video.paused && !video.ended) {
-                          const hasBuffer = video.buffered.length > 0 && 
-                            video.buffered.end(video.buffered.length - 1) > video.currentTime + 0.5;
-                          const isReady = video.readyState >= 3;
+                        
+                        // Check if video has loaded enough data
+                        // For mpegts, readyState >= 2 means we have metadata, >= 3 means we have some data
+                        const isReady = video.readyState >= 2;
+                        const hasBuffer = video.buffered.length > 0;
+                        
+                        console.log(`[Segment ${segmentIndex}] ensureReady check:`, {
+                          readyState: video.readyState,
+                          isReady,
+                          hasBuffer,
+                          paused: video.paused,
+                          ended: video.ended,
+                          autoPlayEnabled
+                        });
+                        
+                        if (isReady) {
+                          console.log(`[Segment ${segmentIndex}] mpegts player ready for playback (autoplay: ${autoPlayEnabled}, readyState: ${video.readyState}, hasBuffer: ${hasBuffer})`);
                           
-                          if (isReady && (hasBuffer || video.readyState >= 4)) {
-                            video.play().then(() => {
-                              console.debug(`[Segment ${segmentIndex}] Direct segment autoplay started`);
-                            }).catch((error: unknown) => {
-                              console.debug(`[Segment ${segmentIndex}] Direct segment autoplay prevented:`, error);
-                            });
-                          } else if (video.readyState < 4 && !video.ended) {
-                            setTimeout(attemptPlay, 100);
+                          // Only start playback if autoplay is enabled
+                          if (autoPlayEnabled && video.paused && !video.ended) {
+                            // Wait for buffer if not ready yet
+                            if (hasBuffer || video.readyState >= 3) {
+                              console.log(`[Segment ${segmentIndex}] Starting autoplay...`);
+                              video.play().then(() => {
+                                console.log(`[Segment ${segmentIndex}] Direct segment autoplay started successfully`);
+                              }).catch((error: unknown) => {
+                                console.error(`[Segment ${segmentIndex}] Direct segment autoplay prevented:`, error);
+                              });
+                            } else {
+                              console.log(`[Segment ${segmentIndex}] Waiting for buffer before autoplay...`);
+                              // Wait a bit more for buffer
+                              setTimeout(ensureReady, 100);
+                            }
+                          } else {
+                            console.log(`[Segment ${segmentIndex}] Autoplay disabled - player ready for manual play`);
                           }
+                          // When autoplay is off, the player is ready for manual play
+                          // The play() method will handle waiting for sufficient buffer
+                        } else if (video.readyState < 2 && !video.ended) {
+                          console.log(`[Segment ${segmentIndex}] Video not ready yet (readyState: ${video.readyState}), waiting...`);
+                          // Keep waiting for player to be ready
+                          setTimeout(ensureReady, 100);
                         }
                       };
                       // Wait a bit for mpegts.js to load initial data
-                      setTimeout(attemptPlay, 300);
+                      setTimeout(ensureReady, 300);
+                    } else {
+                      console.warn(`[Segment ${segmentIndex}] No video element or video ended in onReady`);
                     }
+                  } else {
+                    console.warn(`[Segment ${segmentIndex}] No player ref or video completed in onReady`);
                   }
                 }}
                 onPlay={() => {
@@ -653,23 +709,72 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                   console.error(`[Segment ${segmentIndex}] Direct segment playback error:`, error);
                 }}
               />
+              </Box>
               <VideoControlsWidget
                 isPlaying={isVideoPlaying}
                 onPlay={() => {
+                  console.log(`[Segment ${segmentIndex}] ========== MANUAL PLAY BUTTON CLICKED ==========`);
                   if (videoPlayerRef.current) {
+                    const videoElement = videoPlayerRef.current?.getVideoElement?.();
+                    console.log(`[Segment ${segmentIndex}] Before play() call:`, {
+                      hasPlayerRef: !!videoPlayerRef.current,
+                      hasVideoElement: !!videoElement,
+                      videoPaused: videoElement?.paused,
+                      videoEnded: videoElement?.ended,
+                      videoReadyState: videoElement?.readyState,
+                      videoCurrentTime: videoElement?.currentTime,
+                      videoDuration: videoElement?.duration,
+                      hasBuffer: videoElement?.buffered.length > 0,
+                      bufferInfo: videoElement?.buffered.length > 0 
+                        ? `${videoElement.buffered.start(0)}-${videoElement.buffered.end(videoElement.buffered.length - 1)}`
+                        : 'none',
+                      autoPlayEnabled,
+                      isVideoPlaying,
+                      isVideoCompleted
+                    });
+                    
                     // Optimistically update state for immediate UI feedback
                     setIsVideoPlaying(true);
                     setIsVideoCompleted(false);
-                    videoPlayerRef.current.play()
+                    
+                    const playPromise = videoPlayerRef.current.play();
+                    console.log(`[Segment ${segmentIndex}] play() called, promise:`, playPromise);
+                    
+                    playPromise
                       .then(() => {
                         // State already updated, but verify
-                        console.debug(`[Segment ${segmentIndex}] Manual play successful`);
+                        console.log(`[Segment ${segmentIndex}] ========== Manual play() promise RESOLVED ==========`);
+                        // Check if video is actually playing
+                        const videoElementAfter = videoPlayerRef.current?.getVideoElement?.();
+                        if (videoElementAfter) {
+                          console.log(`[Segment ${segmentIndex}] Video state after play() resolved:`, {
+                            paused: videoElementAfter.paused,
+                            ended: videoElementAfter.ended,
+                            readyState: videoElementAfter.readyState,
+                            currentTime: videoElementAfter.currentTime,
+                            duration: videoElementAfter.duration,
+                            hasBuffer: videoElementAfter.buffered.length > 0
+                          });
+                        }
                       })
                       .catch((error: unknown) => {
                         // Revert state on error
                         setIsVideoPlaying(false);
-                        console.debug(`[Segment ${segmentIndex}] Failed to play:`, error);
+                        console.error(`[Segment ${segmentIndex}] ========== Manual play() promise REJECTED ==========`, error);
+                        const videoElementAfter = videoPlayerRef.current?.getVideoElement?.();
+                        if (videoElementAfter) {
+                          console.error(`[Segment ${segmentIndex}] Video state after play() rejected:`, {
+                            paused: videoElementAfter.paused,
+                            ended: videoElementAfter.ended,
+                            readyState: videoElementAfter.readyState,
+                            currentTime: videoElementAfter.currentTime,
+                            duration: videoElementAfter.duration,
+                            error: videoElementAfter.error
+                          });
+                        }
                       });
+                  } else {
+                    console.error(`[Segment ${segmentIndex}] videoPlayerRef.current is null - cannot play`);
                   }
                 }}
                 onPause={() => {
@@ -706,8 +811,9 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
         // If HLS mode and manifest URL available, use HLS player with time offset (fallback)
         if (useHLS && hlsManifestUrl) {
           return (
-            <Box sx={{ position: 'relative', width: '100%', height: height, backgroundColor: '#000' }}>
-              <VideoPlayer
+            <Box sx={{ width: '100%' }}>
+              <Box sx={{ position: 'relative', width: '100%', height: height, backgroundColor: '#000' }}>
+                <VideoPlayer
                 ref={videoPlayerRef}
                 src={hlsManifestUrl}
                 width="100%"
@@ -911,6 +1017,7 @@ const SegmentMediaWidget: React.FC<SegmentMediaWidgetProps> = ({
                 timerange={timerange}
                 segmentIndex={segmentIndex}
               />
+              </Box>
             </Box>
           );
         }

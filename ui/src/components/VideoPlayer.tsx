@@ -1,7 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Box, Typography, IconButton } from '@mui/material';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import PauseIcon from '@mui/icons-material/Pause';
+import { Box, Typography } from '@mui/material';
 // Import CSS for video players (only loaded when used)
 import 'video.js/dist/video-js.css';
 import '@videojs/themes/dist/sea/index.css';
@@ -58,27 +56,224 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
       } else if (playerType === 'mpegts' && videoRef.current) {
         // For mpegts.js, ensure player is ready before playing
         const video = videoRef.current;
-        if (mpegtsPlayerRef.current && video.readyState >= 2) {
-          return video.play();
-        } else if (video.readyState >= 2) {
-          // Try to play even if player ref isn't set (might still work)
-          return video.play();
-        } else {
-          console.debug('[VideoPlayer] mpegts video not ready yet, waiting for canplay');
-          // Wait for video to be ready
+        
+        console.log('[VideoPlayer] play() called for mpegts player', {
+          hasPlayer: !!mpegtsPlayerRef.current,
+          readyState: video.readyState,
+          paused: video.paused,
+          ended: video.ended,
+          hasEnded: mpegtsHasEndedRef.current,
+          currentTime: video.currentTime,
+          duration: video.duration,
+          buffered: video.buffered.length > 0 ? `${video.buffered.start(0)}-${video.buffered.end(video.buffered.length - 1)}` : 'none'
+        });
+        
+        // If video has ended and player was unloaded, reload it first
+        if (mpegtsHasEndedRef.current && mpegtsPlayerRef.current) {
+          console.log('[VideoPlayer] Reloading mpegts player for manual replay');
+          try {
+            // Reset ended flag
+            mpegtsHasEndedRef.current = false;
+            // Re-attach and reload the player
+            mpegtsPlayerRef.current.attachMediaElement(video);
+            mpegtsPlayerRef.current.load();
+            // Reset video state
+            video.currentTime = 0;
+            // Wait a bit for the player to reload, then play
+            return new Promise<void>((resolve, reject) => {
+              const handleCanPlay = () => {
+                console.log('[VideoPlayer] canplay event fired after reload');
+                video.removeEventListener('canplay', handleCanPlay);
+                video.play().then(() => {
+                  console.log('[VideoPlayer] play() succeeded after reload');
+                  resolve();
+                }).catch((err) => {
+                  console.error('[VideoPlayer] play() failed after reload:', err);
+                  reject(err);
+                });
+              };
+              video.addEventListener('canplay', handleCanPlay, { once: true });
+              // Also try to play immediately if already ready
+              if (video.readyState >= 2) {
+                console.log('[VideoPlayer] Video already ready after reload, attempting immediate play');
+                video.play().then(() => {
+                  console.log('[VideoPlayer] Immediate play() succeeded after reload');
+                  resolve();
+                }).catch((err) => {
+                  console.log('[VideoPlayer] Immediate play() failed, waiting for canplay:', err);
+                  // If immediate play fails, wait for canplay
+                });
+              }
+              // Timeout after 5 seconds
+              setTimeout(() => {
+                video.removeEventListener('canplay', handleCanPlay);
+                console.error('[VideoPlayer] mpegts video reload timeout');
+                reject(new Error('mpegts video reload timeout'));
+              }, 5000);
+            });
+          } catch (err) {
+            console.error('[VideoPlayer] Error reloading mpegts player:', err);
+            return Promise.reject(err);
+          }
+        }
+        
+        // Normal play path
+        // Reset ended flag when manually playing (regardless of ready state)
+        mpegtsHasEndedRef.current = false;
+        
+        // If video is ready, play immediately
+        // BUT: If readyState drops after play(), we need to wait for it to be ready again
+        if (video.readyState >= 2) {
+          console.log('[VideoPlayer] Video ready (readyState >= 2), attempting immediate play');
+          
+          // Add event listeners BEFORE calling play() to catch any events
+          const handlePlay = () => console.log('[VideoPlayer] ========== PLAY event fired on video element ==========');
+          const handlePlaying = () => console.log('[VideoPlayer] ========== PLAYING event fired on video element ==========');
+          const handleError = () => console.error('[VideoPlayer] ========== ERROR event fired on video element ==========', video.error);
+          const handleLoadedMetadata = () => console.log('[VideoPlayer] loadedmetadata event fired (readyState might have reset)');
+          const handleCanPlay = () => console.log('[VideoPlayer] canplay event fired');
+          
+          video.addEventListener('play', handlePlay, { once: true });
+          video.addEventListener('playing', handlePlaying, { once: true });
+          video.addEventListener('error', handleError, { once: true });
+          video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
+          video.addEventListener('canplay', handleCanPlay, { once: true });
+          
+          const playPromise = video.play();
+          console.log('[VideoPlayer] play() promise created:', playPromise);
+          
+          return playPromise.then(() => {
+            console.log('[VideoPlayer] ========== play() promise RESOLVED ==========');
+            
+            // Check state immediately and after a delay
+            console.log('[VideoPlayer] Video state immediately after play() resolved:', {
+              paused: video.paused,
+              ended: video.ended,
+              readyState: video.readyState,
+              currentTime: video.currentTime
+            });
+            
+            // If readyState dropped to 0, the player is reinitializing - wait for it
+            if (video.readyState < 2) {
+              console.log('[VideoPlayer] readyState dropped after play(), waiting for player to reinitialize...');
+              return new Promise<void>((resolve, reject) => {
+                const handleCanPlayAfterReset = () => {
+                  console.log('[VideoPlayer] Player ready again after reset, attempting play');
+                  video.removeEventListener('canplay', handleCanPlayAfterReset);
+                  video.removeEventListener('playing', handlePlayingAfterReset);
+                  video.play().then(() => {
+                    console.log('[VideoPlayer] play() succeeded after reinitialization');
+                    resolve();
+                  }).catch((err) => {
+                    console.error('[VideoPlayer] play() failed after reinitialization:', err);
+                    reject(err);
+                  });
+                };
+                const handlePlayingAfterReset = () => {
+                  console.log('[VideoPlayer] Video started playing after reinitialization');
+                  video.removeEventListener('canplay', handleCanPlayAfterReset);
+                  video.removeEventListener('playing', handlePlayingAfterReset);
+                  resolve();
+                };
+                
+                video.addEventListener('canplay', handleCanPlayAfterReset, { once: true });
+                video.addEventListener('playing', handlePlayingAfterReset, { once: true });
+                
+                // Also check if it's already ready
+                const checkReady = setInterval(() => {
+                  if (video.readyState >= 2 && !video.paused) {
+                    clearInterval(checkReady);
+                    video.removeEventListener('canplay', handleCanPlayAfterReset);
+                    video.removeEventListener('playing', handlePlayingAfterReset);
+                    console.log('[VideoPlayer] Video already playing after reinitialization');
+                    resolve();
+                  }
+                }, 100);
+                
+                setTimeout(() => {
+                  clearInterval(checkReady);
+                  video.removeEventListener('canplay', handleCanPlayAfterReset);
+                  video.removeEventListener('playing', handlePlayingAfterReset);
+                  console.error('[VideoPlayer] Timeout waiting for player to reinitialize');
+                  reject(new Error('Player reinitialization timeout'));
+                }, 5000);
+              });
+            }
+            
+            // Check state after a delay
+            setTimeout(() => {
+              console.log('[VideoPlayer] Video state 100ms after play() resolved:', {
+                paused: video.paused,
+                ended: video.ended,
+                readyState: video.readyState,
+                currentTime: video.currentTime
+              });
+            }, 100);
+          }).catch((err) => {
+            console.error('[VideoPlayer] ========== play() promise REJECTED ==========', err);
+            console.error('[VideoPlayer] Video state when play() rejected:', {
+              paused: video.paused,
+              ended: video.ended,
+              readyState: video.readyState,
+              currentTime: video.currentTime,
+              error: video.error
+            });
+            throw err;
+          });
+        }
+        
+        // If player exists but video not ready, wait for it to be ready
+        if (mpegtsPlayerRef.current) {
+          console.log('[VideoPlayer] mpegts video not ready yet (readyState:', video.readyState, '), waiting for canplay');
           return new Promise<void>((resolve, reject) => {
             const handleCanPlay = () => {
+              console.log('[VideoPlayer] canplay event fired, attempting play');
               video.removeEventListener('canplay', handleCanPlay);
-              video.play().then(resolve).catch(reject);
+              clearInterval(readyCheckInterval);
+              video.play().then(() => {
+                console.log('[VideoPlayer] play() succeeded after canplay');
+                resolve();
+              }).catch((err) => {
+                console.error('[VideoPlayer] play() failed after canplay:', err);
+                reject(err);
+              });
             };
+            // Also try playing if readyState improves
+            const checkReady = () => {
+              if (video.readyState >= 2) {
+                console.log('[VideoPlayer] readyState improved to', video.readyState, ', attempting play');
+                video.removeEventListener('canplay', handleCanPlay);
+                clearInterval(readyCheckInterval);
+                video.play().then(() => {
+                  console.log('[VideoPlayer] play() succeeded after readyState check');
+                  resolve();
+                }).catch((err) => {
+                  console.error('[VideoPlayer] play() failed after readyState check:', err);
+                  reject(err);
+                });
+              }
+            };
+            const readyCheckInterval = setInterval(checkReady, 100);
+            
             video.addEventListener('canplay', handleCanPlay, { once: true });
             // Timeout after 5 seconds
             setTimeout(() => {
               video.removeEventListener('canplay', handleCanPlay);
+              clearInterval(readyCheckInterval);
+              console.error('[VideoPlayer] mpegts video play timeout');
               reject(new Error('mpegts video play timeout'));
             }, 5000);
           });
         }
+        
+        // If no player ref, try to play anyway (might work if player is still initializing)
+        console.warn('[VideoPlayer] mpegts player ref not set, attempting to play anyway');
+        return video.play().then(() => {
+          console.log('[VideoPlayer] play() succeeded without player ref');
+        }).catch((err) => {
+          console.error('[VideoPlayer] play() failed without player ref:', err);
+          throw err;
+        });
       }
       return Promise.resolve();
     },
@@ -129,6 +324,7 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
   const mpegtsPlayerRef = useRef<any>(null);
   const hlsPlayerRef = useRef<any>(null);
   const hlsJSRef = useRef<any>(null); // Store Hls class in ref to avoid React state reducer issues
+  const mpegtsHasEndedRef = useRef<boolean>(false); // Track if mpegts video has ended (for manual replay)
 
   // Clear loading state immediately if src is invalid
   useEffect(() => {
@@ -439,23 +635,24 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
           }
         });
 
-        // Track if video has ended to prevent restarting
-        let hasEnded = false;
+        // Track if video has ended to prevent automatic restarting (but allow manual replay)
+        // Use ref so it can be accessed from play() method
+        mpegtsHasEndedRef.current = false;
 
-        // Prevent video from restarting after it ends
+        // Prevent video from restarting after it ends (automatic restart only, manual play is allowed)
         const handleEnded = () => {
-          hasEnded = true;
-          console.debug('[VideoPlayer] mpegts video ended, preventing restart');
+          mpegtsHasEndedRef.current = true;
+          console.debug('[VideoPlayer] mpegts video ended, preventing automatic restart');
           // Ensure video stays paused
           if (!video.paused) {
             video.pause();
           }
-          // Unload the mpegts player to prevent it from restarting
-          // This ensures the video doesn't loop
+          // Unload the mpegts player to prevent it from automatically restarting
+          // This ensures the video doesn't loop, but manual replay will reload it
           if (mpegtsPlayerRef.current) {
             try {
               mpegtsPlayerRef.current.unload();
-              console.debug('[VideoPlayer] Unloaded mpegts player after video ended');
+              console.debug('[VideoPlayer] Unloaded mpegts player after video ended (manual replay will reload)');
             } catch (err) {
               console.debug('[VideoPlayer] Error unloading mpegts player:', err);
             }
@@ -464,13 +661,14 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
 
         video.addEventListener('ended', handleEnded);
 
-        // Listen for timeupdate to catch any restart attempts
+        // Listen for timeupdate to catch any automatic restart attempts (but allow manual play)
         const handleTimeUpdate = () => {
-          // If video has ended but currentTime is reset, pause it
-          if (hasEnded && video.currentTime < 0.1 && !video.paused) {
-            console.debug('[VideoPlayer] Detected restart attempt, pausing mpegts video');
+          // If video has ended but currentTime is reset and it's playing, pause it
+          // This prevents automatic restart, but manual play will reset hasEnded flag
+          if (mpegtsHasEndedRef.current && video.currentTime < 0.1 && !video.paused) {
+            console.debug('[VideoPlayer] Detected automatic restart attempt, pausing mpegts video');
             video.pause();
-            // Unload player again if it restarted
+            // Unload player again if it restarted automatically
             if (mpegtsPlayerRef.current) {
               try {
                 mpegtsPlayerRef.current.unload();
@@ -1014,12 +1212,42 @@ const VideoPlayer = React.forwardRef<any, VideoPlayerProps>(({
           onPlaying={() => {
             // Use 'playing' event which fires when playback actually starts
             // This ensures state is updated even though sync is skipped for mpegts
-            console.debug('[VideoPlayer] mpegts video actually playing');
+            console.log('[VideoPlayer] ========== mpegts video PLAYING event fired ==========');
             setIsPlaying(true);
+            // Reset ended flag when video actually starts playing
+            mpegtsHasEndedRef.current = false;
             if (onPlay) onPlay();
           }}
           onPause={() => {
+            console.log('[VideoPlayer] mpegts video PAUSED event fired');
             setIsPlaying(false);
+          }}
+          onPlay={() => {
+            // 'play' event fires when play() is called (before actual playback starts)
+            console.log('[VideoPlayer] ========== mpegts video PLAY event fired (play() was called) ==========');
+            const video = videoRef.current;
+            if (video) {
+              console.log('[VideoPlayer] Video state when play event fired:', {
+                paused: video.paused,
+                ended: video.ended,
+                readyState: video.readyState,
+                currentTime: video.currentTime,
+                duration: video.duration
+              });
+            }
+            // Don't update state here - wait for 'playing' event
+          }}
+          onWaiting={() => {
+            console.log('[VideoPlayer] mpegts video WAITING event fired (buffering)');
+          }}
+          onStalled={() => {
+            console.log('[VideoPlayer] mpegts video STALLED event fired');
+          }}
+          onCanPlay={() => {
+            console.log('[VideoPlayer] mpegts video CANPLAY event fired');
+          }}
+          onCanPlayThrough={() => {
+            console.log('[VideoPlayer] mpegts video CANPLAYTHROUGH event fired');
           }}
           onError={(e) => {
             // Suppress native video element errors when using mpegts.js

@@ -1,7 +1,27 @@
 # TAMS Project - Current Status & TODO
 
-**Last Updated**: November 27, 2025  
-**Status**: Search & Tags Enhancements in Progress
+**Last Updated**: November 28, 2025  
+**Status**: HLS Playback Improvements in Progress
+
+## ✅ Recent Updates (November 28, 2025)
+
+1. **HLS Individual Playback Fix**
+   - Fixed individual play button not working when autoplay is off
+   - Issue: mpegts player MediaSource was ending when play() called, causing reinitialization
+   - Solution: Added detection for readyState drop after play() and wait for player reinitialization
+   - Added comprehensive logging to track playback state and events
+   - Individual play now works correctly in both multiview and scrollview modes
+
+2. **VideoControlsWidget Visibility Fix**
+   - Fixed missing info box below video player in scrollview
+   - Issue: VideoControlsWidget was inside Box with fixed height, getting cut off
+   - Solution: Moved VideoControlsWidget outside fixed-height Box container
+   - Applied fix to both direct segment URL (mpegts) and HLS fallback rendering paths
+
+3. **Code Quality Improvements**
+   - Fixed all eslint warnings (missing dependencies, unused imports)
+   - Removed unused imports from VideoPlayer.tsx
+   - Added eslint-disable comments for intentional dependency exclusions
 
 ## ✅ Recent Updates (November 27, 2025)
 

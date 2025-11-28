@@ -62,6 +62,7 @@ const EditFlowModal: React.FC<EditFlowModalProps> = ({ open, onClose, flow, onSa
       setActiveTab(0); // Reset to first tab when flow changes
       loadTags();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flow]);
 
   const loadTags = async () => {

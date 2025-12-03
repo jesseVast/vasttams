@@ -123,6 +123,18 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.warning(f"Failed to initialize Redis cache service on startup: {e}. Continuing without cache.")
             
+            # Initialize embedding service at startup to ensure config is loaded
+            try:
+                from .vast.embedding_service import EmbeddingService
+                logger.info("Initializing embedding service at startup...")
+                embedding_service = EmbeddingService()
+                if embedding_service._embedder is not None:
+                    logger.info("Embedding service initialized successfully at startup")
+                else:
+                    logger.warning("Embedding service initialization failed at startup, will retry on first use")
+            except Exception as e:
+                logger.warning(f"Failed to initialize embedding service at startup: {e}. Will retry on first use.")
+            
             # Initialize default users if they don't exist
             try:
                 from .auth.user_service import UserService

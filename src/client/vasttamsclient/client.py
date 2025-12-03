@@ -620,3 +620,24 @@ class TAMSClient:
         from .api import vectors as vector_api
         return await vector_api.delete_object_vector(self, object_id)
 
+    # Sync wrappers for vector operations
+    def search_vectors_sync(self, vector: List[float], limit: int = 10, 
+                           distance_metric: str = "L2",
+                           distance_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
+        """Synchronous wrapper for search_vectors."""
+        return asyncio.run(self.search_vectors(vector, limit, distance_metric, distance_threshold))
+    
+    def update_object_vector_sync(self, object_id: str, vector: List[float],
+                                  summary: Optional[str] = None,
+                                  embedding_model: Optional[str] = None) -> Dict[str, Any]:
+        """Synchronous wrapper for update_object_vector."""
+        return asyncio.run(self.update_object_vector(object_id, vector, summary, embedding_model))
+    
+    def get_object_vector_sync(self, object_id: str) -> Optional[Dict[str, Any]]:
+        """Synchronous wrapper for get_object_vector."""
+        return asyncio.run(self.get_object_vector(object_id))
+    
+    def delete_object_vector_sync(self, object_id: str) -> bool:
+        """Synchronous wrapper for delete_object_vector."""
+        return asyncio.run(self.delete_object_vector(object_id))
+

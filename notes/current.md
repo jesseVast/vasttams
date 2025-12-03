@@ -1,7 +1,17 @@
 # TAMS Project - Current Status & TODO
 
-**Last Updated**: November 28, 2025  
-**Status**: Stream Ingestor SRT Fix in Progress
+**Last Updated**: December 3, 2025  
+**Status**: Vector Dimension Mismatch Debugging & Logging Improvements
+
+## ✅ Recent Updates (December 3, 2025)
+
+1. **Vector Dimension Mismatch Debugging & Logging Improvements**
+   - Added INFO-level logging for config file loading and embedder initialization
+   - Added embedding service initialization at server startup for early visibility
+   - Improved logging to show embedding configuration details (provider, model, dimension, endpoint)
+   - Helps identify when config file isn't loading or embedder isn't initializing correctly
+   - **Known Issue**: If `vectors` table was created with different dimension than config, drop table and restart
+   - See `notes/edits/2025-12-03.md` for details
 
 ## ✅ Recent Updates (November 28, 2025)
 

@@ -44,6 +44,14 @@ class EmbeddingService:
         """
         provider = self.settings.embedding_provider or "jthaloor-ai"
         
+        logger.info(
+            f"Initializing embedding service: "
+            f"provider={provider}, "
+            f"model={self.settings.embedding_model_name}, "
+            f"dimension={self.settings.embedding_model_dimension}, "
+            f"endpoint={self.settings.embedding_endpoint or 'not set'}"
+        )
+        
         if provider == "jthaloor-ai" or not JTHALOOR_AI_AVAILABLE:
             if not JTHALOOR_AI_AVAILABLE:
                 logger.warning(
@@ -99,6 +107,7 @@ class EmbeddingService:
                 )
             except Exception as e:
                 logger.warning(f"Failed to initialize jthaloor-ai embedder (non-fatal): {e}")
+                logger.info("Embedding service will not be available until properly configured")
                 # Don't raise - embedding is optional
                 return
         
@@ -113,6 +122,12 @@ class EmbeddingService:
         
         else:
             logger.warning(f"Unknown embedding provider: {provider}. Embedding may not work.")
+        
+        # Log final status
+        if self._embedder is not None:
+            logger.info("Embedding service initialized successfully")
+        else:
+            logger.warning("Embedding service NOT initialized - vector operations will fail")
     
     async def create_embedding(
         self,

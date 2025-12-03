@@ -331,7 +331,7 @@ class Settings(BaseSettings):
                 break
         
         if config_file_path:
-            logger.debug(f"Loading configuration from: {config_file_path}")
+            logger.info(f"Loading configuration from: {config_file_path}")
             try:
                 with open(config_file_path, 'r') as f:
                     config_data = yaml.safe_load(f)
@@ -590,6 +590,22 @@ class Settings(BaseSettings):
                         self._embedding_provider_config = embedding['provider_config']
                     else:
                         self._embedding_provider_config = {}
+                
+                # Log successful config load with key settings
+                logger.info(f"Configuration loaded successfully from: {config_file_path}")
+                
+                # Log embedding configuration if present
+                if 'embedding' in config_data:
+                    embedding = config_data['embedding']
+                    logger.info(
+                        f"Embedding configuration: "
+                        f"provider={embedding.get('provider', 'not set')}, "
+                        f"model={embedding.get('model_name', 'not set')}, "
+                        f"dimension={embedding.get('model_dimension', 'not set')}, "
+                        f"endpoint={embedding.get('endpoint', 'not set')}"
+                    )
+                else:
+                    logger.info("No embedding configuration found in config file, using defaults")
                         
             except (yaml.YAMLError, IOError) as e:
                 # Log error but continue with default values

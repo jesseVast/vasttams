@@ -19,21 +19,17 @@ class TestSegmentAPI:
         segment_data = {"timerange": {"value": "[0:0_10:0)"}}
         mock_segment = {"id": "segment-123", "flow_id": flow_id, **segment_data}
         
-        mock_response = AsyncMock()
-        mock_response.status = 201
-        mock_response.json = AsyncMock(return_value=mock_segment)
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json = MagicMock(return_value=mock_segment)
         
-        mock_post_context = MagicMock()
-        mock_post_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_post_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.post = MagicMock(return_value=mock_post_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.segments import create_segment
         result = await create_segment(client, flow_id, segment_data)
         
         assert result == mock_segment
-        client._session.post.assert_called_once()
+        client._request.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_create_segment_with_file(self, client, tmp_path):
@@ -45,21 +41,17 @@ class TestSegmentAPI:
         
         mock_segment = {"id": "segment-123", "flow_id": flow_id, **segment_data}
         
-        mock_response = AsyncMock()
-        mock_response.status = 201
-        mock_response.json = AsyncMock(return_value=mock_segment)
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json = MagicMock(return_value=mock_segment)
         
-        mock_post_context = MagicMock()
-        mock_post_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_post_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.post = MagicMock(return_value=mock_post_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.segments import create_segment
         result = await create_segment(client, flow_id, segment_data, file_path=str(test_file))
         
         assert result == mock_segment
-        client._session.post.assert_called_once()
+        client._request.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_create_segment_file_not_found(self, client):
@@ -79,15 +71,11 @@ class TestSegmentAPI:
         flow_id = "flow-123"
         segment_data = {"timerange": {"value": "[0:0_10:0)"}}
         
-        mock_response = AsyncMock()
-        mock_response.status = 500
-        mock_response.text = AsyncMock(return_value="Internal server error")
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal server error"
         
-        mock_post_context = MagicMock()
-        mock_post_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_post_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.post = MagicMock(return_value=mock_post_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.segments import create_segment
         with pytest.raises(TAMSAPIError) as exc_info:
@@ -105,15 +93,11 @@ class TestSegmentAPI:
         ]
         mock_response_data = {"data": mock_segments}
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=mock_response_data)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=mock_response_data)
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.segments import list_segments
         result = await list_segments(client, flow_id)
@@ -126,20 +110,16 @@ class TestSegmentAPI:
         flow_id = "flow-123"
         query_params = {"limit": 10}
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={"data": []})
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value={"data": []})
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.segments import list_segments
         await list_segments(client, flow_id, query_params=query_params)
         
-        call_args = client._session.get.call_args
+        call_args = client._request.call_args
         assert call_args[1]["params"] == query_params
     
     @pytest.mark.asyncio
@@ -147,20 +127,16 @@ class TestSegmentAPI:
         """Test deleting segments successfully (synchronous)."""
         flow_id = "flow-123"
         
-        mock_response = AsyncMock()
-        mock_response.status = 204
+        mock_response = MagicMock()
+        mock_response.status_code = 204
         
-        mock_delete_context = MagicMock()
-        mock_delete_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_delete_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.delete = MagicMock(return_value=mock_delete_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.segments import delete_segments
         result = await delete_segments(client, flow_id)
         
         assert result is None  # Synchronous deletion returns None
-        client._session.delete.assert_called_once()
+        client._request.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_delete_segments_async(self, client):
@@ -168,20 +144,16 @@ class TestSegmentAPI:
         flow_id = "flow-123"
         request_id = "deletion-request-123"
         
-        mock_response = AsyncMock()
-        mock_response.status = 202
+        mock_response = MagicMock()
+        mock_response.status_code = 202
         mock_response.headers = {"Location": f"/flow-delete-requests/{request_id}"}
-        mock_response.json = AsyncMock(return_value={
+        mock_response.json = MagicMock(return_value={
             "id": request_id,
             "status": "created",
             "message": "Deletion request created"
         })
         
-        mock_delete_context = MagicMock()
-        mock_delete_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_delete_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.delete = MagicMock(return_value=mock_delete_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.segments import delete_segments
         result = await delete_segments(client, flow_id)
@@ -190,22 +162,18 @@ class TestSegmentAPI:
         assert result["id"] == request_id
         assert result["status"] == "created"
         assert "location" in result
-        client._session.delete.assert_called_once()
+        client._request.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_delete_segments_error(self, client):
         """Test deleting segments with error."""
         flow_id = "flow-123"
         
-        mock_response = AsyncMock()
-        mock_response.status = 500
-        mock_response.text = AsyncMock(return_value="Internal server error")
-        
-        mock_delete_context = MagicMock()
-        mock_delete_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_delete_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.delete = MagicMock(return_value=mock_delete_context)
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal server error"
+    
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.segments import delete_segments
         with pytest.raises(TAMSAPIError) as exc_info:
@@ -224,15 +192,11 @@ class TestSegmentAPI:
             }]
         }
         
-        mock_response = AsyncMock()
-        mock_response.status = 201
-        mock_response.json = AsyncMock(return_value=mock_storage)
-        
-        mock_post_context = MagicMock()
-        mock_post_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_post_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.post = MagicMock(return_value=mock_post_context)
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json = MagicMock(return_value=mock_storage)
+    
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.segments import allocate_storage
         result = await allocate_storage(client, flow_id)
@@ -246,20 +210,16 @@ class TestSegmentAPI:
         storage_id = "storage-123"
         label = "test-label"
         
-        mock_response = AsyncMock()
-        mock_response.status = 201
-        mock_response.json = AsyncMock(return_value={"media_objects": []})
-        
-        mock_post_context = MagicMock()
-        mock_post_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_post_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.post = MagicMock(return_value=mock_post_context)
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json = MagicMock(return_value={"media_objects": []})
+    
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.segments import allocate_storage
         await allocate_storage(client, flow_id, label=label, storage_id=storage_id, limit=5)
         
-        call_args = client._session.post.call_args
+        call_args = client._request.call_args
         call_data = call_args[1]["json"]
         assert call_data["limit"] == 5
         assert call_data["label"] == label
@@ -273,16 +233,18 @@ class TestSegmentAPI:
         
         mock_response = MagicMock()
         mock_response.status_code = 200
-        
-        with patch('vasttamsclient.api.segments.requests.put', return_value=mock_response) as mock_put:
+    
+        mock_session = MagicMock()
+        mock_session.put = MagicMock(return_value=mock_response)
+    
+        with patch('vasttamsclient.api.segments._get_requests_session', return_value=mock_session):
             from vasttamsclient.api.segments import upload_to_storage
             result = await upload_to_storage(client, presigned_url, data=data)
             
             assert result is True
-            mock_put.assert_called_once()
-            # Verify headers were passed
-            call_kwargs = mock_put.call_args[1]
-            assert 'headers' in call_kwargs
+            mock_session.put.assert_called_once()
+            call_kwargs = mock_session.put.call_args[1]
+            assert "headers" in call_kwargs
     
     @pytest.mark.asyncio
     async def test_upload_to_storage_with_file(self, client, tmp_path):
@@ -293,15 +255,17 @@ class TestSegmentAPI:
         
         mock_response = MagicMock()
         mock_response.status_code = 201
-        
-        with patch('vasttamsclient.api.segments.requests.put', return_value=mock_response) as mock_put:
+    
+        mock_session = MagicMock()
+        mock_session.put = MagicMock(return_value=mock_response)
+    
+        with patch('vasttamsclient.api.segments._get_requests_session', return_value=mock_session):
             from vasttamsclient.api.segments import upload_to_storage
             result = await upload_to_storage(client, presigned_url, file_path=str(test_file))
             
             assert result is True
-            mock_put.assert_called_once()
-            # Verify file was opened and passed
-            call_args = mock_put.call_args
+            mock_session.put.assert_called_once()
+            call_args = mock_session.put.call_args
             assert call_args[0][0] == presigned_url
     
     @pytest.mark.asyncio
@@ -336,7 +300,10 @@ class TestSegmentAPI:
         mock_response.status_code = 500
         mock_response.text = "Upload failed"
         
-        with patch('vasttamsclient.api.segments.requests.put', return_value=mock_response):
+        mock_session = MagicMock()
+        mock_session.put = MagicMock(return_value=mock_response)
+        
+        with patch('vasttamsclient.api.segments._get_requests_session', return_value=mock_session):
             from vasttamsclient.api.segments import upload_to_storage
             with pytest.raises(TAMSAPIError) as exc_info:
                 await upload_to_storage(client, presigned_url, data=data)

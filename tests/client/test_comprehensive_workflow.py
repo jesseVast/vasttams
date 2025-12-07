@@ -13,6 +13,7 @@ import logging
 import tempfile
 from pathlib import Path
 from typing import Optional, List
+import httpx
 
 # Add src/client to path for imports
 client_path = Path(__file__).parent.parent.parent / "src" / "client"
@@ -38,17 +39,8 @@ logger = logging.getLogger(__name__)
 def check_server_available() -> bool:
     """Check if TAMS server is available."""
     try:
-        import aiohttp
-        
-        async def check():
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(f"{TEST_SERVER_BASE}/health", timeout=aiohttp.ClientTimeout(total=2)) as response:
-                        return response.status == 200
-            except Exception:
-                return False
-        
-        return asyncio.run(check())
+        response = httpx.get(f"{TEST_SERVER_BASE}/health", timeout=2.0)
+        return response.status_code == 200
     except Exception:
         return False
 

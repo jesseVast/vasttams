@@ -51,17 +51,12 @@ async def search_vectors(
     if distance_threshold is not None:
         payload["distance_threshold"] = distance_threshold
         
-    # Ensure session is available
-    await client._ensure_session()
-    if client._session is None:
-        raise TAMSAPIError("Client session not available", 500, "Internal Client Error")
-
-    async with client._session.post(url, json=payload, headers=await client._get_headers()) as response:
-        if response.status == 200:
-            return await response.json()
-        else:
-            error_text = await response.text()
-            raise TAMSAPIError(f"Vector search failed: {error_text}", response.status, error_text)
+    response = await client._request("POST", url, json=payload, headers=await client._get_headers())
+    if response.status_code == 200:
+        return response.json()
+    else:
+        error_text = response.text
+        raise TAMSAPIError(f"Vector search failed: {error_text}", response.status_code, error_text)
 
 
 async def update_object_vector(
@@ -97,17 +92,12 @@ async def update_object_vector(
     if embedding_model:
         payload["embedding_model"] = embedding_model
     
-    # Ensure session is available
-    await client._ensure_session()
-    if client._session is None:
-        raise TAMSAPIError("Client session not available", 500, "Internal Client Error")
-        
-    async with client._session.put(url, json=payload, headers=await client._get_headers()) as response:
-        if response.status in (200, 201):
-            return await response.json()
-        else:
-            error_text = await response.text()
-            raise TAMSAPIError(f"Failed to update object vector: {error_text}", response.status, error_text)
+    response = await client._request("PUT", url, json=payload, headers=await client._get_headers())
+    if response.status_code in (200, 201):
+        return response.json()
+    else:
+        error_text = response.text
+        raise TAMSAPIError(f"Failed to update object vector: {error_text}", response.status_code, error_text)
 
 
 async def get_object_vector(client: "TAMSClient", object_id: str) -> Optional[Dict[str, Any]]:
@@ -124,19 +114,14 @@ async def get_object_vector(client: "TAMSClient", object_id: str) -> Optional[Di
     vast_prefix = "/api/vast"
     url = f"{client.server_url}{vast_prefix}/objects/{object_id}/vector"
     
-    # Ensure session is available
-    await client._ensure_session()
-    if client._session is None:
-        raise TAMSAPIError("Client session not available", 500, "Internal Client Error")
-
-    async with client._session.get(url, headers=await client._get_headers()) as response:
-        if response.status == 200:
-            return await response.json()
-        elif response.status == 404:
-            return None
-        else:
-            error_text = await response.text()
-            raise TAMSAPIError(f"Failed to get object vector: {error_text}", response.status, error_text)
+    response = await client._request("GET", url, headers=await client._get_headers())
+    if response.status_code == 200:
+        return response.json()
+    elif response.status_code == 404:
+        return None
+    else:
+        error_text = response.text
+        raise TAMSAPIError(f"Failed to get object vector: {error_text}", response.status_code, error_text)
 
 
 async def delete_object_vector(client: "TAMSClient", object_id: str) -> bool:
@@ -153,17 +138,12 @@ async def delete_object_vector(client: "TAMSClient", object_id: str) -> bool:
     vast_prefix = "/api/vast"
     url = f"{client.server_url}{vast_prefix}/objects/{object_id}/vector"
     
-    # Ensure session is available
-    await client._ensure_session()
-    if client._session is None:
-        raise TAMSAPIError("Client session not available", 500, "Internal Client Error")
-
-    async with client._session.delete(url, headers=await client._get_headers()) as response:
-        if response.status in (200, 204):
-            return True
-        elif response.status == 404:
-            return False
-        else:
-            error_text = await response.text()
-            raise TAMSAPIError(f"Failed to delete object vector: {error_text}", response.status, error_text)
+    response = await client._request("DELETE", url, headers=await client._get_headers())
+    if response.status_code in (200, 204):
+        return True
+    elif response.status_code == 404:
+        return False
+    else:
+        error_text = response.text
+        raise TAMSAPIError(f"Failed to delete object vector: {error_text}", response.status_code, error_text)
 

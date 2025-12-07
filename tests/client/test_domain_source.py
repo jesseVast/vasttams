@@ -251,7 +251,7 @@ class TestTAMSSourceCRUD:
         
         with patch('vasttamsclient.api.sources.delete_source', new_callable=AsyncMock) as mock_delete:
             await source.delete()
-            mock_delete.assert_called_once_with(client, "source-123")
+            mock_delete.assert_called_once_with(client, "source-123", cascade=True)
 
 
 class TestTAMSSourceTags:

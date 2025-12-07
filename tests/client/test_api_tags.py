@@ -16,15 +16,11 @@ class TestTagsAPI:
         entity_id = "source-123"
         mock_tags = {"quality": "hd", "bitrate": "high"}
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=mock_tags)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=mock_tags)
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import get_tags
         result = await get_tags(client, "source", entity_id)
@@ -37,15 +33,11 @@ class TestTagsAPI:
         entity_id = "source-123"
         mock_tags = {"quality": ["hd", "4k"], "bitrate": "high"}
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=mock_tags)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=mock_tags)
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import get_tags
         result = await get_tags(client, "source", entity_id)
@@ -60,15 +52,11 @@ class TestTagsAPI:
         entity_id = "flow-123"
         mock_tags = {"quality": "hd"}
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=mock_tags)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=mock_tags)
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import get_tags
         result = await get_tags(client, "flow", entity_id)
@@ -80,14 +68,10 @@ class TestTagsAPI:
         """Test getting tags when entity not found."""
         entity_id = "nonexistent"
         
-        mock_response = AsyncMock()
-        mock_response.status = 404
+        mock_response = MagicMock()
+        mock_response.status_code = 404
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import get_tags
         result = await get_tags(client, "source", entity_id)
@@ -110,15 +94,11 @@ class TestTagsAPI:
         tag_name = "quality"
         tag_value = "hd"
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=tag_value)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=tag_value)
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import get_tag
         result = await get_tag(client, "source", entity_id, tag_name)
@@ -132,15 +112,11 @@ class TestTagsAPI:
         tag_name = "quality"
         json_value = "hd"  # JSON response returns decoded value
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=json_value)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=json_value)
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import get_tag
         result = await get_tag(client, "source", entity_id, tag_name)
@@ -154,15 +130,11 @@ class TestTagsAPI:
         tag_name = "quality"
         tag_value = ["hd", "4k"]
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=tag_value)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=tag_value)
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import get_tag
         result = await get_tag(client, "source", entity_id, tag_name)
@@ -176,14 +148,10 @@ class TestTagsAPI:
         entity_id = "source-123"
         tag_name = "nonexistent"
         
-        mock_response = AsyncMock()
-        mock_response.status = 404
+        mock_response = MagicMock()
+        mock_response.status_code = 404
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import get_tag
         result = await get_tag(client, "source", entity_id, tag_name)
@@ -197,20 +165,16 @@ class TestTagsAPI:
         tag_name = "quality"
         tag_value = "hd"
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = MagicMock()
+        mock_response.status_code = 200
         
-        mock_put_context = MagicMock()
-        mock_put_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_put_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.put = MagicMock(return_value=mock_put_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import set_tag
         await set_tag(client, "source", entity_id, tag_name, tag_value)
         
-        client._session.put.assert_called_once()
-        call_args = client._session.put.call_args
+        client._request.assert_called_once()
+        call_args = client._request.call_args
         assert call_args[1]["data"] == tag_value
         assert call_args[1]["headers"]["Content-Type"] == "text/plain"
     
@@ -221,20 +185,16 @@ class TestTagsAPI:
         tag_name = "quality"
         tag_value = ["hd", "4k"]
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = MagicMock()
+        mock_response.status_code = 200
         
-        mock_put_context = MagicMock()
-        mock_put_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_put_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.put = MagicMock(return_value=mock_put_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import set_tag
         await set_tag(client, "source", entity_id, tag_name, tag_value)
         
-        client._session.put.assert_called_once()
-        call_args = client._session.put.call_args
+        client._request.assert_called_once()
+        call_args = client._request.call_args
         import json
         assert call_args[1]["data"] == json.dumps(tag_value)
         assert call_args[1]["headers"]["Content-Type"] == "application/json"
@@ -246,15 +206,11 @@ class TestTagsAPI:
         tag_name = "quality"
         tag_value = "hd"
         
-        mock_response = AsyncMock()
-        mock_response.status = 500
-        mock_response.text = AsyncMock(return_value="Internal server error")
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal server error"
         
-        mock_put_context = MagicMock()
-        mock_put_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_put_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.put = MagicMock(return_value=mock_put_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import set_tag
         with pytest.raises(TAMSAPIError) as exc_info:
@@ -268,19 +224,15 @@ class TestTagsAPI:
         entity_id = "source-123"
         tag_name = "quality"
         
-        mock_response = AsyncMock()
-        mock_response.status = 204
+        mock_response = MagicMock()
+        mock_response.status_code = 204
         
-        mock_delete_context = MagicMock()
-        mock_delete_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_delete_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.delete = MagicMock(return_value=mock_delete_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import delete_tag
         await delete_tag(client, "source", entity_id, tag_name)
         
-        client._session.delete.assert_called_once()
+        client._request.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_delete_tag_error(self, client):
@@ -288,15 +240,11 @@ class TestTagsAPI:
         entity_id = "source-123"
         tag_name = "quality"
         
-        mock_response = AsyncMock()
-        mock_response.status = 500
-        mock_response.text = AsyncMock(return_value="Internal server error")
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal server error"
         
-        mock_delete_context = MagicMock()
-        mock_delete_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_delete_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.delete = MagicMock(return_value=mock_delete_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.tags import delete_tag
         with pytest.raises(TAMSAPIError) as exc_info:

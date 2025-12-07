@@ -14,24 +14,24 @@ if TYPE_CHECKING:
 async def get_object(client: "TAMSClient", object_id: str) -> Optional[Dict[str, Any]]:
     """Get an object by ID."""
     url = f"{client.server_url}{client.api_prefix}/objects/{object_id}"
-    async with client._session.get(url, headers=await client._get_headers()) as response:
-        if response.status == 200:
-            return await response.json()
-        elif response.status == 404:
-            return None
-        else:
-            error_text = await response.text()
-            raise TAMSAPIError(f"Failed to get object: {error_text}", response.status, error_text)
+    response = await client._request("GET", url, headers=await client._get_headers())
+    if response.status_code == 200:
+        return response.json()
+    elif response.status_code == 404:
+        return None
+    else:
+        error_text = response.text
+        raise TAMSAPIError(f"Failed to get object: {error_text}", response.status_code, error_text)
 
 
 async def list_objects(client: "TAMSClient", query_params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """List objects."""
     url = f"{client.server_url}{client.api_prefix}/objects"
-    async with client._session.get(url, params=query_params or {}, headers=await client._get_headers()) as response:
-        if response.status == 200:
-            data = await response.json()
-            return data.get("data", [])
-        else:
-            error_text = await response.text()
-            raise TAMSAPIError(f"Failed to list objects: {error_text}", response.status, error_text)
+    response = await client._request("GET", url, params=query_params or {}, headers=await client._get_headers())
+    if response.status_code == 200:
+        data = response.json()
+        return data.get("data", []) if isinstance(data, dict) else data
+    else:
+        error_text = response.text
+        raise TAMSAPIError(f"Failed to list objects: {error_text}", response.status_code, error_text)
 

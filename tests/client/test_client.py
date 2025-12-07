@@ -3,7 +3,7 @@ Tests for TAMSClient.
 """
 
 import pytest
-import aiohttp
+import httpx
 from unittest.mock import AsyncMock, MagicMock, patch
 from vasttamsclient import TAMSClient
 from vasttamsclient.exceptions import TAMSAuthenticationError, TAMSAPIError, TAMSConnectionError
@@ -26,21 +26,21 @@ class TestTAMSClientInit:
     def test_init_strips_trailing_slash(self):
         """Test that server_url trailing slash is stripped."""
         with patch('vasttamsclient.client.TokenManager'):
-            with patch('vasttamsclient.client.aiohttp.ClientSession'):
+            with patch('vasttamsclient.client.HttpxTransport'):
                 client = TAMSClient("http://localhost:8000/", "user", "pass")
                 assert client.server_url == "http://localhost:8000"
     
     def test_init_custom_timeout(self):
         """Test client with custom timeout."""
         with patch('vasttamsclient.client.TokenManager'):
-            with patch('vasttamsclient.client.aiohttp.ClientSession'):
+            with patch('vasttamsclient.client.HttpxTransport'):
                 client = TAMSClient("http://localhost:8000", "user", "pass", timeout=60)
                 assert client.timeout == 60
     
     def test_init_custom_verify_ssl(self):
         """Test client with custom SSL verification."""
         with patch('vasttamsclient.client.TokenManager'):
-            with patch('vasttamsclient.client.aiohttp.ClientSession'):
+            with patch('vasttamsclient.client.HttpxTransport'):
                 client = TAMSClient("http://localhost:8000", "user", "pass", verify_ssl=False)
                 assert client.verify_ssl is False
 
@@ -49,40 +49,23 @@ class TestTAMSClientContextManager:
     """Tests for TAMSClient as async context manager."""
     
     @pytest.mark.asyncio
-    async def test_context_manager_enter(self, client, mock_session):
+    async def test_context_manager_enter(self, client, mock_transport):
         """Test entering context manager."""
         async with client:
-            assert client._session is not None
+            assert client._transport is not None
             assert not client._closed
     
     @pytest.mark.asyncio
-    async def test_context_manager_exit(self, client, mock_session):
+    async def test_context_manager_exit(self, client, mock_transport):
         """Test exiting context manager."""
         async with client:
             pass
-        # Session should be closed after context exit
-        mock_session.close.assert_called_once()
+        mock_transport.close.assert_called_once()
         assert client._closed
 
 
 class TestTAMSClientSession:
-    """Tests for TAMSClient session management."""
-    
-    @pytest.mark.asyncio
-    async def test_ensure_session_creates_session(self, client):
-        """Test that _ensure_session creates a session."""
-        client._session = None
-        await client._ensure_session()
-        assert client._session is not None
-    
-    @pytest.mark.asyncio
-    async def test_ensure_session_recreates_closed_session(self, client, mock_session):
-        """Test that _ensure_session recreates closed session."""
-        mock_session.closed = True
-        client._session = mock_session
-        await client._ensure_session()
-        # Should create new session
-        assert client._session is not None
+    """Tests for TAMSClient header and close behaviour."""
     
     @pytest.mark.asyncio
     async def test_get_headers(self, client, mock_token_manager, mock_token):
@@ -93,10 +76,10 @@ class TestTAMSClientSession:
         assert headers["Content-Type"] == "application/json"
     
     @pytest.mark.asyncio
-    async def test_close(self, client, mock_session):
+    async def test_close(self, client, mock_transport):
         """Test closing client."""
         await client.close()
-        mock_session.close.assert_called_once()
+        mock_transport.close.assert_called_once()
         assert client._closed
 
 
@@ -104,56 +87,43 @@ class TestTAMSClientRequest:
     """Tests for TAMSClient HTTP requests."""
     
     @pytest.mark.asyncio
-    async def test_request_success(self, client, mock_session, mock_response):
+    async def test_request_success(self, client, mock_transport, mock_response):
         """Test successful HTTP request."""
-        mock_session.request.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.request.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+        mock_transport.request.return_value = mock_response
         response = await client._request("GET", "http://localhost:8000/test")
         assert response == mock_response
-        mock_session.request.assert_called_once()
+        mock_transport.request.assert_called_once()
     
     @pytest.mark.asyncio
-    async def test_request_401_refreshes_token(self, client, mock_session, mock_token_manager):
+    async def test_request_401_refreshes_token(self, client, mock_transport, mock_token_manager):
         """Test that 401 response triggers token refresh."""
-        # First response: 401
-        first_response = AsyncMock()
-        first_response.status = 401
-        
-        # Second response: 200
-        second_response = AsyncMock()
-        second_response.status = 200
-        second_response.json = AsyncMock(return_value={"success": True})
-        
-        # Mock request to return first then second response
-        mock_session.request.return_value.__aenter__ = AsyncMock(side_effect=[first_response, second_response])
-        mock_session.request.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+        first_response = MagicMock()
+        first_response.status_code = 401
+        second_response = MagicMock()
+        second_response.status_code = 200
+        second_response.json = MagicMock(return_value={"success": True})
+        mock_transport.request.side_effect = [first_response, second_response]
+
         response = await client._request("GET", "http://localhost:8000/test")
-        assert response.status == 200
-        # Verify token was refreshed
+        assert response.status_code == 200
         mock_token_manager.refresh_token.assert_called_once()
-        # Verify request was called twice (original + retry)
-        assert mock_session.request.call_count == 2
+        assert mock_transport.request.call_count == 2
     
     @pytest.mark.asyncio
-    async def test_request_401_after_refresh_raises_error(self, client, mock_session, mock_token_manager):
+    async def test_request_401_after_refresh_raises_error(self, client, mock_transport, mock_token_manager):
         """Test that 401 after refresh raises authentication error."""
-        # Both responses: 401
-        response_401 = AsyncMock()
-        response_401.status = 401
-        
-        mock_session.request.return_value.__aenter__ = AsyncMock(return_value=response_401)
-        mock_session.request.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+        response_401 = MagicMock()
+        response_401.status_code = 401
+        mock_transport.request.return_value = response_401
+
         with pytest.raises(TAMSAuthenticationError) as exc_info:
             await client._request("GET", "http://localhost:8000/test")
         assert "Authentication failed after token refresh" in str(exc_info.value)
     
     @pytest.mark.asyncio
-    async def test_request_connection_error(self, client, mock_session):
+    async def test_request_connection_error(self, client, mock_transport):
         """Test request with connection error."""
-        mock_session.request.side_effect = aiohttp.ClientError("Connection failed")
+        mock_transport.request.side_effect = httpx.HTTPError("Connection failed")
         
         with pytest.raises(TAMSConnectionError) as exc_info:
             await client._request("GET", "http://localhost:8000/test")

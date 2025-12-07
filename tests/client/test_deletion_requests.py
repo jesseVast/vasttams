@@ -15,69 +15,57 @@ class TestDeletionRequestAPI:
     @pytest.mark.asyncio
     async def test_get_deletion_requests(self, client):
         """Test getting all deletion requests."""
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=[
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=[
             {"id": "req1", "flow_id": "flow1", "status": "created"},
             {"id": "req2", "flow_id": "flow2", "status": "started"}
         ])
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         result = await get_deletion_requests(client)
         
         assert len(result) == 2
         assert result[0]["id"] == "req1"
         assert result[1]["id"] == "req2"
-        client._session.get.assert_called_once()
+        client._request.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_get_deletion_request(self, client):
         """Test getting a specific deletion request."""
         request_id = "req-123"
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value={
             "id": request_id,
             "flow_id": "flow-123",
             "status": "started",
             "timerange_to_delete": {"value": "[0:0_100:0)"}
         })
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         result = await get_deletion_request(client, request_id)
         
         assert result is not None
         assert result["id"] == request_id
         assert result["status"] == "started"
-        client._session.get.assert_called_once()
+        client._request.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_get_deletion_request_not_found(self, client):
         """Test getting a non-existent deletion request."""
         request_id = "req-123"
-        mock_response = AsyncMock()
-        mock_response.status = 404
+        mock_response = MagicMock()
+        mock_response.status_code = 404
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         result = await get_deletion_request(client, request_id)
         
         assert result is None
-        client._session.get.assert_called_once()
+        client._request.assert_called_once()
 
 
 class TestTAMSDeletionRequest:

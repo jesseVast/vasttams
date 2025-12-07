@@ -309,7 +309,7 @@ class TestTAMSFlowCRUD:
         
         with patch('vasttamsclient.api.flows.delete_flow', new_callable=AsyncMock) as mock_delete:
             await flow.delete()
-            mock_delete.assert_called_once_with(client, "flow-123")
+            mock_delete.assert_called_once_with(client, "flow-123", cascade=True)
 
 
 class TestTAMSFlowTags:

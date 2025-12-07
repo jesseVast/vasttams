@@ -7,14 +7,15 @@ Main client class for interacting with TAMS servers.
 import asyncio
 import json
 import logging
-import aiohttp
 from typing import Optional, Dict, Any, List, Union
 from pathlib import Path
+import httpx
 from .auth import TokenManager
 from .exceptions import TAMSAuthenticationError, TAMSAPIError, TAMSConnectionError
 from .domain.source import TAMSSource
 from .domain.flow import TAMSFlow
 from .domain.deletion_request import TAMSDeletionRequest
+from .transport import HttpxTransport
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,8 @@ class TAMSClient:
     def __init__(self, server_url: str, username: str, password: str, 
                  timeout: int = 60, verify_ssl: bool = True,
                  limit: int = 100, limit_per_host: int = 30,
-                 keepalive_timeout: int = 60, api_version: Optional[str] = None):
+                 keepalive_timeout: int = 60, api_version: Optional[str] = None,
+                 transport: Optional[HttpxTransport] = None):
         """
         Initialize TAMS client.
         
@@ -40,11 +42,11 @@ class TAMSClient:
             keepalive_timeout: Keep-alive timeout in seconds (default: 60)
             api_version: API version to use (e.g., "v8.0", "v7.0"). 
                         If None, uses "/api/tams/latest" (default: None)
+            transport: Optional HttpxTransport to inject (default creates one)
         """
         # Normalize server URL: add http:// if no protocol is specified
         server_url = server_url.strip()
         if not server_url.startswith(('http://', 'https://')):
-            # Default to http:// if no protocol specified
             server_url = f"http://{server_url}"
             logger.debug(f"Added http:// protocol to server URL: {server_url}")
         self.server_url = server_url.rstrip('/')
@@ -62,8 +64,20 @@ class TAMSClient:
         else:
             self.api_prefix = "/api/tams/latest"
         
-        self._token_manager = TokenManager(server_url, username, password, api_prefix=self.api_prefix)
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._transport = transport or HttpxTransport(
+            timeout=timeout,
+            verify_ssl=verify_ssl,
+            limit=limit,
+            limit_per_host=limit_per_host,
+            keepalive_timeout=keepalive_timeout,
+        )
+        self._token_manager = TokenManager(
+            server_url,
+            username,
+            password,
+            api_prefix=self.api_prefix,
+            requester=self._transport.request,
+        )
         self._closed = False
         
         # Domain object cache: {type: {id: object}}
@@ -74,41 +88,21 @@ class TAMSClient:
     
     async def __aenter__(self):
         """Async context manager entry."""
-        await self._ensure_session()
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.close()
     
-    async def _ensure_session(self):
-        """Ensure HTTP session is created with connection pooling."""
-        if self._session is None or self._session.closed:
-            timeout = aiohttp.ClientTimeout(total=self.timeout)
-            # Configure connection pooling for parallel uploads
-            connector = aiohttp.TCPConnector(
-                ssl=self.verify_ssl,
-                limit=self.limit,  # Total connection pool size
-                limit_per_host=self.limit_per_host,  # Max connections per host
-                keepalive_timeout=self.keepalive_timeout,  # Keep connections alive
-                ttl_dns_cache=300,  # DNS cache TTL (5 minutes)
-                use_dns_cache=True,  # Enable DNS caching
-                force_close=False  # Reuse connections
-            )
-            self._session = aiohttp.ClientSession(timeout=timeout, connector=connector)
-            # Update token manager to use shared session for connection reuse
-            self._token_manager.set_session(self._session)
-    
     async def _get_headers(self) -> Dict[str, str]:
         """Get request headers with authentication token."""
-        await self._ensure_session()
         token = await self._token_manager.get_token()
         return {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
     
-    async def _request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
+    async def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
         """
         Make HTTP request with automatic token refresh on 401.
         
@@ -120,25 +114,23 @@ class TAMSClient:
         Returns:
             ClientResponse: Response object
         """
-        await self._ensure_session()
         headers = await self._get_headers()
         headers.update(kwargs.pop("headers", {}))
         
         try:
-            async with self._session.request(method, url, headers=headers, **kwargs) as response:
-                if response.status == 401:
-                    # Token expired, refresh and retry once
-                    logger.debug("Token expired, refreshing...")
-                    await self._token_manager.refresh_token()
-                    headers = await self._get_headers()
-                    headers.update(kwargs.pop("headers", {}))
-                    async with self._session.request(method, url, headers=headers, **kwargs) as response:
-                        if response.status == 401:
-                            raise TAMSAuthenticationError("Authentication failed after token refresh")
-                        return response
-                return response
-        except aiohttp.ClientError as e:
-            raise TAMSConnectionError(f"Connection error: {e}")
+            response = await self._transport.request(method, url, headers=headers, **kwargs)
+            if response.status_code == 401:
+                # Token expired, refresh and retry once
+                logger.debug("Token expired, refreshing...")
+                await self._token_manager.refresh_token()
+                headers = await self._get_headers()
+                headers.update(kwargs.pop("headers", {}))
+                response = await self._transport.request(method, url, headers=headers, **kwargs)
+                if response.status_code == 401:
+                    raise TAMSAuthenticationError("Authentication failed after token refresh")
+            return response
+        except httpx.HTTPError as e:
+            raise TAMSConnectionError(f"Connection error: {e}") from e
     
     def clear_cache(self, object_type: Optional[str] = None, object_id: Optional[str] = None):
         """
@@ -162,45 +154,16 @@ class TAMSClient:
     
     async def close(self, wait_timeout: float = 10.0):
         """
-        Close HTTP session properly, waiting for pending operations to complete.
-        
-        This method ensures that long-running uploads don't cause "Unclosed client session" warnings.
-        It waits for pending operations to complete before closing the session and connector.
-        
-        Args:
-            wait_timeout: Maximum time to wait for pending operations and connector close (default: 10.0 seconds)
+        Close HTTP transport, waiting briefly for pending operations.
         """
-        if self._session and not self._session.closed:
-            try:
-                # Close the session first - this will cancel pending operations gracefully
-                # aiohttp will handle cleanup of active connections
-                await self._session.close()
-                
-                # Wait for connector to close all connections with timeout
-                # This is critical for proper cleanup and avoiding "Unclosed client session" warnings
-                if self._session.connector and not self._session.connector.closed:
-                    try:
-                        # Give connector time to close all connections
-                        # Use wait_for to prevent hanging indefinitely
-                        await asyncio.wait_for(
-                            self._session.connector.close(),
-                            timeout=wait_timeout
-                        )
-                    except asyncio.TimeoutError:
-                        logger.warning(
-                            f"Timeout ({wait_timeout}s) closing connector. "
-                            "Some connections may still be closing in the background."
-                        )
-                    except Exception as e:
-                        logger.warning(f"Error closing connector: {e}", exc_info=True)
-            except Exception as e:
-                logger.warning(f"Error during session close: {e}", exc_info=True)
-                # Ensure session is marked as closed even if there's an error
-                try:
-                    if self._session and not self._session.closed:
-                        await self._session.close()
-                except Exception:
-                    pass
+        try:
+            await asyncio.wait_for(self._transport.close(), timeout=wait_timeout)
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"Timeout ({wait_timeout}s) closing transport."
+            )
+        except Exception as e:
+            logger.warning(f"Error during transport close: {e}", exc_info=True)
         
         # Clear cache on close
         self.clear_cache()

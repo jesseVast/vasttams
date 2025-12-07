@@ -7,10 +7,11 @@ Tests will be skipped if the server is not available.
 
 import pytest
 import pytest_asyncio
-import asyncio
 import sys
+import os
 from pathlib import Path
 from typing import Optional
+import httpx
 
 # Add src/client to path for imports
 client_path = Path(__file__).parent.parent.parent / "src" / "client"
@@ -31,19 +32,10 @@ TEST_PASSWORD = "vastdata"  # Default test password (per TAMS server defaults)
 
 def check_server_available() -> bool:
     """Check if TAMS server is available."""
+    server_base = os.environ.get("TAMS_TEST_SERVER_BASE", TEST_SERVER_BASE)
     try:
-        import aiohttp
-        import asyncio
-        
-        async def check():
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(f"{TEST_SERVER_BASE}/health", timeout=aiohttp.ClientTimeout(total=2)) as response:
-                        return response.status == 200
-            except Exception:
-                return False
-        
-        return asyncio.run(check())
+        response = httpx.get(f"{server_base}/health", timeout=2.0, verify=False)
+        return response.status_code == 200
     except Exception:
         return False
 
@@ -406,8 +398,10 @@ class TestErrorHandling:
     
     async def test_invalid_authentication(self):
         """Test authentication with invalid credentials."""
+        if not check_server_available():
+            pytest.skip("Integration server not available")
         invalid_client = TAMSClient(
-            server_url=TEST_SERVER_URL,
+            server_url=os.environ.get("TAMS_TEST_SERVER_URL", TEST_SERVER_URL),
             username="invalid",
             password="invalid",
             timeout=5

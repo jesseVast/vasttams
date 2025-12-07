@@ -15,6 +15,7 @@ pip install -e .
 - **Async/Sync Support**: All operations available in both async and sync forms
 - **Auto-Probe**: Automatically extracts media parameters from first segment using ffprobe
 - **Type Safety**: Pydantic models for request/response validation
+- **httpx Transport**: Uses `httpx.AsyncClient` for connection pooling (no `aiohttp`/uvloop loop conflicts)
 
 ## Quick Start
 
@@ -285,12 +286,25 @@ print(f"Vector deleted: {deleted}")
 
 ## Requirements
 
-- Python 3.10+
-- aiohttp >= 3.9.0
+- Python 3.12+
+- httpx >= 0.27.0
 - pydantic >= 2.0.0
 - requests >= 2.31.0
 - typing-extensions >= 4.0.0
 - ffprobe (for auto-probe feature)
+
+## Testing
+
+- Unit suite:
+  ```bash
+  /Users/jesse.thaloor/Developer/python/vasttams/bin/python -m pytest tests/client -v
+  ```
+- Integration tests run only when the TAMS server is reachable. Set the target server (example: `docker1:8000`):
+  ```bash
+  export TAMS_TEST_SERVER_BASE=http://docker1:8000
+  export TAMS_TEST_SERVER_URL=http://docker1:8000/api/tams/latest
+  /Users/jesse.thaloor/Developer/python/vasttams/bin/python -m pytest tests/client -v -m integration
+  ```
 
 ## License
 

@@ -33,6 +33,11 @@ notes/
 
 ## 🎯 **CURRENT STATUS**
 
+### **Client Transport Update** (December 7, 2025)
+- Client HTTP transport now uses `httpx.AsyncClient` (removed `aiohttp` loop dependency).
+- Client tests updated to mock `_request`/httpx responses; integration tests skip unless server reachable (set `TAMS_TEST_SERVER_BASE`/`TAMS_TEST_SERVER_URL`, e.g., `docker1:8000`).
+- Requirements updated to Python 3.12+ and `httpx>=0.27.0`; use `/Users/jesse.thaloor/Developer/python/vasttams/bin/python` for runs.
+
 ### **⚡ CASCADE DELETE PERFORMANCE FIX** (November 21, 2025)
 **Date**: November 21, 2025  
 **Task**: Fix blocking cascade delete operations causing request timeouts  

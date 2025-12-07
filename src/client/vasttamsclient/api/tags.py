@@ -26,14 +26,14 @@ async def get_tags(client: "TAMSClient", entity_type: str, entity_id: str) -> Di
     else:
         raise ValueError(f"Unsupported entity type: {entity_type}")
     
-    async with client._session.get(url, headers=await client._get_headers()) as response:
-        if response.status == 200:
-            return await response.json()
-        elif response.status == 404:
-            return {}
-        else:
-            error_text = await response.text()
-            raise TAMSAPIError(f"Failed to get tags: {error_text}", response.status, error_text)
+    response = await client._request("GET", url, headers=await client._get_headers())
+    if response.status_code == 200:
+        return response.json()
+    elif response.status_code == 404:
+        return {}
+    else:
+        error_text = response.text
+        raise TAMSAPIError(f"Failed to get tags: {error_text}", response.status_code, error_text)
 
 
 async def get_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag_name: str) -> Optional[Union[str, List[str]]]:
@@ -50,19 +50,18 @@ async def get_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag_na
     else:
         raise ValueError(f"Unsupported entity type: {entity_type}")
     
-    async with client._session.get(url, headers=await client._get_headers()) as response:
-        if response.status == 200:
-            # Try to parse as JSON (handles both strings and arrays)
-            try:
-                return await response.json()
-            except Exception:
-                # Fallback to text if not valid JSON
-                return await response.text()
-        elif response.status == 404:
-            return None
-        else:
-            error_text = await response.text()
-            raise TAMSAPIError(f"Failed to get tag: {error_text}", response.status, error_text)
+    response = await client._request("GET", url, headers=await client._get_headers())
+    if response.status_code == 200:
+        # Try to parse as JSON (handles both strings and arrays)
+        try:
+            return response.json()
+        except Exception:
+            return response.text
+    elif response.status_code == 404:
+        return None
+    else:
+        error_text = response.text
+        raise TAMSAPIError(f"Failed to get tag: {error_text}", response.status_code, error_text)
 
 
 async def set_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag_name: str, 
@@ -95,10 +94,10 @@ async def set_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag_na
         headers["Content-Type"] = "text/plain"
         data = tag_value
     
-    async with client._session.put(url, data=data, headers=headers) as response:
-        if response.status not in (200, 204):
-            error_text = await response.text()
-            raise TAMSAPIError(f"Failed to set tag: {error_text}", response.status, error_text)
+    response = await client._request("PUT", url, data=data, headers=headers)
+    if response.status_code not in (200, 204):
+        error_text = response.text
+        raise TAMSAPIError(f"Failed to set tag: {error_text}", response.status_code, error_text)
 
 
 async def delete_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag_name: str) -> None:
@@ -110,8 +109,8 @@ async def delete_tag(client: "TAMSClient", entity_type: str, entity_id: str, tag
     else:
         raise ValueError(f"Unsupported entity type: {entity_type}")
     
-    async with client._session.delete(url, headers=await client._get_headers()) as response:
-        if response.status not in (200, 204):
-            error_text = await response.text()
-            raise TAMSAPIError(f"Failed to delete tag: {error_text}", response.status, error_text)
+    response = await client._request("DELETE", url, headers=await client._get_headers())
+    if response.status_code not in (200, 204):
+        error_text = response.text
+        raise TAMSAPIError(f"Failed to delete tag: {error_text}", response.status_code, error_text)
 

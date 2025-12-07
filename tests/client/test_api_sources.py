@@ -3,8 +3,7 @@ Tests for source API methods.
 """
 
 import pytest
-import aiohttp
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from vasttamsclient.api import sources as source_api
 from vasttamsclient.exceptions import TAMSAPIError
 
@@ -27,28 +26,26 @@ class TestSourceAPI:
             "label": "Test Source"
         }
         
-        mock_response = AsyncMock()
-        mock_response.status = 201
-        mock_response.json = AsyncMock(return_value=source_data)
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json = MagicMock(return_value=source_data)
         
-        mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_session.request = AsyncMock(return_value=mock_response)
         
         result = await source_api.create_source(mock_client, source_data)
         assert result == source_data
-        mock_session.post.assert_called_once()
+        mock_session.request.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_create_source_error(self, mock_client, mock_session):
         """Test source creation with error."""
         source_data = {"format": "urn:x-nmos:format:video"}
         
-        mock_response = AsyncMock()
-        mock_response.status = 400
-        mock_response.text = AsyncMock(return_value="Invalid format")
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.text = "Invalid format"
         
-        mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_session.request = AsyncMock(return_value=mock_response)
         
         with pytest.raises(TAMSAPIError) as exc_info:
             await source_api.create_source(mock_client, source_data)
@@ -63,12 +60,11 @@ class TestSourceAPI:
             "label": "Test Source"
         }
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=source_data)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=source_data)
         
-        mock_session.get.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.get.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_session.request = AsyncMock(return_value=mock_response)
         
         result = await source_api.get_source(mock_client, "source-123")
         assert result == source_data
@@ -76,11 +72,10 @@ class TestSourceAPI:
     @pytest.mark.asyncio
     async def test_get_source_not_found(self, mock_client, mock_session):
         """Test getting a non-existent source."""
-        mock_response = AsyncMock()
-        mock_response.status = 404
+        mock_response = MagicMock()
+        mock_response.status_code = 404
         
-        mock_session.get.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.get.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_session.request = AsyncMock(return_value=mock_response)
         
         result = await source_api.get_source(mock_client, "nonexistent")
         assert result is None
@@ -91,32 +86,27 @@ class TestSourceAPI:
         source_id = "source-123"
         label = "Updated Label"
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = MagicMock()
+        mock_response.status_code = 200
         
-        mock_put_context = MagicMock()
-        mock_put_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_put_context.__aexit__ = AsyncMock(return_value=None)
-        
-        mock_session.put = MagicMock(return_value=mock_put_context)
+        mock_session.request = AsyncMock(return_value=mock_response)
         
         await source_api.update_source_label(mock_client, source_id, label)
-        mock_session.put.assert_called_once()
-        call_args = mock_session.put.call_args
+        mock_session.request.assert_called_once()
+        call_args = mock_session.request.call_args
         assert call_args[1]["data"] == label
         assert call_args[1]["headers"]["Content-Type"] == "text/plain"
     
     @pytest.mark.asyncio
     async def test_delete_source_success(self, mock_client, mock_session):
         """Test deleting a source successfully."""
-        mock_response = AsyncMock()
-        mock_response.status = 204
+        mock_response = MagicMock()
+        mock_response.status_code = 204
         
-        mock_session.delete.return_value.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_session.delete.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_session.request = AsyncMock(return_value=mock_response)
         
         await source_api.delete_source(mock_client, "source-123")
-        mock_session.delete.assert_called_once()
+        mock_session.request.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_list_sources_success(self, mock_client, mock_session):
@@ -127,15 +117,11 @@ class TestSourceAPI:
         ]
         mock_response_data = {"data": sources_data}
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=mock_response_data)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=mock_response_data)
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        mock_session.get = MagicMock(return_value=mock_get_context)
+        mock_session.request = AsyncMock(return_value=mock_response)
         
         result = await source_api.list_sources(mock_client, {})
         assert result == sources_data

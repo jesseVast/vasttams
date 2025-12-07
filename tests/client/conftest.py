@@ -6,7 +6,7 @@ import pytest
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-import aiohttp
+import httpx
 
 # Add src/client to path for imports (if not already added)
 client_path = Path(__file__).parent.parent.parent / "src" / "client"
@@ -15,6 +15,7 @@ if str(client_path) not in sys.path:
 
 from vasttamsclient import TAMSClient
 from vasttamsclient.auth import TokenManager
+from vasttamsclient.transport import HttpxTransport
 from vasttamsclient.exceptions import (
     TAMSClientError,
     TAMSAuthenticationError,
@@ -41,38 +42,43 @@ def mock_token_manager(mock_token):
 
 
 @pytest.fixture
-def mock_session():
-    """Mock aiohttp ClientSession."""
-    session = AsyncMock(spec=aiohttp.ClientSession)
-    session.closed = False
-    session.close = AsyncMock()
-    return session
+def mock_transport():
+    """Mock HttpxTransport."""
+    transport = AsyncMock(spec=HttpxTransport)
+    transport.close = AsyncMock()
+    return transport
+
+
+@pytest.fixture
+def mock_session(mock_transport):
+    """Alias for legacy tests expecting mock_session."""
+    return mock_transport
 
 
 @pytest.fixture
 def mock_response():
-    """Mock aiohttp ClientResponse."""
-    response = AsyncMock(spec=aiohttp.ClientResponse)
-    response.status = 200
-    response.json = AsyncMock(return_value={"id": "test-id", "label": "Test"})
-    response.text = AsyncMock(return_value="")
+    """Mock httpx Response."""
+    response = MagicMock(spec=httpx.Response)
+    response.status_code = 200
+    response.json = MagicMock(return_value={"id": "test-id", "label": "Test"})
+    response.text = ""
     response.headers = {}
-    response.__aenter__ = AsyncMock(return_value=response)
-    response.__aexit__ = AsyncMock(return_value=None)
     return response
 
 
 @pytest.fixture
-def client(mock_token_manager, mock_session):
+def client(mock_token_manager, mock_transport):
     """Create a TAMSClient instance with mocked dependencies."""
     with patch('vasttamsclient.client.TokenManager', return_value=mock_token_manager):
-        with patch('vasttamsclient.client.aiohttp.ClientSession', return_value=mock_session):
+        with patch('vasttamsclient.client.HttpxTransport', return_value=mock_transport):
             client = TAMSClient(
                 server_url="http://localhost:8000",
                 username="testuser",
-                password="testpass"
+                password="testpass",
+                timeout=30,
+                transport=mock_transport
             )
-            client._session = mock_session
+            client._transport = mock_transport
             client._token_manager = mock_token_manager
             return client
 

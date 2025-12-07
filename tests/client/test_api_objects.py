@@ -16,35 +16,27 @@ class TestObjectAPI:
         object_id = "object-123"
         mock_object = {"id": object_id, "label": "Test Object"}
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=mock_object)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=mock_object)
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.objects import get_object
         result = await get_object(client, object_id)
         
         assert result == mock_object
-        client._session.get.assert_called_once()
+        client._request.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_get_object_not_found(self, client):
         """Test getting a non-existent object."""
         object_id = "nonexistent"
         
-        mock_response = AsyncMock()
-        mock_response.status = 404
+        mock_response = MagicMock()
+        mock_response.status_code = 404
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.objects import get_object
         result = await get_object(client, object_id)
@@ -56,15 +48,11 @@ class TestObjectAPI:
         """Test getting an object with server error."""
         object_id = "object-123"
         
-        mock_response = AsyncMock()
-        mock_response.status = 500
-        mock_response.text = AsyncMock(return_value="Internal server error")
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal server error"
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.objects import get_object
         with pytest.raises(TAMSAPIError) as exc_info:
@@ -82,21 +70,17 @@ class TestObjectAPI:
         ]
         mock_response_data = {"data": mock_objects}
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=mock_response_data)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=mock_response_data)
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.objects import list_objects
         result = await list_objects(client)
         
         assert result == mock_objects
-        client._session.get.assert_called_once()
+        client._request.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_list_objects_with_params(self, client):
@@ -105,35 +89,27 @@ class TestObjectAPI:
         mock_objects = [{"id": "object-1"}]
         mock_response_data = {"data": mock_objects}
         
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value=mock_response_data)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=mock_response_data)
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.objects import list_objects
         result = await list_objects(client, query_params=query_params)
         
         assert result == mock_objects
-        call_args = client._session.get.call_args
+        call_args = client._request.call_args
         assert call_args[1]["params"] == query_params
     
     @pytest.mark.asyncio
     async def test_list_objects_error(self, client):
         """Test listing objects with server error."""
-        mock_response = AsyncMock()
-        mock_response.status = 500
-        mock_response.text = AsyncMock(return_value="Internal server error")
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal server error"
         
-        mock_get_context = MagicMock()
-        mock_get_context.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get_context.__aexit__ = AsyncMock(return_value=None)
-        
-        client._session.get = MagicMock(return_value=mock_get_context)
+        client._request = AsyncMock(return_value=mock_response)
         
         from vasttamsclient.api.objects import list_objects
         with pytest.raises(TAMSAPIError) as exc_info:

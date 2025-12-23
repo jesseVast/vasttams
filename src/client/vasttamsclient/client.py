@@ -131,7 +131,12 @@ class TAMSClient:
                     raise TAMSAuthenticationError("Authentication failed after token refresh")
             return response
         except httpx.HTTPError as e:
-            raise TAMSConnectionError(f"Connection error: {e}") from e
+            # Safely format httpx errors to avoid type concatenation issues
+            try:
+                error_msg = str(e)
+            except Exception:
+                error_msg = f"<unprintable httpx error of type {type(e).__name__}>"
+            raise TAMSConnectionError(f"Connection error: {error_msg}") from e
     
     def clear_cache(self, object_type: Optional[str] = None, object_id: Optional[str] = None):
         """

@@ -70,7 +70,10 @@ class TokenManager:
                     )
 
             if response.status_code == 200:
-                data = response.json()
+                try:
+                    data = response.json()
+                except Exception as e:
+                    raise TAMSAuthenticationError(f"Invalid JSON in login response: {e}")
                 self._token = data.get("access_token")
                 if not self._token:
                     raise TAMSAuthenticationError("No access token in login response")
@@ -83,11 +86,21 @@ class TokenManager:
                 error_text = response.text
                 raise TAMSAuthenticationError(f"Login failed with status {response.status_code}: {error_text}")
         except httpx.HTTPError as e:
-            raise TAMSConnectionError(f"Connection error during login: {e}")
+            # Safely format httpx errors to avoid type concatenation issues
+            try:
+                error_msg = str(e)
+            except Exception:
+                error_msg = f"<unprintable httpx error of type {type(e).__name__}>"
+            raise TAMSConnectionError(f"Connection error during login: {error_msg}")
         except Exception as e:
             if isinstance(e, (TAMSAuthenticationError, TAMSConnectionError)):
                 raise
-            raise TAMSAuthenticationError(f"Unexpected error during login: {e}")
+            # Safely format the exception to avoid type concatenation issues
+            try:
+                error_msg = str(e)
+            except Exception:
+                error_msg = f"<unprintable exception of type {type(e).__name__}>"
+            raise TAMSAuthenticationError(f"Unexpected error during login: {error_msg}")
     
     async def login(self) -> str:
         """

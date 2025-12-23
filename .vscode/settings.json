@@ -1,4 +1,12 @@
 {
     "python.pythonPath": "/Users/jesse.thaloor/Developer/python/vasttams/bin/python",
-    "python.venvPath": "/Users/jesse.thaloor/Developer/python/vasttams/"
+    "python.venvPath": "/Users/jesse.thaloor/Developer/python/vasttams/",
+    "python-envs.pythonProjects": [
+        {
+            "path": "",
+            "envManager": "ms-python.python:system",
+            "packageManager": "ms-python.python:pip"
+        }
+    ],
+    "python.defaultInterpreterPath": "python3.12"
 }

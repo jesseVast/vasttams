@@ -1,7 +1,16 @@
 # TAMS Project - Current Status & TODO
 
-**Last Updated**: December 3, 2025  
-**Status**: Vector Dimension Mismatch Debugging & Logging Improvements
+**Last Updated**: December 20, 2025
+**Status**: vast_runtime TAMS Client Initialization Fix
+
+## ✅ Recent Updates (December 20, 2025)
+
+1. **vast_runtime TAMS Client Initialization Fix**
+   - **Issue**: Application startup failing with "Failed to initialize TAMS client: [Errno 2] No such file or directory"
+   - **Root Cause**: vast_runtime package (private dependency) expecting main.py file in workspace root for initialization
+   - **Solution**: Created `/main.py` with basic TAMS client initialization code that satisfies vast_runtime requirements
+   - **Impact**: Resolves application startup failure in Docker containers where vast_runtime is installed
+   - See `notes/edits/2025-12-20.md` for details
 
 ## ✅ Recent Updates (December 3, 2025)
 

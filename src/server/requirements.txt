@@ -3,34 +3,34 @@
 # For development dependencies, see requirements-dev.txt
 
 # FastAPI and web framework
-fastapi==0.115.14
-uvicorn[standard]==0.34.3
-python-multipart==0.0.20
-starlette==0.45.2
+fastapi>=0.115.14
+uvicorn[standard]>=0.34.3
+python-multipart>=0.0.20
+starlette>=0.45.2
 
 # Data validation and settings
-pydantic==2.11.7
-pydantic-settings==2.10.1
-pydantic-core==2.33.2
+pydantic>=2.11.7
+pydantic-settings>=2.10.1
+pydantic-core>=2.33.2
 
 # Authentication and security
-bcrypt==4.1.2
-PyJWT==2.8.0
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+bcrypt>=4.1.2
+PyJWT>=2.8.0
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
 
 # Environment and configuration
-python-dotenv==1.1.1
-click==8.1.7
+python-dotenv>=1.1.1
+click>=8.1.7
 pyyaml>=6.0  # YAML support for configuration files (supports comments)
 
 # Database and ORM
-alembic==1.16.2
-psycopg2-binary==2.9.9
+alembic>=1.16.2
+psycopg2-binary>=2.9.9
 
 # Caching and HTTP
-redis==5.0.1
-httpx==0.28.1
+redis>=5.0.1
+httpx>=0.28.1
 
 # VAST database and analytics
 vastdb>=1.3.11  # Required by vastdbmanager
@@ -42,7 +42,7 @@ vasts3>=1.1.6  # Private GitLab package - requires authentication (wheel: vasts3
 # Embedding provider
 # NOTE: jthaloor-ai is a PRIVATE dependency from GitLab
 # See ~/Developer/gitlab/jthaloor-ai for installation instructions
-jthaloor-ai>=0.2.1  # Private GitLab package - requires authentication
+aifuel>=0.3.0  # Private GitLab package - requires authentication
 ibis-framework>=9.0.0  # Required by vastdbmanager (==9.0.0 in vastdbmanager, using >= for flexibility)
 pyarrow==16.1.0  # Required by vastdbmanager (>=10.0.0 in vastdbmanager)
 numpy>=1.21.0  # Required by vastdbmanager
@@ -51,7 +51,7 @@ duckdb>=0.9.0
 toml>=0.10.2  # Required by both vastdbmanager and vasts3
 
 # VastStore dependencies
-pymilvus==2.5.16
+# pymilvus==2.5.16
 aioboto3==15.1.0
 aiofiles==24.1.0
 trino==0.336.0

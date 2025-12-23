@@ -102,6 +102,7 @@ class TAMSClient:
             "Content-Type": "application/json"
         }
     
+    
     async def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
         """
         Make HTTP request with automatic token refresh on 401.
@@ -539,7 +540,7 @@ class TAMSClient:
         from .api import vectors as vector_api
         return await vector_api.search_vectors(self, vector, limit, distance_metric, distance_threshold)
 
-    async def update_object_vector(self, object_id: str, vector: List[float],
+    async def update_object_vector_async(self, object_id: str, vector: List[float],
                                   summary: Optional[str] = None,
                                   embedding_model: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -590,11 +591,27 @@ class TAMSClient:
         """Synchronous wrapper for search_vectors."""
         return asyncio.run(self.search_vectors(vector, limit, distance_metric, distance_threshold))
     
-    def update_object_vector_sync(self, object_id: str, vector: List[float],
+    def update_object_vector(self, object_id: str, vector: List[float],
                                   summary: Optional[str] = None,
                                   embedding_model: Optional[str] = None) -> Dict[str, Any]:
         """Synchronous wrapper for update_object_vector."""
-        return asyncio.run(self.update_object_vector(object_id, vector, summary, embedding_model))
+        try:
+            # Check if we're in async context
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Return coroutine for async context
+                logger.debug(f"Returning coroutine for update_object_vector in async context for {object_id}")
+                return self.update_object_vector_async(object_id, vector,summary,embedding_model)
+            else:
+                 # not in async loop.
+                return  asyncio.run(vector_api.update_object_vector(self, object_id, vector, summary, embedding_model))
+        except Exception as e:
+            # No event loop
+            logger.debug(f"Creating new event loop for update_object_vector for {object_id}")
+            return asyncio.run(self.update_object_vector_async(object_id, vector, summary, embedding_model))
+        
+        # Fallback to async
+        return self.update_object_vector_async(object_id, vector_data)
     
     def get_object_vector_sync(self, object_id: str) -> Optional[Dict[str, Any]]:
         """Synchronous wrapper for get_object_vector."""

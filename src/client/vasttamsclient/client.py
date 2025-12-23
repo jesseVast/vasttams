@@ -7,7 +7,7 @@ Main client class for interacting with TAMS servers.
 import asyncio
 import json
 import logging
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List, Union, Coroutine, cast
 from pathlib import Path
 import httpx
 from .auth import TokenManager
@@ -208,9 +208,86 @@ class TAMSClient:
             "label": label
         })
         return TAMSFlow(self, **flow_data)
+
+    def _execute_coroutine_sync(self, coroutine):
+        """
+        Execute a coroutine synchronously and return the result.
+        Handles both cases: existing event loop and no event loop.
+        """
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Can't run synchronously in async context - this should be handled by caller
+                raise RuntimeError("Cannot execute coroutine synchronously in running event loop")
+            else:
+                # In sync context with event loop, run synchronously
+                logger.debug("Running coroutine synchronously in existing loop")
+                return loop.run_until_complete(coroutine)
+        except RuntimeError:
+            # No event loop, run synchronously with new loop
+            logger.debug("Creating new event loop for synchronous execution")
+            return asyncio.run(coroutine)
+
+    def _run_in_proper_context(self, coroutine):
+        """
+        Run a coroutine in the appropriate context.
+        Returns either the result or the coroutine based on context.
+        """
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # In async context, return coroutine to be awaited by caller
+                logger.debug("Returning coroutine for async context")
+                return coroutine
+            else:
+                # In sync context, execute synchronously
+                return self._execute_coroutine_sync(coroutine)
+        except RuntimeError:
+            # No event loop, execute synchronously
+            return self._execute_coroutine_sync(coroutine)
+
+    def _run_synchronously(self, coroutine):
+        """
+        Always run a coroutine synchronously and return the result.
+        Works in both sync and async contexts.
+        """
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # In async context, we can't run synchronously in the same thread,
+                # so we run it in a separate thread with its own event loop.
+                import threading
+
+                result = [None]
+                exception: List[Optional[Exception]] = [None]
+
+                def run_in_thread():
+                    try:
+                        # Create new event loop in this thread
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        result[0] = new_loop.run_until_complete(coroutine)
+                    except Exception as e:
+                        exception[0] = cast(Exception, e)
+                    finally:
+                        new_loop.close()
+
+                thread = threading.Thread(target=run_in_thread)
+                thread.start()
+                thread.join()
+
+                if exception[0]:
+                    raise exception[0]
+                return result[0]
+            else:
+                # In sync context, execute synchronously
+                return self._execute_coroutine_sync(coroutine)
+        except RuntimeError:
+            # No event loop, execute synchronously
+            return self._execute_coroutine_sync(coroutine)
     
     # Query methods for retrieving existing objects
-    async def get_source(self, source_id: str, use_cache: bool = True) -> Optional[TAMSSource]:
+    async def get_source_async(self, source_id: str, use_cache: bool = True) -> Optional["TAMSSource"]:
         """
         Get a source by ID.
         
@@ -234,7 +311,7 @@ class TAMSClient:
             return source
         return None
     
-    async def get_flow(self, flow_id: str, use_cache: bool = True) -> Optional[TAMSFlow]:
+    async def get_flow_async(self, flow_id: str, use_cache: bool = True) -> Optional["TAMSFlow"]:
         """
         Get a flow by ID.
         
@@ -260,7 +337,7 @@ class TAMSClient:
             return flow
         return None
     
-    async def list_sources(self, **query_params) -> List[TAMSSource]:
+    async def list_sources_async(self, **query_params) -> List["TAMSSource"]:
         """
         List sources.
         
@@ -285,7 +362,7 @@ class TAMSClient:
                     result.append(source)
         return result
     
-    async def list_flows(self, **query_params) -> List[TAMSFlow]:
+    async def list_flows_async(self, **query_params) -> List["TAMSFlow"]:
         """
         List flows.
         
@@ -312,7 +389,7 @@ class TAMSClient:
                     result.append(flow)
         return result
     
-    async def get_deletion_request(self, request_id: str) -> Optional[TAMSDeletionRequest]:
+    async def get_deletion_request_async(self, request_id: str) -> Optional["TAMSDeletionRequest"]:
         """
         Get a deletion request by ID.
         
@@ -328,7 +405,7 @@ class TAMSClient:
             return TAMSDeletionRequest(self, request_id, deletion_request_data)
         return None
     
-    async def list_deletion_requests(self) -> List[TAMSDeletionRequest]:
+    async def list_deletion_requests_async(self) -> List[TAMSDeletionRequest]:
         """
         List all active deletion requests.
         
@@ -345,8 +422,8 @@ class TAMSClient:
         return result
     
     # Tag-based query helpers
-    async def list_sources_by_tag(self, tag_name: str, tag_value: Optional[str] = None, 
-                                  tag_exists: bool = False) -> List[TAMSSource]:
+    async def list_sources_by_tag_async(self, tag_name: str, tag_value: Optional[str] = None,
+                                  tag_exists: bool = False) -> List["TAMSSource"]:
         """
         List sources filtered by tag.
         
@@ -365,10 +442,10 @@ class TAMSClient:
             query_params[f"tag.{tag_name}"] = tag_value
         else:
             query_params[f"tag_exists.{tag_name}"] = True
-        return await self.list_sources(**query_params)
+        return await self.list_sources_async(**query_params)
     
-    async def list_flows_by_tag(self, tag_name: str, tag_value: Optional[str] = None,
-                               tag_exists: bool = False) -> List[TAMSFlow]:
+    async def list_flows_by_tag_async(self, tag_name: str, tag_value: Optional[str] = None,
+                               tag_exists: bool = False) -> List["TAMSFlow"]:
         """
         List flows filtered by tag.
         
@@ -387,26 +464,26 @@ class TAMSClient:
             query_params[f"tag.{tag_name}"] = tag_value
         else:
             query_params[f"tag_exists.{tag_name}"] = True
-        return await self.list_flows(**query_params)
+        return await self.list_flows_async(**query_params)
     
     # Sync wrappers
-    def get_source_sync(self, source_id: str) -> Optional[TAMSSource]:
-        """Synchronous wrapper for get_source."""
-        return asyncio.run(self.get_source(source_id))
+    def get_source(self, source_id: str) -> Union[Coroutine[Any, Any, Optional["TAMSSource"]], Optional["TAMSSource"]]:
+        """Synchronous wrapper for get_source_async."""
+        return self._run_in_proper_context(self.get_source_async(source_id))
+
+    def get_flow(self, flow_id: str) -> Union[Coroutine[Any, Any, Optional["TAMSFlow"]], Optional["TAMSFlow"]]:
+        """Synchronous wrapper for get_flow_async."""
+        return self._run_in_proper_context(self.get_flow_async(flow_id))
     
-    def get_flow_sync(self, flow_id: str) -> Optional[TAMSFlow]:
-        """Synchronous wrapper for get_flow."""
-        return asyncio.run(self.get_flow(flow_id))
+    def list_sources(self, **query_params) -> Union[Coroutine[Any, Any, List["TAMSSource"]], List["TAMSSource"]]:
+        """Synchronous wrapper for list_sources_async."""
+        return self._run_in_proper_context(self.list_sources_async(**query_params))
     
-    def list_sources_sync(self, **query_params) -> List[TAMSSource]:
-        """Synchronous wrapper for list_sources."""
-        return asyncio.run(self.list_sources(**query_params))
+    def list_flows(self, **query_params) -> Union[Coroutine[Any, Any, List["TAMSFlow"]], List["TAMSFlow"]]:
+        """Synchronous wrapper for list_flows_async."""
+        return self._run_in_proper_context(self.list_flows_async(**query_params))
     
-    def list_flows_sync(self, **query_params) -> List[TAMSFlow]:
-        """Synchronous wrapper for list_flows."""
-        return asyncio.run(self.list_flows(**query_params))
-    
-    async def export_source_tree(self, source: Union[str, TAMSSource], 
+    async def export_source_tree_async(self, source: Union[str, "TAMSSource"],
                                  output_file: Optional[str] = None,
                                  indent: int = 2) -> Dict[str, Any]:
         """
@@ -437,7 +514,7 @@ class TAMSClient:
         
         # Get source if source_id provided
         if isinstance(source, str):
-            source_obj = await self.get_source(source)
+            source_obj = await self.get_source_async(source)
             if source_obj is None:
                 raise ValueError(f"Source not found: {source}")
         else:
@@ -515,14 +592,14 @@ class TAMSClient:
         
         return tree
     
-    def export_source_tree_sync(self, source: Union[str, TAMSSource],
+    def export_source_tree(self, source: Union[str, "TAMSSource"],
                                 output_file: Optional[str] = None,
-                                indent: int = 2) -> Dict[str, Any]:
-        """Synchronous wrapper for export_source_tree."""
-        return asyncio.run(self.export_source_tree(source, output_file, indent))
+                                indent: int = 2) -> Union[Coroutine[Any, Any, Dict[str, Any]], Dict[str, Any]]:
+        """Synchronous wrapper for export_source_tree_async."""
+        return self._run_in_proper_context(self.export_source_tree_async(source, output_file, indent))
 
     # Vector operations (VAST extensions)
-    async def search_vectors(self, vector: List[float], limit: int = 10, 
+    async def search_vectors_async(self, vector: List[float], limit: int = 10,
                             distance_metric: str = "L2",
                             distance_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
         """
@@ -558,7 +635,7 @@ class TAMSClient:
         from .api import vectors as vector_api
         return await vector_api.update_object_vector(self, object_id, vector, summary, embedding_model)
 
-    async def get_object_vector(self, object_id: str) -> Optional[Dict[str, Any]]:
+    async def get_object_vector_async(self, object_id: str) -> Optional[Dict[str, Any]]:
         """
         Get vector data for an object.
         
@@ -571,7 +648,7 @@ class TAMSClient:
         from .api import vectors as vector_api
         return await vector_api.get_object_vector(self, object_id)
 
-    async def delete_object_vector(self, object_id: str) -> bool:
+    async def delete_object_vector_async(self, object_id: str) -> bool:
         """
         Delete vector data for an object.
         
@@ -585,39 +662,31 @@ class TAMSClient:
         return await vector_api.delete_object_vector(self, object_id)
 
     # Sync wrappers for vector operations
-    def search_vectors_sync(self, vector: List[float], limit: int = 10, 
+    def search_vectors(self, vector: List[float], limit: int = 10,
                            distance_metric: str = "L2",
-                           distance_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
-        """Synchronous wrapper for search_vectors."""
-        return asyncio.run(self.search_vectors(vector, limit, distance_metric, distance_threshold))
+                           distance_threshold: Optional[float] = None) -> Union[Coroutine[Any, Any, List[Dict[str, Any]]], List[Dict[str, Any]]]:
+        """Synchronous wrapper for search_vectors_async."""
+        return self._run_in_proper_context(self.search_vectors_async(vector, limit, distance_metric, distance_threshold))
     
     def update_object_vector(self, object_id: str, vector: List[float],
                                   summary: Optional[str] = None,
-                                  embedding_model: Optional[str] = None) -> Dict[str, Any]:
-        """Synchronous wrapper for update_object_vector."""
-        try:
-            # Check if we're in async context
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Return coroutine for async context
-                logger.debug(f"Returning coroutine for update_object_vector in async context for {object_id}")
-                return self.update_object_vector_async(object_id, vector,summary,embedding_model)
-            else:
-                 # not in async loop.
-                return  asyncio.run(vector_api.update_object_vector(self, object_id, vector, summary, embedding_model))
-        except Exception as e:
-            # No event loop
-            logger.debug(f"Creating new event loop for update_object_vector for {object_id}")
-            return asyncio.run(self.update_object_vector_async(object_id, vector, summary, embedding_model))
-        
-        # Fallback to async
-        return self.update_object_vector_async(object_id, vector_data)
-    
-    def get_object_vector_sync(self, object_id: str) -> Optional[Dict[str, Any]]:
-        """Synchronous wrapper for get_object_vector."""
-        return asyncio.run(self.get_object_vector(object_id))
-    
-    def delete_object_vector_sync(self, object_id: str) -> bool:
-        """Synchronous wrapper for delete_object_vector."""
-        return asyncio.run(self.delete_object_vector(object_id))
+                                  embedding_model: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Synchronous wrapper for update_object_vector_async."""
+        result = self._run_synchronously(self.update_object_vector_async(object_id, vector, summary, embedding_model))
+        if result is None or not isinstance(result, dict):
+            return None
+        return result
 
+    def get_object_vector(self, object_id: str) -> Optional[Dict[str, Any]]:
+        """Synchronous wrapper for get_object_vector_async."""
+        result = self._run_synchronously(self.get_object_vector_async(object_id))
+        if result is None or not isinstance(result, dict):
+            return None
+        return result
+    
+    def delete_object_vector(self, object_id: str) -> bool:
+        """Synchronous wrapper for delete_object_vector_async."""
+        result= self._run_synchronously(self.delete_object_vector_async(object_id))
+        if result is None or not isinstance(result, bool):
+            return False
+        return result

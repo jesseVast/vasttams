@@ -120,13 +120,13 @@ class TestClientIntegration:
     
     async def test_list_sources_empty(self, client):
         """Test listing sources (may be empty)."""
-        sources = await client.list_sources()
+        sources = await client.list_sources_async()
         assert isinstance(sources, list)
         # Should not raise an error even if empty
     
     async def test_list_flows_empty(self, client):
         """Test listing flows (may be empty)."""
-        flows = await client.list_flows()
+        flows = await client.list_flows_async()
         assert isinstance(flows, list)
         # Should not raise an error even if empty
 
@@ -230,7 +230,7 @@ class TestFlowIntegration:
     
     async def test_get_flow(self, client, test_flow):
         """Test getting a flow from real server."""
-        retrieved = await client.get_flow(test_flow.id)
+        retrieved = await client.get_flow_async(test_flow.id)
         assert retrieved is not None
         assert retrieved.id == test_flow.id
         assert retrieved.source_id == test_flow.source_id
@@ -245,7 +245,7 @@ class TestFlowIntegration:
         assert test_flow.label == new_label
         
         # Verify update persisted
-        retrieved = await client.get_flow(test_flow.id)
+        retrieved = await client.get_flow_async(test_flow.id)
         assert retrieved.label == new_label
     
     async def test_flow_tags(self, client, test_flow):
@@ -315,7 +315,7 @@ class TestSourceFlowWorkflow:
         retrieved_source = await client.get_source(source.id)
         assert retrieved_source is not None
         
-        retrieved_flow = await client.get_flow(flow.id)
+        retrieved_flow = await client.get_flow_async(flow.id)
         assert retrieved_flow is not None
         assert retrieved_flow.source_id == source.id
         
@@ -353,7 +353,7 @@ class TestSourceFlowWorkflow:
         await flow2._ensure_created()
         
         # List sources
-        sources = await client.list_sources()
+        sources = await client.list_sources_async()
         assert any(s.id == source.id for s in sources)
         
         # List flows for source
@@ -380,7 +380,7 @@ class TestErrorHandling:
     
     async def test_get_nonexistent_flow(self, client):
         """Test getting a non-existent flow."""
-        flow = await client.get_flow("00000000-0000-0000-0000-000000000000")
+        flow = await client.get_flow_async("00000000-0000-0000-0000-000000000000")
         assert flow is None
     
     async def test_delete_nonexistent_source(self, client):
@@ -421,7 +421,7 @@ class TestQueryParameters:
     async def test_list_sources_with_filters(self, client, test_source):
         """Test listing sources with query parameters."""
         # List sources with format filter
-        sources = await client.list_sources(format="urn:x-nmos:format:video")
+        sources = await client.list_sources_async(format="urn:x-nmos:format:video")
         assert isinstance(sources, list)
         # Should include our test source
         assert any(s.id == test_source.id for s in sources)
@@ -429,7 +429,7 @@ class TestQueryParameters:
     async def test_list_flows_with_filters(self, client, test_flow):
         """Test listing flows with query parameters."""
         # List flows with codec filter
-        flows = await client.list_flows(codec="video/h264")
+        flows = await client.list_flows_async(codec="video/h264")
         assert isinstance(flows, list)
         # Should include our test flow
         assert any(f.id == test_flow.id for f in flows)

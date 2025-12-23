@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="vasttamsclient",
-    version="1.0.0",
+    version="1.0.1",
     description="Python client library for TAMS (Time-addressable Media Store) API",
     long_description=open("README.md").read() if __import__("os").path.exists("README.md") else "",
     long_description_content_type="text/markdown",

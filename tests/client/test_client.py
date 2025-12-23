@@ -200,7 +200,7 @@ class TestTAMSClientQueryMethods:
         
         with patch('vasttamsclient.api.flows.get_flow', new_callable=AsyncMock) as mock_get:
             mock_get.return_value = flow_data
-            flow = await client.get_flow("flow-123")
+            flow = await client.get_flow_async("flow-123")
             assert isinstance(flow, TAMSFlow)
             assert flow.id == "flow-123"
             # Flow data should be populated from the API response
@@ -220,7 +220,7 @@ class TestTAMSClientQueryMethods:
         
         with patch('vasttamsclient.api.sources.list_sources', new_callable=AsyncMock) as mock_list:
             mock_list.return_value = sources_data
-            sources = await client.list_sources()
+            sources = await client.list_sources_async()
             assert len(sources) == 2
             assert all(isinstance(s, TAMSSource) for s in sources)
             assert sources[0].id == "source-1"
@@ -236,7 +236,7 @@ class TestTAMSClientQueryMethods:
         
         with patch('vasttamsclient.api.flows.list_flows', new_callable=AsyncMock) as mock_list:
             mock_list.return_value = flows_data
-            flows = await client.list_flows()
+            flows = await client.list_flows_async()
             assert len(flows) == 2
             assert all(isinstance(f, TAMSFlow) for f in flows)
             assert flows[0].id == "flow-1"
@@ -246,21 +246,21 @@ class TestTAMSClientQueryMethods:
 class TestTAMSClientSyncWrappers:
     """Tests for TAMSClient synchronous wrappers."""
     
-    def test_get_source_sync(self, client):
+    def test_get_source(self, client):
         """Test synchronous get_source wrapper."""
-        with patch.object(client, 'get_source', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, 'get_source_async', new_callable=AsyncMock) as mock_get:
             mock_get.return_value = TAMSSource(client, id="source-123", format="urn:x-nmos:format:video")
-            result = client.get_source_sync("source-123")
+            result = client.get_source("source-123")
             assert isinstance(result, TAMSSource)
             mock_get.assert_called_once_with("source-123")
     
-    def test_list_sources_sync(self, client):
+    def test_list_sources(self, client):
         """Test synchronous list_sources wrapper."""
-        with patch.object(client, 'list_sources', new_callable=AsyncMock) as mock_list:
+        with patch.object(client, 'list_sources_async', new_callable=AsyncMock) as mock_list:
             mock_list.return_value = [
                 TAMSSource(client, id="source-1", format="urn:x-nmos:format:video")
             ]
-            result = client.list_sources_sync()
+            result = client.list_sources()
             assert len(result) == 1
             mock_list.assert_called_once()
 

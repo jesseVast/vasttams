@@ -4,6 +4,9 @@ Contains dependency injection functions to avoid circular imports.
 """
 from fastapi import HTTPException
 from vastdbmanager import VastDBManager
+from vastdbmanager.model import VastDBManagerConfig
+from vastdbmanager.core import VastDBConnectionConfig
+from vastdbmanager.trino import TrinoConfig
 from vasts3 import S3Client, S3Config
 from .config import get_settings
 from .cache import CacheService
@@ -21,25 +24,45 @@ def get_vast_db() -> VastDBManager:
         import logging
         logger = logging.getLogger(__name__)
         logger.debug(f"Initializing VastDBManager with endpoint: {settings.vast_endpoint}")
-        # Build VastDBManager initialization parameters
-        init_params = {
-            "endpoints": [settings.vast_endpoint],
-            "access_key": settings.vast_access_key,
-            "secret_key": settings.vast_secret_key,
-            "bucket": settings.vast_bucket,
-            "schema": settings.vast_schema,
-            "enable_trino": settings.vaststore_enable_trino,
-            "trino_host": settings.trino_host,
-            "trino_port": settings.trino_port,
-            "trino_user": settings.trino_user,
-            "trino_catalog": settings.trino_catalog
-        }
-        # Add vector_endpoint if configured (vastdbmanager 1.1.10+)
-        if settings.vast_vector_endpoint:
-            init_params["vector_endpoint"] = settings.vast_vector_endpoint
-            logger.debug(f"Using separate vector endpoint: {settings.vast_vector_endpoint}")
         
-        vast_db = VastDBManager(**init_params)
+        # Build VastDBConnectionConfig
+        # Note: vector_support is True if vector_endpoint is configured (indicates vector operations are available)
+        vector_support = bool(settings.vast_vector_endpoint)
+        vastdb_config = VastDBConnectionConfig(
+            endpoint=settings.vast_endpoint,
+            access_key=settings.vast_access_key,
+            secret_key=settings.vast_secret_key,
+            bucket=settings.vast_bucket,
+            schema=settings.vast_schema,
+            vector_support=vector_support
+        )
+        
+        # Build TrinoConfig if Trino is enabled
+        trino_config = None
+        if settings.vaststore_enable_trino:
+            trino_config = TrinoConfig(
+                host=settings.trino_host,
+                port=settings.trino_port,
+                user=settings.trino_user,
+                catalog=settings.trino_catalog,
+                bucket=settings.vast_bucket,
+                schema=settings.vast_schema
+            )
+            logger.debug(f"Trino configured: {settings.trino_host}:{settings.trino_port}/{settings.trino_catalog}")
+        
+        # Log vector endpoint if configured
+        if settings.vast_vector_endpoint:
+            logger.debug(f"Vector support enabled (endpoint: {settings.vast_vector_endpoint})")
+        
+        # Build VastDBManagerConfig
+        manager_config = VastDBManagerConfig(
+            vastdb_config=vastdb_config,
+            trino_config=trino_config,
+            enable_trino=settings.vaststore_enable_trino,
+            auto_connect=True
+        )
+        
+        vast_db = VastDBManager(manager_config)
     return vast_db
 
 def get_s3_client() -> S3Client:

@@ -33,6 +33,9 @@ os.chdir(root_dir)
 from vasttamsserver.core.config import get_settings
 from vasttamsserver.common.storage.schemas import get_table_projections
 from vastdbmanager import VastDBManager
+from vastdbmanager.model import VastDBManagerConfig
+from vastdbmanager.core import VastDBConnectionConfig
+from vastdbmanager.trino import TrinoConfig
 
 import logging
 import argparse
@@ -45,18 +48,39 @@ def get_vast_db():
     """Get configured VastDBManager instance"""
     try:
         settings = get_settings()
-        db_manager = VastDBManager(
-            endpoints=[settings.vast_endpoint],
+        
+        # Build VastDBConnectionConfig
+        vector_support = bool(settings.vast_vector_endpoint)
+        vastdb_config = VastDBConnectionConfig(
+            endpoint=settings.vast_endpoint,
             access_key=settings.vast_access_key,
             secret_key=settings.vast_secret_key,
             bucket=settings.vast_bucket,
             schema=settings.vast_schema,
-            enable_trino=settings.vaststore_enable_trino,
-            trino_host=settings.trino_host,
-            trino_port=settings.trino_port,
-            trino_user=settings.trino_user,
-            trino_catalog=settings.trino_catalog
+            vector_support=vector_support
         )
+        
+        # Build TrinoConfig if Trino is enabled
+        trino_config = None
+        if settings.vaststore_enable_trino:
+            trino_config = TrinoConfig(
+                host=settings.trino_host,
+                port=settings.trino_port,
+                user=settings.trino_user,
+                catalog=settings.trino_catalog,
+                bucket=settings.vast_bucket,
+                schema=settings.vast_schema
+            )
+        
+        # Build VastDBManagerConfig
+        manager_config = VastDBManagerConfig(
+            vastdb_config=vastdb_config,
+            trino_config=trino_config,
+            enable_trino=settings.vaststore_enable_trino,
+            auto_connect=True
+        )
+        
+        db_manager = VastDBManager(manager_config)
         return db_manager
     except Exception as e:
         logger.error("Failed to create VastDBManager: %s", e)

@@ -7,7 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 VASTSTORE_DIR="$HOME/Developer/gitlab/vaststore"
-JTHALOOR_AI_DIR="$HOME/Developer/gitlab/jthaloor-ai"
+AIFUEL_DIR="$HOME/Developer/gitlab/aifuel"
 WHEELS_DIR="$PROJECT_ROOT/wheels"
 
 echo "🔨 Building wheel files for private dependencies..."
@@ -59,10 +59,10 @@ else
 fi
 
 # Build jthaloor-ai wheel
-if [ -d "$JTHALOOR_AI_DIR" ]; then
+if [ -d "$AIFUEL_DIR" ]; then
     echo ""
     echo "📦 Building jthaloor-ai wheel..."
-    cd "$JTHALOOR_AI_DIR"
+    cd "$AIFUEL_DIR"
     python3 -m pip install --upgrade build wheel
     python3 -m build --wheel
     # Remove old jthaloor-ai wheels before copying new one
@@ -71,7 +71,7 @@ if [ -d "$JTHALOOR_AI_DIR" ]; then
     cp dist/*.whl "$WHEELS_DIR/"
     echo "✅ jthaloor-ai wheel built and copied to $WHEELS_DIR"
 else
-    echo "❌ Error: jthaloor-ai directory not found at $JTHALOOR_AI_DIR"
+    echo "❌ Error: jthaloor-ai directory not found at $AIFUEL_DIR"
     exit 1
 fi
 

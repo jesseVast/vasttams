@@ -78,3 +78,8 @@ opentelemetry-exporter-prometheus==0.56b0
 opentelemetry-exporter-jaeger==1.21.0
 opentelemetry-exporter-otlp-proto-http==1.15.0
 psutil==7.0.0
+
+#VAST dependencies
+https://github.com/jesseVast/vast/releases/download/vasts3-1.1.18/vasts3-1.1.18-py3-none-any.whl
+https://github.com/jesseVast/vast/releases/download/vastdbmanager-v2.0.0/vastdbmanager-2.0.0-py3-none-any.whl
+https://github.com/jesseVast/vast/releases/download/aifuel-v0.3.3/aifuel-0.3.3-py3-none-any.whl

@@ -128,7 +128,7 @@ async def update_object_size_from_s3(object_id: str):
                             relative_storage_path = ""
                     
                     # Create backend-specific S3Client
-                    key_prefix = backend_root_path.strip('/') if backend_root_path else None
+                    key_prefix = backend_root_path.strip('/') if backend_root_path else ""
                     cfg = S3Config(
                         endpoint_url=backend.endpoint_url or settings.s3_endpoint_url,
                         bucket_name=backend.bucket_name or settings.s3_bucket_name,

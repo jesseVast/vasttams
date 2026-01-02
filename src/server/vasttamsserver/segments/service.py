@@ -891,7 +891,7 @@ class SegmentStorageService:
                 
                 # Use backend-specific values when available, fallback to settings
                 backend_root_path = storage_backend.get('root_path') or getattr(self.settings, 's3_root_path', None)
-                key_prefix = backend_root_path.strip('/') if backend_root_path else None
+                key_prefix = backend_root_path.strip('/') if backend_root_path else ""
                 
                 cfg = S3Config(
                     endpoint_url=storage_backend.get('endpoint_url'),

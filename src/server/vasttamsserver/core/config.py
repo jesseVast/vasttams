@@ -142,8 +142,8 @@ class Settings(BaseSettings):
         description="Default distance numerical value/threshold for vector search (default: 0.75 for cosine)")
     
     # Embedding configuration
-    embedding_provider: Optional[str] = Field(default="jthaloor-ai",
-        description="Embedding provider name (e.g., jthaloor-ai, openai, custom)")
+    embedding_provider: Optional[str] = Field(default="aifuel",
+        description="Embedding provider name (e.g., aifuel, openai, custom)")
     embedding_endpoint: Optional[str] = Field(default=None,
         description="Embedding endpoint URL (if using custom provider)")
     embedding_model_name: str = Field(default="text-embedding-ada-002",

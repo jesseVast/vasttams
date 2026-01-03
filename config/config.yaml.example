@@ -119,10 +119,10 @@ vector_search:
 
 embedding:
   # Embedding provider configuration
-  # Use jthaloor-ai embedder library for embedding generation
-  # See ~/Developer/gitlab/jthaloor-ai for supported providers and options
-  # Supported providers via jthaloor-ai: ollama, nim, openai, gemini, nvidia
-  provider: "jthaloor-ai"  # Use jthaloor-ai library (maps to actual provider via endpoint/model)
+  # Use aifuel embedder library for embedding generation
+  # See ~/Developer/gitlab/aifuel for supported providers and options
+  # Supported providers via aifuel: ollama, nim, openai, gemini, nvidia
+  provider: "aifuel"  # Use aifuel library (maps to actual provider via endpoint/model)
   endpoint: "http://10.143.2.16:11434"  # Base URL for embedding service (Ollama example)
   model_name: "bge-m3:latest"  # Embedding model name (provider-specific)
   model_dimension: 1024  # Embedding model dimension (vector size) - depends on model

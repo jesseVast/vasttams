@@ -245,7 +245,8 @@ class TestVastObjectVectorService:
         object_id2 = str(uuid.uuid4())
         mock_vector_result = {
             'data': {
-                'object_id': [object_id1, object_id2],
+                'entity_id': [object_id1, object_id2],  # Use entity_id, not object_id
+                'entity_type': ['object', 'object'],  # Required field
                 'distance': [0.5, 0.7]
             }
         }
@@ -254,16 +255,18 @@ class TestVastObjectVectorService:
         mock_query_builder = build_mock_query_builder(mock_vector_result)
         mock_db.query = Mock(return_value=mock_query_builder)
         
-        # Mock JOIN query result
+        # Mock JOIN query result - must match the JOIN query structure
         segment_id1 = str(uuid.uuid4())
         flow_id1 = str(uuid.uuid4())
         source_id1 = str(uuid.uuid4())
         mock_join_result = {
             'data': {
-                'object_id': [object_id1, object_id2],
+                'entity_id': [object_id1, object_id2],  # JOIN query returns entity_id, not object_id
+                'entity_type': ['object', 'object'],
                 'segment_id': [segment_id1, None],
                 'flow_id': [flow_id1, None],
-                'source_id': [source_id1, None]
+                'source_id': [source_id1, None],
+                'object_id': [object_id1, object_id2]  # Also include object_id for the match structure
             }
         }
         mock_db.execute_sql = Mock(return_value=mock_join_result)
@@ -321,7 +324,8 @@ class TestVastObjectVectorService:
         object_id3 = str(uuid.uuid4())
         mock_vector_result = {
             'data': {
-                'object_id': [object_id1, object_id2, object_id3],
+                'entity_id': [object_id1, object_id2, object_id3],
+                'entity_type': ['object', 'object', 'object'],
                 'distance': [0.5, 0.8, 0.9]  # Third one exceeds threshold
             }
         }
@@ -333,10 +337,12 @@ class TestVastObjectVectorService:
         # Mock JOIN query result
         mock_join_result = {
             'data': {
-                'object_id': [object_id1, object_id2],
+                'entity_id': [object_id1, object_id2],
+                'entity_type': ['object', 'object'],
                 'segment_id': [None, None],
                 'flow_id': [None, None],
-                'source_id': [None, None]
+                'source_id': [None, None],
+                'object_id': [object_id1, object_id2]
             }
         }
         mock_db.execute_sql = Mock(return_value=mock_join_result)
@@ -365,7 +371,8 @@ class TestVastObjectVectorService:
         # Mock empty vector search result
         mock_vector_result = {
             'data': {
-                'object_id': [],
+                'entity_id': [],
+                'entity_type': [],
                 'distance': []
             }
         }
@@ -395,7 +402,8 @@ class TestVastObjectVectorService:
         object_id1 = str(uuid.uuid4())
         mock_vector_result = {
             'data': {
-                'object_id': [object_id1],
+                'entity_id': [object_id1],
+                'entity_type': ['object'],
                 'distance': [0.42]
             }
         }
@@ -409,10 +417,12 @@ class TestVastObjectVectorService:
         source_id1 = str(uuid.uuid4())
         mock_join_result = {
             'data': {
-                'object_id': [object_id1],
+                'entity_id': [object_id1],
+                'entity_type': ['object'],
                 'segment_id': [segment_id1],
                 'flow_id': [flow_id1],
-                'source_id': [source_id1]
+                'source_id': [source_id1],
+                'object_id': [object_id1]
             }
         }
         mock_db.execute_sql = Mock(return_value=mock_join_result)
@@ -459,7 +469,8 @@ class TestVastObjectVectorService:
         
         mock_vector_result = {
             'data': {
-                'object_id': [],
+                'entity_id': [],
+                'entity_type': [],
                 'distance': []
             }
         }
@@ -491,7 +502,8 @@ class TestVastObjectVectorService:
         
         mock_vector_result = {
             'data': {
-                'object_id': [],
+                'entity_id': [],
+                'entity_type': [],
                 'distance': []
             }
         }
@@ -524,7 +536,8 @@ class TestVastObjectVectorService:
         object_id1 = str(uuid.uuid4())
         mock_vector_result = {
             'data': {
-                'object_id': [object_id1],
+                'entity_id': [object_id1],
+                'entity_type': ['object'],
                 'distance': [0.5]
             }
         }
@@ -539,10 +552,12 @@ class TestVastObjectVectorService:
         source_id1 = str(uuid.uuid4())
         mock_join_result = [
             {
-                'object_id': object_id1,
+                'entity_id': object_id1,
+                'entity_type': 'object',
                 'segment_id': segment_id1,
                 'flow_id': flow_id1,
-                'source_id': source_id1
+                'source_id': source_id1,
+                'object_id': object_id1
             }
         ]
         mock_db.execute_sql = Mock(return_value=mock_join_result)

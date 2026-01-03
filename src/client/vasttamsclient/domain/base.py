@@ -42,9 +42,21 @@ class TAMSDomainObject:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 raise RuntimeError("Cannot use sync wrapper in async context. Use await instead.")
+            else:
+                # Use existing loop if available
+                return loop.run_until_complete(coro)
         except RuntimeError:
-            pass
-        return asyncio.run(coro)
+            # No event loop, create new one
+            new_loop = asyncio.new_event_loop()
+            try:
+                asyncio.set_event_loop(new_loop)
+                return new_loop.run_until_complete(coro)
+            finally:
+                new_loop.close()
+                try:
+                    asyncio.set_event_loop(None)
+                except RuntimeError:
+                    pass
     
     async def refresh(self):
         """Refresh object data from server."""

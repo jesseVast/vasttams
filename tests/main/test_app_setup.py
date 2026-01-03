@@ -353,9 +353,10 @@ class TestRootEndpoints:
         response = await get_root()
         
         assert isinstance(response, list)
-        assert "service" in response
-        assert "flows" in response
-        assert "sources" in response
+        # Check for full paths as returned by get_root()
+        assert "api/tams/v8.0/service" in response
+        assert "api/tams/v8.0/flows" in response
+        assert "api/tams/v8.0/sources" in response
     
     @pytest.mark.asyncio
     @patch('vasttamsserver.main.get_settings')

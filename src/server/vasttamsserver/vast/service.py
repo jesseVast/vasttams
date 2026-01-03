@@ -5,6 +5,7 @@ This service handles vector embedding operations for any entity type (objects, f
 using vastdbmanager vector functionality.
 """
 
+import asyncio
 import logging
 from typing import Optional, List, Dict, Any, Literal
 
@@ -104,7 +105,8 @@ class VastObjectVectorService:
                 # Use insert_record which automatically routes to ADBC for vector columns
                 # With vastdbmanager 1.1.10+, this avoids Trino errors
                 # insert_record handles upserts (inserts new or replaces existing records)
-                self.vast_db.insert_record(self.VECTORS_TABLE, vector_data)
+                # Run blocking insert_record in thread pool to avoid blocking event loop
+                await asyncio.to_thread(self.vast_db.insert_record, self.VECTORS_TABLE, vector_data)
                 
                 logger.debug(f"Successfully inserted/updated vector for {entity_type} {entity_id} using insert_record (ADBC routing)")
                 

@@ -5,6 +5,7 @@ This module handles all media object-related storage operations including
 CRUD operations and object management.
 """
 
+import asyncio
 import logging
 import json
 import urllib.parse
@@ -300,7 +301,8 @@ class ObjectStorageService:
             from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
             object_data = prepare_data_for_pyarrow(object_data)
             
-            self.vast_db.insert_record("objects", object_data)
+            # Run blocking insert_record in thread pool to avoid blocking event loop
+            await asyncio.to_thread(self.vast_db.insert_record, "objects", object_data)
             return True
         except Exception as e:
             logger.error("Failed to create object: %s", e)
@@ -653,7 +655,8 @@ class ObjectStorageService:
             instance_data = prepare_data_for_pyarrow(instance_data)
             
             # Insert instance record
-            self.vast_db.insert_record("object_instances", instance_data)
+            # Run blocking insert_record in thread pool to avoid blocking event loop
+            await asyncio.to_thread(self.vast_db.insert_record, "object_instances", instance_data)
             
             logger.debug("Created object instance %s for object %s", instance.label, object_id)
             return True
@@ -1078,7 +1081,8 @@ class ObjectStorageService:
                         
                         # Insert updated record
                         pyarrow_data = prepare_data_for_pyarrow(updated_data)
-                        self.vast_db.insert_record("objects", pyarrow_data)
+                        # Run blocking insert_record in thread pool to avoid blocking event loop
+                        await asyncio.to_thread(self.vast_db.insert_record, "objects", pyarrow_data)
                         logger.debug(f"Updated summary for object {object_id} using delete+insert")
                 
                 return True

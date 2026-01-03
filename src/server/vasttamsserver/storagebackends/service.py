@@ -5,6 +5,7 @@ This module handles storage backend-related storage operations including
 CRUD operations and validation against object usage.
 """
 
+import asyncio
 import logging
 from typing import List, Optional
 from datetime import datetime, timezone
@@ -206,7 +207,8 @@ class StorageBackendService:
             backend_data = storage_backend.model_dump()
             backend_data = prepare_data_for_pyarrow(backend_data)
             
-            self.vast_db.insert_record("storage_backends", backend_data)
+            # Run blocking insert_record in thread pool to avoid blocking event loop
+            await asyncio.to_thread(self.vast_db.insert_record, "storage_backends", backend_data)
             
             logger.debug("Created storage backend %s with label %s", backend_id, label)
             return storage_backend
@@ -320,7 +322,8 @@ class StorageBackendService:
                     # Insert the updated record
                     from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
                     pyarrow_data = prepare_data_for_pyarrow(updated_data)
-                    self.vast_db.insert_record("storage_backends", pyarrow_data)
+                    # Run blocking insert_record in thread pool to avoid blocking event loop
+                    await asyncio.to_thread(self.vast_db.insert_record, "storage_backends", pyarrow_data)
                     logger.debug("Successfully upserted storage backend %s", backend_id)
                     
                     # Return updated backend

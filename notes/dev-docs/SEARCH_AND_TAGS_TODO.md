@@ -186,26 +186,26 @@ This document tracks the implementation of search functionality, tag enhancement
 **Status**: Pending  
 **Priority**: High
 
-**Description**: Add support for creating embeddings using an external embedding provider via the jthaloor-ai embedder library.
+**Description**: Add support for creating embeddings using an external embedding provider via the aifuel embedder library.
 
 **Requirements**:
-- Integrate jthaloor-ai embedder library
-- Support multiple embedding providers (see `~/Developer/gitlab/jthaloor-ai` for options)
-- Create embedding service that uses jthaloor-ai library
+- Integrate aifuel embedder library
+- Support multiple embedding providers (see `~/Developer/gitlab/aifuel` for options)
+- Create embedding service that uses aifuel library
 - Handle authentication and configuration for different providers
 
-**Reference**: Check `~/Developer/gitlab/jthaloor-ai` for available embedding providers and options
+**Reference**: Check `~/Developer/gitlab/aifuel` for available embedding providers and options
 
 **Files to Create**:
-- `src/server/vasttamsserver/vast/embedding_service.py` - Embedding service using jthaloor-ai
-- Embedding client wrapper for jthaloor-ai library
+- `src/server/vasttamsserver/vast/embedding_service.py` - Embedding service using aifuel
+- Embedding client wrapper for aifuel library
 
 **Files to Modify**:
-- `src/server/requirements.txt` - Add jthaloor-ai dependency
+- `src/server/requirements.txt` - Add aifuel dependency
 - Configuration files - Add embedding provider settings
 
 **Dependencies**:
-- jthaloor-ai embedder library
+- aifuel embedder library
 
 ---
 
@@ -369,12 +369,12 @@ This document tracks the implementation of search functionality, tag enhancement
   - Default distance threshold
   - Provider-specific settings (API keys, etc.)
 
-**Reference**: Check `~/Developer/gitlab/jthaloor-ai` for supported embedding models, endpoints, and configuration options
+**Reference**: Check `~/Developer/gitlab/aifuel` for supported embedding models, endpoints, and configuration options
 
 **Configuration Format** (YAML):
 ```yaml
 embedding:
-  provider: "jthaloor-ai"  # or direct provider name
+  provider: "aifuel"  # or direct provider name
   endpoint: "https://api.example.com/embed"
   model_name: "text-embedding-ada-002"
   model_dimension: 1536
@@ -504,8 +504,8 @@ embedding:
 ## Notes
 
 **Server Implementation**:
-- Use jthaloor-ai embedder library for embedding provider support
-- Check `~/Developer/gitlab/jthaloor-ai` for available embedding providers and configuration options
+- Use aifuel embedder library for embedding provider support
+- Check `~/Developer/gitlab/aifuel` for available embedding providers and configuration options
 - Vector table migration from `object_vector` to `vectors` requires careful planning
 - Default distance algorithm and threshold should be configurable
 - Vector search should leverage existing VAST vector capabilities
@@ -528,7 +528,7 @@ embedding:
 
 - TAMS API Specification: `./tams-8.0/api/`
 - TAMS App Notes: `./tams-8.0/docs/appnotes/`
-- jthaloor-ai embedder library: `~/Developer/gitlab/jthaloor-ai`
+- aifuel embedder library: `~/Developer/gitlab/aifuel`
 - Current deletion request implementation (see UI Task 3 notes)
 - Vector table implementation: `src/server/vasttamsserver/vast/schemas.py`
 

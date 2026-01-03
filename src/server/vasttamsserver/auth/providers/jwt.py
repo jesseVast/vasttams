@@ -64,7 +64,8 @@ class JWTProvider(AuthProvider):
             if token and logger.isEnabledFor(logging.DEBUG):
                 logger.debug("JWT token found in query parameter")
         
-        if not token:
+        # Check if token is None, empty string, or not a string/bytes
+        if not token or (not isinstance(token, (str, bytes)) or (isinstance(token, str) and not token.strip())):
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug("No Bearer token provided in request")
             return AuthResult(success=False, error="No Bearer token provided")

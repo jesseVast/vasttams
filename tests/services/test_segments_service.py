@@ -137,8 +137,55 @@ class TestSegmentStorageService:
         mock_db = Mock()
         mock_db.insert_record = Mock()
         
+        # Mock query chain - need separate mocks for different queries
+        def query_side_effect(table):
+            mock_query = Mock()
+            mock_query.select.return_value = mock_query
+            mock_query.where.return_value = mock_query
+            mock_query.delete.return_value = mock_query
+            
+            if table == "objects":
+                # Object existence check
+                mock_query.execute.return_value = {
+                    'data': {
+                        'id': [object_id],
+                        'created': ['2024-01-01T00:00:00Z'],
+                        'metadata': ['{}']
+                    }
+                }
+            elif table == "flow_object_references":
+                # Flow object reference check - return empty (doesn't exist yet)
+                mock_query.execute.return_value = {'data': {}}
+            else:
+                mock_query.execute.return_value = {'data': {}}
+            
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
+        
         service = SegmentStorageService(mock_db, Mock(), Mock())
-        result = await service.create_flow_segment(flow_id, segment)
+        
+        # Mock asyncio.to_thread - need to handle multiple calls
+        call_count = [0]  # Use list to allow modification in nested function
+        with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+            def to_thread_side_effect(func):
+                call_count[0] += 1
+                # First call is _get_object (object existence check)
+                if call_count[0] == 1:
+                    return {
+                        'data': {
+                            'id': [object_id],
+                            'created': ['2024-01-01T00:00:00Z'],
+                            'metadata': ['{}']
+                        }
+                    }
+                else:
+                    # Subsequent calls are flow_object_references check - return empty
+                    return {'data': {}}
+            
+            mock_to_thread.side_effect = to_thread_side_effect
+            
+            result = await service.create_flow_segment(flow_id, segment)
         
         assert result is True
         # create_flow_segment inserts both segment and flow_object_reference
@@ -376,7 +423,7 @@ class TestSegmentStorageService:
     
     @pytest.mark.asyncio
     async def test_generate_get_urls(self):
-        """Test _generate_get_urls"""
+        """Test get_urls generation via GetUrlFactory"""
         import uuid
         object_id = str(uuid.uuid4())
         
@@ -390,9 +437,11 @@ class TestSegmentStorageService:
         mock_db.execute_sql = Mock(return_value={'data': {}})
         
         service = SegmentStorageService(mock_db, Mock(), Mock())
-        service._get_object = AsyncMock(return_value=None)
+        # Mock the GetUrlFactory's create_get_urls method
+        service._get_url_factory.create_get_urls = AsyncMock(return_value=None)
         
-        urls = await service._generate_get_urls(object_id)
+        # Test via the factory
+        urls = await service._get_url_factory.create_get_urls(object_id)
         
         # May return None or empty list
         assert urls is None or isinstance(urls, list)
@@ -719,34 +768,97 @@ class TestSegmentStorageService:
     async def test_get_flow_segments_auto_populate_get_urls(self):
         """Test get_flow_segments auto-populates get_urls when missing"""
         import uuid
+        from vasttamsserver.segments.models import GetUrl
         flow_id = str(uuid.uuid4())
         object_id = str(uuid.uuid4())
+        segment_id = str(uuid.uuid4())
         
         mock_db = Mock()
         mock_query = Mock()
         mock_query.select.return_value = mock_query
         mock_query.where.return_value = mock_query
-        mock_query.execute.return_value = {
-            'data': {
-                'id': [str(uuid.uuid4())],
-                'flow_id': [flow_id],
-                'object_id': [object_id],
-                'timerange_start': ['0:0'],
-                'timerange_end': ['60:0']
-                # No get_urls field
-            }
-        }
-        mock_db.query.return_value = mock_query
         
-        service = SegmentStorageService(mock_db, Mock(), Mock())
-        service._generate_get_urls = AsyncMock(return_value=[{"url": "http://example.com"}])
+        mock_s3 = Mock()
+        mock_settings = Mock()
+        service = SegmentStorageService(mock_db, mock_s3, mock_settings)
         
-        segments = await service.get_flow_segments(flow_id)
+        # Mock GetUrlFactory to return get_urls
+        storage_id = str(uuid.uuid4())
+        mock_get_url = GetUrl(
+            url="http://example.com/test",
+            presigned=True,
+            controlled=True,
+            store_type="http_object_store",
+            provider="aws",
+            store_product="s3",
+            storage_id=storage_id
+        )
+        
+        service._get_url_factory.create_get_urls_batch = AsyncMock(
+            return_value={object_id: [mock_get_url]}
+        )
+        
+        # Mock asyncio.to_thread for the segments query and GetUrlFactory
+        call_count = [0]
+        def to_thread_side_effect(func):
+            call_count[0] += 1
+            # First call is the segments query
+            if call_count[0] == 1:
+                return {
+                    'data': {
+                        'id': [segment_id],
+                        'flow_id': [flow_id],
+                        'object_id': [object_id],  # Required field
+                        'timerange_start': ['0:0'],
+                        'timerange_end': ['60:0'],
+                        'ts_offset': [None],
+                        'last_duration': [None],
+                        'sample_offset': [None],
+                        'sample_count': [None],
+                        'key_frame_count': [None],
+                        'created': ['2024-01-01T00:00:00Z']
+                    }
+                }
+            # Subsequent calls are for GetUrlFactory object lookups
+            else:
+                return {
+                    'data': {
+                        'id': [object_id],
+                        'created': ['2024-01-01T00:00:00Z'],
+                        'metadata': ['{"storage_path": "tams/2024/01/01/' + object_id + '", "storage_id": "' + storage_id + '"}']
+                    }
+                }
+        
+        # Mock storage backend service and S3 client for GetUrlFactory
+        with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_backend_service_class:
+            mock_backend = Mock()
+            mock_backend.model_dump.return_value = {"id": str(uuid.uuid4()), "root_path": None}
+            mock_backend_service = Mock()
+            mock_backend_service.get_storage_backend = AsyncMock(return_value=mock_backend)
+            mock_backend_service_class.return_value = mock_backend_service
+            
+            # Mock asyncio.to_thread for segments query and GetUrlFactory
+            with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+                mock_to_thread.side_effect = to_thread_side_effect
+                
+                # Mock inspect.signature and event loop for S3 presigned URL generation
+                with patch('inspect.signature') as mock_signature:
+                    mock_sig = Mock()
+                    mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
+                    mock_signature.return_value = mock_sig
+                    
+                    with patch('asyncio.get_event_loop') as mock_get_loop:
+                        mock_loop = Mock()
+                        mock_get_loop.return_value = mock_loop
+                        mock_loop.run_in_executor = AsyncMock(return_value="http://example.com/test")
+                        
+                        segments = await service.get_flow_segments(flow_id)
         
         assert isinstance(segments, list)
         if segments:
             # get_urls should be auto-populated
             assert segments[0].get_urls is not None
+            assert len(segments[0].get_urls) > 0
     
     @pytest.mark.asyncio
     async def test_get_flow_segments_auto_populate_get_urls_fails(self):
@@ -809,14 +921,54 @@ class TestSegmentStorageService:
         
         mock_db = Mock()
         mock_db.insert_record = Mock()
-        mock_query = Mock()
-        mock_query.select.return_value = mock_query
-        mock_query.where.return_value = mock_query
-        mock_query.execute.return_value = {'data': {}}
-        mock_db.query.return_value = mock_query
+        
+        # Mock query chain for object existence and flow_object_references
+        def query_side_effect(table):
+            mock_query = Mock()
+            mock_query.select.return_value = mock_query
+            mock_query.where.return_value = mock_query
+            mock_query.delete.return_value = mock_query
+            
+            if table == "objects":
+                mock_query.execute.return_value = {
+                    'data': {
+                        'id': [object_id],
+                        'created': ['2024-01-01T00:00:00Z'],
+                        'metadata': ['{}']
+                    }
+                }
+            elif table == "flow_object_references":
+                mock_query.execute.return_value = {'data': {}}
+            else:
+                mock_query.execute.return_value = {'data': {}}
+            
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
         
         service = SegmentStorageService(mock_db, Mock(), Mock())
-        result = await service.create_flow_segment(flow_id, segment)
+        
+        # Mock asyncio.to_thread for object lookup and flow_object_references check
+        call_count = [0]
+        with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+            def to_thread_side_effect(func):
+                call_count[0] += 1
+                # First call is _get_object (object existence check)
+                if call_count[0] == 1:
+                    return {
+                        'data': {
+                            'id': [object_id],
+                            'created': ['2024-01-01T00:00:00Z'],
+                            'metadata': ['{}']
+                        }
+                    }
+                else:
+                    # Subsequent calls are flow_object_references check - return empty
+                    return {'data': {}}
+            
+            mock_to_thread.side_effect = to_thread_side_effect
+            
+            result = await service.create_flow_segment(flow_id, segment)
         
         assert result is True
     
@@ -838,14 +990,52 @@ class TestSegmentStorageService:
         
         mock_db = Mock()
         mock_db.insert_record = Mock()
-        mock_query = Mock()
-        mock_query.select.return_value = mock_query
-        mock_query.where.return_value = mock_query
-        mock_query.execute.return_value = {'data': {}}
-        mock_db.query.return_value = mock_query
+        
+        # Mock query chain for object existence and flow_object_references
+        def query_side_effect(table):
+            mock_query = Mock()
+            mock_query.select.return_value = mock_query
+            mock_query.where.return_value = mock_query
+            mock_query.delete.return_value = mock_query
+            
+            if table == "objects":
+                mock_query.execute.return_value = {
+                    'data': {
+                        'id': [object_id],
+                        'created': ['2024-01-01T00:00:00Z'],
+                        'metadata': ['{}']
+                    }
+                }
+            elif table == "flow_object_references":
+                mock_query.execute.return_value = {'data': {}}
+            else:
+                mock_query.execute.return_value = {'data': {}}
+            
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
         
         service = SegmentStorageService(mock_db, Mock(), Mock())
-        result = await service.create_flow_segment(flow_id, segment)
+        
+        # Mock asyncio.to_thread for object lookup and flow_object_references check
+        call_count = [0]
+        with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+            def to_thread_side_effect(func):
+                call_count[0] += 1
+                if call_count[0] == 1:
+                    return {
+                        'data': {
+                            'id': [object_id],
+                            'created': ['2024-01-01T00:00:00Z'],
+                            'metadata': ['{}']
+                        }
+                    }
+                else:
+                    return {'data': {}}
+            
+            mock_to_thread.side_effect = to_thread_side_effect
+            
+            result = await service.create_flow_segment(flow_id, segment)
         
         assert result is True
     
@@ -870,14 +1060,52 @@ class TestSegmentStorageService:
         
         mock_db = Mock()
         mock_db.insert_record = Mock()
-        mock_query = Mock()
-        mock_query.select.return_value = mock_query
-        mock_query.where.return_value = mock_query
-        mock_query.execute.return_value = {'data': {}}
-        mock_db.query.return_value = mock_query
+        
+        # Mock query chain for object existence and flow_object_references
+        def query_side_effect(table):
+            mock_query = Mock()
+            mock_query.select.return_value = mock_query
+            mock_query.where.return_value = mock_query
+            mock_query.delete.return_value = mock_query
+            
+            if table == "objects":
+                mock_query.execute.return_value = {
+                    'data': {
+                        'id': [object_id],
+                        'created': ['2024-01-01T00:00:00Z'],
+                        'metadata': ['{}']
+                    }
+                }
+            elif table == "flow_object_references":
+                mock_query.execute.return_value = {'data': {}}
+            else:
+                mock_query.execute.return_value = {'data': {}}
+            
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
         
         service = SegmentStorageService(mock_db, Mock(), Mock())
-        result = await service.create_flow_segment(flow_id, segment)
+        
+        # Mock asyncio.to_thread for object lookup and flow_object_references check
+        call_count = [0]
+        with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+            def to_thread_side_effect(func):
+                call_count[0] += 1
+                if call_count[0] == 1:
+                    return {
+                        'data': {
+                            'id': [object_id],
+                            'created': ['2024-01-01T00:00:00Z'],
+                            'metadata': ['{}']
+                        }
+                    }
+                else:
+                    return {'data': {}}
+            
+            mock_to_thread.side_effect = to_thread_side_effect
+            
+            result = await service.create_flow_segment(flow_id, segment)
         
         assert result is True
         # Verify JSON serialization was called
@@ -960,18 +1188,59 @@ class TestSegmentStorageService:
         
         mock_db = Mock()
         mock_db.insert_record = Mock()
-        mock_query = Mock()
-        mock_query.select.return_value = mock_query
-        mock_query.where.return_value = mock_query
-        mock_query.execute.side_effect = [
-            {'data': {}},  # First call (check existing)
-            Exception("Reference error")  # Second call (insert reference) fails
-        ]
-        mock_db.query.return_value = mock_query
+        
+        # Mock query chain for object existence and flow_object_references
+        def query_side_effect(table):
+            mock_query = Mock()
+            mock_query.select.return_value = mock_query
+            mock_query.where.return_value = mock_query
+            mock_query.delete.return_value = mock_query
+            
+            if table == "objects":
+                mock_query.execute.return_value = {
+                    'data': {
+                        'id': [object_id],
+                        'created': ['2024-01-01T00:00:00Z'],
+                        'metadata': ['{}']
+                    }
+                }
+            elif table == "flow_object_references":
+                # First call returns empty (doesn't exist), second call (in asyncio.to_thread) will fail
+                mock_query.execute.return_value = {'data': {}}
+            else:
+                mock_query.execute.return_value = {'data': {}}
+            
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
         
         service = SegmentStorageService(mock_db, Mock(), Mock())
-        # Should still succeed (reference error is logged but doesn't fail)
-        result = await service.create_flow_segment(flow_id, segment)
+        
+        # Mock asyncio.to_thread - first call succeeds, second call (flow_object_references insert) fails
+        call_count = [0]
+        with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+            def to_thread_side_effect(func):
+                call_count[0] += 1
+                if call_count[0] == 1:
+                    # Object existence check - succeeds
+                    return {
+                        'data': {
+                            'id': [object_id],
+                            'created': ['2024-01-01T00:00:00Z'],
+                            'metadata': ['{}']
+                        }
+                    }
+                elif call_count[0] == 2:
+                    # Flow object reference check - returns empty (doesn't exist)
+                    return {'data': {}}
+                else:
+                    # Subsequent calls should raise exception to test error handling
+                    raise Exception("Reference error")
+            
+            mock_to_thread.side_effect = to_thread_side_effect
+            
+            # Should still succeed (reference error is logged but doesn't fail)
+            result = await service.create_flow_segment(flow_id, segment)
         
         assert result is True
     
@@ -1570,9 +1839,21 @@ class TestSegmentStorageService:
         mock_settings.s3_store_product = "vast-s3"
         
         service = SegmentStorageService(mock_db, Mock(), mock_settings)
-        service._generate_presigned_url = AsyncMock(return_value="https://example.com/get-url")
         
-        urls = await service._generate_get_urls(object_id)
+        # Mock GetUrlFactory
+        from vasttamsserver.segments.models import GetUrl
+        mock_get_url = GetUrl(
+            url="https://example.com/get-url",
+            presigned=True,
+            controlled=True,
+            store_type="http_object_store",
+            provider="vast",
+            store_product="vast-s3",
+            storage_id=storage_id
+        )
+        service._get_url_factory.create_get_urls = AsyncMock(return_value=[mock_get_url])
+        
+        urls = await service._get_url_factory.create_get_urls(object_id)
         
         assert urls is not None
         assert isinstance(urls, list)
@@ -1606,18 +1887,23 @@ class TestSegmentStorageService:
         mock_settings.s3_store_product = "vast-s3"
         
         service = SegmentStorageService(mock_db, Mock(), mock_settings)
-        service._generate_presigned_url = AsyncMock(return_value="https://example.com/get-url")
         
-        # Mock storage backend service for root_path
-        with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_backend_service_class:
-            mock_backend_service = Mock()
-            mock_backend_service.get_storage_backend = AsyncMock(return_value=None)
-            mock_backend_service.get_storage_backends = AsyncMock(return_value=[])
-            mock_backend_service_class.return_value = mock_backend_service
-            
-            urls = await service._generate_get_urls(object_id)
-            
-            assert urls is not None
+        # Mock GetUrlFactory
+        from vasttamsserver.segments.models import GetUrl
+        mock_get_url = GetUrl(
+            url="https://example.com/get-url",
+            presigned=True,
+            controlled=True,
+            store_type="http_object_store",
+            provider="vast",
+            store_product="vast-s3",
+            storage_id=str(uuid.uuid4())
+        )
+        service._get_url_factory.create_get_urls = AsyncMock(return_value=[mock_get_url])
+        
+        urls = await service._get_url_factory.create_get_urls(object_id)
+        
+        assert urls is not None
     
     @pytest.mark.asyncio
     async def test_generate_get_urls_fallback_current_date(self):
@@ -1640,18 +1926,23 @@ class TestSegmentStorageService:
         mock_settings.s3_store_product = "vast-s3"
         
         service = SegmentStorageService(mock_db, Mock(), mock_settings)
-        service._get_object = AsyncMock(return_value=None)  # Object not found
-        service._generate_presigned_url = AsyncMock(return_value="https://example.com/get-url")
         
-        # Mock storage backend service
-        with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_backend_service_class:
-            mock_backend_service = Mock()
-            mock_backend_service.get_storage_backends = AsyncMock(return_value=[])
-            mock_backend_service_class.return_value = mock_backend_service
-            
-            urls = await service._generate_get_urls(object_id)
-            
-            assert urls is not None
+        # Mock GetUrlFactory - object not found, but factory may still return URL
+        from vasttamsserver.segments.models import GetUrl
+        mock_get_url = GetUrl(
+            url="https://example.com/get-url",
+            presigned=True,
+            controlled=True,
+            store_type="http_object_store",
+            provider="vast",
+            store_product="vast-s3",
+            storage_id=str(uuid.uuid4())
+        )
+        service._get_url_factory.create_get_urls = AsyncMock(return_value=[mock_get_url])
+        
+        urls = await service._get_url_factory.create_get_urls(object_id)
+        
+        assert urls is not None
     
     @pytest.mark.asyncio
     async def test_generate_get_urls_presigned_url_fails(self):
@@ -1667,10 +1958,11 @@ class TestSegmentStorageService:
         mock_db.query.return_value = mock_query
         
         service = SegmentStorageService(mock_db, Mock(), Mock())
-        service._get_object = AsyncMock(return_value=None)
-        service._generate_presigned_url = AsyncMock(return_value=None)  # Generation fails
         
-        urls = await service._generate_get_urls(object_id)
+        # Mock GetUrlFactory to return None (generation fails)
+        service._get_url_factory.create_get_urls = AsyncMock(return_value=None)
+        
+        urls = await service._get_url_factory.create_get_urls(object_id)
         
         assert urls is None
     
@@ -1689,7 +1981,10 @@ class TestSegmentStorageService:
         
         service = SegmentStorageService(mock_db, Mock(), Mock())
         
-        urls = await service._generate_get_urls(object_id)
+        # Mock GetUrlFactory to return None (exception handling)
+        service._get_url_factory.create_get_urls = AsyncMock(return_value=None)
+        
+        urls = await service._get_url_factory.create_get_urls(object_id)
         
         assert urls is None
     

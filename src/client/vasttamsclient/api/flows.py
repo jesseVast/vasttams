@@ -67,7 +67,8 @@ async def delete_flow(client: "TAMSClient", flow_id: str, cascade: bool = True) 
     url = f"{client.server_url}{client.api_prefix}/flows/{flow_id}"
     params = {"cascade": str(cascade).lower()}
     response = await client._request("DELETE", url, params=params, headers=await client._get_headers())
-    if response.status_code not in (200, 204):
+    # Accept 200, 202 (Accepted for async operations), or 204 (No Content)
+    if response.status_code not in (200, 202, 204):
         error_text = response.text
         raise TAMSAPIError(f"Failed to delete flow: {error_text}", response.status_code, error_text)
 

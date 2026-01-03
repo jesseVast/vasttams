@@ -51,8 +51,9 @@ def server_available():
 @pytest_asyncio.fixture(scope="function")
 async def client(server_available):
     """Create a TAMSClient instance connected to real server."""
+    # Use base URL, not the full API URL - client will add API prefix
     client = TAMSClient(
-        server_url=TEST_SERVER_URL,
+        server_url=TEST_SERVER_BASE,
         username=TEST_USERNAME,
         password=TEST_PASSWORD,
         timeout=30
@@ -105,10 +106,12 @@ class TestClientIntegration:
     
     async def test_client_connection(self, client):
         """Test that client can connect to server."""
-        # Client should be initialized and session created
-        assert client.server_url == TEST_SERVER_URL
-        assert client._session is not None
-        assert not client._session.closed
+        # Client should be initialized and transport created
+        # Client uses base URL, not full API URL
+        assert client.server_url == TEST_SERVER_BASE
+        assert client._transport is not None
+        # Transport uses httpx.AsyncClient which doesn't have a closed attribute
+        # Just verify transport exists
     
     async def test_authentication(self, client):
         """Test authentication with real server."""

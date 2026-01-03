@@ -196,8 +196,14 @@ class HLSManager:
             if self._is_hls_compatible_url(url, is_hls_container=is_hls_container):
                 return url
         
-        # No HLS-compatible URL found
-        logger.warning(f"Segment {segment.object_id} has no HLS-compatible URLs (.ts files)")
+        # Final fallback: return first URL even if not HLS-compatible (for compatibility)
+        if segment.get_urls:
+            first_url = segment.get_urls[0].url
+            logger.warning(f"Segment {segment.object_id} has no HLS-compatible URLs (.ts files), falling back to first URL: {first_url}")
+            return first_url
+        
+        # No URLs found
+        logger.warning(f"Segment {segment.object_id} has no URLs")
         return None
     
     def _is_hls_compatible_url(self, url: str, is_hls_container: bool = False) -> bool:

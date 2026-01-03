@@ -8,6 +8,7 @@ flows, or any future entity types.
 TAMS 8.0: Supports both string and array tag values.
 """
 
+import asyncio
 import logging
 import uuid
 import json
@@ -150,7 +151,8 @@ class TagStorageService:
                     tag_data = prepare_data_for_pyarrow(tag_data)
                     
                     # Use insert_record instead of execute_sql
-                    self.vast_db.insert_record("tags", tag_data)
+                    # Run blocking insert_record in thread pool to avoid blocking event loop
+                    await asyncio.to_thread(self.vast_db.insert_record, "tags", tag_data)
             
             return True
         except Exception as e:

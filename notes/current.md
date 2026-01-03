@@ -405,11 +405,11 @@ This document tracks the implementation of search functionality, tag enhancement
 - Support:
   - Model name
   - Endpoint URL
-  - Endpoint type (see `~/Developer/gitlab/jthaloor-ai` for supported types)
+  - Endpoint type (see `~/Developer/gitlab/aifuel` for supported types)
   - Authentication details if needed
   - Model-specific parameters
 
-**Reference**: Check `~/Developer/gitlab/jthaloor-ai` for supported embedding models and endpoint types
+**Reference**: Check `~/Developer/gitlab/aifuel` for supported embedding models and endpoint types
 
 **Configuration Format** (YAML):
 ```yaml
@@ -535,7 +535,7 @@ embedding:
 ## Notes
 
 - Review existing deletion request service for task 3
-- Check `~/Developer/gitlab/jthaloor-ai` for embedding model reference
+- Check `~/Developer/gitlab/aifuel` for embedding model reference
 - Ensure all search functionality follows TAMS compliance
 - Consider performance implications of cross-entity searches
 - Vector search should leverage existing VAST vector capabilities

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build wheel files for private dependencies (vastdbmanager, vasts3, and jthaloor-ai)
+# Build wheel files for private dependencies (vastdbmanager, vasts3, and aifuel)
 # This script builds wheels from local GitLab packages and places them in wheels/
 
 set -e
@@ -58,20 +58,20 @@ else
     exit 1
 fi
 
-# Build jthaloor-ai wheel
+# Build aifuel wheel
 if [ -d "$AIFUEL_DIR" ]; then
     echo ""
-    echo "📦 Building jthaloor-ai wheel..."
+    echo "📦 Building aifuel wheel..."
     cd "$AIFUEL_DIR"
     python3 -m pip install --upgrade build wheel
     python3 -m build --wheel
-    # Remove old jthaloor-ai wheels before copying new one
-    rm -f "$WHEELS_DIR"/jthaloor-ai-*.whl
+    # Remove old aifuel wheels before copying new one
+    rm -f "$WHEELS_DIR"/aifuel-*.whl
     # Copy wheel to wheels directory
     cp dist/*.whl "$WHEELS_DIR/"
-    echo "✅ jthaloor-ai wheel built and copied to $WHEELS_DIR"
+    echo "✅ aifuel wheel built and copied to $WHEELS_DIR"
 else
-    echo "❌ Error: jthaloor-ai directory not found at $AIFUEL_DIR"
+    echo "❌ Error: aifuel directory not found at $AIFUEL_DIR"
     exit 1
 fi
 

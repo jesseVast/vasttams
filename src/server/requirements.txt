@@ -40,9 +40,8 @@ vastdbmanager>=1.1.10  # Private GitLab package - requires authentication (wheel
 vasts3>=1.1.6  # Private GitLab package - requires authentication (wheel: vasts3-1.1.6)
 
 # Embedding provider
-# NOTE: jthaloor-ai is a PRIVATE dependency from GitLab
-# See ~/Developer/gitlab/jthaloor-ai for installation instructions
-aifuel>=0.3.0  # Private GitLab package - requires authentication
+# NOTE: aifuel is a PRIVATE dependency from GitLab
+# See ~/Developer/gitlab/aifuel for installation instructions
 ibis-framework>=9.0.0  # Required by vastdbmanager (==9.0.0 in vastdbmanager, using >= for flexibility)
 pyarrow==16.1.0  # Required by vastdbmanager (>=10.0.0 in vastdbmanager)
 numpy>=1.21.0  # Required by vastdbmanager

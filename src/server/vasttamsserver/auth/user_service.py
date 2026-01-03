@@ -61,7 +61,9 @@ class UserService:
         }
         
         try:
-            self.vast_db.insert_record("users", user_data)
+            # Run blocking insert_record in thread pool to avoid blocking event loop
+            import asyncio
+            await asyncio.to_thread(self.vast_db.insert_record, "users", user_data)
             
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug("User created successfully: %s", username)

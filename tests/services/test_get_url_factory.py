@@ -89,32 +89,53 @@ class TestGetUrlFactory:
         metadata = json.loads(sample_object_data["metadata"])
         storage_id = metadata["storage_id"]
         
-        mock_vast_db.get_record.return_value = sample_object_data
-        
-        # Mock storage backend service
-        with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_service_class:
-            mock_backend = Mock()
-            mock_backend.model_dump.return_value = {
-                "id": storage_id,
-                "root_path": None
+        # Mock query chain for _get_object
+        mock_query = Mock()
+        mock_query.select.return_value = mock_query
+        mock_query.where.return_value = mock_query
+        mock_query.execute.return_value = {
+            'data': {
+                'id': [sample_object_data["id"]],
+                'created': [sample_object_data["created"]],
+                'metadata': [sample_object_data["metadata"]]
             }
-            mock_service = Mock()
-            mock_service.get_storage_backend = AsyncMock(return_value=mock_backend)
-            mock_service_class.return_value = mock_service
+        }
+        mock_vast_db.query.return_value = mock_query
+        
+        # Mock asyncio.to_thread for _get_object
+        with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+            mock_to_thread.return_value = {
+                'data': {
+                    'id': [sample_object_data["id"]],
+                    'created': [sample_object_data["created"]],
+                    'metadata': [sample_object_data["metadata"]]
+                }
+            }
             
-            # Mock inspect.signature for S3 client
-            with patch('inspect.signature') as mock_signature:
-                mock_sig = Mock()
-                mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
-                mock_signature.return_value = mock_sig
+            # Mock storage backend service
+            with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_service_class:
+                mock_backend = Mock()
+                mock_backend.model_dump.return_value = {
+                    "id": storage_id,
+                    "root_path": None
+                }
+                mock_service = Mock()
+                mock_service.get_storage_backend = AsyncMock(return_value=mock_backend)
+                mock_service_class.return_value = mock_service
                 
-                # Mock event loop run_in_executor
-                with patch('asyncio.get_event_loop') as mock_get_loop:
-                    mock_loop = Mock()
-                    mock_get_loop.return_value = mock_loop
-                    mock_loop.run_in_executor = AsyncMock(return_value="https://s3.example.com/test/url")
+                # Mock inspect.signature for S3 client
+                with patch('inspect.signature') as mock_signature:
+                    mock_sig = Mock()
+                    mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
+                    mock_signature.return_value = mock_sig
                     
-                    result = await factory.create_get_urls(object_id)
+                    # Mock event loop run_in_executor
+                    with patch('asyncio.get_event_loop') as mock_get_loop:
+                        mock_loop = Mock()
+                        mock_get_loop.return_value = mock_loop
+                        mock_loop.run_in_executor = AsyncMock(return_value="https://s3.example.com/test/url")
+                        
+                        result = await factory.create_get_urls(object_id)
         
         assert result is not None
         assert len(result) == 1
@@ -131,13 +152,16 @@ class TestGetUrlFactory:
     async def test_create_get_urls_object_not_found(self, factory, mock_vast_db):
         """Test GetUrl creation when object doesn't exist"""
         object_id = str(uuid.uuid4())
-        mock_vast_db.get_record.return_value = None
         
-        result = await factory.create_get_urls(object_id)
-        
-        assert result is None
-        mock_s3_client = factory.s3_client
-        mock_s3_client.generate_presigned_url.assert_not_called()
+        # Mock asyncio.to_thread to return empty result
+        with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+            mock_to_thread.return_value = {'data': {}}
+            
+            result = await factory.create_get_urls(object_id)
+            
+            assert result is None
+            mock_s3_client = factory.s3_client
+            mock_s3_client.generate_presigned_url.assert_not_called()
     
     @pytest.mark.asyncio
     async def test_create_get_urls_no_storage_path(self, factory, mock_vast_db, sample_object_data):
@@ -147,24 +171,46 @@ class TestGetUrlFactory:
         metadata = json.loads(sample_object_data["metadata"])
         del metadata["storage_path"]
         sample_object_data["metadata"] = json.dumps(metadata)
-        mock_vast_db.get_record.return_value = sample_object_data
         
-        # Mock storage backend service (imported inside method)
-        with patch('vasttamsserver.storagebackends.service.StorageBackendService'):
-            # Mock inspect.signature for S3 client
-            with patch('inspect.signature') as mock_signature:
-                mock_sig = Mock()
-                mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
-                mock_signature.return_value = mock_sig
-                
-                # Mock event loop run_in_executor
-                with patch('asyncio.get_event_loop') as mock_get_loop:
-                    mock_loop = Mock()
-                    mock_get_loop.return_value = mock_loop
-                    mock_loop.run_in_executor = AsyncMock(return_value="https://s3.example.com/test/url")
+        # Mock query chain for _get_object
+        mock_query = Mock()
+        mock_query.select.return_value = mock_query
+        mock_query.where.return_value = mock_query
+        mock_query.execute.return_value = {
+            'data': {
+                'id': [sample_object_data["id"]],
+                'created': [sample_object_data["created"]],
+                'metadata': [sample_object_data["metadata"]]
+            }
+        }
+        mock_vast_db.query.return_value = mock_query
+        
+        # Mock asyncio.to_thread for _get_object
+        with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+            mock_to_thread.return_value = {
+                'data': {
+                    'id': [sample_object_data["id"]],
+                    'created': [sample_object_data["created"]],
+                    'metadata': [sample_object_data["metadata"]]
+                }
+            }
+            
+            # Mock storage backend service (imported inside method)
+            with patch('vasttamsserver.storagebackends.service.StorageBackendService'):
+                # Mock inspect.signature for S3 client
+                with patch('inspect.signature') as mock_signature:
+                    mock_sig = Mock()
+                    mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
+                    mock_signature.return_value = mock_sig
                     
-                    # Should reconstruct path from created timestamp
-                    result = await factory.create_get_urls(object_id)
+                    # Mock event loop run_in_executor
+                    with patch('asyncio.get_event_loop') as mock_get_loop:
+                        mock_loop = Mock()
+                        mock_get_loop.return_value = mock_loop
+                        mock_loop.run_in_executor = AsyncMock(return_value="https://s3.example.com/test/url")
+                        
+                        # Should reconstruct path from created timestamp
+                        result = await factory.create_get_urls(object_id)
         
         # Should still succeed by reconstructing path
         assert result is not None
@@ -175,99 +221,137 @@ class TestGetUrlFactory:
         """Test batch GetUrl creation"""
         object_ids = [str(uuid.uuid4()) for _ in range(5)]
         
-        # Setup mock to return different object data for each ID
-        def get_record_side_effect(table, filters):
-            obj_id = filters.get("id")
+        # Setup mock batch query result with all objects
+        batch_data = {
+            'data': {
+                'id': [],
+                'created': [],
+                'metadata': []
+            }
+        }
+        for obj_id in object_ids:
             obj_data = sample_object_data.copy()
             obj_data["id"] = obj_id
             metadata = json.loads(obj_data["metadata"])
             metadata["storage_path"] = f"tams/2024/01/15/{obj_id}"
             metadata["storage_id"] = str(uuid.uuid4())
             obj_data["metadata"] = json.dumps(metadata)
-            return obj_data
+            batch_data['data']['id'].append(obj_data["id"])
+            batch_data['data']['created'].append(obj_data["created"])
+            batch_data['data']['metadata'].append(obj_data["metadata"])
         
-        mock_vast_db.get_record.side_effect = get_record_side_effect
-        
-        # Mock storage backend service
-        with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_service_class:
-            mock_backend = Mock()
-            mock_backend.model_dump.return_value = {"id": str(uuid.uuid4()), "root_path": None}
-            mock_service = Mock()
-            mock_service.get_storage_backend = AsyncMock(return_value=mock_backend)
-            mock_service_class.return_value = mock_service
+        # Mock asyncio.to_thread for batch query
+        with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+            mock_to_thread.return_value = batch_data
             
-            # Mock inspect.signature for S3 client
-            with patch('inspect.signature') as mock_signature:
-                mock_sig = Mock()
-                mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
-                mock_signature.return_value = mock_sig
+            # Mock storage backend service
+            with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_service_class:
+                mock_backend = Mock()
+                mock_backend.model_dump.return_value = {"id": str(uuid.uuid4()), "root_path": None}
+                mock_service = Mock()
+                mock_service.get_storage_backend = AsyncMock(return_value=mock_backend)
+                mock_service_class.return_value = mock_service
                 
-                # Mock event loop run_in_executor
-                with patch('asyncio.get_event_loop') as mock_get_loop:
-                    mock_loop = Mock()
-                    mock_get_loop.return_value = mock_loop
-                    mock_loop.run_in_executor = AsyncMock(return_value="https://s3.example.com/test/url")
+                # Mock inspect.signature for S3 client
+                with patch('inspect.signature') as mock_signature:
+                    mock_sig = Mock()
+                    mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
+                    mock_signature.return_value = mock_sig
                     
-                    result = await factory.create_get_urls_batch(object_ids, batch_size=3)
-        
-        assert len(result) == 5
-        for obj_id in object_ids:
-            assert obj_id in result
-            assert result[obj_id] is not None
-            assert len(result[obj_id]) == 1
-            assert isinstance(result[obj_id][0], GetUrl)
+                    # Mock event loop run_in_executor
+                    with patch('asyncio.get_event_loop') as mock_get_loop:
+                        mock_loop = Mock()
+                        mock_get_loop.return_value = mock_loop
+                        mock_loop.run_in_executor = AsyncMock(return_value="https://s3.example.com/test/url")
+                        
+                        result = await factory.create_get_urls_batch(object_ids, batch_size=3)
+                        
+                        assert len(result) == 5
+                        for obj_id in object_ids:
+                            assert obj_id in result
+                            assert result[obj_id] is not None
+                            assert len(result[obj_id]) == 1
+                            assert isinstance(result[obj_id][0], GetUrl)
     
     @pytest.mark.asyncio
     async def test_create_get_urls_batch_with_failures(self, factory, mock_vast_db, mock_s3_client, sample_object_data):
         """Test batch GetUrl creation with some failures"""
         object_ids = [str(uuid.uuid4()) for _ in range(5)]
         
-        # Setup mock to return None for some objects (simulating failures)
-        call_count = 0
-        def get_record_side_effect(table, filters):
-            nonlocal call_count
-            call_count += 1
-            if call_count <= 2:  # First two succeed
-                obj_id = filters.get("id")
-                obj_data = sample_object_data.copy()
-                obj_data["id"] = obj_id
-                metadata = json.loads(obj_data["metadata"])
-                metadata["storage_path"] = f"tams/2024/01/15/{obj_id}"
-                metadata["storage_id"] = str(uuid.uuid4())
-                obj_data["metadata"] = json.dumps(metadata)
-                return obj_data
-            else:  # Rest fail
-                return None
+        # Setup mock batch query result - only first 2 objects found
+        batch_data = {
+            'data': {
+                'id': [],
+                'created': [],
+                'metadata': []
+            }
+        }
+        for i, obj_id in enumerate(object_ids[:2]):  # Only first 2 succeed
+            obj_data = sample_object_data.copy()
+            obj_data["id"] = obj_id
+            metadata = json.loads(obj_data["metadata"])
+            metadata["storage_path"] = f"tams/2024/01/15/{obj_id}"
+            metadata["storage_id"] = str(uuid.uuid4())
+            obj_data["metadata"] = json.dumps(metadata)
+            batch_data['data']['id'].append(obj_data["id"])
+            batch_data['data']['created'].append(obj_data["created"])
+            batch_data['data']['metadata'].append(obj_data["metadata"])
         
-        mock_vast_db.get_record.side_effect = get_record_side_effect
-        
-        # Mock storage backend service (only for successful cases)
-        with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_service_class:
-            mock_backend = Mock()
-            mock_backend.model_dump.return_value = {"id": str(uuid.uuid4()), "root_path": None}
-            mock_service = Mock()
-            mock_service.get_storage_backend = AsyncMock(return_value=mock_backend)
-            mock_service_class.return_value = mock_service
+        # Mock asyncio.to_thread for batch query
+        with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+            mock_to_thread.return_value = batch_data
             
-            # Mock inspect.signature for S3 client
-            with patch('inspect.signature') as mock_signature:
-                mock_sig = Mock()
-                mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
-                mock_signature.return_value = mock_sig
+            # Mock _get_object to return None for missing objects (fallback for batch misses)
+            with patch.object(factory, '_get_object', new_callable=AsyncMock) as mock_get_object:
+                def get_object_side_effect(obj_id):
+                    # Return None for objects not in the first 2
+                    if obj_id in object_ids[:2]:
+                        # Return parsed object data for existing objects
+                        obj_data = sample_object_data.copy()
+                        obj_data["id"] = obj_id
+                        metadata = json.loads(obj_data["metadata"])
+                        metadata["storage_path"] = f"tams/2024/01/15/{obj_id}"
+                        metadata["storage_id"] = str(uuid.uuid4())
+                        obj_data["metadata"] = json.dumps(metadata)
+                        # Return parsed dict (not query result format)
+                        return {
+                            'id': obj_data["id"],
+                            'created': obj_data["created"],
+                            'metadata': metadata  # Already parsed
+                        }
+                    else:
+                        # Return None for missing objects
+                        return None
                 
-                # Mock event loop run_in_executor
-                with patch('asyncio.get_event_loop') as mock_get_loop:
-                    mock_loop = Mock()
-                    mock_get_loop.return_value = mock_loop
-                    mock_loop.run_in_executor = AsyncMock(return_value="https://s3.example.com/test/url")
+                mock_get_object.side_effect = get_object_side_effect
+                
+                # Mock storage backend service (only for successful cases)
+                with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_service_class:
+                    mock_backend = Mock()
+                    mock_backend.model_dump.return_value = {"id": str(uuid.uuid4()), "root_path": None}
+                    mock_service = Mock()
+                    mock_service.get_storage_backend = AsyncMock(return_value=mock_backend)
+                    mock_service_class.return_value = mock_service
                     
-                    result = await factory.create_get_urls_batch(object_ids, batch_size=3)
-        
-        assert len(result) == 5
-        success_count = sum(1 for v in result.values() if v is not None)
-        failure_count = sum(1 for v in result.values() if v is None)
-        assert success_count == 2
-        assert failure_count == 3
+                    # Mock inspect.signature for S3 client
+                    with patch('inspect.signature') as mock_signature:
+                        mock_sig = Mock()
+                        mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
+                        mock_signature.return_value = mock_sig
+                        
+                        # Mock event loop run_in_executor
+                        with patch('asyncio.get_event_loop') as mock_get_loop:
+                            mock_loop = Mock()
+                            mock_get_loop.return_value = mock_loop
+                            mock_loop.run_in_executor = AsyncMock(return_value="https://s3.example.com/test/url")
+                            
+                            result = await factory.create_get_urls_batch(object_ids, batch_size=3)
+                            
+                            assert len(result) == 5
+                            success_count = sum(1 for v in result.values() if v is not None)
+                            failure_count = sum(1 for v in result.values() if v is None)
+                            assert success_count == 2
+                            assert failure_count == 3
     
     @pytest.mark.asyncio
     async def test_extract_storage_metadata_from_metadata(self, factory, sample_object_data):
@@ -394,6 +478,11 @@ class TestGetUrlFactory:
         mock_backend = Mock()
         mock_backend.id = default_backend_id
         mock_backend.default_storage = True
+        # Mock model_dump() to return a dict with the expected fields
+        mock_backend.model_dump = Mock(return_value={
+            'id': default_backend_id,
+            'default_storage': True
+        })
         
         with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_service_class:
             mock_service = Mock()
@@ -442,25 +531,34 @@ class TestGetUrlFactory:
     async def test_thread_pool_executor_usage(self, factory, mock_vast_db, mock_s3_client, sample_object_data):
         """Test that thread pool executor is used for blocking operations"""
         object_id = sample_object_data["id"]
-        mock_vast_db.get_record.return_value = sample_object_data
         
-        # Mock the event loop's run_in_executor
-        with patch('asyncio.get_event_loop') as mock_get_loop:
-            mock_loop = Mock()
-            mock_get_loop.return_value = mock_loop
-            mock_loop.run_in_executor = AsyncMock(return_value="https://s3.example.com/presigned/url")
+        # Mock asyncio.to_thread for object lookup
+        with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+            mock_to_thread.return_value = {
+                'data': {
+                    'id': [object_id],
+                    'created': [sample_object_data.get('created', '2024-01-01T00:00:00Z')],
+                    'metadata': [json.dumps(sample_object_data.get('metadata', {}))]
+                }
+            }
             
-            with patch('inspect.signature') as mock_signature:
-                mock_sig = Mock()
-                mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
-                mock_signature.return_value = mock_sig
+            # Mock the event loop's run_in_executor for S3 presigned URL generation
+            with patch('asyncio.get_event_loop') as mock_get_loop:
+                mock_loop = Mock()
+                mock_get_loop.return_value = mock_loop
+                mock_loop.run_in_executor = AsyncMock(return_value="https://s3.example.com/presigned/url")
                 
-                result = await factory.create_get_urls(object_id)
-                
-                # Verify run_in_executor was called with the factory's executor
-                assert mock_loop.run_in_executor.called
-                call_args = mock_loop.run_in_executor.call_args
-                assert call_args[0][0] == factory._executor
+                with patch('inspect.signature') as mock_signature:
+                    mock_sig = Mock()
+                    mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
+                    mock_signature.return_value = mock_sig
+                    
+                    result = await factory.create_get_urls(object_id)
+                    
+                    # Verify run_in_executor was called with the factory's executor
+                    assert mock_loop.run_in_executor.called
+                    call_args = mock_loop.run_in_executor.call_args
+                    assert call_args[0][0] == factory._executor
     
     @pytest.mark.asyncio
     async def test_factory_cleanup(self, factory):
@@ -545,33 +643,57 @@ class TestGetUrlFactory:
             obj_data["metadata"] = json.dumps(metadata)
             return obj_data
         
-        mock_vast_db.get_record.side_effect = get_record_side_effect
-        
-        # Mock storage backend service
-        with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_service_class:
-            mock_backend = Mock()
-            mock_backend.model_dump.return_value = {"id": str(uuid.uuid4()), "root_path": None}
-            mock_service = Mock()
-            mock_service.get_storage_backend = AsyncMock(return_value=mock_backend)
-            mock_service_class.return_value = mock_service
-            
-            # Mock inspect.signature for S3 client
-            with patch('inspect.signature') as mock_signature:
-                mock_sig = Mock()
-                mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
-                mock_signature.return_value = mock_sig
-                
-                # Mock event loop run_in_executor
-                with patch('asyncio.get_event_loop') as mock_get_loop:
-                    mock_loop = Mock()
-                    mock_get_loop.return_value = mock_loop
-                    mock_loop.run_in_executor = AsyncMock(return_value="https://s3.example.com/test/url")
+        # Mock asyncio.to_thread for batch object lookup
+        with patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+            def to_thread_side_effect(func):
+                # Extract object IDs from the function (it's a lambda that queries objects)
+                # Return mock data for all requested object IDs
+                result_data = {
+                    'id': [],
+                    'created': [],
+                    'metadata': []
+                }
+                for obj_id in object_ids:
+                    obj_data = sample_object_data.copy()
+                    obj_data["id"] = obj_id
+                    metadata = json.loads(obj_data.get("metadata", "{}"))
+                    metadata["storage_path"] = f"tams/2024/01/15/{obj_id}"
+                    metadata["storage_id"] = str(uuid.uuid4())
+                    obj_data["metadata"] = json.dumps(metadata)
                     
-                    # Test with batch_size=5 (should create 5 batches)
-                    result = await factory.create_get_urls_batch(object_ids, batch_size=5)
-        
-        assert len(result) == 25
-        for obj_id in object_ids:
-            assert obj_id in result
-            assert result[obj_id] is not None
+                    result_data['id'].append(obj_id)
+                    result_data['created'].append(obj_data.get('created', '2024-01-01T00:00:00Z'))
+                    result_data['metadata'].append(obj_data.get('metadata', '{}'))
+                
+                return {'data': result_data}
+            
+            mock_to_thread.side_effect = to_thread_side_effect
+            
+            # Mock storage backend service
+            with patch('vasttamsserver.storagebackends.service.StorageBackendService') as mock_service_class:
+                mock_backend = Mock()
+                mock_backend.model_dump.return_value = {"id": str(uuid.uuid4()), "root_path": None}
+                mock_service = Mock()
+                mock_service.get_storage_backend = AsyncMock(return_value=mock_backend)
+                mock_service_class.return_value = mock_service
+                
+                # Mock inspect.signature for S3 client
+                with patch('inspect.signature') as mock_signature:
+                    mock_sig = Mock()
+                    mock_sig.parameters.keys.return_value = ['key', 'operation', 'expires_in', 'method']
+                    mock_signature.return_value = mock_sig
+                    
+                    # Mock event loop run_in_executor
+                    with patch('asyncio.get_event_loop') as mock_get_loop:
+                        mock_loop = Mock()
+                        mock_get_loop.return_value = mock_loop
+                        mock_loop.run_in_executor = AsyncMock(return_value="https://s3.example.com/test/url")
+                        
+                        # Test with batch_size=5 (should create 5 batches)
+                        result = await factory.create_get_urls_batch(object_ids, batch_size=5)
+            
+            assert len(result) == 25
+            for obj_id in object_ids:
+                assert obj_id in result
+                assert result[obj_id] is not None
 

@@ -67,8 +67,9 @@ class TestVastRouter:
         
         assert result["message"] == "Vector updated successfully"
         assert result["object_id"] == object_id
-        mock_service.update_object_vector.assert_called_once_with(
-            object_id=object_id,
+        mock_service.update_vector.assert_called_once_with(
+            entity_id=object_id,
+            entity_type="object",
             vector=vector,
             summary="Test summary",
             embedding_model="test-model"
@@ -103,7 +104,7 @@ class TestVastRouter:
         vector = create_mock_vector(768)
         vector_data = ObjectVectorPut(vector=vector)
         
-        mock_service.update_object_vector = AsyncMock(return_value=False)
+        mock_service.update_vector = AsyncMock(return_value=False)
         
         with pytest.raises(HTTPException) as exc_info:
             await update_object_vector(
@@ -137,6 +138,8 @@ class TestVastRouter:
         mock_service.search_vectors = AsyncMock(return_value={
             'matches': [
                 {
+                    'entity_id': object_id1,
+                    'entity_type': 'object',
                     'object_id': object_id1,
                     'segment_id': segment_id1,
                     'flow_id': flow_id1,
@@ -161,24 +164,32 @@ class TestVastRouter:
             query_vector=query_vector,
             num_matches=10,
             distance_metric="cosine",
-            distance_numerical_value=0.75
+            distance_numerical_value=0.75,
+            entity_types=None
         )
     
     @pytest.mark.asyncio
     async def test_search_vectors_endpoint_invalid_dimension(self, mock_service, mock_user_session):
         """Test vector search endpoint with invalid dimension
         
-        Note: Pydantic validation happens before the endpoint code runs,
-        so we test the validation error from the model itself.
+        The router validates vector dimension matches the configured model dimension.
         """
-        query_vector = create_mock_vector(512)  # Wrong dimension
+        from vasttamsserver.vast.router import search_vectors
         
-        # Pydantic will raise ValidationError before reaching the endpoint
-        with pytest.raises(Exception) as exc_info:
-            search_request = VectorSearchRequest(vector=query_vector)
+        query_vector = create_mock_vector(512)  # Wrong dimension (should be 768)
+        search_request = VectorSearchRequest(vector=query_vector)
+        
+        # Router should raise HTTPException for invalid dimension
+        with pytest.raises(HTTPException) as exc_info:
+            await search_vectors(
+                search_request=search_request,
+                service=mock_service,
+                user_session=mock_user_session
+            )
         
         # Verify it's a validation error about dimensions
-        assert "768 dimensions" in str(exc_info.value) or "512" in str(exc_info.value)
+        assert exc_info.value.status_code == 400
+        assert "dimensions" in str(exc_info.value.detail).lower()
     
     @pytest.mark.asyncio
     async def test_search_vectors_endpoint_empty_results(self, mock_service, mock_user_session):

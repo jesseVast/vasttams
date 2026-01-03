@@ -410,7 +410,8 @@ class SegmentStorageService:
                         logger.debug(f"Serialized {field} to JSON string")
             
             logger.debug("Creating segment with processed data: %s", segment_data)
-            self.vast_db.insert_record("segments", segment_data)
+            # Run blocking insert_record in thread pool to avoid blocking event loop
+            await asyncio.to_thread(self.vast_db.insert_record, "segments", segment_data)
             
             # Invalidate segments cache for this flow
             try:
@@ -450,7 +451,8 @@ class SegmentStorageService:
                         "created": get_tams_timestamp()
                     }
                     ref_row = prepare_data_for_pyarrow(ref_row)
-                    self.vast_db.insert_record("flow_object_references", ref_row)
+                    # Run blocking insert_record in thread pool to avoid blocking event loop
+                    await asyncio.to_thread(self.vast_db.insert_record, "flow_object_references", ref_row)
                 
                 # Note: We no longer update objects.referenced_by_flows as JSON
                 # It's computed dynamically from segments/flow_object_references tables using JOINs
@@ -854,7 +856,8 @@ class SegmentStorageService:
             from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
             object_data = prepare_data_for_pyarrow(object_data)
             
-            self.vast_db.insert_record("objects", object_data)
+            # Run blocking insert_record in thread pool to avoid blocking event loop
+            await asyncio.to_thread(self.vast_db.insert_record, "objects", object_data)
             return True
         except Exception as e:
             logger.error("Failed to create object: %s", e)

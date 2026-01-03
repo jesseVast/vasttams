@@ -243,7 +243,8 @@ class FlowStorageService:
             if filters.limit:
                 query = query.limit(filters.limit)
             
-            result = query.execute()
+            # Run blocking query in thread pool to avoid blocking event loop
+            result = await asyncio.to_thread(lambda: query.execute())
             query_duration = time.time() - query_start
             json_parse_start = time.time()
             
@@ -271,14 +272,15 @@ class FlowStorageService:
                                         else:
                                             flow_data[column] = parsed
                                     except (json.JSONDecodeError, TypeError) as e:
-                                        # For essence_parameters, invalid JSON should cause validation error
+                                        # For essence_parameters, log warning and set to None to allow processing to continue
                                         if column == 'essence_parameters':
-                                            raise HTTPException(
-                                                status_code=500, 
-                                                detail=f"Invalid JSON in essence_parameters for flow {flow_data.get('id', 'unknown')}: {str(e)}"
+                                            logger.warning(
+                                                "Invalid JSON in essence_parameters for flow %s: %s. Setting to None.",
+                                                flow_data.get('id', 'unknown'), str(e)
                                             )
+                                            flow_data[column] = None
                                         # For tags, set to None on parse error
-                                        if column == 'tags':
+                                        elif column == 'tags':
                                             flow_data[column] = None
                                 else:
                                     flow_data[column] = value
@@ -481,7 +483,10 @@ class FlowStorageService:
                     # Fall through to DB query
         
         try:
-            result = self.vast_db.query("flows").select("*").where(f"id = '{flow_id}'").execute()
+            # Run blocking query in thread pool to avoid blocking event loop
+            result = await asyncio.to_thread(
+                lambda: self.vast_db.query("flows").select("*").where(f"id = '{flow_id}'").execute()
+            )
             
             # Handle VAST query result format
             flow_data = None
@@ -817,7 +822,8 @@ class FlowStorageService:
                 if update_data:
                     # Prepare and update
                     prepared_data = prepare_data_for_pyarrow(update_data)
-                    self.vast_db.insert_record("flows", prepared_data)  # Will use UPSERT logic
+                    # Run blocking insert_record in thread pool to avoid blocking event loop
+                    await asyncio.to_thread(self.vast_db.insert_record, "flows", prepared_data)  # Will use UPSERT logic
                     logger.debug("Updated bit rates for flow %s: avg=%s, max=%s", flow_id, avg_bit_rate, max_bit_rate)
         
         except Exception as e:
@@ -845,19 +851,71 @@ class FlowStorageService:
             # Check if source exists, create it automatically if it doesn't
             await self._ensure_source_exists(flow)
             
-            flow_data = flow.model_dump()
+            # Extract tags separately - they're stored in tags table, not flows table
+            tags_data = None
+            if hasattr(flow, 'tags') and flow.tags is not None:
+                tags_data = flow.tags
+            
+            # Exclude tags from flow_data since they're stored separately
+            flow_data = flow.model_dump(exclude={'tags'})
             
             # TAMS 8.0: Extract and store VFR field separately
             if isinstance(flow, VideoFlow) and flow.essence_parameters:
                 flow_data['vfr'] = flow.essence_parameters.vfr
             
+            # Convert essence_parameters to JSON string for database compatibility
+            if 'essence_parameters' in flow_data and flow_data['essence_parameters'] is not None:
+                import json
+                if hasattr(flow_data['essence_parameters'], 'model_dump'):
+                    flow_data['essence_parameters'] = json.dumps(flow_data['essence_parameters'].model_dump())
+                elif isinstance(flow_data['essence_parameters'], dict):
+                    flow_data['essence_parameters'] = json.dumps(flow_data['essence_parameters'])
+            
+            # Convert flow_collection to JSON string for database compatibility
+            if 'flow_collection' in flow_data and flow_data['flow_collection'] is not None:
+                import json
+                if hasattr(flow_data['flow_collection'], 'root'):
+                    flow_data['flow_collection'] = json.dumps(flow_data['flow_collection'].root)
+                elif isinstance(flow_data['flow_collection'], list):
+                    flow_data['flow_collection'] = json.dumps(flow_data['flow_collection'])
+            
+            # Convert timerange to JSON string if it's a dict or object
+            if 'timerange' in flow_data and flow_data['timerange'] is not None:
+                import json
+                if hasattr(flow_data['timerange'], 'model_dump'):
+                    flow_data['timerange'] = json.dumps(flow_data['timerange'].model_dump())
+                elif hasattr(flow_data['timerange'], 'value'):
+                    # TimeRange object with value attribute
+                    flow_data['timerange'] = json.dumps({'value': flow_data['timerange'].value})
+                elif isinstance(flow_data['timerange'], dict):
+                    flow_data['timerange'] = json.dumps(flow_data['timerange'])
+            
+            # Convert other JSON fields to strings
+            json_fields = ['segment_duration', 'container_mapping', 'collected_by']
+            for field in json_fields:
+                if field in flow_data and flow_data[field] is not None:
+                    import json
+                    if isinstance(flow_data[field], (dict, list)):
+                        flow_data[field] = json.dumps(flow_data[field])
+                    elif hasattr(flow_data[field], 'model_dump'):
+                        flow_data[field] = json.dumps(flow_data[field].model_dump())
+            
             # Convert timestamp fields to PyArrow format using centralized function
             flow_data = prepare_data_for_pyarrow(flow_data)
             
             logger.debug("Creating flow with data: %s", flow_data)
-            result = self.vast_db.insert_record("flows", flow_data)
+            # Run blocking insert_record in thread pool to avoid blocking event loop
+            result = await asyncio.to_thread(self.vast_db.insert_record, "flows", flow_data)
             logger.debug("Flow creation result: %s", result)
             logger.debug("Flow created successfully with ID: %s", flow.id)
+            
+            # Handle tags separately (stored in tags table, not flows table)
+            if tags_data is not None:
+                from ..common.tags.service import TagStorageService
+                from ..core.dependencies import get_s3_client
+                s3_client = get_s3_client()
+                tag_service = TagStorageService(self.vast_db, s3_client)
+                await tag_service.update_flow_tags(flow.id, tags_data)
             
             # Auto-calculate bit rates if not provided
             if not flow.avg_bit_rate or not flow.max_bit_rate:
@@ -995,7 +1053,8 @@ class FlowStorageService:
                     flow_data = prepare_data_for_pyarrow(flow_data)
                     
                     logger.debug("Inserting flow %s with data: %s", flow_id, flow_data)
-                    self.vast_db.insert_record("flows", flow_data)
+                    # Run blocking insert_record in thread pool to avoid blocking event loop
+                    await asyncio.to_thread(self.vast_db.insert_record, "flows", flow_data)
                     logger.debug("Successfully inserted flow %s via upsert", flow_id)
                     
                     # Handle tags separately using tag service
@@ -1167,7 +1226,10 @@ class FlowStorageService:
     async def check_flow_read_only(self, flow_id: str) -> bool:
         """Check if a flow is read-only"""
         try:
-            result = self.vast_db.query("flows").select("read_only").where(f"id = '{flow_id}'").execute()
+            # Run blocking query in thread pool to avoid blocking event loop
+            result = await asyncio.to_thread(
+                lambda: self.vast_db.query("flows").select("read_only").where(f"id = '{flow_id}'").execute()
+            )
             
             # Handle VAST query result format
             read_only_value = False
@@ -1498,11 +1560,26 @@ class FlowStorageService:
     async def _ensure_source_exists(self, flow: Flow) -> None:
         """Ensure source exists, create it automatically if it doesn't"""
         try:
-            # Check if source exists
+            # Check if source exists - run blocking query in thread pool
             source_query = self.vast_db.query("sources").select("*").where(f"id = '{flow.source_id}'")
-            result = source_query.execute()
+            result = await asyncio.to_thread(source_query.execute)
             
-            if not result or not result.get('data') or len(result['data']) == 0:
+            # Handle VAST query result format (columnar dict)
+            source_exists = False
+            if isinstance(result, dict) and 'data' in result:
+                data = result['data']
+                if isinstance(data, dict) and data:
+                    # Columnar format - check if any column has data
+                    for col_values in data.values():
+                        if isinstance(col_values, list) and len(col_values) > 0:
+                            source_exists = True
+                            break
+                elif isinstance(data, list) and len(data) > 0:
+                    source_exists = True
+            elif isinstance(result, list) and len(result) > 0:
+                source_exists = True
+            
+            if not source_exists:
                 # Source doesn't exist, create it automatically
                 logger.debug("Source %s doesn't exist, creating it automatically", flow.source_id)
                 
@@ -1522,7 +1599,12 @@ class FlowStorageService:
                 source_data['created'] = get_tams_timestamp()
                 source_data['updated'] = get_tams_timestamp()
                 
-                self.vast_db.insert_record("sources", source_data)
+                # Convert timestamp fields to PyArrow format using centralized function
+                from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
+                source_data = prepare_data_for_pyarrow(source_data)
+                
+                # Run blocking insert_record in thread pool to avoid blocking event loop
+                await asyncio.to_thread(self.vast_db.insert_record, "sources", source_data)
                 logger.debug("Successfully created source %s with metadata from flow", flow.source_id)
             else:
                 logger.debug("Source %s already exists", flow.source_id)

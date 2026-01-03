@@ -4,6 +4,7 @@ Authentication Service
 This module provides services for managing auth provider configurations.
 """
 
+import asyncio
 import logging
 from typing import List, Optional, Dict, Any
 from .models import AuthMethod
@@ -204,7 +205,8 @@ class AuthProviderService:
                 # Insert new record
                 from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
                 insert_data = prepare_data_for_pyarrow(data)
-                self.vast_db.insert_record("auth_provider_configs", insert_data)
+                # Run blocking insert_record in thread pool to avoid blocking event loop
+                await asyncio.to_thread(self.vast_db.insert_record, "auth_provider_configs", insert_data)
             
             # Reload auth manager if provided
             if self.auth_manager:

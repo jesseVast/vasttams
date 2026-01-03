@@ -16,7 +16,7 @@ if str(server_path) not in sys.path:
     sys.path.insert(0, str(server_path))
 
 from vasttamsserver.core.config import get_settings
-from test_examples import get_video_flow_example, get_vfr_flow_example
+from integration.test_examples import get_video_flow_example, get_vfr_flow_example
 
 import logging
 logger = logging.getLogger(__name__)

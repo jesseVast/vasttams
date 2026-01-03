@@ -173,7 +173,7 @@ class TestLoopRecorderManager:
         # _calculate_flow_duration is private, test through process_flow or verify it exists
         assert manager._calculate_flow_duration is not None  # Method exists
         # Test that it can be called (may return 0 if timerange parsing fails, but shouldn't crash)
-        duration = manager._calculate_flow_duration(segments)
+        duration = await manager._calculate_flow_duration(segments)
         assert isinstance(duration, (int, float))
         assert duration >= 0
     

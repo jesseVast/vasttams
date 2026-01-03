@@ -78,7 +78,7 @@ vector_search:
   default_distance_numerical_value: 0.75
 
 embedding:
-  provider: "jthaloor-ai"
+  provider: "aifuel"
   endpoint: "http://localhost:11434"  # Ollama localhost
   model_name: "nomic-embed-text:latest"
   model_dimension: 768  # nomic-embed-text:latest dimension

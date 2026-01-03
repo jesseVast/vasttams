@@ -4,6 +4,7 @@ Webhook Service
 This module handles webhook-related storage operations including CRUD operations.
 """
 
+import asyncio
 import logging
 import json
 from typing import List, Optional
@@ -156,7 +157,8 @@ class WebhookService:
             insert_data = prepare_data_for_pyarrow(data)
             
             # Insert into database
-            self.vast_db.insert_record("webhooks", insert_data)
+            # Run blocking insert_record in thread pool to avoid blocking event loop
+            await asyncio.to_thread(self.vast_db.insert_record, "webhooks", insert_data)
             
             # Fetch the created webhook
             created_webhook = await self.get_webhook(webhook_id)
@@ -265,7 +267,8 @@ class WebhookService:
                             
                             # Insert merged record
                             insert_data = prepare_data_for_pyarrow(merged_data)
-                            self.vast_db.insert_record("webhooks", insert_data)
+                            # Run blocking insert_record in thread pool to avoid blocking event loop
+                            await asyncio.to_thread(self.vast_db.insert_record, "webhooks", insert_data)
             
             # Fetch and return the updated webhook
             updated_webhook = await self.get_webhook(webhook_id)

@@ -229,9 +229,20 @@ class TAMSClient:
                 logger.debug("Running coroutine synchronously in existing loop")
                 return loop.run_until_complete(coroutine)
         except RuntimeError:
-            # No event loop, run synchronously with new loop
+            # No event loop or event loop is closed, create new one
+            # Use new_event_loop() instead of asyncio.run() to avoid conflicts with pytest-asyncio
             logger.debug("Creating new event loop for synchronous execution")
-            return asyncio.run(coroutine)
+            new_loop = asyncio.new_event_loop()
+            try:
+                asyncio.set_event_loop(new_loop)
+                return new_loop.run_until_complete(coroutine)
+            finally:
+                new_loop.close()
+                # Restore previous loop if it existed
+                try:
+                    asyncio.set_event_loop(None)
+                except RuntimeError:
+                    pass
 
     def _run_in_proper_context(self, coroutine):
         """

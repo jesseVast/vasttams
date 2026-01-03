@@ -2,9 +2,9 @@
 Embedding Service for VAST TAMS
 
 This service provides embedding generation using external embedding providers,
-primarily via the jthaloor-ai embedder library.
+primarily via the aifuel embedder library.
 
-See ~/Developer/gitlab/jthaloor-ai for supported embedding providers and options.
+See ~/Developer/gitlab/aifuel for supported embedding providers and options.
 """
 
 import logging
@@ -16,15 +16,15 @@ from ..core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Try to import jthaloor-ai embedder library
+# Try to import aifuel embedder library
 try:
-    from jthaloor.ai.embedder import UnifiedEmbedder, EmbedderConfig
-    JTHALOOR_AI_AVAILABLE = True
+    from aifuel.embedder import UnifiedEmbedder, EmbedderConfig
+    AIFUEL_AVAILABLE = True
 except ImportError:
-    JTHALOOR_AI_AVAILABLE = False
+    AIFUEL_AVAILABLE = False
     logger.warning(
-        "jthaloor-ai embedder library not available. "
-        "Please install jthaloor-ai from ~/Developer/gitlab/jthaloor-ai"
+        "aifuel embedder library not available. "
+        "Please install aifuel from ~/Developer/gitlab/aifuel"
     )
 
 
@@ -42,7 +42,7 @@ class EmbeddingService:
         This method is optional and will not raise exceptions if initialization fails.
         Embedding operations will fail gracefully at runtime if not properly initialized.
         """
-        provider = self.settings.embedding_provider or "jthaloor-ai"
+        provider = self.settings.embedding_provider or "aifuel"
         
         logger.info(
             f"Initializing embedding service: "
@@ -52,12 +52,12 @@ class EmbeddingService:
             f"endpoint={self.settings.embedding_endpoint or 'not set'}"
         )
         
-        if provider == "jthaloor-ai" or not JTHALOOR_AI_AVAILABLE:
-            if not JTHALOOR_AI_AVAILABLE:
+        if provider == "aifuel" or not AIFUEL_AVAILABLE:
+            if not AIFUEL_AVAILABLE:
                 logger.warning(
-                    "jthaloor-ai embedder library not available. "
+                    "aifuel embedder library not available. "
                     "Embedding functionality will be limited. "
-                    "Please install jthaloor-ai from ~/Developer/gitlab/jthaloor-ai"
+                    "Please install aifuel from ~/Developer/gitlab/aifuel"
                 )
                 return
             
@@ -70,8 +70,8 @@ class EmbeddingService:
                 # Get provider-specific config from settings
                 provider_config = self.settings.embedding_provider_config
                 
-                # Map TAMS config to jthaloor-ai EmbedderConfig
-                # jthaloor-ai uses: provider, base_url, model, timeout, api_key
+                # Map TAMS config to aifuel EmbedderConfig
+                # aifuel uses: provider, base_url, model, timeout, api_key
                 # TAMS config has: embedding_provider, embedding_endpoint, embedding_model_name, embedding_timeout, embedding_api_key_env
                 
                 # Determine provider type (ollama, nim, openai, gemini, nvidia)
@@ -102,11 +102,11 @@ class EmbeddingService:
                 self._embedder = UnifiedEmbedder(embedder_config)
                 
                 logger.info(
-                    f"Initialized jthaloor-ai embedder: provider={embedder_provider}, "
+                    f"Initialized aifuel embedder: provider={embedder_provider}, "
                     f"model={self.settings.embedding_model_name}, url={base_url}"
                 )
             except Exception as e:
-                logger.warning(f"Failed to initialize jthaloor-ai embedder (non-fatal): {e}")
+                logger.warning(f"Failed to initialize aifuel embedder (non-fatal): {e}")
                 logger.info("Embedding service will not be available until properly configured")
                 # Don't raise - embedding is optional
                 return
@@ -158,8 +158,8 @@ class EmbeddingService:
         model = model_name or self.settings.embedding_model_name
         
         try:
-            if (self.settings.embedding_provider == "jthaloor-ai" or not self.settings.embedding_provider) and JTHALOOR_AI_AVAILABLE:
-                # Use jthaloor-ai embedder
+            if (self.settings.embedding_provider == "aifuel" or not self.settings.embedding_provider) and AIFUEL_AVAILABLE:
+                # Use aifuel embedder
                 if self._embedder is None:
                     raise HTTPException(
                         status_code=503,
@@ -167,8 +167,16 @@ class EmbeddingService:
                     )
                 
                 # Use async embedding method
-                embeddings = await self._embedder.embed_texts_async([text], model=model, **kwargs)
+                # aifuel returns a dict with 'embeddings' key containing the list of embeddings
+                result = await self._embedder.embed_texts_async([text], model=model, **kwargs)
                 
+                if not result or 'embeddings' not in result:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Embedding service returned invalid result format"
+                    )
+                
+                embeddings = result['embeddings']
                 if not embeddings or len(embeddings) == 0:
                     raise HTTPException(
                         status_code=500,

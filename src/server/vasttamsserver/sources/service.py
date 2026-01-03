@@ -406,7 +406,8 @@ class SourceStorageService:
             from ..common.storage.timestamp_utils import prepare_data_for_pyarrow
             source_data = prepare_data_for_pyarrow(source_data)
             
-            self.vast_db.insert_record("sources", source_data)
+            # Run blocking insert_record in thread pool to avoid blocking event loop
+            await asyncio.to_thread(self.vast_db.insert_record, "sources", source_data)
             
             # Invalidate sources list cache when new source is created
             from ..core.dependencies import get_cache_service
@@ -516,7 +517,7 @@ class SourceStorageService:
                     source_data = prepare_data_for_pyarrow(source_data)
                     
                     logger.debug("Inserting source %s with data: %s", source_id, source_data)
-                    self.vast_db.insert_record("sources", source_data)
+                    await asyncio.to_thread(self.vast_db.insert_record, "sources", source_data)
                     logger.debug("Successfully inserted source %s via upsert", source_id)
                     
                     # Handle tags separately using tag service
@@ -633,10 +634,35 @@ class SourceStorageService:
                         logger.warning("Failed to delete segments for flow %s: %s", flow_id, e)
                         # Continue with other flows
             
-            # Delete all flows for this source (async to avoid blocking)
+            # Delete all flows for this source one by one using flow service
+            # This avoids 409 conflicts from bulk deletes and ensures proper cleanup
             if flow_ids:
-                query = self.vast_db.query("flows").delete().where(f"source_id = '{source_id}'")
-                await asyncio.to_thread(lambda: query.execute())
+                from ..flows.service import FlowStorageService
+                flow_service = FlowStorageService(self.vast_db, self.s3_client)
+                
+                for flow_id in flow_ids:
+                    try:
+                        # Check if flow still exists before attempting deletion
+                        # This avoids errors if flow was already deleted
+                        flow = await flow_service.get_flow(flow_id)
+                        if not flow:
+                            logger.debug("Flow %s already deleted, skipping", flow_id)
+                            continue
+                        
+                        # Delete flow individually (handles segments, cache, etc.)
+                        # cascade=False since we already deleted segments above
+                        await flow_service.delete_flow(flow_id, cascade=False)
+                        logger.debug("Deleted flow %s for source %s", flow_id, source_id)
+                    except HTTPException as e:
+                        # If flow not found (404), just log and continue
+                        if e.status_code == 404:
+                            logger.debug("Flow %s not found during cascade delete, skipping", flow_id)
+                        else:
+                            logger.warning("Failed to delete flow %s for source %s: %s", flow_id, source_id, e)
+                    except Exception as e:
+                        logger.warning("Failed to delete flow %s for source %s: %s", flow_id, source_id, e)
+                        # Continue with other flows - don't fail entire cascade delete
+                
                 logger.debug("Deleted %d flows for source %s", len(flow_ids), source_id)
             
             # Clean up unreferenced objects after deleting segments (TAMS 8.0 spec requirement)

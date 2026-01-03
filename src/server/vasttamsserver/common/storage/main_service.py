@@ -5,6 +5,7 @@ This module provides the main TAMS storage service that composes all
 the focused storage services into a unified interface.
 """
 
+import asyncio
 import logging
 import json
 from typing import List, Optional, Dict, Any
@@ -193,7 +194,8 @@ class TAMSStorageService(StorageInterface):
                 description=self.settings.api_description,
                 type="urn:x-tams:service:api",
                 api_version=self.settings.api_version,
-                service_version="1.0.0"
+                service_version="1.0.0",
+                event_stream_mechanisms=None
             )
         except Exception as e:
             logger.error("Failed to get service info: %s", e)
@@ -203,13 +205,14 @@ class TAMSStorageService(StorageInterface):
         """Get storage backends"""
         try:
             from ...storagebackends.service import StorageBackendService
+            from ...storagebackends.models import StorageBackend as StorageBackendDB
             
             # Use the dedicated storage backend service
             backend_service = StorageBackendService(self.vast_db, self.s3_client)
-            backends = await backend_service.get_storage_backends()
+            backend_db_list = await backend_service.get_storage_backends()
             
             # If no backends in database, return a default one
-            if not backends:
+            if not backend_db_list:
                 logger.warning("No storage backends found in database, returning default")
                 return [
                     StorageBackend(
@@ -223,6 +226,20 @@ class TAMSStorageService(StorageInterface):
                         default_storage=True
                     )
                 ]
+            
+            # Convert storagebackends.models.StorageBackend to service.storage_models.StorageBackend
+            backends = []
+            for backend_db in backend_db_list:
+                backends.append(StorageBackend(
+                    id=backend_db.id,
+                    label=backend_db.label,
+                    store_type=backend_db.store_type,
+                    provider=backend_db.provider,
+                    store_product=backend_db.store_product,
+                    region=backend_db.region,
+                    availability_zone=backend_db.availability_zone,
+                    default_storage=backend_db.default_storage
+                ))
             
             return backends
         except Exception as e:
@@ -274,7 +291,7 @@ class TAMSStorageService(StorageInterface):
                     access_key=final_access_key,
                     secret_key=final_secret_key,
                     region=storage_backend.get('region') or settings.s3_region,
-                    use_ssl=storage_backend.get('use_ssl') if storage_backend.get('use_ssl') is not None else settings.s3_use_ssl,
+                    use_ssl=bool(storage_backend.get('use_ssl')) if storage_backend.get('use_ssl') is not None else bool(settings.s3_use_ssl),
                     chunk_size=settings.vaststore_s3_chunk_size,
                     max_concurrent_parts=settings.vaststore_s3_max_concurrent_parts,
                     key_prefix=key_prefix,
@@ -530,8 +547,8 @@ class TAMSStorageService(StorageInterface):
     async def get_deletion_requests(self) -> List[Dict[str, Any]]:
         """Get all deletion requests"""
         try:
-            from ..service.deletion_service import DeletionRequestService
-            from ..core.dependencies import get_vast_db
+            from ...service.deletion_service import DeletionRequestService
+            from ...core.dependencies import get_vast_db
             
             vast_db = get_vast_db()
             deletion_service = DeletionRequestService(vast_db)
@@ -546,8 +563,8 @@ class TAMSStorageService(StorageInterface):
     async def get_deletion_request(self, request_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific deletion request by ID"""
         try:
-            from ..service.deletion_service import DeletionRequestService
-            from ..core.dependencies import get_vast_db
+            from ...service.deletion_service import DeletionRequestService
+            from ...core.dependencies import get_vast_db
             
             vast_db = get_vast_db()
             deletion_service = DeletionRequestService(vast_db)
@@ -600,12 +617,13 @@ class TAMSStorageService(StorageInterface):
             resolved_storage_id = None
             
             # If a storage_id was specified, fetch that backend to use its endpoint/credentials
-            if getattr(storage_request, 'storage_id', None):
-                resolved_storage_id = storage_request.storage_id
+            storage_id = getattr(storage_request, 'storage_id', None)
+            if storage_id:
+                resolved_storage_id = storage_id
                 try:
                     from ...storagebackends.service import StorageBackendService
                     backend_service = StorageBackendService(self.vast_db, self.s3_client)
-                    backend = await backend_service.get_storage_backend(storage_request.storage_id)
+                    backend = await backend_service.get_storage_backend(storage_id)
                     if backend:
                         backend_info = backend.model_dump()
                 except Exception as e:
@@ -684,6 +702,7 @@ class TAMSStorageService(StorageInterface):
                 media_object = MediaObject(
                     object_id=object_id,
                     put_url=HttpRequest.model_validate(put_url_data),
+                    put_cors_url=None,
                     metadata={"storage_path": storage_path}
                 )
                 
@@ -715,14 +734,15 @@ class TAMSStorageService(StorageInterface):
                     }
                     # Convert timestamps to PyArrow format
                     obj_row = prepare_data_for_pyarrow(obj_row)
-                    self.vast_db.insert_record("objects", obj_row)
+                    # Run blocking insert_record in thread pool to avoid blocking event loop
+                    await asyncio.to_thread(self.vast_db.insert_record, "objects", obj_row)
                 except Exception as e:
                     logger.warning(f"Failed to persist object {object_id}: {e}")
             
             # Create FlowStorage response
             from ...service.storage_models import FlowStorage
             flow_storage = FlowStorage(
-                flow_id=flow_id,
+                pre=None,
                 media_objects=media_objects
             )
             

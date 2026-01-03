@@ -9,10 +9,13 @@ See ~/Developer/gitlab/aifuel for supported embedding providers and options.
 
 import logging
 import os
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal, cast
 from fastapi import HTTPException
 
 from ..core.config import get_settings
+
+# Type alias for embedding provider
+EmbeddingProvider = Literal["openai", "nim", "ollama", "gemini", "nvidia"]
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +79,7 @@ class EmbeddingService:
                 
                 # Determine provider type (ollama, nim, openai, gemini, nvidia)
                 # If embedding_endpoint is set, try to infer provider from URL
-                embedder_provider = "ollama"  # default
+                embedder_provider: EmbeddingProvider = "ollama"  # default
                 base_url = self.settings.embedding_endpoint or "http://10.143.2.16:11434"
                 
                 # Infer provider from endpoint URL if possible
@@ -86,8 +89,10 @@ class EmbeddingService:
                     embedder_provider = "gemini"
                 elif "nvidia.com" in base_url.lower() or "integrate.api.nvidia.com" in base_url.lower():
                     embedder_provider = "nvidia"
-                elif provider_config.get("provider"):
-                    embedder_provider = provider_config.get("provider")
+                elif provider_config and provider_config.get("provider"):
+                    config_provider = provider_config.get("provider")
+                    if config_provider and config_provider in ["openai", "nim", "ollama", "gemini", "nvidia"]:
+                        embedder_provider = cast(EmbeddingProvider, config_provider)
                 
                 # Create EmbedderConfig
                 embedder_config = EmbedderConfig(

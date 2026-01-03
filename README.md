@@ -572,6 +572,45 @@ docker-compose up --build
 
 ## ⚙️ Configuration
 
+The TAMS server can be configured using either environment variables (`.env` file) or a YAML configuration file (`config/config.yaml`). The YAML configuration file takes precedence over environment variables.
+
+### YAML Configuration File
+
+The server supports a YAML configuration file at `config/config.yaml`. A template file `config/config.yaml.example` is provided with all available options and documentation.
+
+#### Setup
+
+1. Copy the example configuration file:
+   ```bash
+   cp config/config.yaml.example config/config.yaml
+   ```
+
+2. Edit `config/config.yaml` with your settings:
+   - VAST database endpoint and credentials
+   - S3 storage backend configuration
+   - Server host, port, and worker settings
+   - Logging, telemetry, and authentication settings
+   - Embedding provider configuration (for vector search)
+
+3. **Important**: `config/config.yaml` is in `.gitignore` and will not be committed to version control. Always use `config/config.yaml.example` as the template.
+
+#### Key Configuration Sections
+
+- **`api`**: API title, version, and description
+- **`server`**: Host, port, debug mode, and worker count
+- **`cors`**: CORS settings for cross-origin requests
+- **`database.vast`**: VAST database endpoint, credentials, bucket, and schema
+- **`database.trino`**: Trino query engine configuration (optional)
+- **`storage_backends`**: S3-compatible storage backend definitions
+- **`storage`**: Storage defaults, presigned URL timeouts, and limits
+- **`embedding`**: Embedding provider configuration for vector search (aifuel, Ollama, OpenAI, etc.)
+- **`logging`**: Log level, format, and directory
+- **`authentication`**: JWT secret key and token expiration
+- **`redis`**: Redis cache configuration (optional)
+- **`telemetry`**: Metrics and tracing configuration
+
+See `config/config.yaml.example` for complete documentation and all available options.
+
 ### Environment Variables
 
 Key configuration options in `.env`:

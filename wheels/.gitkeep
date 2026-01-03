@@ -1,4 +1,0 @@
-# This file ensures the wheels directory is tracked by git
-# Wheel files (.whl) for private dependencies should be placed here
-# Build wheels using: ./scripts/build_private_wheels.sh
-

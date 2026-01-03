@@ -273,27 +273,37 @@ class FolderIngestor:
                 source = self.client.TAMSSource(id=source_id, format=source_format)
                 await source.refresh()
             else:
-                logger.info(f"➕ Creating new source...")
-                source = self.client.TAMSSource(
-                    format=source_format,
-                    label=source_label or folder.name,
-                    description=description
-                )
-                await source._ensure_created()
-                source_id = source.id
-                logger.info(f"✅ Created source: {source_id}")
-                
-                # Set folder_path tag (always absolute path since folder is resolved)
-                logger.debug("🏷️  Setting source tags...")
-                await source.set_tag("folder_path", folder_path_str)
-                await source.set_tag("ingest_state", "in_progress")
-                await source.set_tag("ingest_started", datetime.now().isoformat())
-                await source.set_tag("files_total", str(len(files)))
-                
-                # Set user-provided tags
-                if tags:
-                    for key, value in tags.items():
-                        await source.set_tag(key, str(value))
+                # Double-check that source doesn't exist before creating
+                # This prevents race conditions where source was created between lookup and creation
+                logger.debug(f"🔍 Double-checking for existing source with folder_path={folder_path_str}...")
+                existing_sources = await self.client.list_sources_by_tag_async("folder_path", folder_path_str)
+                if existing_sources:
+                    source = existing_sources[0]
+                    source_id = source.id
+                    logger.info(f"♻️  Found existing source on second check: {source_id} (label: {source.label})")
+                    await source.refresh()
+                else:
+                    logger.info(f"➕ Creating new source...")
+                    source = self.client.TAMSSource(
+                        format=source_format,
+                        label=source_label or folder.name,
+                        description=description
+                    )
+                    await source._ensure_created()
+                    source_id = source.id
+                    logger.info(f"✅ Created source: {source_id}")
+                    
+                    # Set folder_path tag (always absolute path since folder is resolved)
+                    logger.debug("🏷️  Setting source tags...")
+                    await source.set_tag("folder_path", folder_path_str)
+                    await source.set_tag("ingest_state", "in_progress")
+                    await source.set_tag("ingest_started", datetime.now().isoformat())
+                    await source.set_tag("files_total", str(len(files)))
+                    
+                    # Set user-provided tags
+                    if tags:
+                        for key, value in tags.items():
+                            await source.set_tag(key, str(value))
         
         # Update ingest state
         if not self.dry_run and source:

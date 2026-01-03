@@ -1,7 +1,7 @@
 """
 Stream processor for capturing and chunking live video streams.
 
-Handles OSX camera and SRT stream inputs, chunks them using jthaloor-ffmpeg,
+Handles OSX camera and SRT stream inputs, chunks them using videotools,
 and uploads chunks to TAMS.
 """
 
@@ -12,19 +12,19 @@ from pathlib import Path
 from typing import Optional, Callable, Any
 import sys
 
-# Import jthaloor-ffmpeg components
+# Import videotools components
 try:
-    from jthaloor.ffmpeg.processor import VideoProcessor
-    from jthaloor.ffmpeg.models import VideoSource
-    from jthaloor.ffmpeg.outputs import ChunkOutput, OutputChain, BaseOutput
-    from jthaloor.ffmpeg.config import VideoProcessorConfig
+    from videotools.processor import VideoProcessor
+    from videotools.models import VideoSource, ChunkingTransformConfig, VideoTransformConfig, AudioTransformConfig
+    from videotools.outputs import ChunkOutput, OutputChain, BaseOutput
+    from videotools.config import VideoProcessorConfig
     import ffmpeg
-    JTHALOOR_AVAILABLE = True
+    VIDEOTOOLS_AVAILABLE = True
 except ImportError as e:
     logger = logging.getLogger(__name__)
-    logger.error(f"jthaloor-ffmpeg not available: {e}")
-    logger.error("Please install jthaloor-ffmpeg from ~/Developer/gitlab/jthaloor-ffmpeg")
-    JTHALOOR_AVAILABLE = False
+    logger.error(f"videotools not available: {e}")
+    logger.error("Please install videotools from ~/Developer/gitlab/videotools")
+    VIDEOTOOLS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,12 @@ class LiveStreamChunkOutput(ChunkOutput):
         """Initialize with optional framerate for GOP size calculation."""
         super().__init__(*args, **kwargs)
         self.framerate = framerate
+        
+        # Add backward compatibility properties for duration, format, and include_timestamps
+        # These access the chunk_config values
+        self.duration = self.chunk_config.segment_duration
+        self.format = self.chunk_config.video_config.format
+        self.include_timestamps = self.chunk_config.include_timestamps
     
     def build_stream(self, input_stream: ffmpeg.Stream) -> ffmpeg.Stream:
         """
@@ -137,8 +143,8 @@ class StreamProcessor:
             upload_callback: Async callback function(chunk_path, chunk_index) -> Task
             output_dir: Optional output directory for chunks (default: temp directory)
         """
-        if not JTHALOOR_AVAILABLE:
-            raise ImportError("jthaloor-ffmpeg module is not available. Please install it.")
+        if not VIDEOTOOLS_AVAILABLE:
+            raise ImportError("videotools module is not available. Please install it.")
         
         self.input_source = input_source
         self.input_type = input_type
@@ -217,8 +223,12 @@ class StreamProcessor:
                 logger.debug(f"SRT input options: {input_options}")
             
             # Create video source - let FFmpeg auto-detect protocol from URL
-            source = VideoSource(url=input_url, protocol=None, input_options=input_options if input_options else None)
-            logger.debug(f"VideoSource created: url={input_url}, protocol=auto-detect, input_options={input_options if input_options else 'None'}")
+            # Pass input_options via metadata if provided
+            metadata = {}
+            if input_options:
+                metadata['input_options'] = input_options
+            source = VideoSource(stream_url=input_url, protocol=None, metadata=metadata)
+            logger.debug(f"VideoSource created: stream_url={input_url}, protocol=auto-detect, metadata={metadata}")
             
             # Create chunk output
             logger.info(f"Creating ChunkOutput:")
@@ -235,15 +245,28 @@ class StreamProcessor:
             # Note: Framerate detection from stream metadata could be added here if needed
             framerate = None  # Will use default if not specified
             
+            # Create video and audio transform configs
+            video_config = VideoTransformConfig(
+                codec=self.vcodec,
+                format=self.output_format
+            )
+            audio_config = AudioTransformConfig(
+                codec=self.acodec
+            )
+            
+            # Create chunking config
+            chunk_config = ChunkingTransformConfig(
+                segment_duration=self.chunk_duration,
+                include_timestamps=True,
+                chunk_mode="duration",
+                video_config=video_config,
+                audio_config=audio_config
+            )
+            
             chunk_output = LiveStreamChunkOutput(
                 filename_template=self.chunk_template,
                 output_path=str(self.output_path),
-                duration=self.chunk_duration,
-                format=self.output_format,
-                vcodec=self.vcodec,
-                acodec=self.acodec,
-                include_timestamps=True,
-                chunk_mode="duration",
+                chunk_config=chunk_config,
                 framerate=framerate
             )
             

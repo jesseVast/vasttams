@@ -64,6 +64,9 @@ htmlcov/
 logs/
 *.log
 
+# Configuration files (use config.yaml.example as template)
+config/config.yaml
+
 # Python bytecode (redundant with above, but kept for clarity)
 *.pyc
 *.pyo
@@ -78,3 +81,5 @@ logs/
 # cursor
 .cursor/
 .vscode/
+**/openapi.json
+**tams-8.0/** 

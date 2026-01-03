@@ -6,7 +6,7 @@ Ingests all files from a folder into TAMS. Each folder becomes one source with s
 
 - **Automatic Media Detection**: Uses `ffprobe` to detect video and audio files
 - **Multi-Essence Flow Support**: Automatically creates separate flows for each media type and a multi-essence flow to collect them
-- **Media Chunking**: Chunks video/audio files into 30-second segments using `jthaloor-ffmpeg`
+- **Media Chunking**: Chunks video/audio files into 30-second segments using `videotools`
 - **Chunk Format Options**: Supports original format (copy codecs, MP4), MP4 format (transcode to H.264/AAC), or HLS format (HLS-compatible TS with H.264/AAC)
 - **Marker-Based Chunking**: Automatically detects and uses metadata files (FFMETADATA1 or JSON) for intelligent chunking
 - **Metadata File Matching**: Heuristically matches metadata files to media files (e.g., `soccer.mp4` + `soccer_metadata.txt`)
@@ -24,9 +24,9 @@ Ingests all files from a folder into TAMS. Each folder becomes one source with s
    ```bash
    pip install -e ../../src/client
    ```
-5. **jthaloor-ffmpeg** module installed:
+5. **videotools** module installed:
    ```bash
-   pip install -e ~/Developer/gitlab/jthaloor-ffmpeg
+   pip install -e ~/Developer/gitlab/videotools
    ```
 
 ## Installation
@@ -35,7 +35,7 @@ Ingests all files from a folder into TAMS. Each folder becomes one source with s
    ```bash
    pip install -r requirements.txt
    pip install -e ../../src/client
-   pip install -e ~/Developer/gitlab/jthaloor-ffmpeg
+   pip install -e ~/Developer/gitlab/videotools
    ```
 
 2. Ensure FFmpeg is installed:
@@ -121,7 +121,9 @@ python folder_ingestor.py \
    - If multiple types detected, creates a **Multi-Flow** (`urn:x-nmos:format:multi`) that collects all flows via `flow_collection`
 
 4. **File Processing**:
-   - **Media Files**: Chunked using `jthaloor-ffmpeg`
+   - **Media Files**: Chunked using `videotools` helper functions (`process_video_with_chunks_async`)
+     - Uses `ChunkingTransformConfig` for chunking configuration
+     - Uses `VideoTransformConfig` and `AudioTransformConfig` for codec/format settings
      - **Format Options**:
        - `original`: Copies original codecs to MP4 container (fast, preserves quality)
        - `mp4`: Transcodes to MP4 container with H.264/AAC codecs (standardized MP4 output)
@@ -129,6 +131,7 @@ python folder_ingestor.py \
      - **Marker-Based Chunking**: If a matching metadata file is found, uses markers from the file
        - Supports FFMETADATA1 format (`.txt` files with `;FFMETADATA1` header)
        - Supports JSON format (`.json` files with chapter/segment data)
+       - Supports MP4 embedded markers (`mp4_markers` mode)
        - Metadata files are matched heuristically (e.g., `soccer.mp4` + `soccer_metadata.txt`)
      - **Duration-Based Chunking**: Default 30-second segments if no metadata file found
      - Each chunk uploaded as a separate segment
@@ -211,11 +214,11 @@ which ffmpeg
 which ffprobe
 ```
 
-### jthaloor-ffmpeg Import Error
+### videotools Import Error
 
 Ensure the module is installed:
 ```bash
-pip install -e ~/Developer/gitlab/jthaloor-ffmpeg
+pip install -e ~/Developer/gitlab/videotools
 ```
 
 ### TAMS Connection Error
@@ -231,6 +234,8 @@ Check that:
 - Check that input files are valid media files
 - Ensure sufficient disk space for temporary chunk files
 - Check FFmpeg logs for encoding errors
+- Verify videotools is properly installed and accessible
+- Check that the videotools version supports the chunking features being used
 
 ## Metadata Files for Marker-Based Chunking
 
@@ -287,6 +292,23 @@ Supported patterns:
 - `{filename}.metadata.{txt,json}`
 - `{filename}_markers.{txt,json}`
 - `{filename}.markers.{txt,json}`
+
+## Technical Details
+
+### Chunking Implementation
+
+The folder ingestor uses `videotools` helper functions for efficient video processing:
+
+- **Helper Function**: `process_video_with_chunks_async()` - High-level API that handles processor setup, pipeline building, and completion waiting
+- **Configuration**: Uses `ChunkingTransformConfig` with `VideoTransformConfig` and `AudioTransformConfig` for codec/format settings
+- **Timeout**: 1 hour maximum processing time per file (configurable)
+- **Error Handling**: Automatic retry and error reporting through videotools
+
+### Supported Chunk Modes
+
+1. **duration**: Time-based chunking (default, 30 seconds)
+2. **metadata_file**: Uses external metadata file (FFMETADATA1 or JSON)
+3. **mp4_markers**: Uses embedded markers in MP4 files
 
 ## Notes
 

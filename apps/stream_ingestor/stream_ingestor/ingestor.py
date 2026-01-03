@@ -142,7 +142,7 @@ class StreamIngestor:
         
         # Try to find existing source by stream_input_source tag (the URL)
         logger.info(f"🔍 Looking for existing source with stream_input_source={self.input_source}...")
-        existing_sources = await self.client.list_sources_by_tag(
+        existing_sources = await self.client.list_sources_by_tag_async(
             "stream_input_source",
             self.input_source
         )

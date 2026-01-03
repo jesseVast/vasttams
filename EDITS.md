@@ -4,7 +4,7 @@
 > 
 > **New Location**: All edit tracking has been moved to the `notes/edits/` folder with date-based organization.
 > 
-> **Today's Edits**: See `notes/edits/2025-01-27.md`
+> **Today's Edits**: See `notes/edits/2026-01-02.md`
 > 
 > **Usage Guidelines**: See `notes/README.md`
 
@@ -22,13 +22,71 @@ This file contained 3,897+ lines and was becoming unwieldy. It has been restruct
 notes/
 ├── README.md              # Usage guidelines
 ├── current.md             # Current status and active work
-├── 2025-01-27.md          # Today's notes
+├── 2026-01-02.md          # Today's notes
 ├── archive/               # Completed work
 └── edits/                 # Code changes by date
-    └── 2025-01-27.md      # Today's edits
+    └── 2026-01-02.md      # Today's edits
 ```
 
 ## 📝 **RECENT EDITS**
+
+## Edit #60: Apps Migration to videotools and Source Reuse Fixes (January 2, 2026)
+
+### Summary
+Migrated both folder_ingestor and stream_ingestor apps from `jthaloor-ffmpeg` to `videotools` library. Simplified code using videotools helper functions, fixed API integration issues, and improved source reuse logic to prevent duplicate source creation.
+
+### Library Migration
+- Replaced all `jthaloor-ffmpeg` references with `videotools`
+- Updated imports, error messages, and documentation
+- Changed installation path from `~/Developer/gitlab/jthaloor-ffmpeg` to `~/Developer/gitlab/videotools`
+
+### Code Simplification
+- **folder_ingestor/media_processor.py**: Reduced from ~200 lines to ~80 lines using `process_video_with_chunks_async()` helper
+- Uses `ChunkingTransformConfig`, `VideoTransformConfig`, and `AudioTransformConfig` for configuration
+- Removed manual VideoProcessor setup and pipeline building
+
+### API Integration Fixes
+- Fixed `VideoSource` to use `path` (local files) or `stream_url` (streaming) instead of `url`
+- Updated `ChunkOutput` to use new `chunk_config` API
+- Added backward compatibility properties to `LiveStreamChunkOutput`:
+  - `self.duration = self.chunk_config.segment_duration`
+  - `self.format = self.chunk_config.video_config.format`
+  - `self.include_timestamps = self.chunk_config.include_timestamps`
+
+### Videotools Library Fixes
+- Fixed `ProcessingResult` to handle both `stream_url` and `path` for source_url
+- Fixed `_build_ffmpeg_pipeline` to use correct input source and filter None values
+- Fixed `VideoSource` metadata parameter to always be a dict
+
+### Source Reuse Improvements
+- **folder_ingestor**: Added double-check before creating new source to prevent duplicates
+- Fixed method name: `list_sources_by_tag` → `list_sources_by_tag_async`
+- Added tag value verification logging
+- Now matches stream_ingestor behavior of reusing existing sources
+
+### Files Modified
+- `apps/stream_ingestor/stream_ingestor/stream_processor.py`
+- `apps/stream_ingestor/stream_ingestor/cli.py`
+- `apps/stream_ingestor/stream_ingestor/ingestor.py`
+- `apps/folder_ingestor/media_processor.py`
+- `apps/folder_ingestor/folder_ingestor/ingestor.py`
+- `apps/folder_ingestor/folder_ingestor/flow_manager.py`
+- `apps/stream_ingestor/requirements.txt`
+- `apps/folder_ingestor/requirements.txt`
+- `apps/stream_ingestor/README.md`
+- `apps/folder_ingestor/README.md`
+- `apps/README.md`
+- `videotools/src/videotools/processor.py` (external library)
+- `videotools/src/videotools/models/source.py` (external library)
+
+### Documentation Updates
+- Updated all README files with videotools references
+- Added technical details section to folder_ingestor README
+- Updated apps/README.md to include stream_ingestor
+
+See `notes/edits/2026-01-02.md` for complete details.
+
+---
 
 ## Edit #59: Video Player Improvements and HLS Flow Container Fix (November 21, 2025)
 

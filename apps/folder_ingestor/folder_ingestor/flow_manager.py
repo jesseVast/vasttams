@@ -59,12 +59,20 @@ class FlowManager:
         try:
             logger.debug(f"🔍 Searching for existing source with folder_path tag: {folder_path}")
             if self.client is None:
+                logger.warning("⚠️  Client not initialized, cannot search for existing source")
                 return None
-            sources = await self.client.list_sources_by_tag("folder_path", folder_path)
+            sources = await self.client.list_sources_by_tag_async("folder_path", folder_path)
             
             if sources:
                 source = sources[0]  # Use first matching source
                 logger.info(f"✅ Found existing source: {source.id} for folder: {folder_path}")
+                
+                # Verify the tag value matches exactly
+                source_tags = await source.get_tags()
+                stored_folder_path = source_tags.get("folder_path")
+                if stored_folder_path != folder_path:
+                    logger.warning(f"⚠️  Source {source.id} has folder_path tag mismatch: stored='{stored_folder_path}', looking for='{folder_path}'")
+                    # Still use it, but log the mismatch
                 
                 # Get all flows for this source
                 flows = await source.list_flows()

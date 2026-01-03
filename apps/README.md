@@ -22,16 +22,34 @@ Each sample application is in its own subdirectory with:
 
 ### folder_ingestor
 
-Ingests all files from a folder into TAMS. Each folder becomes one source and one flow. Media files are chunked into time-based segments, non-media files are stored as data files.
+Ingests all files from a folder into TAMS. Each folder becomes one source with separate flows for each media type (video, audio, data). Media files are chunked into time-based segments, non-media files are stored as data files.
 
 **Features:**
 - Automatic media detection using ffprobe
-- Media chunking into 30-second segments
+- Multi-essence flow support for mixed media types
+- Media chunking into 30-second segments using videotools
+- Marker-based chunking support (FFMETADATA1, JSON, MP4 markers)
 - Resume support for interrupted ingestions
 - Duplicate detection to skip already-processed files
 - Progress tracking in source tags
+- Source reuse - automatically reuses existing source for same folder
 
 **See:** [folder_ingestor/README.md](folder_ingestor/README.md) for details.
+
+### stream_ingestor
+
+Ingests live video streams from supported protocols (SRT, RTMP, UDP, RTSP, HTTP, etc.) into TAMS. The stream is continuously captured, chunked into time-based segments, and uploaded to TAMS.
+
+**Features:**
+- Live stream capture from multiple protocols
+- Source and flow reuse when URL and video specs match
+- Configurable chunking (default: 30 seconds)
+- HLS and MP4 format support
+- Loop recording with configurable duration
+- Continuous processing with graceful shutdown
+- Source reuse - automatically reuses existing source for same stream URL
+
+**See:** [stream_ingestor/README.md](stream_ingestor/README.md) for details.
 
 ## Usage
 
@@ -42,6 +60,8 @@ Each application directory contains its own README with specific usage instructi
 - Python 3.12+
 - TAMS server running and accessible
 - Valid TAMS credentials (username/password)
+- FFmpeg (with `ffprobe`) installed and in PATH
+- videotools library installed (see individual application READMEs)
 - Required dependencies (see individual application READMEs)
 
 ### Common Setup

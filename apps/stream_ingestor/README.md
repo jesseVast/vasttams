@@ -21,9 +21,9 @@ Ingests live video streams from supported protocols (SRT, RTMP, UDP, RTSP, HTTP,
    ```bash
    pip install -e ../../src/client
    ```
-5. **jthaloor-ffmpeg** module installed:
+5. **videotools** module installed:
    ```bash
-   pip install -e ~/Developer/gitlab/jthaloor-ffmpeg
+   pip install -e ~/Developer/gitlab/videotools
    ```
 
 ## Installation
@@ -32,7 +32,7 @@ Ingests live video streams from supported protocols (SRT, RTMP, UDP, RTSP, HTTP,
    ```bash
    pip install -r requirements.txt
    pip install -e ../../src/client
-   pip install -e ~/Developer/gitlab/jthaloor-ffmpeg
+   pip install -e ~/Developer/gitlab/videotools
    ```
 
 2. Ensure FFmpeg is installed:
@@ -93,7 +93,7 @@ FFmpeg will auto-detect the protocol from the URL format.
 - `--label` (optional): Source/flow label (default: "Stream Ingestor")
 - `--description` (optional): Source description (default: "Live stream ingestion")
 - `--config` (optional): Path to JSON config file
-- `--verbose` (optional): Enable verbose logging (DEBUG level for detailed output, including vasttamsclient and jthaloor-ffmpeg modules)
+- `--verbose` (optional): Enable verbose logging (DEBUG level for detailed output, including vasttamsclient and videotools modules)
 
 ### Configuration File Format
 
@@ -131,7 +131,7 @@ FFmpeg will auto-detect the protocol from the URL format.
    - Sets flow tags: `chunk_duration`, `chunk_format`, `stream_input_type`
 
 3. **Stream Processing**:
-   - Captures stream from protocol URL using `jthaloor-ffmpeg`
+   - Captures stream from protocol URL using `videotools`
    - Chunks stream into time-based segments using configured duration
    - **Format Options**:
      - `hls`: Encodes to HLS-compatible format (MPEG-TS with H.264/AAC) for streaming
@@ -250,10 +250,10 @@ The app provides user-friendly error messages for common issues:
 ### Missing Dependency
 ```
 ❌ Missing dependency
-   → jthaloor-ffmpeg module not found
-   → Install with: pip install -e ~/Developer/gitlab/jthaloor-ffmpeg
+   → videotools module not found
+   → Install with: pip install -e ~/Developer/gitlab/videotools
 ```
-**Solution**: Install the required jthaloor-ffmpeg module.
+**Solution**: Install the required videotools module.
 
 ### FFmpeg Not Found
 ```
@@ -275,11 +275,11 @@ which ffmpeg
 which ffprobe
 ```
 
-### jthaloor-ffmpeg Import Error
+### videotools Import Error
 
 Ensure the module is installed:
 ```bash
-pip install -e ~/Developer/gitlab/jthaloor-ffmpeg
+pip install -e ~/Developer/gitlab/videotools
 ```
 
 ### TAMS Connection Error

@@ -13,6 +13,12 @@ server:
   debug: false  # Should be false in production for security and performance
   workers: 1  # Set to 1 for single-process mode (development), higher for production (default: 4)
 
+cors:
+  origins: ["*"]  # Allow all origins (use specific origins in production for security)
+  methods: ["*"]  # Allow all HTTP methods
+  headers: ["*"]  # Allow all headers
+  allow_credentials: true  # Allow credentials in CORS requests
+
 database:
   vast:
     # REQUIRED: VAST database endpoint URL
@@ -55,16 +61,16 @@ storage_backends:
     default_storage: true
 
 storage:
-  default_backend_id: "default"
-  tams_storage_path: "tams"
-  tams_root: "/"
+  default_backend_id: "default"  # ID of the default storage backend
+  tams_storage_path: "tams"  # Base path for TAMS storage (empty string for root)
+  tams_root: "/"  # Root path for TAMS storage (empty string for no prefix)
   presigned_url:
     upload_timeout: 3600  # 1 hour - matches cache TTL
     download_timeout: 3600  # 1 hour - matches cache TTL
-  get_urls_max_count: 5
-  flow_storage_default_limit: 10
-  segment_storage_default_limit: 10
-  async_deletion_threshold: 1000
+  get_urls_max_count: 5  # Maximum number of URLs to return in batch requests
+  flow_storage_default_limit: 10  # Default limit for flow storage queries
+  segment_storage_default_limit: 10  # Default limit for segment storage queries
+  async_deletion_threshold: 1000  # Threshold for switching to async deletion (segments)
 
 logging:
   level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
@@ -115,7 +121,7 @@ redis:
 vector_search:
   default_num_matches: 10  # Default number of matches to return for vector search
   default_distance_metric: "cosine"  # Options: cosine, euclidean, dot_product
-  default_distance_numerical_value: 0.75  # Default distance threshold (0.75 for cosine)
+  default_distance_numerical_value: 0.75  # Default distance threshold (0.75 for cosine similarity)
 
 embedding:
   # Embedding provider configuration

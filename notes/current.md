@@ -1,7 +1,25 @@
 # TAMS Project - Current Status & TODO
 
-**Last Updated**: December 20, 2025
-**Status**: vast_runtime TAMS Client Initialization Fix
+**Last Updated**: January 2, 2026
+**Status**: Apps Migration to videotools Library
+
+## ✅ Recent Updates (January 2, 2026)
+
+1. **Apps Migration: jthaloor-ffmpeg → videotools**
+   - **Migration**: Replaced all references to `jthaloor-ffmpeg` with `videotools` library
+   - **Simplification**: Updated `folder_ingestor/media_processor.py` to use videotools helper functions (`process_video_with_chunks_async`)
+   - **Code Reduction**: Reduced media_processor from ~200 lines to ~80 lines using helper functions
+   - **API Updates**: Fixed VideoSource to use `path`/`stream_url` instead of `url`, updated ChunkOutput to use `chunk_config` API
+   - **Compatibility**: Added backward compatibility properties to `LiveStreamChunkOutput` for existing code
+   - **Library Fixes**: Fixed videotools library issues (ProcessingResult source_url, FFmpeg pipeline input handling)
+   - **Documentation**: Updated all README files and requirements.txt files
+   - See `notes/edits/2026-01-02.md` for details
+
+2. **Folder Ingestor Source Reuse Fix**
+   - **Issue**: Folder ingestor was creating duplicate sources for the same folder
+   - **Fix**: Added double-check before creating new source to prevent race conditions
+   - **Consistency**: Now matches stream_ingestor behavior of reusing existing sources
+   - **Method Fix**: Corrected `list_sources_by_tag` to `list_sources_by_tag_async` in both apps
 
 ## ✅ Recent Updates (December 20, 2025)
 

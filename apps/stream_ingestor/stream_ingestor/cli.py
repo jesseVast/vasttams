@@ -142,8 +142,8 @@ async def main():
         logging.getLogger().setLevel(logging.DEBUG)
         # Also enable debug for vasttamsclient
         logging.getLogger('vasttamsclient').setLevel(logging.DEBUG)
-        # And jthaloor-ffmpeg
-        logging.getLogger('jthaloor').setLevel(logging.DEBUG)
+        # And videotools
+        logging.getLogger('videotools').setLevel(logging.DEBUG)
         logger.info("🔍 Verbose logging enabled")
     
     # Load config file if provided
@@ -326,10 +326,10 @@ async def main():
             logger.error("   → Make sure the TAMS server is running")
             if args.verbose:
                 logger.error(f"   → Details: {e}")
-        elif "jthaloor" in error_str or "import" in error_str:
+        elif "videotools" in error_str or "import" in error_str:
             logger.error("❌ Missing dependency")
-            logger.error("   → jthaloor-ffmpeg module not found")
-            logger.error("   → Install with: pip install -e ~/Developer/gitlab/jthaloor-ffmpeg")
+            logger.error("   → videotools module not found")
+            logger.error("   → Install with: pip install -e ~/Developer/gitlab/videotools")
             if args.verbose:
                 logger.error(f"   → Details: {e}")
         elif "ffmpeg" in error_str or "ffprobe" in error_str:

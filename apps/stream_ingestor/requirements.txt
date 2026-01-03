@@ -1,8 +1,8 @@
 # TAMS Client Library (install from local source)
 # Install with: pip install -e ../../src/client
 
-# jthaloor-ffmpeg (install from local source)
-# Install with: pip install -e ~/Developer/gitlab/jthaloor-ffmpeg
+# videotools (install from local source)
+# Install with: pip install -e ~/Developer/gitlab/videotools
 
 # System dependencies (must be installed separately):
 # - ffmpeg (with ffprobe)

@@ -1,5 +1,5 @@
 """
-Media file chunking using jthaloor-ffmpeg.
+Media file chunking using videotools.
 
 Chunks video and audio files into time-based segments.
 """
@@ -11,18 +11,18 @@ from pathlib import Path
 from typing import List, Optional
 import sys
 
-# Import jthaloor-ffmpeg components
+# Import videotools components
 try:
-    from jthaloor.ffmpeg.processor import VideoProcessor
-    from jthaloor.ffmpeg.models import VideoSource, ProcessingJob
-    from jthaloor.ffmpeg.outputs import ChunkOutput, OutputChain
-    from jthaloor.ffmpeg.config import VideoProcessorConfig
-    JTHALOOR_AVAILABLE = True
+    from videotools import VideoProcessor
+    from videotools.models import ChunkingTransformConfig, VideoTransformConfig, AudioTransformConfig
+    from videotools.utils.process import process_video_with_chunks_async, wait_for_chunk_completion_async
+    from videotools.models.processor import ProcessorStatus
+    VIDEOTOOLS_AVAILABLE = True
 except ImportError as e:
     logger = logging.getLogger(__name__)
-    logger.error(f"jthaloor-ffmpeg not available: {e}")
-    logger.error("Please install jthaloor-ffmpeg from ~/Developer/gitlab/jthaloor-ffmpeg")
-    JTHALOOR_AVAILABLE = False
+    logger.error(f"videotools not available: {e}")
+    logger.error("Please install videotools from ~/Developer/gitlab/videotools")
+    VIDEOTOOLS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ async def chunk_media_file(
     chunk_format: str = "original"
 ) -> List[Path]:
     """
-    Chunk a media file into time-based segments using jthaloor-ffmpeg.
+    Chunk a media file into time-based segments using videotools.
     
     Args:
         file_path: Path to the media file to chunk
@@ -50,12 +50,12 @@ async def chunk_media_file(
         List of Path objects for the created chunk files
         
     Raises:
-        ImportError: If jthaloor-ffmpeg is not available
+        ImportError: If videotools is not available
         FileNotFoundError: If the input file doesn't exist
         RuntimeError: If chunking fails
     """
-    if not JTHALOOR_AVAILABLE:
-        raise ImportError("jthaloor-ffmpeg module is not available. Please install it.")
+    if not VIDEOTOOLS_AVAILABLE:
+        raise ImportError("videotools module is not available. Please install it.")
     
     file_path_obj = Path(file_path)
     if not file_path_obj.exists():
@@ -97,103 +97,99 @@ async def chunk_media_file(
     chunk_template = f"{file_stem}_chunk_{{chunk_id}}{file_ext}"
     
     try:
-        # Create VideoProcessor with minimal config
-        config = VideoProcessorConfig()
-        processor = VideoProcessor(config=config)
+        # Create VideoProcessor
+        processor = VideoProcessor()
         await processor.start()
         
         try:
-            # Create video source
-            source = VideoSource(url=str(file_path_obj.absolute()))
+            # Create video and audio transform configs
+            video_config = VideoTransformConfig(
+                codec=vcodec,
+                format=output_format
+            )
+            audio_config = AudioTransformConfig(
+                codec=acodec
+            )
             
-            # Create chunk output
-            chunk_output = ChunkOutput(
-                filename_template=chunk_template,
-                output_path=str(output_path),
-                duration=chunk_duration,
-                format=output_format,
-                vcodec=vcodec,
-                acodec=acodec,
+            # For mp4_markers mode, we need to set video_source
+            video_source = None
+            if chunk_mode == "mp4_markers":
+                from videotools.models import VideoSource
+                video_source = VideoSource(path=str(file_path_obj.absolute()))
+            
+            # Create chunking config
+            chunk_config = ChunkingTransformConfig(
+                segment_duration=chunk_duration,
                 include_timestamps=True,
                 chunk_mode=chunk_mode,
                 metadata_file=metadata_file if chunk_mode == "metadata_file" else None,
-                video_source_url=str(file_path_obj.absolute()) if chunk_mode == "mp4_markers" else None
+                marker_fallback=True,  # Fallback to markers if chapters not found
+                video_source=video_source,
+                video_config=video_config,
+                audio_config=audio_config
             )
             
-            # Create output chain
-            output_chain = OutputChain([chunk_output])
+            # Process video with chunks using helper function
+            result = await process_video_with_chunks_async(
+                processor=processor,
+                input_path=str(file_path_obj.absolute()),
+                chunk_config=chunk_config,
+                output_path=str(output_path),
+                filename_template=chunk_template,
+                duration=chunk_duration,
+                wait_for_completion=True,
+                timeout=3600  # 1 hour max
+            )
             
-            # Create processing job
-            job = ProcessingJob(source=source, output_chain=output_chain)
+            if result is None:
+                raise RuntimeError("Chunking timed out after 3600 seconds")
             
-            # Add stream and wait for completion
-            job_id = await processor.add_stream(source, output_chain)
+            # Type check: result should be ProcessingResult when wait_for_completion=True
+            from videotools.models import ProcessingResult
+            if not isinstance(result, ProcessingResult):
+                raise RuntimeError(f"Unexpected result type: {type(result)}")
             
-            # Wait for job to complete
-            max_wait_time = 3600  # 1 hour max
-            wait_interval = 1  # Check every second
-            elapsed = 0
+            if result.status != ProcessorStatus.COMPLETED:
+                error_msg = getattr(result, 'error_message', 'Unknown error')
+                raise RuntimeError(f"Chunking failed: {error_msg}")
             
-            while elapsed < max_wait_time:
-                status = await processor.get_stream_status(job_id)
-                if status is None:
-                    # Job not found - might have completed
-                    break
-                elif status.status.value == "completed":
-                    # Job completed successfully
-                    break
-                elif status.status.value == "failed":
-                    error_msg = getattr(status, 'error_message', 'Unknown error')
-                    raise RuntimeError(f"Chunking failed: {error_msg}")
-                
-                await asyncio.sleep(wait_interval)
-                elapsed += wait_interval
-            
-            if elapsed >= max_wait_time:
-                raise RuntimeError(f"Chunking timed out after {max_wait_time} seconds")
-            
-            # Get completed job result
-            status = await processor.get_stream_status(job_id)
-            if status and status.status.value == "completed":
-                # Extract chunk files from output
-                chunk_files = []
-                if status.outputs:
-                    for output in status.outputs:
-                        if 'chunks' in output:
-                            # ChunkOutput provides chunks metadata
-                            for chunk_info in output['chunks']:
-                                chunk_file = Path(chunk_info['file'])
-                                if chunk_file.exists():
-                                    chunk_files.append(chunk_file)
-                        elif 'file' in output:
-                            # Single file output (shouldn't happen with ChunkOutput)
-                            chunk_file = Path(output['file'])
+            # Extract chunk files from result
+            chunk_files = []
+            if result.outputs:
+                for output in result.outputs:
+                    if 'chunks' in output and isinstance(output['chunks'], list):
+                        # ChunkOutput provides chunks metadata
+                        for chunk_info in output['chunks']:
+                            chunk_file = Path(chunk_info.get('file', ''))
                             if chunk_file.exists():
                                 chunk_files.append(chunk_file)
-                
-                # If no chunks found in metadata, search for chunk files
-                if not chunk_files:
-                    pattern = chunk_template.replace('{chunk_id}', '*')
-                    chunk_files = sorted(output_path.glob(pattern))
-                
-                # Sort chunks by index (extract from filename)
-                def get_chunk_index(chunk_path: Path) -> int:
-                    try:
-                        # Extract number from filename like "file_chunk_000.mp4"
-                        name = chunk_path.stem
-                        if '_chunk_' in name:
-                            num_str = name.split('_chunk_')[-1]
-                            return int(num_str)
-                    except (ValueError, IndexError):
-                        pass
-                    return 0
-                
-                chunk_files = sorted(chunk_files, key=get_chunk_index)
-                
-                logger.info(f"Created {len(chunk_files)} chunks for {file_path}")
-                return chunk_files
-            else:
-                raise RuntimeError("Chunking job did not complete successfully")
+                    elif 'file' in output:
+                        # Single file output (shouldn't happen with ChunkOutput)
+                        chunk_file = Path(output['file'])
+                        if chunk_file.exists():
+                            chunk_files.append(chunk_file)
+            
+            # If no chunks found in metadata, search for chunk files
+            if not chunk_files:
+                pattern = chunk_template.replace('{chunk_id}', '*')
+                chunk_files = sorted(output_path.glob(pattern))
+            
+            # Sort chunks by index (extract from filename)
+            def get_chunk_index(chunk_path: Path) -> int:
+                try:
+                    # Extract number from filename like "file_chunk_000.mp4"
+                    name = chunk_path.stem
+                    if '_chunk_' in name:
+                        num_str = name.split('_chunk_')[-1]
+                        return int(num_str)
+                except (ValueError, IndexError):
+                    pass
+                return 0
+            
+            chunk_files = sorted(chunk_files, key=get_chunk_index)
+            
+            logger.info(f"Created {len(chunk_files)} chunks for {file_path}")
+            return chunk_files
                 
         finally:
             await processor.stop()

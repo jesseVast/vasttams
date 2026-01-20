@@ -107,7 +107,16 @@ const StorageBackends: React.FC = () => {
     try {
       setDeleting(id);
       await storageBackendService.delete(id);
-      loadBackends();
+      
+      // Update local state immediately instead of reloading
+      setBackends(prevBackends => prevBackends.filter(backend => backend.id !== id));
+      
+      // Adjust page if needed (if we deleted the last item on the current page)
+      setPage(prevPage => {
+        const remainingCount = backends.length - 1;
+        const maxPage = Math.max(0, Math.ceil(remainingCount / rowsPerPage) - 1);
+        return Math.min(prevPage, maxPage);
+      });
     } catch (error: any) {
       console.error('Failed to delete storage backend:', error);
       const errorMessage = error.response?.data?.detail || error.message || 'Failed to delete storage backend';

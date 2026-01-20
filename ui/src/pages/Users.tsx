@@ -75,7 +75,16 @@ const Users: React.FC = () => {
     try {
       setDeleting(username);
       await userService.delete(username);
-      loadUsers();
+      
+      // Update local state immediately instead of reloading
+      setUsers(prevUsers => prevUsers.filter(user => user.username !== username));
+      
+      // Adjust page if needed (if we deleted the last item on the current page)
+      setPage(prevPage => {
+        const remainingCount = users.length - 1;
+        const maxPage = Math.max(0, Math.ceil(remainingCount / rowsPerPage) - 1);
+        return Math.min(prevPage, maxPage);
+      });
     } catch (error) {
       console.error('Failed to delete user:', error);
     } finally {

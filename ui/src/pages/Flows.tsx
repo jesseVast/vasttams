@@ -467,11 +467,34 @@ const Flows: React.FC = () => {
       // Handle 202 Accepted (background deletion) or 200 OK (immediate deletion)
       if (result.status === 202 || result.status === 200) {
         setDeleteDialogOpen(false);
+        const deletedId = flowToDelete.id;
         setFlowToDelete(null);
-        // Reload flows after successful deletion (with small delay for 202 to allow background task to start)
-        setTimeout(() => {
-          loadFlows();
-        }, 500);
+        
+        // Update local state immediately instead of reloading
+        setFlows(prevFlows => {
+          const filtered = prevFlows.filter(flow => flow.id !== deletedId);
+          
+          // Adjust page if needed (if we deleted the last item on the current page)
+          setPage(prevPage => {
+            const remainingCount = filtered.length;
+            const maxPage = Math.max(0, Math.ceil(remainingCount / rowsPerPage) - 1);
+            return Math.min(prevPage, maxPage);
+          });
+          
+          return filtered;
+        });
+        
+        // Remove from analytics counts
+        setSegmentCounts(prev => {
+          const updated = { ...prev };
+          delete updated[deletedId];
+          return updated;
+        });
+        setFlowDurations(prev => {
+          const updated = { ...prev };
+          delete updated[deletedId];
+          return updated;
+        });
       }
     } catch (error: any) {
       console.error('Failed to delete flow:', error);

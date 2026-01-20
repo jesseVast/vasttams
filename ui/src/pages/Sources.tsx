@@ -238,11 +238,34 @@ const Sources: React.FC = () => {
       // Handle 202 Accepted (background deletion) or 200 OK (immediate deletion)
       if (result.status === 202 || result.status === 200) {
         setDeleteDialogOpen(false);
+        const deletedId = sourceToDelete.id;
         setSourceToDelete(null);
-        // Reload sources after successful deletion (with small delay for 202 to allow background task to start)
-        setTimeout(() => {
-          loadSources();
-        }, 500);
+        
+        // Update local state immediately instead of reloading
+        setSources(prevSources => {
+          const filtered = prevSources.filter(source => source.id !== deletedId);
+          
+          // Adjust page if needed (if we deleted the last item on the current page)
+          setPage(prevPage => {
+            const remainingCount = filtered.length;
+            const maxPage = Math.max(0, Math.ceil(remainingCount / rowsPerPage) - 1);
+            return Math.min(prevPage, maxPage);
+          });
+          
+          return filtered;
+        });
+        
+        // Remove from analytics counts
+        setFlowCounts(prev => {
+          const updated = { ...prev };
+          delete updated[deletedId];
+          return updated;
+        });
+        setSegmentCounts(prev => {
+          const updated = { ...prev };
+          delete updated[deletedId];
+          return updated;
+        });
       }
     } catch (error: any) {
       console.error('Failed to delete source:', error);
